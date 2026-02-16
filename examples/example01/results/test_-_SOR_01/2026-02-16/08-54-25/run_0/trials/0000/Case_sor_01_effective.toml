@@ -1,0 +1,63 @@
+case_name = "test - SOR 01"
+description = "Test of bootstrap SOR. Based on Kim+Sam bequest."
+
+[basic_info]
+status = "married"
+names = [ "Kim", "Sam",]
+date_of_birth = [ "1964-01-15", "1965-01-15",]
+life_expectancy = [ 89, 93,]
+start_date = "2026-01-01"
+
+[savings_assets]
+taxable_savings_balances = [ 650.0, 250.0,]
+tax_deferred_savings_balances = [ 1500.0, 500.0,]
+tax_free_savings_balances = [ 60.0, 40.0,]
+beneficiary_fractions = [ 1.0, 1.0, 1.0,]
+spousal_surplus_deposit_fraction = 0.5
+
+[household_financial_profile]
+HFP_file_name = "HFP_sor_01_effective.xlsx"
+
+[fixed_income]
+pension_monthly_amounts = [ 0, 0,]
+pension_ages = [ 65.0, 65.0,]
+pension_indexed = [ false, false,]
+social_security_pia_amounts = [ 3500, 2000,]
+social_security_ages = [ 70.0, 68.0,]
+
+[rates_selection]
+heirs_rate_on_tax_deferred_estate = 33.0
+dividend_rate = 1.75
+obbba_expiration_year = 2032
+method = "bootstrap_sor"
+bootstrap_type = "iid"
+from = 1928
+to = 2024
+
+[asset_allocation]
+interpolation_method = "s-curve"
+interpolation_center = 15.0
+interpolation_width = 5.0
+type = "individual"
+generic = [ [ [ 60, 40, 0, 0,], [ 60, 40, 0, 0,],], [ [ 60, 40, 0, 0,], [ 60, 40, 0, 0,],],]
+
+[optimization_parameters]
+spending_profile = "flat"
+surviving_spouse_spending_percent = 60
+smile_dip = 15
+smile_increase = 12
+smile_delay = 0
+objective = "maxBequest"
+
+[solver_options]
+netSpending = 145
+maxRothConversion = 100
+noRothConversions = "None"
+startRothConversions = 2026
+solver = "HiGHS"
+spendingSlack = 0
+withSCLoop = true
+withMedicare = "loop"
+
+[results]
+default_plots = "today"
