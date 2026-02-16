@@ -331,11 +331,11 @@ def run_single_case(
     plan = owl.readConfig(
         toml_buf,
         logstreams="loguru",
-        readContributions=False,
+        loadHFP=False,
     )
     if hfp_file:
         logger.debug("Loading HFP file")
-        plan.readContributions(str(hfp_modified))
+        plan.readHFP(str(hfp_modified))
 
     logger.debug("Calling solve_and_save")
     solve_and_save(plan, output_file)

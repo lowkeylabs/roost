@@ -30,7 +30,10 @@ heirs_rate_on_tax_deferred_estate = 33.0
 dividend_rate = 1.75
 obbba_expiration_year = 2032
 method = "bootstrap_sor"
-bootstrap_type = "iid"
+frm = 1928
+to = 2024
+bootstrap_type = "block"
+block_size = 5
 
 [asset_allocation]
 interpolation_method = "s-curve"

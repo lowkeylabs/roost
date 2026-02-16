@@ -16,7 +16,7 @@ beneficiary_fractions = [ 1.0, 1.0, 1.0,]
 spousal_surplus_deposit_fraction = 0.5
 
 [household_financial_profile]
-HFP_file_name = "HFP_sor_01_effective.xlsx"
+HFP_file_name = "HFP_sor_01.xlsx"
 
 [fixed_income]
 pension_monthly_amounts = [ 0, 0,]
@@ -30,10 +30,10 @@ heirs_rate_on_tax_deferred_estate = 33.0
 dividend_rate = 1.75
 obbba_expiration_year = 2032
 method = "bootstrap_sor"
-bootstrap_type = "iid"
-from = 1928
 frm = 1928
 to = 2024
+bootstrap_type = "block"
+block_size = 7
 
 [asset_allocation]
 interpolation_method = "s-curve"

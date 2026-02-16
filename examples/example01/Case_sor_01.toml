@@ -31,6 +31,8 @@ dividend_rate = 1.75
 obbba_expiration_year = 2032
 method = "bootstrap_sor"
 bootstrap_type = "iid"
+from=1928
+to=2025
 
 
 [asset_allocation]
