@@ -36,20 +36,32 @@ def main():
     if repo_root:
         print("Mode: LOCAL (editable)")
         try:
-            branch = subprocess.check_output(
-                ["git", "branch", "--show-current"],
-                cwd=repo_root,
-            ).decode().strip()
+            branch = (
+                subprocess.check_output(
+                    ["git", "branch", "--show-current"],
+                    cwd=repo_root,
+                )
+                .decode()
+                .strip()
+            )
 
-            commit = subprocess.check_output(
-                ["git", "rev-parse", "--short", "HEAD"],
-                cwd=repo_root,
-            ).decode().strip()
+            commit = (
+                subprocess.check_output(
+                    ["git", "rev-parse", "--short", "HEAD"],
+                    cwd=repo_root,
+                )
+                .decode()
+                .strip()
+            )
 
-            dirty = subprocess.check_output(
-                ["git", "status", "--porcelain"],
-                cwd=repo_root,
-            ).decode().strip()
+            dirty = (
+                subprocess.check_output(
+                    ["git", "status", "--porcelain"],
+                    cwd=repo_root,
+                )
+                .decode()
+                .strip()
+            )
 
             print(f"Branch: {branch}")
             print(f"Commit: {commit}")

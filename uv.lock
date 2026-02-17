@@ -1464,7 +1464,7 @@ requires-dist = [
     { name = "hydra-joblib-launcher", specifier = ">=1.2.0" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "matplotlib", specifier = ">=3.10.8" },
-    { name = "owlplanner", editable = "../owl-planner" },
+    { name = "owlplanner", git = "https://github.com/mdlacasse/Owl.git?rev=c2cce5f" },
     { name = "plotly", specifier = ">=6.5.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.7.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.2" },
@@ -1477,7 +1477,8 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "owlplanner"
-source = { editable = "../owl-planner" }
+version = "2026.2.16"
+source = { git = "https://github.com/mdlacasse/Owl.git?rev=c2cce5f#c2cce5fd845f821648a2c7fcd1c9b94ea6fb3488" }
 dependencies = [
     { name = "click" },
     { name = "highspy" },
@@ -1497,30 +1498,6 @@ dependencies = [
     { name = "streamlit" },
     { name = "toml" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "click", specifier = ">=8.3.1" },
-    { name = "highspy" },
-    { name = "jupyter", specifier = ">=1.1.1" },
-    { name = "loguru", specifier = ">=0.7.3" },
-    { name = "matplotlib" },
-    { name = "numpy" },
-    { name = "odfpy" },
-    { name = "openpyxl" },
-    { name = "pandas" },
-    { name = "plotly", specifier = ">=6.3" },
-    { name = "pulp" },
-    { name = "pydantic", specifier = ">=2.0" },
-    { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "scipy" },
-    { name = "seaborn" },
-    { name = "streamlit" },
-    { name = "toml" },
-]
-
-[package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=9.0.2" }]
 
 [[package]]
 name = "packaging"

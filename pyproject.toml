@@ -12,9 +12,9 @@ dependencies = [
     "plotly>=6.5.0",
 
     # OWL is under active development; pin to commit for reproducibility
-    # "owlplanner @ git+https://github.com/mdlacasse/Owl.git@412b811",  # 2026-02-16
- 
-    "owlplanner",
+    "owlplanner @ git+https://github.com/mdlacasse/Owl.git@c2cce5f",  # 2026-02-17
+
+    #"owlplanner", #used with uv.sources below.
     "python-dotenv>=1.2.1",
     "hydra-joblib-launcher>=1.2.0",
     "tqdm>=4.67.1",
@@ -103,6 +103,6 @@ pythonpath = ["src"]
 # -------------------------------
 # Flexible load of local owl-planner for concurrent development
 # -------------------------------
-
-[tool.uv.sources]
-owlplanner = { path = "../owl-planner", editable = true }
+## Use when needing to point to local code.
+#[tool.uv.sources]
+#owlplanner = { path = "../owl-planner", editable = true }
