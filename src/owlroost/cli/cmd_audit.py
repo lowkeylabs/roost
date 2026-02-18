@@ -2,13 +2,9 @@ from __future__ import annotations
 
 import sys
 import tomllib
-import hashlib
-import json
-import shutil
 from pathlib import Path
 
 import click
-import yaml
 
 # OWL metadata loader
 from owlplanner.rate_models.loader import _collect_all_model_metadata
@@ -28,12 +24,13 @@ W_SEEDS = 6
 W_DUPL = 4
 W_STATUS = 6
 
-TABLE_WIDTH = 160
+TABLE_WIDTH = 120
 
 
 # =====================================================================
 # CLI ENTRY
 # =====================================================================
+
 
 @click.command(name="audit")
 @click.argument("experiment_id", required=False, type=int)
@@ -42,7 +39,6 @@ TABLE_WIDTH = 160
 @click.option("--purge", is_flag=True)
 @click.option("--runs", is_flag=True)
 def cmd_audit(experiment_id, strict, verbose, purge, runs):
-
     if not RESULTS_DIR.exists():
         click.echo("Results directory not found.")
         sys.exit(1)
@@ -54,7 +50,6 @@ def cmd_audit(experiment_id, strict, verbose, purge, runs):
         sys.exit(0)
 
     if experiment_id is None:
-
         if runs:
             if purge:
                 click.echo("ERROR: --purge only valid in overview mode.")
@@ -63,11 +58,7 @@ def cmd_audit(experiment_id, strict, verbose, purge, runs):
             render_run_audit(experiments)
 
             if strict:
-                if any(
-                    not audit_run(run)["pass"]
-                    for exp in experiments
-                    for run in exp["runs"]
-                ):
+                if any(not audit_run(run)["pass"] for exp in experiments for run in exp["runs"]):
                     sys.exit(1)
 
             return
@@ -104,8 +95,8 @@ def method_is_stochastic(method: str) -> bool:
 # OVERVIEW
 # =====================================================================
 
-def render_global_overview(experiments, strict, purge):
 
+def render_global_overview(experiments, strict, purge):
     click.echo("\nAUDIT OVERVIEW")
     click.echo("=" * TABLE_WIDTH)
 
@@ -154,8 +145,8 @@ def render_global_overview(experiments, strict, purge):
 # RUN AUDIT
 # =====================================================================
 
-def render_run_audit(experiments, selected_id=None):
 
+def render_run_audit(experiments, selected_id=None):
     click.echo("\nRUN AUDIT")
     click.echo("=" * TABLE_WIDTH)
 
@@ -179,17 +170,12 @@ def render_run_audit(experiments, selected_id=None):
     click.echo("-" * TABLE_WIDTH)
 
     for exp_id, exp in enumerate(experiments):
-
         if selected_id is not None and exp_id != selected_id:
             continue
 
         xrun_result = audit_xrun(exp)
 
-        xrun_text = (
-            "N/A" if xrun_result is None
-            else "PASS" if xrun_result
-            else "FAIL"
-        )
+        xrun_text = "N/A" if xrun_result is None else "PASS" if xrun_result else "FAIL"
 
         for run in exp["runs"]:
             run_status = audit_run(run)
@@ -202,8 +188,8 @@ def render_run_audit(experiments, selected_id=None):
             else:
                 uniq_text = "PASS" if run_status["uniq_pass"] else "FAIL"
 
-            r = (run_status["rate_seeds"] + ["—"] * 3)[:3]
-            l = (run_status["longevity_seeds"] + ["—"] * 3)[:3]
+            rate_seeds = (run_status["rate_seeds"] + ["—"] * 3)[:3]
+            life_seeds = (run_status["longevity_seeds"] + ["—"] * 3)[:3]
 
             click.echo(
                 f"{exp_id:>4} "
@@ -213,12 +199,12 @@ def render_run_audit(experiments, selected_id=None):
                 f"{comp_display:>10} "
                 f"{xrun_text:>6} "
                 f"{uniq_text:>6} "
-                f"{str(r[0]):>10} "
-                f"{str(r[1]):>10} "
-                f"{str(r[2]):>10} "
-                f"{str(l[0]):>10} "
-                f"{str(l[1]):>10} "
-                f"{str(l[2]):>10}"
+                f"{str(rate_seeds[0]):>10} "
+                f"{str(rate_seeds[1]):>10} "
+                f"{str(rate_seeds[2]):>10} "
+                f"{str(life_seeds[0]):>10} "
+                f"{str(life_seeds[1]):>10} "
+                f"{str(life_seeds[2]):>10}"
             )
 
     click.echo("=" * TABLE_WIDTH)
@@ -228,8 +214,8 @@ def render_run_audit(experiments, selected_id=None):
 # CORE AUDIT LOGIC
 # =====================================================================
 
-def audit_xrun(experiment):
 
+def audit_xrun(experiment):
     runs = experiment["runs"]
     if not runs:
         return None
@@ -271,7 +257,6 @@ def audit_xrun(experiment):
 
 
 def audit_run(run):
-
     trials = run["trials"]
     total = len(trials)
 
@@ -336,10 +321,7 @@ def audit_run(run):
         else:
             seen.add(key)
 
-    complete = sum(
-        1 for t in trials
-        if get_trial_status(t) in ("SOLVED", "FAILED")
-    )
+    complete = sum(1 for t in trials if get_trial_status(t) in ("SOLVED", "FAILED"))
 
     return {
         "tpr": total,
@@ -354,7 +336,6 @@ def audit_run(run):
 
 
 def audit_experiment(experiment):
-
     runs = experiment["runs"]
     trial_counts = [len(r["trials"]) for r in runs]
 
@@ -363,16 +344,9 @@ def audit_experiment(experiment):
 
     xrun = audit_xrun(experiment)
 
-    seed_consistent = (
-        True if xrun is None else xrun
-    )
+    seed_consistent = True if xrun is None else xrun
 
-    incomplete = sum(
-        1
-        for r in runs
-        for t in r["trials"]
-        if get_trial_status(t) == "INCOMPLETE"
-    )
+    incomplete = sum(1 for r in runs for t in r["trials"] if get_trial_status(t) == "INCOMPLETE")
 
     overall = seed_consistent and incomplete == 0
 
@@ -391,6 +365,7 @@ def audit_experiment(experiment):
 # DISCOVERY
 # =====================================================================
 
+
 def discover_all_experiments():
     experiments = []
 
@@ -399,12 +374,10 @@ def discover_all_experiments():
 
         for date_dir in sorted(p for p in case_dir.iterdir() if p.is_dir()):
             for time_dir in sorted(p for p in date_dir.iterdir() if p.is_dir()):
-
                 runs = []
 
                 for run_dir in sorted(
-                    p for p in time_dir.iterdir()
-                    if p.is_dir() and p.name.startswith("run_")
+                    p for p in time_dir.iterdir() if p.is_dir() and p.name.startswith("run_")
                 ):
                     trials_dir = run_dir / "trials"
                     trials = (
@@ -413,20 +386,24 @@ def discover_all_experiments():
                         else []
                     )
 
-                    runs.append({
-                        "name": run_dir.name,
-                        "path": run_dir,
-                        "trials": trials,
-                    })
+                    runs.append(
+                        {
+                            "name": run_dir.name,
+                            "path": run_dir,
+                            "trials": trials,
+                        }
+                    )
 
                 if runs:
-                    experiments.append({
-                        "case": case_name,
-                        "date": date_dir.name,
-                        "time": time_dir.name,
-                        "runs": runs,
-                        "path": case_dir / date_dir.name / time_dir.name,
-                    })
+                    experiments.append(
+                        {
+                            "case": case_name,
+                            "date": date_dir.name,
+                            "time": time_dir.name,
+                            "runs": runs,
+                            "path": case_dir / date_dir.name / time_dir.name,
+                        }
+                    )
 
     return experiments
 
@@ -434,6 +411,7 @@ def discover_all_experiments():
 # =====================================================================
 # HELPERS
 # =====================================================================
+
 
 def get_trial_status(trial_dir: Path):
     if (trial_dir / "SOLVED").exists():
@@ -444,7 +422,6 @@ def get_trial_status(trial_dir: Path):
 
 
 def extract_seeds(trial_dir: Path):
-
     toml_path = next(trial_dir.glob("*_effective.toml"), None)
     if not toml_path:
         return {}

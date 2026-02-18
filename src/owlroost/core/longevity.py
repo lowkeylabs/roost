@@ -10,7 +10,7 @@ Features:
 - Three-tier health adjustments ("excellent", "average", "poor")
 - Sex-based mortality differences
 - Age-dependent smoker mortality multiplier
-- Marriage longevity bonus
+- Partnered longevity bonus (cohabiting relationship effect)
 - Individual lifetime sampling
 - Joint (last-survivor) lifetime sampling
 - Integer-age stochastic sampling aligned with annual planning timelines
@@ -25,10 +25,12 @@ Design goals:
 Modeling notes:
 - Baseline mortality follows a Gompertz–Makeham form calibrated to
   approximate SSA population mortality for ages 55+
-- Health, sex, smoking, and marriage primarily scale baseline mortality
-  (A, B)
+- Health, sex, smoking, and partnered status primarily scale baseline
+  mortality (A, B)
 - Health also applies a small adjustment to mortality acceleration (C)
   so that health advantages are not erased at older ages
+- "Partnered" reflects a stable long-term cohabiting relationship
+  associated with modest mortality reduction (not strictly legal marriage)
 - This is not a strict SSA or ALI table reproduction, but a smooth,
   planning-oriented hybrid model
 """
@@ -77,9 +79,6 @@ HEALTH_MULTIPLIERS = {
 # diminish at advanced ages unless mortality acceleration also differs.
 # A small, damped adjustment to C ensures that health advantages persist
 # into late life without reintroducing extreme upper-tail outcomes.
-#
-# These adjustments are intentionally modest (±4–5%) but have
-# meaningful effects on expected longevity at age 60+.
 
 C_HEALTH_ADJUSTMENT = {
     "excellent": 0.96,  # slower mortality acceleration
@@ -105,14 +104,19 @@ SEX_MULTIPLIER = {
 
 
 # ============================================================
-# Marriage bonus
+# Partnered longevity bonus
 # ============================================================
 
-# Married individuals exhibit modestly lower mortality on average.
-# This is modeled as a small multiplicative reduction in baseline hazard.
-# Joint-survivor effects emerge naturally from independent sampling.
+# "Partnered" represents a stable, long-term cohabiting relationship.
+# Research consistently shows that individuals in stable partnered
+# relationships exhibit modestly lower mortality relative to those
+# living alone. This effect is modeled as a small multiplicative
+# reduction in baseline hazard (A, B).
+#
+# This is not intended to model legal marital status specifically,
+# but rather the protective effect of cohabitation and shared support.
 
-MARRIAGE_MULTIPLIER = 0.97  # ~3% mortality reduction
+PARTNERED_MULTIPLIER = 0.97  # ~3% mortality reduction
 
 
 # ============================================================
@@ -194,7 +198,7 @@ def gm_sample_lifetime(
 
 
 # ============================================================
-# Parameter adjustment: health + sex + smoker + marriage
+# Parameter adjustment: health + sex + smoker + partnered
 # ============================================================
 
 
@@ -203,13 +207,13 @@ def adjust_parameters(
     age: float,
     sex: str,
     smoker: bool = False,
-    married: bool = False,
+    partnered: bool = False,
 ) -> tuple[float, float, float]:
     """
     Compute mortality-adjusted Gompertz–Makeham parameters (A, B, C).
 
-    - Health, sex, smoking, and marriage primarily affect baseline
-      mortality (A, B)
+    - Health, sex, smoking, and partnered status primarily affect
+      baseline mortality (A, B)
     - Health also applies a small adjustment to mortality acceleration (C)
       so that longevity differences persist at advanced ages
     """
@@ -232,9 +236,9 @@ def adjust_parameters(
     if smoker:
         k *= age_dependent_smoker_multiplier(age)
 
-    # Marriage longevity bonus
-    if married:
-        k *= MARRIAGE_MULTIPLIER
+    # Partnered longevity bonus
+    if partnered:
+        k *= PARTNERED_MULTIPLIER
 
     # Apply adjustments
     A_adj = A_BASE * k
@@ -255,12 +259,12 @@ def sample_individual_lifetime(
     health: str = "average",
     sex: str = "female",
     smoker: bool = False,
-    married: bool = False,
+    partnered: bool = False,
 ) -> float:
     """
     Sample an individual's age at death.
     """
-    A, B, C = adjust_parameters(health, current_age, sex, smoker, married)
+    A, B, C = adjust_parameters(health, current_age, sex, smoker, partnered)
     return gm_sample_lifetime(rng, current_age, A, B, C)
 
 
@@ -274,15 +278,18 @@ def sample_joint_last_survivor(
     sex2: str = "male",
     smoker1: bool = False,
     smoker2: bool = False,
-    married: bool = True,
+    partnered: bool = True,
 ) -> tuple[float, float, float]:
     """
     Sample two independent lifetimes and return:
 
         (last_survivor_age, life1_age_at_death, life2_age_at_death)
-    """
-    life1 = sample_individual_lifetime(rng, age1, health1, sex1, smoker1, married)
 
-    life2 = sample_individual_lifetime(rng, age2, health2, sex2, smoker2, married)
+    If partnered=True, both individuals receive the partnered
+    mortality reduction.
+    """
+    life1 = sample_individual_lifetime(rng, age1, health1, sex1, smoker1, partnered)
+
+    life2 = sample_individual_lifetime(rng, age2, health2, sex2, smoker2, partnered)
 
     return max(life1, life2), life1, life2

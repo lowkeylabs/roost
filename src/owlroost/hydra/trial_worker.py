@@ -37,14 +37,19 @@ def run_trial(
         overrides.setdefault("rates", {})["rate_seed"] = rates_seed
 
     # ---------------- longevity ----------------
-    if longevity_seed is not None:
-        case_data = tomllib.loads(case_file.read_text())
 
+    case_data = tomllib.loads(case_file.read_text())
+    use_life_expectancy_model = case_data["roost"].get("use_life_expectancy_model", False)
+
+    if use_life_expectancy_model:
+        # ages as coded in the base case
         ages = case_data["basic_info"]["life_expectancy"]
-        health = case_data["basic_info"].get("health", ["average"] * len(ages))
-        sex = case_data["basic_info"].get("sex", ["female"] * len(ages))
-        smoker = case_data["basic_info"].get("smoker", [False] * len(ages))
-        married = case_data["basic_info"].get("married", True)
+
+        # gather life expectancy model parameters from the case file, or use defaults if not present
+        health = case_data["life_expectancy"].get("health", ["average"] * len(ages))
+        sex = case_data["life_expectancy"].get("sex", ["female"] * len(ages))
+        smoker = case_data["life_expectancy"].get("smoker", [False] * len(ages))
+        married = case_data["life_expectancy"].get("married", True)
 
         rng = np.random.default_rng(longevity_seed)
         life_exp = [
@@ -62,7 +67,7 @@ def run_trial(
         ]
 
         overrides.setdefault("basic_info", {})["life_expectancy"] = life_exp
-        overrides["basic_info"]["longevity_seed"] = longevity_seed
+        overrides["life_expectancy"]["longevity_seed"] = longevity_seed
 
     logger.debug(
         "Job: {:5} | Trial {:04d} | life_expectancy={} | rates_seed={} | longevity_seed={} | dir={}",

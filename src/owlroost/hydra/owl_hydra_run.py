@@ -24,7 +24,6 @@ from owlroost.hydra.helpers import (
 )
 from owlroost.hydra.trial_worker import run_trial
 
-
 # ---------------------------------------------------------------------
 # Bootstrap (must run before Hydra initializes)
 # ---------------------------------------------------------------------
@@ -126,9 +125,7 @@ def main(cfg: DictConfig):
     n_jobs = int(trial_cfg.n_jobs)
 
     trial_id_override = _extract_trial_override(overrides, "id")
-    trial_count_override = _extract_trial_override(
-        overrides, "count", default=int(trial_cfg.count)
-    )
+    trial_count_override = _extract_trial_override(overrides, "count", default=int(trial_cfg.count))
 
     use_trial_seeds = trial_id_override is not None or trial_count_override > 1
 
@@ -148,7 +145,6 @@ def main(cfg: DictConfig):
     # Deterministic seed generation per trial
     # ---------------------------------------------------------
     for tid in trial_ids:
-
         rates_seed = None
         longevity_seed = None
 
@@ -168,9 +164,7 @@ def main(cfg: DictConfig):
                 longevity_seed,
             )
 
-        trial_args.append(
-            (job_id, tid, rates_seed, longevity_seed, case_file, overrides, run_dir)
-        )
+        trial_args.append((job_id, tid, rates_seed, longevity_seed, case_file, overrides, run_dir))
 
     n_trials = len(trial_args)
 
@@ -193,8 +187,7 @@ def main(cfg: DictConfig):
     else:
         with Pool(processes=n_jobs) as pool:
             async_results = [
-                pool.apply_async(run_trial, args, callback=_on_trial_done)
-                for args in trial_args
+                pool.apply_async(run_trial, args, callback=_on_trial_done) for args in trial_args
             ]
 
             with tqdm(
@@ -225,6 +218,10 @@ def main(cfg: DictConfig):
                         last_update = now
 
                     time.sleep(0.2)
+
+            # propagate worker exceptions
+            for r in async_results:
+                r.get()
 
     # -------------------------------------------------------------
     # Summary

@@ -6,10 +6,10 @@ from owlroost.core.configure_logging import LOG_LEVELS, configure_logging
 from owlroost.core.solver_info import get_owl_solver_info
 from owlroost.version import __version__
 
+from .cmd_audit import cmd_audit
 from .cmd_cases import cmd_cases
 from .cmd_results import cmd_results
 from .cmd_run import cmd_run
-from .cmd_audit import cmd_audit
 
 early_level = os.getenv("OWLSTATION_LOG_LEVEL", "INFO")
 if early_level:

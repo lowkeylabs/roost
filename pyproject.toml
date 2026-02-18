@@ -96,9 +96,11 @@ line-ending = "auto"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra -q"
+addopts = "-ra"
 testpaths = ["tests"]
 pythonpath = ["src"]
+python_files = ["test_*.py"]
+console_output_style = "progress"
 
 # -------------------------------
 # Flexible load of local owl-planner for concurrent development

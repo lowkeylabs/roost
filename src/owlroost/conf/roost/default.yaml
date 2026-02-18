@@ -1,0 +1,6 @@
+#
+
+roost:
+  master_seed: 12345
+  use_life_expectancy_model: true
+  use_bootstrap_model: true

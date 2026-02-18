@@ -42,7 +42,6 @@ def test_invalid_sex_raises():
 
 
 def test_smoker_multiplier_monotonic_decline():
-    # Should decline after middle ages
     mid = age_dependent_smoker_multiplier(50)
     older = age_dependent_smoker_multiplier(80)
 
@@ -113,11 +112,13 @@ def test_sampling_reproducibility():
 def test_smoker_lifetime_shorter_than_non_smoker():
     rng = np.random.default_rng(123)
 
-    non_smoker = sample_individual_lifetime(rng, 60, "average", "male", smoker=False, married=False)
+    non_smoker = sample_individual_lifetime(
+        rng, 60, "average", "male", smoker=False, partnered=False
+    )
 
     rng = np.random.default_rng(123)
 
-    smoker = sample_individual_lifetime(rng, 60, "average", "male", smoker=True, married=False)
+    smoker = sample_individual_lifetime(rng, 60, "average", "male", smoker=True, partnered=False)
 
     # smoker should die younger (mean shift)
     assert smoker <= non_smoker
@@ -136,7 +137,7 @@ def test_joint_last_survivor():
         sex2="male",
         smoker1=False,
         smoker2=True,
-        married=True,
+        partnered=True,
     )
 
     # last should be max of the two lifetimes
