@@ -5,7 +5,7 @@ defaults:
   - savings_assets: default
   - fixed_income: default
   - asset_allocations: default
-  - life_expectancy: default
+  - longevity: default
   - rates: default
   - optimization: default
   - solver: default

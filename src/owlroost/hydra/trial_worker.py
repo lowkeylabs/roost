@@ -32,26 +32,53 @@ def run_trial(
     output_file = trial_dir / f"{case_file.stem}.xlsx"
     overrides = dict(base_overrides)
 
-    # ---------------- rates seed ----------------
+    # ---------------------------------------------------------
+    # Rates seed
+    # ---------------------------------------------------------
     if rates_seed is not None:
-        overrides.setdefault("rates", {})["rate_seed"] = rates_seed
+        rates_override = overrides.setdefault("rates", {})
+        rates_override["rate_seed"] = rates_seed
+        rates_override["reproducible_rates"] = True
 
-    # ---------------- longevity ----------------
-
+    # ---------------------------------------------------------
+    # Longevity model
+    # ---------------------------------------------------------
     case_data = tomllib.loads(case_file.read_text())
-    use_life_expectancy_model = case_data["roost"].get("use_life_expectancy_model", False)
+    use_longevity_model = case_data.get("roost", {}).get(
+        "use_longevity_model", False
+    )
 
-    if use_life_expectancy_model:
-        # ages as coded in the base case
+    use_bootstrap_model = case_data.get("roost", {}).get(
+        "use_bootstrap_model", False
+    )
+
+    if use_bootstrap_model:
+        rates_override = overrides.setdefault("rates", {})
+        rates_override.update({
+            "method": "bootstrap_sor",
+            "bootstrap_type": "block",
+            "block_size": 7,
+            "frm": 1928,
+            "to" : 2025,
+        })
+
+    if use_longevity_model:
+        # Ages from base case
         ages = case_data["basic_info"]["life_expectancy"]
 
-        # gather life expectancy model parameters from the case file, or use defaults if not present
-        health = case_data["life_expectancy"].get("health", ["average"] * len(ages))
-        sex = case_data["life_expectancy"].get("sex", ["female"] * len(ages))
-        smoker = case_data["life_expectancy"].get("smoker", [False] * len(ages))
-        married = case_data["life_expectancy"].get("married", True)
+        # Longevity model parameters (from [longevity] section)
+        longevity_section = case_data.get("longevity", {})
+
+        health = longevity_section.get("health", ["average"] * len(ages))
+        sex = longevity_section.get("sex", ["female"] * len(ages))
+        smoker = longevity_section.get("smoker", [False] * len(ages))
+
+        n_people = len(ages)
+        default_partnered = n_people == 2
+        partnered = longevity_section.get("partnered", default_partnered)
 
         rng = np.random.default_rng(longevity_seed)
+
         life_exp = [
             int(
                 sample_individual_lifetime(
@@ -60,17 +87,20 @@ def run_trial(
                     health=health[i],
                     sex=sex[i],
                     smoker=smoker[i],
-                    married=married,
+                    partnered=partnered,
                 )
             )
             for i in range(len(ages))
         ]
 
+        # Override deterministic life expectancy in basic_info
         overrides.setdefault("basic_info", {})["life_expectancy"] = life_exp
-        overrides["life_expectancy"]["longevity_seed"] = longevity_seed
+
+        # Store longevity seed in overrides
+        overrides.setdefault("longevity", {})["longevity_seed"] = longevity_seed
 
     logger.debug(
-        "Job: {:5} | Trial {:04d} | life_expectancy={} | rates_seed={} | longevity_seed={} | dir={}",
+        "Job: {:5} | Trial {:04d} | overrides={} | rates_seed={} | longevity_seed={} | dir={}",
         job_id,
         trial_id,
         overrides,
@@ -79,17 +109,21 @@ def run_trial(
         trial_dir.relative_to(run_dir),
     )
 
+    # ---------------------------------------------------------
+    # Execute case
+    # ---------------------------------------------------------
     if CURRENT_LOG_LEVEL not in {"TRACE", "DEBUG"}:
         logger.info(
             "Job: {:5} | Trial {:04d}",
             job_id,
             trial_id,
         )
-        result = run_single_case(
-            case_file=str(case_file),
-            overrides=overrides,
-            output_file=str(output_file),
-        )
+
+    result = run_single_case(
+        case_file=str(case_file),
+        overrides=overrides,
+        output_file=str(output_file),
+    )
 
     return {
         "trial_id": trial_id,

@@ -23,7 +23,7 @@ def test_required_groups_present():
         "savings_assets",
         "fixed_income",
         "asset_allocations",
-        "life_expectancy",
+        "longevity",
         "rates",
         "optimization",
         "solver",
