@@ -12,7 +12,7 @@ dependencies = [
     "plotly>=6.5.0",
 
     # OWL is under active development; pin to commit for reproducibility
-    "owlplanner @ git+https://github.com/mdlacasse/Owl.git@c2cce5f",  # 2026-02-17
+    "owlplanner @ git+https://github.com/mdlacasse/Owl.git@5c5f5e2",  # 2026-02-18
 
     #"owlplanner", #used with uv.sources below.
     "python-dotenv>=1.2.1",

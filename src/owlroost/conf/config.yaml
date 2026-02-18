@@ -23,7 +23,10 @@ experiment:
 trial:
   id: 0
   count: 1
-  n_jobs: 4
+  n_jobs: 5
+
+roost:
+  master_seed: 12345
 
 
 hydra:
@@ -31,4 +34,4 @@ hydra:
     chdir: true
     name: run
   launcher:
-    n_jobs: 4
+    n_jobs: 5

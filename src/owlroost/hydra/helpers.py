@@ -93,22 +93,28 @@ def save_hydra_metadata(
     mode: str,
     job_id: str,
     overrides: list[str],
+    extra: dict | None = None,
 ):
     """
     Save Hydra metadata needed for reproducibility.
     """
+    meta = {
+        "mode": mode,
+        "job_id": job_id,
+        "overrides": overrides,
+    }
+
+    # Merge in any additional metadata (e.g., master_seed)
+    if extra:
+        # Defensive copy to avoid accidental mutation
+        for k, v in extra.items():
+            meta[k] = v
+
     OmegaConf.save(
-        OmegaConf.create(
-            {
-                "mode": mode,
-                "job_id": job_id,
-                "overrides": overrides,
-            }
-        ),
+        OmegaConf.create(meta),
         run_dir / "hydra_meta.yaml",
     )
-
-
+    
 # ---------------------------------------------------------------------
 # OmegaConf resolvers
 # ---------------------------------------------------------------------
