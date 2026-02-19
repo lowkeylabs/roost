@@ -5,7 +5,6 @@ from click.testing import CliRunner
 
 from owlroost.cli.cmd_run import cmd_run
 
-
 # ---------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------
@@ -28,7 +27,7 @@ method = "{method}"
 
 
 def test_rate_model_override_allows_trials(tmp_path, monkeypatch):
-    case_file = write_case(tmp_path, "historical")
+    write_case(tmp_path, "historical")
     monkeypatch.chdir(tmp_path)
 
     monkeypatch.setattr(
@@ -57,7 +56,7 @@ def test_rate_model_override_allows_trials(tmp_path, monkeypatch):
 
 
 def test_longevity_model_allows_trials(tmp_path, monkeypatch):
-    case_file = write_case(tmp_path, "historical")
+    write_case(tmp_path, "historical")
     monkeypatch.chdir(tmp_path)
 
     monkeypatch.setattr(
@@ -86,7 +85,7 @@ def test_longevity_model_allows_trials(tmp_path, monkeypatch):
 
 
 def test_stochastic_rate_without_trials_flag(tmp_path, monkeypatch):
-    case_file = write_case(tmp_path, "bootstrap_sor")
+    write_case(tmp_path, "bootstrap_sor")
     monkeypatch.chdir(tmp_path)
 
     monkeypatch.setattr(
@@ -108,7 +107,7 @@ def test_stochastic_rate_without_trials_flag(tmp_path, monkeypatch):
 
 
 def test_longevity_without_trials_flag(tmp_path, monkeypatch):
-    case_file = write_case(tmp_path, "historical")
+    write_case(tmp_path, "historical")
     monkeypatch.chdir(tmp_path)
 
     monkeypatch.setattr(
@@ -133,7 +132,7 @@ def test_longevity_without_trials_flag(tmp_path, monkeypatch):
 
 
 def test_rates_and_longevity_with_trials(tmp_path, monkeypatch):
-    case_file = write_case(tmp_path, "bootstrap_sor")
+    write_case(tmp_path, "bootstrap_sor")
     monkeypatch.chdir(tmp_path)
 
     monkeypatch.setattr(
