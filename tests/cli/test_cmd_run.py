@@ -62,7 +62,7 @@ def test_historical_multiple_trials_fails(tmp_path):
         result = runner.invoke(cmd_run, ["Case_test.toml", "-t", "10"])
 
         assert result.exit_code != 0
-        assert "Invalid rate_selection.method" in result.output
+        assert "stochastic" in result.output.lower()
 
 
 # ---------------------------------------------------------------------

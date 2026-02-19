@@ -33,7 +33,7 @@ def run_trial(
     overrides = dict(base_overrides)
 
     # ---------------------------------------------------------
-    # Rates seed
+    # Rates seed (preserve existing behavior)
     # ---------------------------------------------------------
     if rates_seed is not None:
         rates_override = overrides.setdefault("rates", {})
@@ -41,13 +41,19 @@ def run_trial(
         rates_override["reproducible_rates"] = True
 
     # ---------------------------------------------------------
-    # Longevity model
+    # Load case data
     # ---------------------------------------------------------
     case_data = tomllib.loads(case_file.read_text())
-    use_longevity_model = case_data.get("roost", {}).get("use_longevity_model", False)
 
-    use_bootstrap_model = case_data.get("roost", {}).get("use_bootstrap_model", False)
+    case_roost = case_data.get("roost", {})
+    case_longevity = case_data.get("longevity", {})
 
+    use_longevity_model = case_roost.get("use_longevity_model", False)
+    use_bootstrap_model = case_roost.get("use_bootstrap_model", False)
+
+    # ---------------------------------------------------------
+    # Bootstrap model override (preserve existing behavior)
+    # ---------------------------------------------------------
     if use_bootstrap_model:
         rates_override = overrides.setdefault("rates", {})
         rates_override.update(
@@ -60,12 +66,13 @@ def run_trial(
             }
         )
 
+    # ---------------------------------------------------------
+    # Longevity model
+    # ---------------------------------------------------------
     if use_longevity_model:
-        # Ages from base case
         ages = case_data["basic_info"]["life_expectancy"]
 
-        # Longevity model parameters (from [longevity] section)
-        longevity_section = case_data.get("longevity", {})
+        longevity_section = case_longevity
 
         health = longevity_section.get("health", ["average"] * len(ages))
         sex = longevity_section.get("sex", ["female"] * len(ages))
@@ -91,11 +98,28 @@ def run_trial(
             for i in range(len(ages))
         ]
 
-        # Override deterministic life expectancy in basic_info
         overrides.setdefault("basic_info", {})["life_expectancy"] = life_exp
 
-        # Store longevity seed in overrides
+        # Store longevity seed in overrides for downstream visibility
         overrides.setdefault("longevity", {})["longevity_seed"] = longevity_seed
+
+    # ---------------------------------------------------------
+    # Build runtime metadata for effective TOML
+    # ---------------------------------------------------------
+    roost_runtime = {
+        "master_seed": case_roost.get("master_seed"),
+        "trial_id": trial_id,
+        "rates_seed": rates_seed,
+        "longevity_seed": longevity_seed,
+        "use_bootstrap_model": use_bootstrap_model,
+        "use_longevity_model": use_longevity_model,
+    }
+
+    longevity_runtime = dict(case_longevity)
+
+    # Ensure longevity_seed recorded even if deterministic
+    if longevity_seed is not None:
+        longevity_runtime["longevity_seed"] = longevity_seed
 
     logger.debug(
         "Job: {:5} | Trial {:04d} | overrides={} | rates_seed={} | longevity_seed={} | dir={}",
@@ -117,11 +141,22 @@ def run_trial(
             trial_id,
         )
 
-    result = run_single_case(
-        case_file=str(case_file),
-        overrides=overrides,
-        output_file=str(output_file),
-    )
+    # Backward-compatible call:
+    try:
+        result = run_single_case(
+            case_file=str(case_file),
+            overrides=overrides,
+            output_file=str(output_file),
+            roost_runtime=roost_runtime,
+            longevity_runtime=longevity_runtime,
+        )
+    except TypeError:
+        # Fallback for older run_single_case signature
+        result = run_single_case(
+            case_file=str(case_file),
+            overrides=overrides,
+            output_file=str(output_file),
+        )
 
     return {
         "trial_id": trial_id,

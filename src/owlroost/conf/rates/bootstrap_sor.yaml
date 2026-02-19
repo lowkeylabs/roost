@@ -1,0 +1,7 @@
+method: bootstrap_sor
+bootstrap_type: block
+block_size: 7
+reproducible: true
+
+from: 1928
+to: 2025

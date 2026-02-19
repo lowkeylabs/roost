@@ -36,20 +36,16 @@ class PlanRunResult:
 
 def coerce_override_value(v):
     if isinstance(v, str):
-        # Hydra escapes spaces as '\ '
         v = v.replace("\\ ", " ")
-
         try:
             return ast.literal_eval(v)
         except (ValueError, SyntaxError):
             return v
-
     return v
 
 
 def apply_generic_overrides(key: str, diconf: dict, value: dict):
     group = diconf.setdefault(key, {})
-
     for k, v in value.items():
         v = coerce_override_value(v)
         logger.debug("Overrides: {}: {}={}", key, k, v)
@@ -70,23 +66,17 @@ def apply_fixed_income_overrides(diconf: dict, value: dict):
 
 def apply_rates_overrides(diconf: dict, value: dict):
     logger.debug(f"apply rates overrides: {value}")
-
-    # Defensive copy so we don’t mutate upstream state
     value = dict(value)
 
-    # --- Handle fromto ------------------------------------
     raw = value.pop("fromto", None)
     if raw is not None:
         fromto = coerce_override_value(raw)
-        # After coerce_override_value, fromto should be [from, to]
         if not isinstance(fromto, (list | tuple)) or len(fromto) != 2:
             raise ValueError(f"Invalid rates.fromto value: {fromto}")
-
         frm, to = fromto
         value["from"] = int(frm)
         value["to"] = int(to)
 
-    # --- Pass remaining keys through generic handler ------
     apply_generic_overrides("rates_selection", diconf, value)
 
 
@@ -112,36 +102,27 @@ OVERRIDE_HANDLERS = {
     "solver": apply_solver_overrides,
 }
 
+
 # ---------------------------------------------------------------------
 # TOML load / override helpers
 # ---------------------------------------------------------------------
 
 
 def load_original_toml(case_file: str) -> str:
-    """
-    Load and normalize the original TOML with no overrides applied.
-    Returns normalized TOML text.
-    """
     with open(case_file, encoding="utf-8") as f:
         diconf = toml.load(f)
-
     return toml.dumps(diconf)
 
 
-def load_and_override_toml(case_file: str, overrides: dict) -> tuple[StringIO, str, dict]:
+def load_and_override_toml(case_file: str, overrides: dict):
     with open(case_file, encoding="utf-8") as f:
         diconf = toml.load(f)
 
     diconf = deepcopy(diconf)
-
     logger.debug(overrides)
 
-    # -------------------------------------------------
-    # Apply semantic overrides via handlers
-    # -------------------------------------------------
     if overrides:
         for key, value in overrides.items():
-            # Skip index-based overrides entirely
             if "." in key:
                 logger.debug("Skipping index override: {}", key)
                 continue
@@ -150,7 +131,7 @@ def load_and_override_toml(case_file: str, overrides: dict) -> tuple[StringIO, s
                 handler = OVERRIDE_HANDLERS[key]
             except KeyError as e:
                 raise RuntimeError(
-                    f"Unknown override '{key}'. " f"Supported overrides: {list(OVERRIDE_HANDLERS)}"
+                    f"Unknown override '{key}'. Supported overrides: {list(OVERRIDE_HANDLERS)}"
                 ) from e
 
             handler(diconf, value)
@@ -159,15 +140,46 @@ def load_and_override_toml(case_file: str, overrides: dict) -> tuple[StringIO, s
 
 
 # ---------------------------------------------------------------------
+# Inject ROOST + LONGEVITY sections
+# ---------------------------------------------------------------------
+
+
+def inject_runtime_sections(
+    toml_dict: dict,
+    roost_runtime: dict | None,
+    longevity_runtime: dict | None,
+):
+    """
+    Inject full [roost] and [longevity] sections into effective TOML.
+
+    Does not compute anything.
+    Only records resolved runtime state.
+    """
+
+    # -------------------------
+    # ROOST
+    # -------------------------
+    if roost_runtime:
+        roost_section = toml_dict.setdefault("roost", {})
+        for k, v in roost_runtime.items():
+            if v is not None:
+                roost_section[k] = v
+
+    # -------------------------
+    # LONGEVITY
+    # -------------------------
+    if longevity_runtime:
+        longevity_section = toml_dict.setdefault("longevity", {})
+        for k, v in longevity_runtime.items():
+            longevity_section[k] = v
+
+
+# ---------------------------------------------------------------------
 # Optimization normalization
 # ---------------------------------------------------------------------
 
 
 def normalize_optimization(plan):
-    """
-    Bridge Hydra intent → OWL solver semantics.
-    Enforces valid optimization modes.
-    """
     objective = plan.objective
     solver_opts = plan.solverOptions
 
@@ -191,7 +203,6 @@ def normalize_optimization(plan):
 
 
 def json_safe(obj):
-    """Convert common non-JSON types to JSON-safe values."""
     if isinstance(obj, Path):
         return str(obj)
     if isinstance(obj, (datetime | date)):
@@ -204,18 +215,12 @@ def json_safe(obj):
 
 
 def save_early_files(output_file: str, effective_toml: str, original_toml: str) -> None:
-    """
-    Save TOML files early, for inspection in case of errors
-    """
-
     output_path = Path(output_file)
 
-    # Save these files before call.  ORIGINAL TOML
     original_toml_path = output_path.with_suffix("").with_name(output_path.stem + "_original.toml")
     with open(original_toml_path, "w", encoding="utf-8") as f:
         f.write(original_toml)
 
-    # Safe before solve. EFFECTIVE TOML
     effective_toml_path = output_path.with_suffix("").with_name(
         output_path.stem + "_effective.toml"
     )
@@ -224,14 +229,10 @@ def save_early_files(output_file: str, effective_toml: str, original_toml: str) 
 
 
 def solve_and_save(plan, output_file: str) -> None:
-    """
-    Solve the plan and write output.
-    """
     normalize_optimization(plan)
 
     output_path = Path(output_file)
 
-    # save rates
     rates_dict = {
         "Year": plan.year_n.tolist(),
         "S&P 500": plan.tau_kn[0].tolist(),
@@ -239,33 +240,23 @@ def solve_and_save(plan, output_file: str) -> None:
         "T Bonds": plan.tau_kn[2].tolist(),
         "inflation": plan.tau_kn[3].tolist(),
     }
+
     rates_path = output_path.with_suffix("").with_name(output_path.stem + "_rates.xlsx")
-
     df = pd.DataFrame(rates_dict)
-    df.to_excel(
-        rates_path,
-        index=False,  # no extra index column
-        sheet_name="Rates",  # optional but nice
-    )
+    df.to_excel(rates_path, index=False, sheet_name="Rates")
 
-    # solve
     plan.solve(plan.objective, plan.solverOptions)
 
     if plan.caseStatus != "solved":
         return
 
-    # Save these files if solve was OK.
-
     p = Path(output_file)
     results_file = p.with_name(f"{p.stem}_results{p.suffix}")
-
     plan.saveWorkbook(basename=results_file, overwrite=True)
 
-    # METRICS
     metrics_path = output_path.with_suffix("").with_name(output_path.stem + "_metrics.json")
     write_metrics_json(plan, metrics_path)
 
-    # SUMMARY
     summary_path = output_path.with_suffix("").with_name(output_path.stem + "_summary.json")
     with open(summary_path, "w") as f:
         json.dump(plan.summaryDic(), f, indent=2, sort_keys=False, default=json_safe)
@@ -281,19 +272,18 @@ def run_single_case(
     case_file: str,
     overrides: dict,
     output_file: str,
+    roost_runtime: dict | None = None,
+    longevity_runtime: dict | None = None,
 ) -> PlanRunResult:
     """
     Run a single OWL case with semantic overrides.
 
-    Overrides are applied to TOML BEFORE readConfig,
-    ensuring all derived horizons and constraints
-    are built correctly by OWL.
+    Now supports optional runtime metadata injection.
+    Fully backward compatible.
     """
+
     logger.debug(overrides)
 
-    # -------------------------------------------------
-    # Load original TOML
-    # -------------------------------------------------
     original_toml = load_original_toml(case_file)
 
     SEMANTIC_OVERRIDE_KEYS = set(OVERRIDE_HANDLERS)
@@ -303,6 +293,13 @@ def run_single_case(
     )
 
     toml_dict = load_and_override_toml(case_file, semantic_overrides)
+
+    # Inject runtime sections BEFORE writing effective TOML
+    inject_runtime_sections(
+        toml_dict,
+        roost_runtime,
+        longevity_runtime,
+    )
 
     hfp_section = toml_dict.get("household_financial_profile", {})
     hfp_file = hfp_section.get("HFP_file_name")
@@ -319,8 +316,6 @@ def run_single_case(
         shutil.copy2(hfp_original, hfp_modified)
         hfp_section["HFP_file_name"] = hfp_modified.name
 
-        # Add code to modify hfp_modified as necessary
-
     modified_toml = toml.dumps(toml_dict)
     toml_buf = StringIO(modified_toml)
     toml_buf.seek(0)
@@ -333,6 +328,7 @@ def run_single_case(
         logstreams="loguru",
         loadHFP=False,
     )
+
     if hfp_file:
         logger.debug("Loading HFP file")
         plan.readHFP(str(hfp_modified))
