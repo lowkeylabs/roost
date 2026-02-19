@@ -47,6 +47,7 @@ method = "historical"
     # 🔴 This is what we WANT to happen
     assert result.exit_code == 0
 
+
 def test_longevity_override_allows_trials(tmp_path, monkeypatch):
     """
     If override roost.use_longevity_model is provided,
@@ -144,6 +145,7 @@ method = "historical"
 
     assert result.exit_code == 0
 
+
 def test_rates_and_longevity_with_trials(tmp_path, monkeypatch):
     """
     If both stochastic rate model and longevity override are active,
@@ -178,6 +180,7 @@ method = "bootstrap_sor"
     )
 
     assert result.exit_code == 0
+
 
 def test_deterministic_without_any_stochastic_blocks_trials(tmp_path):
     """

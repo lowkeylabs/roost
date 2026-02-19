@@ -1,11 +1,9 @@
 import subprocess
 from pathlib import Path
 
-import pytest
 from click.testing import CliRunner
 
 from owlroost.cli.cmd_run import cmd_run
-
 
 # ---------------------------------------------------------------------
 # Helpers
@@ -29,7 +27,7 @@ method = "{method}"
 
 
 def test_historical_single_run_ok(tmp_path, monkeypatch):
-    case_file = write_case(tmp_path, "historical")
+    _case_file = write_case(tmp_path, "historical")
 
     monkeypatch.chdir(tmp_path)
 
@@ -73,7 +71,7 @@ def test_historical_multiple_trials_fails(tmp_path):
 
 
 def test_stochastic_multiple_trials_ok(tmp_path, monkeypatch):
-    case_file = write_case(tmp_path, "stochastic")
+    _case_file = write_case(tmp_path, "stochastic")
     monkeypatch.chdir(tmp_path)
 
     called = {}
@@ -99,7 +97,7 @@ def test_stochastic_multiple_trials_ok(tmp_path, monkeypatch):
 
 
 def test_hydra_override_passthrough(tmp_path, monkeypatch):
-    case_file = write_case(tmp_path, "stochastic")
+    _case_file = write_case(tmp_path, "stochastic")
     monkeypatch.chdir(tmp_path)
 
     called = {}
@@ -137,7 +135,7 @@ def test_hydra_override_passthrough(tmp_path, monkeypatch):
 
 
 def test_trial_id_injection(tmp_path, monkeypatch):
-    case_file = write_case(tmp_path, "stochastic")
+    _case_file = write_case(tmp_path, "stochastic")
     monkeypatch.chdir(tmp_path)
 
     called = {}
@@ -167,7 +165,7 @@ def test_trial_id_injection(tmp_path, monkeypatch):
 
 
 def test_bootstrap_allowed_for_trials(tmp_path, monkeypatch):
-    case_file = write_case(tmp_path, "bootstrap_sor")
+    _case_file = write_case(tmp_path, "bootstrap_sor")
     monkeypatch.chdir(tmp_path)
 
     called = {}
