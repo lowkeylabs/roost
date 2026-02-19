@@ -1,6 +1,7 @@
 # src/owlroost/hydra/trial_worker.py
 
 import tomllib
+from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
@@ -26,65 +27,62 @@ def run_trial(
     base_overrides: dict,
     run_dir: Path,
 ):
+    """
+    Execute a single stochastic trial.
+
+    Architecture:
+    - Rates model selection is Hydra-managed (rates_selection group).
+    - Longevity model activation is Hydra-managed (longevity group).
+    - Seeds are injected per trial.
+    - No legacy ROOST flags.
+    - No bootstrap mutation layer.
+    """
+
+    # ---------------------------------------------------------
+    # Trial directory
+    # ---------------------------------------------------------
     trial_dir = run_dir / "trials" / f"{trial_id:04d}"
     trial_dir.mkdir(parents=True, exist_ok=True)
 
     output_file = trial_dir / f"{case_file.stem}.xlsx"
-    overrides = dict(base_overrides)
+
+    # Deep copy to prevent cross-trial mutation
+    overrides = deepcopy(base_overrides)
 
     # ---------------------------------------------------------
-    # Rates seed (preserve existing behavior)
+    # Inject rate seed (Hydra-managed rates_selection)
     # ---------------------------------------------------------
     if rates_seed is not None:
-        rates_override = overrides.setdefault("rates", {})
+        rates_override = overrides.setdefault("rates_selection", {})
         rates_override["rate_seed"] = rates_seed
         rates_override["reproducible_rates"] = True
 
     # ---------------------------------------------------------
-    # Load case data
+    # Determine if longevity group is active
     # ---------------------------------------------------------
-    case_data = tomllib.loads(case_file.read_text())
-
-    case_roost = case_data.get("roost", {})
-    case_longevity = case_data.get("longevity", {})
-
-    use_longevity_model = case_roost.get("use_longevity_model", False)
-    use_bootstrap_model = case_roost.get("use_bootstrap_model", False)
+    longevity_model_active = "longevity" in overrides
 
     # ---------------------------------------------------------
-    # Bootstrap model override (preserve existing behavior)
+    # Longevity stochastic sampling (Hydra-driven)
     # ---------------------------------------------------------
-    if use_bootstrap_model:
-        rates_override = overrides.setdefault("rates", {})
-        rates_override.update(
-            {
-                "method": "bootstrap_sor",
-                "bootstrap_type": "block",
-                "block_size": 7,
-                "frm": 1928,
-                "to": 2025,
-            }
-        )
-
-    # ---------------------------------------------------------
-    # Longevity model
-    # ---------------------------------------------------------
-    if use_longevity_model:
+    if longevity_model_active:
+        case_data = tomllib.loads(case_file.read_text())
         ages = case_data["basic_info"]["life_expectancy"]
 
-        longevity_section = case_longevity
+        # Use TOML section if present, else defaults
+        case_longevity = case_data.get("longevity", {})
 
-        health = longevity_section.get("health", ["average"] * len(ages))
-        sex = longevity_section.get("sex", ["female"] * len(ages))
-        smoker = longevity_section.get("smoker", [False] * len(ages))
+        health = case_longevity.get("health", ["average"] * len(ages))
+        sex = case_longevity.get("sex", ["female"] * len(ages))
+        smoker = case_longevity.get("smoker", [False] * len(ages))
 
         n_people = len(ages)
         default_partnered = n_people == 2
-        partnered = longevity_section.get("partnered", default_partnered)
+        partnered = case_longevity.get("partnered", default_partnered)
 
         rng = np.random.default_rng(longevity_seed)
 
-        life_exp = [
+        sampled_life_exp = [
             int(
                 sample_individual_lifetime(
                     rng,
@@ -98,26 +96,19 @@ def run_trial(
             for i in range(len(ages))
         ]
 
-        overrides.setdefault("basic_info", {})["life_expectancy"] = life_exp
-
-        # Store longevity seed in overrides for downstream visibility
+        overrides.setdefault("basic_info", {})["life_expectancy"] = sampled_life_exp
         overrides.setdefault("longevity", {})["longevity_seed"] = longevity_seed
 
     # ---------------------------------------------------------
-    # Build runtime metadata for effective TOML
+    # Runtime metadata for effective TOML tracking
     # ---------------------------------------------------------
     roost_runtime = {
-        "master_seed": case_roost.get("master_seed"),
         "trial_id": trial_id,
         "rates_seed": rates_seed,
         "longevity_seed": longevity_seed,
-        "use_bootstrap_model": use_bootstrap_model,
-        "use_longevity_model": use_longevity_model,
     }
 
-    longevity_runtime = dict(case_longevity)
-
-    # Ensure longevity_seed recorded even if deterministic
+    longevity_runtime = {}
     if longevity_seed is not None:
         longevity_runtime["longevity_seed"] = longevity_seed
 
@@ -135,28 +126,15 @@ def run_trial(
     # Execute case
     # ---------------------------------------------------------
     if CURRENT_LOG_LEVEL not in {"TRACE", "DEBUG"}:
-        logger.info(
-            "Job: {:5} | Trial {:04d}",
-            job_id,
-            trial_id,
-        )
+        logger.info("Job: {:5} | Trial {:04d}", job_id, trial_id)
 
-    # Backward-compatible call:
-    try:
-        result = run_single_case(
-            case_file=str(case_file),
-            overrides=overrides,
-            output_file=str(output_file),
-            roost_runtime=roost_runtime,
-            longevity_runtime=longevity_runtime,
-        )
-    except TypeError:
-        # Fallback for older run_single_case signature
-        result = run_single_case(
-            case_file=str(case_file),
-            overrides=overrides,
-            output_file=str(output_file),
-        )
+    result = run_single_case(
+        case_file=str(case_file),
+        overrides=overrides,
+        output_file=str(output_file),
+        roost_runtime=roost_runtime,
+        longevity_runtime=longevity_runtime,
+    )
 
     return {
         "trial_id": trial_id,

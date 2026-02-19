@@ -160,11 +160,11 @@ def test_trial_id_injection(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------
-# 6️⃣ bootstrap_sor allowed for trials
+# 6️⃣ bootstrap model allows multi-trial
 # ---------------------------------------------------------------------
 
 
-def test_bootstrap_allowed_for_trials(tmp_path, monkeypatch):
+def test_bootstrap_model_allows_multi_trial(tmp_path, monkeypatch):
     _case_file = write_case(tmp_path, "bootstrap_sor")
     monkeypatch.chdir(tmp_path)
 

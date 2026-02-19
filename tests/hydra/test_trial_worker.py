@@ -9,14 +9,10 @@ def test_run_trial_creates_directory(tmp_path):
     rates_seed = 111
     longevity_seed = 222
 
-    # Minimal TOML stub
     case_file = tmp_path / "case.toml"
     case_file.write_text("""
 [basic_info]
 life_expectancy = [65]
-
-[roost]
-use_longevity_model = false
 """)
 
     base_overrides = {}
@@ -42,38 +38,28 @@ use_longevity_model = false
 
 
 def test_rates_seed_injected(tmp_path):
-    job_id = "job"
-    trial_id = 0
-    rates_seed = 1234
-    longevity_seed = None
-
     case_file = tmp_path / "case.toml"
     case_file.write_text("""
 [basic_info]
 life_expectancy = [65]
-
-[roost]
-use_longevity_model = false
 """)
-
-    base_overrides = {}
-    run_dir = tmp_path
 
     with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
         mock_run.return_value.status = "solved"
 
         run_trial(
-            job_id,
-            trial_id,
-            rates_seed,
-            longevity_seed,
-            case_file,
-            base_overrides,
-            run_dir,
+            job_id="job",
+            trial_id=0,
+            rates_seed=1234,
+            longevity_seed=None,
+            case_file=case_file,
+            base_overrides={},
+            run_dir=tmp_path,
         )
 
-        called_kwargs = mock_run.call_args.kwargs
-        assert called_kwargs["overrides"]["rates"]["rate_seed"] == rates_seed
+        overrides = mock_run.call_args.kwargs["overrides"]
+        assert overrides["rates_selection"]["rate_seed"] == 1234
+        assert overrides["rates_selection"]["reproducible_rates"] is True
 
 
 @patch("owlroost.hydra.trial_worker.sample_individual_lifetime")
@@ -84,9 +70,6 @@ def test_longevity_override_applied(mock_sample, tmp_path):
     case_file.write_text("""
 [basic_info]
 life_expectancy = [65]
-
-[roost]
-use_longevity_model = true
 
 [longevity]
 health = ["average"]
@@ -104,31 +87,25 @@ partnered = false
             rates_seed=None,
             longevity_seed=999,
             case_file=case_file,
-            base_overrides={},
+            base_overrides={"longevity": {}},  # Hydra group activation
             run_dir=tmp_path,
         )
 
-        called_kwargs = mock_run.call_args.kwargs
+        overrides = mock_run.call_args.kwargs["overrides"]
+
         assert result["status"] == "solved"
-        assert called_kwargs["overrides"]["basic_info"]["life_expectancy"] == [90]
-        assert called_kwargs["overrides"]["longevity"]["longevity_seed"] == 999
+        assert overrides["basic_info"]["life_expectancy"] == [90]
+        assert overrides["longevity"]["longevity_seed"] == 999
 
 
 @patch("owlroost.hydra.trial_worker.sample_individual_lifetime")
 def test_longevity_defaults_used_when_section_missing(mock_sample, tmp_path):
-    """
-    If use_longevity_model is true but no [longevity] section
-    exists, defaults should be used and overrides injected.
-    """
     mock_sample.return_value = 95
 
     case_file = tmp_path / "case.toml"
     case_file.write_text("""
 [basic_info]
 life_expectancy = [65]
-
-[roost]
-use_longevity_model = true
 """)
 
     with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
@@ -140,21 +117,16 @@ use_longevity_model = true
             rates_seed=None,
             longevity_seed=777,
             case_file=case_file,
-            base_overrides={},
+            base_overrides={"longevity": {}},  # Activate model
             run_dir=tmp_path,
         )
 
-        called_kwargs = mock_run.call_args.kwargs
-        overrides = called_kwargs["overrides"]
+        overrides = mock_run.call_args.kwargs["overrides"]
 
-        # Life expectancy should be overridden from sampled value
         assert overrides["basic_info"]["life_expectancy"] == [95]
-
-        # Longevity seed should be recorded
         assert overrides["longevity"]["longevity_seed"] == 777
 
-        # Ensure sample was called with defaults
-        args, kwargs = mock_sample.call_args
+        _, kwargs = mock_sample.call_args
         assert kwargs["health"] == "average"
         assert kwargs["sex"] == "female"
         assert kwargs["smoker"] is False
@@ -163,22 +135,12 @@ use_longevity_model = true
 
 @patch("owlroost.hydra.trial_worker.sample_individual_lifetime")
 def test_longevity_defaults_two_individuals(mock_sample, tmp_path):
-    """
-    If use_longevity_model is true and there are two individuals
-    but no [longevity] section exists, defaults should be applied
-    per individual and two values generated.
-    """
-
-    # Return two different values for two calls
     mock_sample.side_effect = [88, 92]
 
     case_file = tmp_path / "case.toml"
     case_file.write_text("""
 [basic_info]
 life_expectancy = [65, 60]
-
-[roost]
-use_longevity_model = true
 """)
 
     with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
@@ -190,26 +152,17 @@ use_longevity_model = true
             rates_seed=None,
             longevity_seed=555,
             case_file=case_file,
-            base_overrides={},
+            base_overrides={"longevity": {}},
             run_dir=tmp_path,
         )
 
-        called_kwargs = mock_run.call_args.kwargs
-        overrides = called_kwargs["overrides"]
+        overrides = mock_run.call_args.kwargs["overrides"]
 
-        # Two sampled life expectancies applied
         assert overrides["basic_info"]["life_expectancy"] == [88, 92]
-
-        # Longevity seed stored
         assert overrides["longevity"]["longevity_seed"] == 555
-
-        # Ensure sampling called twice
         assert mock_sample.call_count == 2
 
-        # Verify default arguments used per individual
-        calls = mock_sample.call_args_list
-
-        for call in calls:
+        for call in mock_sample.call_args_list:
             _, kwargs = call
             assert kwargs["health"] == "average"
             assert kwargs["sex"] == "female"
@@ -218,14 +171,11 @@ use_longevity_model = true
 
 
 @patch("owlroost.hydra.trial_worker.sample_individual_lifetime")
-def test_longevity_not_run_when_flag_false(mock_sample, tmp_path):
+def test_longevity_not_run_when_not_enabled(mock_sample, tmp_path):
     case_file = tmp_path / "case.toml"
     case_file.write_text("""
 [basic_info]
 life_expectancy = [65]
-
-[roost]
-use_longevity_model = false
 """)
 
     with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
@@ -237,23 +187,20 @@ use_longevity_model = false
             rates_seed=None,
             longevity_seed=999,
             case_file=case_file,
-            base_overrides={},
+            base_overrides={},  # No longevity override
             run_dir=tmp_path,
         )
 
-        # Longevity function should never be called
         mock_sample.assert_not_called()
 
         overrides = mock_run.call_args.kwargs["overrides"]
-
         assert "basic_info" not in overrides or "life_expectancy" not in overrides.get(
             "basic_info", {}
         )
-
         assert "longevity" not in overrides
 
 
-def test_rate_seed_always_injected_for_multi_trial(tmp_path):
+def test_rate_seed_injected_even_if_model_deterministic(tmp_path):
     case_file = tmp_path / "case.toml"
     case_file.write_text("""
 [basic_info]
@@ -261,10 +208,6 @@ life_expectancy = [65]
 
 [rates_selection]
 method = "historical average"
-
-[roost]
-use_longevity_model = false
-use_bootstrap_model = false
 """)
 
     with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
@@ -281,75 +224,5 @@ use_bootstrap_model = false
         )
 
         overrides = mock_run.call_args.kwargs["overrides"]
-
-        assert overrides["rates"]["rate_seed"] == 12345
-
-
-def test_reproducible_rates_flag_set(tmp_path):
-    case_file = tmp_path / "case.toml"
-    case_file.write_text("""
-[basic_info]
-life_expectancy = [65]
-
-[rates_selection]
-method = "historical average"
-
-[roost]
-use_longevity_model = false
-use_bootstrap_model = false
-""")
-
-    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
-        mock_run.return_value.status = "solved"
-
-        run_trial(
-            job_id="job",
-            trial_id=1,
-            rates_seed=999,
-            longevity_seed=None,
-            case_file=case_file,
-            base_overrides={},
-            run_dir=tmp_path,
-        )
-
-        overrides = mock_run.call_args.kwargs["overrides"]
-
-        assert overrides["rates"]["reproducible_rates"] is True
-
-
-def test_bootstrap_model_overrides_rates(tmp_path):
-    case_file = tmp_path / "case.toml"
-    case_file.write_text("""
-[basic_info]
-life_expectancy = [65]
-
-[rates_selection]
-method = "historical average"
-
-[roost]
-use_bootstrap_model = true
-""")
-
-    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
-        mock_run.return_value.status = "solved"
-
-        run_trial(
-            job_id="job",
-            trial_id=2,
-            rates_seed=777,
-            longevity_seed=None,
-            case_file=case_file,
-            base_overrides={},
-            run_dir=tmp_path,
-        )
-
-        overrides = mock_run.call_args.kwargs["overrides"]
-        rates = overrides["rates"]
-
-        assert rates["method"] == "bootstrap_sor"
-        assert rates["bootstrap_type"] == "block"
-        assert rates["block_size"] == 7
-        assert rates["frm"] == 1928
-        assert rates["to"] == 2025
-        assert rates["rate_seed"] == 777
-        assert rates["reproducible_rates"] is True
+        assert overrides["rates_selection"]["rate_seed"] == 12345
+        assert overrides["rates_selection"]["reproducible_rates"] is True

@@ -23,7 +23,7 @@ def test_required_groups_present():
         "fixed_income",
         "asset_allocations",
         "longevity",
-        "rates",
+        "rates_selection",
         "optimization",
         "solver",
         "trial",
@@ -66,10 +66,10 @@ def test_override_rates_method():
     ):
         cfg = compose(
             config_name="config",
-            overrides=["rates.method=stochastic"],
+            overrides=["rates_selection.method=stochastic"],
         )
 
-    assert cfg.rates.method == "stochastic"
+    assert cfg.rates_selection.method == "stochastic"
 
 
 def test_launcher_override_resolves():

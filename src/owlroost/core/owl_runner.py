@@ -64,7 +64,7 @@ def apply_fixed_income_overrides(diconf: dict, value: dict):
     apply_generic_overrides("fixed_income", diconf, value)
 
 
-def apply_rates_overrides(diconf: dict, value: dict):
+def apply_rates_selection_overrides(diconf: dict, value: dict):
     logger.debug(f"apply rates overrides: {value}")
     value = dict(value)
 
@@ -96,7 +96,7 @@ OVERRIDE_HANDLERS = {
     "basic_info": apply_basic_info_overrides,
     "savings_assets": apply_savings_assets_overrides,
     "fixed_income": apply_fixed_income_overrides,
-    "rates": apply_rates_overrides,
+    "rates_selection": apply_rates_selection_overrides,
     "asset_allocation": apply_asset_allocation_overrides,
     "optimization": apply_optimization_overrides,
     "solver": apply_solver_overrides,
@@ -123,10 +123,6 @@ def load_and_override_toml(case_file: str, overrides: dict):
 
     if overrides:
         for key, value in overrides.items():
-            if "." in key:
-                logger.debug("Skipping index override: {}", key)
-                continue
-
             try:
                 handler = OVERRIDE_HANDLERS[key]
             except KeyError as e:
@@ -276,21 +272,15 @@ def run_single_case(
     longevity_runtime: dict | None = None,
 ) -> PlanRunResult:
     """
-    Run a single OWL case with semantic overrides.
-
-    Now supports optional runtime metadata injection.
-    Fully backward compatible.
+    Run a single OWL case using semantic overrides and
+    runtime metadata injection (Hydra-native architecture).
     """
 
     logger.debug(overrides)
 
     original_toml = load_original_toml(case_file)
 
-    SEMANTIC_OVERRIDE_KEYS = set(OVERRIDE_HANDLERS)
-
-    semantic_overrides = (
-        {k: v for k, v in overrides.items() if k in SEMANTIC_OVERRIDE_KEYS} if overrides else None
-    )
+    semantic_overrides = {k: v for k, v in overrides.items() if k in OVERRIDE_HANDLERS}
 
     toml_dict = load_and_override_toml(case_file, semantic_overrides)
 
@@ -345,6 +335,6 @@ def run_single_case(
     return PlanRunResult(
         status="solved",
         output_file=output_file,
-        summary=plan.summaryDic,
+        summary=plan.summaryDic(),
         adjusted_toml=modified_toml,
     )

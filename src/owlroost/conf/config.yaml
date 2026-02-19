@@ -6,7 +6,7 @@ defaults:
   - fixed_income: default
   - asset_allocations: default
   - longevity: default
-  - rates: default
+  - rates_selection: default
   - optimization: default
   - solver: default
   - trial: default

@@ -20,6 +20,7 @@ from owlroost.cli.utils import (
 )
 
 CONF_DIR = Path(__file__).parents[1] / "conf"
+
 helper_groups = [
     "basic_info",
     "savings_assets",
@@ -30,23 +31,13 @@ helper_groups = [
     "solver",
 ]
 
+
 # ---------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------
 
 
-def _build_rate_model_lookup():
-    metadata = _collect_all_model_metadata()
-    return {entry["method"]: entry for entry in metadata}
-
-
 def format_elapsed(seconds: float) -> str:
-    """
-    Format elapsed time smartly:
-      < 2 minutes   → seconds (e.g. 37.2s)
-      < 60 minutes  → M:SS (e.g. 12:04)
-      >= 60 minutes → H:MM:SS (e.g. 1:02:19)
-    """
     if seconds < 120:
         return f"{seconds:.1f}s"
 
@@ -70,32 +61,51 @@ def get_rate_selection_method(case_file: Path) -> str | None:
     return data.get("rates_selection", {}).get("method")
 
 
-def _build_rate_model_lookup():
-    metadata = _collect_all_model_metadata()
-    return {entry["method"]: entry for entry in metadata}
+# ---------------------------------------------------------------------
+# Stochastic Detection
+# ---------------------------------------------------------------------
+
+
+def effective_rate_method(case_method: str | None, overrides: list[str]) -> str | None:
+    """
+    Determine effective rate method considering Hydra overrides.
+
+    Supports:
+      - rates_selection=<model>            (Hydra group override)
+      - rates_selection.method=<model>     (direct field override)
+    """
+
+    for o in overrides:
+        if o.startswith("rates_selection="):
+            return o.split("=", 1)[1]
+
+        if o.startswith("rates_selection.method="):
+            return o.split("=", 1)[1]
+
+    return case_method
 
 
 def is_stochastic_execution(rate_method: str | None, overrides: list[str]) -> bool:
     """
-    Return True if any stochastic dimension is active.
+    Return True if any stochastic dimension is active:
+      - Stochastic rate model (via metadata)
+      - Longevity model override (Hydra group)
     """
 
-    # Longevity override activates stochastic dimension
+    # ------------------------------------------------------------
+    # 1️⃣ Longevity group override
+    # ------------------------------------------------------------
     for o in overrides:
-        if o.startswith("roost.use_longevity_model"):
-            # Only treat as enabled if value != false
-            if "=" in o:
-                _, val = o.split("=", 1)
-                if val.lower() in ("true", "1", "yes"):
-                    return True
-            else:
-                # Bare flag (normalized earlier or not)
-                return True
+        if o.startswith("longevity="):
+            # For now any explicit longevity model enables stochastic dimension.
+            return True
 
+    # ------------------------------------------------------------
+    # 2️⃣ Rate model metadata
+    # ------------------------------------------------------------
     if rate_method is None:
         return False
 
-    # 2️⃣ Check rate model metadata
     model_lookup = {entry["method"]: entry for entry in _collect_all_model_metadata()}
 
     entry = model_lookup.get(rate_method)
@@ -103,6 +113,7 @@ def is_stochastic_execution(rate_method: str | None, overrides: list[str]) -> bo
     if entry is None:
         return False
 
+    # deterministic=True → NOT stochastic
     return not entry.get("deterministic", True)
 
 
@@ -114,8 +125,7 @@ def validate_rate_method_for_trials(
     trial_id: int | None,
 ):
     """
-    Validate that multi-trial execution is only allowed if at least
-    one stochastic dimension is active (rates or longevity).
+    Multi-trial execution requires at least one stochastic dimension.
     """
 
     requires_trials = (trials is not None and trials > 1) or (
@@ -136,47 +146,9 @@ def validate_rate_method_for_trials(
         )
 
 
-def normalize_hydra_overrides(overrides: list[str]) -> list[str]:
-    """
-    Normalize Hydra overrides:
-      - Convert comma-separated values to list syntax
-        unless already quoted or bracketed.
-
-    NOTE:
-    This helper is intentionally NOT applied by default, preserving
-    existing CLI behavior exactly.
-    """
-    normalized = []
-
-    for o in overrides:
-        if "=" not in o:
-            normalized.append(o)
-            continue
-
-        key, val = o.split("=", 1)
-
-        if (
-            "," in val
-            and not val.startswith("[")
-            and not val.endswith("]")
-            and not (val.startswith("'") or val.startswith('"'))
-        ):
-            val = f"[{val}]"
-
-        normalized.append(f"{key}={val}")
-
-    return normalized
-
-
-def effective_rate_method(case_method: str | None, overrides: list[str]) -> str | None:
-    if "roost.use_bootstrap_model" in overrides:
-        return "bootstrap_sor"
-
-    for o in overrides:
-        if o.startswith("rates_selection.method="):
-            return o.split("=", 1)[1]
-
-    return case_method
+# ---------------------------------------------------------------------
+# Hydra command builder
+# ---------------------------------------------------------------------
 
 
 def build_hydra_command(
@@ -188,10 +160,7 @@ def build_hydra_command(
     run_jobs: int | None,
     trial_id: int | None,
 ) -> list[str]:
-    """
-    Construct subprocess command invoking owl_hydra_run.py.
-    """
-    package_root = Path(__file__).parents[1]  # src/owlroost
+    package_root = Path(__file__).parents[1]
     script = package_root / "hydra" / "owl_hydra_run.py"
     conf_dir = package_root / "conf"
 
@@ -209,11 +178,9 @@ def build_hydra_command(
         "--config-name=config",
     ]
 
-    # Inject selected case file
     if case_file:
         cmd.append(f"case.file={case_file}")
 
-    # Trial controls
     if trials is not None:
         cmd.append(f"trial.count={trials}")
 
@@ -223,18 +190,16 @@ def build_hydra_command(
     if trial_id is not None:
         cmd.append(f"trial.id={trial_id}")
 
-    # Run controls (Hydra launcher parallelism)
     if run_jobs is not None:
         cmd.append(f"launcher.n_jobs={run_jobs}")
 
-    # Pass-through Hydra overrides verbatim
     cmd.extend(overrides)
 
     return cmd
 
 
 # ---------------------------------------------------------------------
-# CLI help
+# CLI Help
 # ---------------------------------------------------------------------
 
 
@@ -258,10 +223,7 @@ def build_run_help(cmd) -> str:
         "  roost run Case.toml -t 100 --trial-id 7",
         "  roost run Case.toml -t 100 --trial-jobs 8 --run-jobs 4",
         "",
-        format_override_help(
-            conf_dir,
-            groups=helper_groups,
-        ),
+        format_override_help(conf_dir, groups=helper_groups),
         format_click_options(cmd),
     ]
 
@@ -269,7 +231,7 @@ def build_run_help(cmd) -> str:
 
 
 # ---------------------------------------------------------------------
-# CLI command
+# CLI Command
 # ---------------------------------------------------------------------
 
 
@@ -281,35 +243,10 @@ def build_run_help(cmd) -> str:
     ),
 )
 @click.argument("case", required=False)
-@click.option(
-    "-t",
-    "--trials",
-    type=int,
-    default=None,
-    show_default=False,
-    help="Number of stochastic trials (trial.count).",
-)
-@click.option(
-    "--trial-id",
-    type=int,
-    default=None,
-    show_default=False,
-    help="Run a specific trial id (trial.id).",
-)
-@click.option(
-    "--trial-jobs",
-    type=int,
-    default=None,
-    show_default=False,
-    help="Max concurrent trials per run (trial.n_jobs).",
-)
-@click.option(
-    "--run-jobs",
-    type=int,
-    default=None,
-    show_default=False,
-    help="Max concurrent Hydra runs (launcher.n_jobs).",
-)
+@click.option("-t", "--trials", type=int, default=None)
+@click.option("--trial-id", type=int, default=None)
+@click.option("--trial-jobs", type=int, default=None)
+@click.option("--run-jobs", type=int, default=None)
 @click.pass_context
 def cmd_run(
     ctx: click.Context,
@@ -319,16 +256,9 @@ def cmd_run(
     trial_jobs: int | None,
     run_jobs: int | None,
 ):
-    """
-    Run an OWL case via Hydra.
-    """
-
     cwd = Path.cwd()
     files = find_case_files(cwd)
 
-    # ------------------------------------------------------------
-    # No argument → show same case list as `roost cases`
-    # ------------------------------------------------------------
     if case is None:
         print_case_list(cwd)
         return
@@ -337,13 +267,14 @@ def cmd_run(
         raise click.BadParameter("No .toml case files found.")
 
     indexed_files = index_case_files(files)
-
     case_file = resolve_case_selector(case, indexed_files)
+
     if not case_file:
         raise click.BadParameter(f"No case matching '{case}'")
 
     rate_method = get_rate_selection_method(case_file)
     hydra_overrides = ctx.args
+
     effective_method = effective_rate_method(rate_method, hydra_overrides)
 
     validate_rate_method_for_trials(
@@ -353,18 +284,9 @@ def cmd_run(
         trial_id=trial_id,
     )
 
-    # Remaining args → Hydra overrides (verbatim pass-through)
-    hydra_overrides = ctx.args
-    # hydra_overrides = normalize_hydra_overrides(ctx.args)
-
     logger.debug("Resolved case file: {}", case_file)
     logger.debug("Hydra overrides: {}", hydra_overrides)
-    logger.debug("Trials: {}", trials)
-    logger.debug("Trial ID: {}", trial_id)
-    logger.debug("Trial jobs: {}", trial_jobs)
-    logger.debug("Run jobs: {}", run_jobs)
 
-    # Build subprocess command
     cmd = build_hydra_command(
         case_file,
         hydra_overrides,
@@ -377,7 +299,6 @@ def cmd_run(
     logger.debug("Executing Hydra:")
     logger.debug("  {}", " ".join(cmd))
 
-    # Execute
     start = time.perf_counter()
 
     try:
@@ -388,7 +309,10 @@ def cmd_run(
         raise click.ClickException(f"Hydra run failed (exit {e.returncode})") from None
     else:
         elapsed = time.perf_counter() - start
-        logger.info("Hydra completed successfully in {}", format_elapsed(elapsed))
+        logger.info(
+            "Hydra completed successfully in {}",
+            format_elapsed(elapsed),
+        )
 
 
 cmd_run.get_help = lambda ctx: build_run_help(cmd_run)

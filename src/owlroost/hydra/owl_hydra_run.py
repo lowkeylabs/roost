@@ -65,33 +65,9 @@ def spawn_trial_seeds(master_seed: int, trial_ids: list[int]) -> dict[int, tuple
     return seed_map
 
 
-def apply_bootstrap_overrides(overrides: dict, cfg: DictConfig) -> dict:
-    """
-    If roost.use_bootstrap_model is enabled,
-    inject bootstrap configuration into overrides.
-    """
-
-    use_bootstrap = getattr(cfg.roost, "use_bootstrap_model", False)
-
-    if not use_bootstrap:
-        return overrides
-
-    rates = overrides.setdefault("rates", {})
-
-    rates.update(
-        {
-            "method": "bootstrap_sor",
-            "bootstrap_type": "block",
-            "block_size": 7,
-            "reproducible": True,
-        }
-    )
-
-    logger.debug("Bootstrap model activated — overrides updated")
-
-    return overrides
-
-
+# ---------------------------------------------------------------------
+# Orchestration
+# ---------------------------------------------------------------------
 def orchestrate_trials(
     *,
     job_id: str,
@@ -105,7 +81,7 @@ def orchestrate_trials(
 ):
     """
     Pure orchestration layer.
-    No Hydra runtime dependency.
+    No model mutation.
     Fully testable.
     """
 
@@ -176,7 +152,6 @@ def orchestrate_trials(
 
                     time.sleep(0.2)
 
-            # propagate worker exceptions
             for r in async_results:
                 r.get()
 
@@ -200,6 +175,9 @@ def orchestrate_trials(
     return results
 
 
+# ---------------------------------------------------------------------
+# Master seed
+# ---------------------------------------------------------------------
 def get_master_seed(cfg: DictConfig, job_id: str) -> int:
     source = None
 
@@ -239,21 +217,17 @@ def run_hydra_job(cfg: DictConfig):
 
     configure_logging(cfg)
 
-    # When running via CLI, Hydra runtime exists.
-    # When running in tests, it does not.
     try:
         hc = HydraConfig.get()
         raw_overrides = hc.overrides.task
         job_id = get_job_id(hc)
         mode = hc.mode
     except ValueError:
-        # Hydra runtime not initialized (unit test context)
         raw_overrides = []
         job_id = "test-job"
         mode = "UNIT_TEST"
 
     overrides = hydra_overrides_to_dict(raw_overrides)
-    overrides = apply_bootstrap_overrides(overrides, cfg)
     clean_overrides = normalize_case_file_overrides(raw_overrides)
 
     logger.debug("{} - overrides: {}", job_id, " ".join(clean_overrides))
