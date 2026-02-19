@@ -1,5 +1,4 @@
-from hydra import initialize_config_module, compose
-from omegaconf import OmegaConf
+from hydra import compose, initialize_config_module
 
 
 def test_config_composes_cleanly():
@@ -34,6 +33,7 @@ def test_required_groups_present():
     for group in required:
         assert hasattr(cfg, group), f"Missing group: {group}"
 
+
 def test_default_trial_settings():
     with initialize_config_module(
         config_module="owlroost.conf",
@@ -44,6 +44,7 @@ def test_default_trial_settings():
     assert cfg.trial.id == 0
     assert cfg.trial.count == 1
     assert cfg.trial.n_jobs == 5
+
 
 def test_override_trial_count():
     with initialize_config_module(
@@ -56,6 +57,7 @@ def test_override_trial_count():
         )
 
     assert cfg.trial.count == 10
+
 
 def test_override_rates_method():
     with initialize_config_module(

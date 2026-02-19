@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import sys
-import tomllib
 import hashlib
 import json
 import shutil
+import sys
+import tomllib
 from pathlib import Path
 
 import click
-
 from owlplanner.rate_models.loader import _collect_all_model_metadata
 
 RESULTS_DIR = Path("results")
@@ -233,7 +232,9 @@ def render_run_audit(experiments, selected_id=None):
             uniq_text = (
                 "N/A"
                 if run_status["uniq_applicable"] is False
-                else "PASS" if run_status["uniq_pass"] else "FAIL"
+                else "PASS"
+                if run_status["uniq_pass"]
+                else "FAIL"
             )
 
             rate_seeds = (run_status["rate_seeds"] + ["—"] * 3)[:3]
@@ -416,9 +417,7 @@ def audit_experiment(experiment):
     xrun = audit_xrun(experiment)
     seed_consistent = True if xrun is None else xrun
 
-    incomplete = sum(
-        1 for r in runs for t in r["trials"] if get_trial_status(t) == "INCOMPLETE"
-    )
+    incomplete = sum(1 for r in runs for t in r["trials"] if get_trial_status(t) == "INCOMPLETE")
 
     overall = seed_consistent and incomplete == 0
 
@@ -444,8 +443,7 @@ def discover_all_experiments():
                 runs = []
 
                 for run_dir in sorted(
-                    p for p in time_dir.iterdir()
-                    if p.is_dir() and p.name.startswith("run_")
+                    p for p in time_dir.iterdir() if p.is_dir() and p.name.startswith("run_")
                 ):
                     trials_dir = run_dir / "trials"
                     trials = (

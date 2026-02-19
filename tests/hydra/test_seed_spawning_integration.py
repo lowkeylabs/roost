@@ -1,11 +1,9 @@
 from unittest.mock import patch
-from pathlib import Path
 
-from hydra import initialize_config_module, compose
+from hydra import compose, initialize_config_module
 from hydra.core.global_hydra import GlobalHydra
 
 from owlroost.hydra.owl_hydra_run import orchestrate_trials, run_hydra_job
-
 
 
 @patch("owlroost.hydra.owl_hydra_run.run_trial")
@@ -93,7 +91,6 @@ def test_seed_spawning_deterministic(mock_run_trial, tmp_path):
     assert first_run != third_run
 
 
-
 @patch("owlroost.hydra.owl_hydra_run.run_trial")
 def test_seed_independent_of_trial_order(mock_run_trial, tmp_path):
     """
@@ -164,10 +161,8 @@ def test_seed_independent_of_trial_order(mock_run_trial, tmp_path):
         assert seeds_ordered[tid] == seeds_shuffled[tid]
 
 
-
 @patch("owlroost.hydra.owl_hydra_run.run_trial")
 def test_bootstrap_overrides_injected(mock_run_trial, tmp_path):
-
     captured = []
 
     def fake_run_trial(job_id, trial_id, rates_seed, longevity_seed, case_file, overrides, run_dir):
@@ -203,7 +198,7 @@ use_longevity_model = false
 
     assert len(captured) == 2
 
-    for trial_id, rate_seed, overrides in captured:
+    for _trial_id, rate_seed, overrides in captured:
         assert rate_seed is not None
         assert overrides["rates"]["method"] == "bootstrap_sor"
         assert overrides["rates"]["bootstrap_type"] == "block"
@@ -213,7 +208,6 @@ use_longevity_model = false
 
 @patch("owlroost.hydra.owl_hydra_run.run_trial")
 def test_overrides_not_shared_between_trials(mock_run_trial, tmp_path):
-
     seen = []
 
     def fake_run_trial(job_id, trial_id, rates_seed, longevity_seed, case_file, overrides, run_dir):
@@ -240,9 +234,9 @@ def test_overrides_not_shared_between_trials(mock_run_trial, tmp_path):
     assert seen[1][1]["marker"] == 1
     assert seen[2][1]["marker"] == 2
 
+
 @patch("owlroost.hydra.owl_hydra_run.run_trial")
 def test_single_trial_no_stochastic(mock_run_trial, tmp_path):
-
     captured = []
 
     def fake_run_trial(job_id, trial_id, rates_seed, longevity_seed, *args):
@@ -267,7 +261,6 @@ def test_single_trial_no_stochastic(mock_run_trial, tmp_path):
 
 @patch("owlroost.hydra.owl_hydra_run.run_trial")
 def test_multiple_trials_no_stochastic(mock_run_trial, tmp_path):
-
     captured = []
 
     def fake_run_trial(job_id, trial_id, rates_seed, longevity_seed, *args):
@@ -292,9 +285,9 @@ def test_multiple_trials_no_stochastic(mock_run_trial, tmp_path):
         assert rates_seed is None
         assert longevity_seed is None
 
+
 @patch("owlroost.hydra.owl_hydra_run.run_trial")
 def test_no_bootstrap_does_not_mutate_rates(mock_run_trial, tmp_path):
-
     captured = []
 
     def fake_run_trial(job_id, trial_id, rates_seed, longevity_seed, case_file, overrides, run_dir):
@@ -321,9 +314,9 @@ def test_no_bootstrap_does_not_mutate_rates(mock_run_trial, tmp_path):
 
     assert captured[0]["rates"]["method"] == "historical"
 
+
 @patch("owlroost.hydra.owl_hydra_run.run_trial")
 def test_combined_bootstrap_and_longevity(mock_run_trial, tmp_path):
-
     captured = []
 
     def fake_run_trial(job_id, trial_id, rates_seed, longevity_seed, case_file, overrides, run_dir):
@@ -367,6 +360,7 @@ use_longevity_model = false
         assert rates_seed is not None
         assert longevity_seed is not None
         assert overrides["rates"]["method"] == "bootstrap_sor"
+
 
 @patch("owlroost.hydra.owl_hydra_run.run_trial")
 def test_reproducibility_contract(mock_run_trial, tmp_path):

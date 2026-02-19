@@ -44,23 +44,21 @@ def run_trial(
     # Longevity model
     # ---------------------------------------------------------
     case_data = tomllib.loads(case_file.read_text())
-    use_longevity_model = case_data.get("roost", {}).get(
-        "use_longevity_model", False
-    )
+    use_longevity_model = case_data.get("roost", {}).get("use_longevity_model", False)
 
-    use_bootstrap_model = case_data.get("roost", {}).get(
-        "use_bootstrap_model", False
-    )
+    use_bootstrap_model = case_data.get("roost", {}).get("use_bootstrap_model", False)
 
     if use_bootstrap_model:
         rates_override = overrides.setdefault("rates", {})
-        rates_override.update({
-            "method": "bootstrap_sor",
-            "bootstrap_type": "block",
-            "block_size": 7,
-            "frm": 1928,
-            "to" : 2025,
-        })
+        rates_override.update(
+            {
+                "method": "bootstrap_sor",
+                "bootstrap_type": "block",
+                "block_size": 7,
+                "frm": 1928,
+                "to": 2025,
+            }
+        )
 
     if use_longevity_model:
         # Ages from base case

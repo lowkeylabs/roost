@@ -8,6 +8,7 @@ from pathlib import Path
 
 import click
 from loguru import logger
+from owlplanner.rate_models.loader import _collect_all_model_metadata
 
 from owlroost.cli.utils import (
     find_case_files,
@@ -32,6 +33,11 @@ helper_groups = [
 # ---------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------
+
+
+def _build_rate_model_lookup():
+    metadata = _collect_all_model_metadata()
+    return {entry["method"]: entry for entry in metadata}
 
 
 def format_elapsed(seconds: float) -> str:
@@ -64,30 +70,69 @@ def get_rate_selection_method(case_file: Path) -> str | None:
     return data.get("rates_selection", {}).get("method")
 
 
+def _build_rate_model_lookup():
+    metadata = _collect_all_model_metadata()
+    return {entry["method"]: entry for entry in metadata}
+
+
+def is_stochastic_execution(rate_method: str | None, overrides: list[str]) -> bool:
+    """
+    Return True if any stochastic dimension is active.
+    """
+
+    # Longevity override activates stochastic dimension
+    for o in overrides:
+        if o.startswith("roost.use_longevity_model"):
+            # Only treat as enabled if value != false
+            if "=" in o:
+                _, val = o.split("=", 1)
+                if val.lower() in ("true", "1", "yes"):
+                    return True
+            else:
+                # Bare flag (normalized earlier or not)
+                return True
+
+    if rate_method is None:
+        return False
+
+    # 2️⃣ Check rate model metadata
+    model_lookup = {entry["method"]: entry for entry in _collect_all_model_metadata()}
+
+    entry = model_lookup.get(rate_method)
+
+    if entry is None:
+        return False
+
+    return not entry.get("deterministic", True)
+
+
 def validate_rate_method_for_trials(
     *,
     rate_method: str | None,
+    overrides: list[str],
     trials: int | None,
     trial_id: int | None,
 ):
-    requires_stochastic = (trials is not None and trials > 1) or (
+    """
+    Validate that multi-trial execution is only allowed if at least
+    one stochastic dimension is active (rates or longevity).
+    """
+
+    requires_trials = (trials is not None and trials > 1) or (
         trial_id is not None and trial_id != 0
     )
 
-    if not requires_stochastic:
+    if not requires_trials:
         return
 
-    allowed = {"stochastic", "histochastic", "bootstrap_sor"}
-
-    if rate_method not in allowed:
+    if not is_stochastic_execution(
+        rate_method=rate_method,
+        overrides=overrides,
+    ):
         raise click.ClickException(
-            "Invalid rate_selection.method for trial execution.\n\n"
-            # f"  trials={trials}, trial_id={trial_id}\n"
-            f"  Method found in case file: {rate_method!r}\n\n"
-            "When running multiple trials or a specific trial-id,\n"
-            "rate_selection.method must be one of:\n"
-            "  - stochastic\n"
-            "  - histocastic\n\n"
+            "Invalid configuration for trial execution.\n\n"
+            "Multiple trials require at least one stochastic model.\n"
+            "Enable a stochastic rate model or use the longevity model override.\n"
         )
 
 
@@ -121,6 +166,17 @@ def normalize_hydra_overrides(overrides: list[str]) -> list[str]:
         normalized.append(f"{key}={val}")
 
     return normalized
+
+
+def effective_rate_method(case_method: str | None, overrides: list[str]) -> str | None:
+    if "roost.use_bootstrap_model" in overrides:
+        return "bootstrap_sor"
+
+    for o in overrides:
+        if o.startswith("rates_selection.method="):
+            return o.split("=", 1)[1]
+
+    return case_method
 
 
 def build_hydra_command(
@@ -287,9 +343,12 @@ def cmd_run(
         raise click.BadParameter(f"No case matching '{case}'")
 
     rate_method = get_rate_selection_method(case_file)
+    hydra_overrides = ctx.args
+    effective_method = effective_rate_method(rate_method, hydra_overrides)
 
     validate_rate_method_for_trials(
-        rate_method=rate_method,
+        rate_method=effective_method,
+        overrides=hydra_overrides,
         trials=trials,
         trial_id=trial_id,
     )

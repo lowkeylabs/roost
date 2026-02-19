@@ -1,4 +1,3 @@
-from pathlib import Path
 from unittest.mock import patch
 
 from owlroost.hydra.trial_worker import run_trial
@@ -76,6 +75,7 @@ use_longevity_model = false
         called_kwargs = mock_run.call_args.kwargs
         assert called_kwargs["overrides"]["rates"]["rate_seed"] == rates_seed
 
+
 @patch("owlroost.hydra.trial_worker.sample_individual_lifetime")
 def test_longevity_override_applied(mock_sample, tmp_path):
     mock_sample.return_value = 90
@@ -109,8 +109,10 @@ partnered = false
         )
 
         called_kwargs = mock_run.call_args.kwargs
+        assert result["status"] == "solved"
         assert called_kwargs["overrides"]["basic_info"]["life_expectancy"] == [90]
         assert called_kwargs["overrides"]["longevity"]["longevity_seed"] == 999
+
 
 @patch("owlroost.hydra.trial_worker.sample_individual_lifetime")
 def test_longevity_defaults_used_when_section_missing(mock_sample, tmp_path):
@@ -244,10 +246,12 @@ use_longevity_model = false
 
         overrides = mock_run.call_args.kwargs["overrides"]
 
-        assert "basic_info" not in overrides or \
-               "life_expectancy" not in overrides.get("basic_info", {})
+        assert "basic_info" not in overrides or "life_expectancy" not in overrides.get(
+            "basic_info", {}
+        )
 
         assert "longevity" not in overrides
+
 
 def test_rate_seed_always_injected_for_multi_trial(tmp_path):
     case_file = tmp_path / "case.toml"
@@ -280,6 +284,7 @@ use_bootstrap_model = false
 
         assert overrides["rates"]["rate_seed"] == 12345
 
+
 def test_reproducible_rates_flag_set(tmp_path):
     case_file = tmp_path / "case.toml"
     case_file.write_text("""
@@ -310,6 +315,7 @@ use_bootstrap_model = false
         overrides = mock_run.call_args.kwargs["overrides"]
 
         assert overrides["rates"]["reproducible_rates"] is True
+
 
 def test_bootstrap_model_overrides_rates(tmp_path):
     case_file = tmp_path / "case.toml"

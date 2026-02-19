@@ -25,7 +25,6 @@ from owlroost.hydra.helpers import (
 )
 from owlroost.hydra.trial_worker import run_trial
 
-
 # ---------------------------------------------------------------------
 # Bootstrap (must run before Hydra initializes)
 # ---------------------------------------------------------------------
@@ -64,6 +63,7 @@ def spawn_trial_seeds(master_seed: int, trial_ids: list[int]) -> dict[int, tuple
         seed_map[tid] = (rates_seed, longevity_seed)
 
     return seed_map
+
 
 def apply_bootstrap_overrides(overrides: dict, cfg: DictConfig) -> dict:
     """
@@ -126,9 +126,7 @@ def orchestrate_trials(
             longevity_seed,
         )
 
-        trial_args.append(
-            (job_id, tid, rates_seed, longevity_seed, case_file, overrides, run_dir)
-        )
+        trial_args.append((job_id, tid, rates_seed, longevity_seed, case_file, overrides, run_dir))
 
     n_trials = len(trial_args)
     results = []
@@ -142,12 +140,11 @@ def orchestrate_trials(
 
     if n_jobs == 1:
         for args in trial_args:
-            results.append(run_trial(*args))        
+            results.append(run_trial(*args))
     else:
         with Pool(processes=n_jobs) as pool:
             async_results = [
-                pool.apply_async(run_trial, args, callback=_on_trial_done)
-                for args in trial_args
+                pool.apply_async(run_trial, args, callback=_on_trial_done) for args in trial_args
             ]
 
             with tqdm(
@@ -201,6 +198,7 @@ def orchestrate_trials(
         )
 
     return results
+
 
 def get_master_seed(cfg: DictConfig, job_id: str) -> int:
     source = None
@@ -258,8 +256,6 @@ def run_hydra_job(cfg: DictConfig):
     overrides = apply_bootstrap_overrides(overrides, cfg)
     clean_overrides = normalize_case_file_overrides(raw_overrides)
 
-
-
     logger.debug("{} - overrides: {}", job_id, " ".join(clean_overrides))
 
     run_dir = get_run_dir()
@@ -279,9 +275,7 @@ def run_hydra_job(cfg: DictConfig):
     n_jobs = int(trial_cfg.n_jobs)
 
     trial_id_override = _extract_trial_override(overrides, "id")
-    trial_count_override = _extract_trial_override(
-        overrides, "count", default=int(trial_cfg.count)
-    )
+    trial_count_override = _extract_trial_override(overrides, "count", default=int(trial_cfg.count))
 
     use_trial_seeds = trial_id_override is not None or trial_count_override > 1
 
