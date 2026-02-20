@@ -118,9 +118,11 @@ def test_historical_complete_multiple_slices(tmp_path, monkeypatch):
         data = tomllib.loads(eff.read_text())
         rates = data["rates_selection"]
 
+        start, end = rates["from_to"]
+
         key = (
-            rates["from"],
-            rates["to"],
+            start,
+            end,
             rates["roll_sequence"],
             rates["reverse_sequence"],
         )

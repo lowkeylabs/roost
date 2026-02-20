@@ -26,10 +26,10 @@ helper_groups = [
     "basic_info",
     "savings_assets",
     "fixed_income",
-    "rates",
+    "rates_selection",
     "asset_allocation",
-    "optimization",
-    "solver",
+    "optimization_parameters",
+    "solver_options",
 ]
 
 
