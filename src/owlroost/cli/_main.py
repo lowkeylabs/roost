@@ -10,6 +10,7 @@ from .cmd_audit import cmd_audit
 from .cmd_cases import cmd_cases
 from .cmd_results import cmd_results
 from .cmd_run import cmd_run
+from .cmd_summarize import cmd_summarize
 
 early_level = os.getenv("OWLSTATION_LOG_LEVEL", "INFO")
 if early_level:
@@ -73,6 +74,7 @@ cli.add_command(cmd_cases)
 cli.add_command(cmd_run)
 cli.add_command(cmd_results)
 cli.add_command(cmd_audit)
+cli.add_command(cmd_summarize)
 
 
 @cli.command()

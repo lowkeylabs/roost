@@ -344,7 +344,7 @@ def cmd_run(
     if experiment_name == "historical_complete":
         slices = parse_from_to_slices(hydra_overrides)
 
-        # Remove experiment + from_to override
+        # Remove original from_to override
         base_overrides = [o for o in base_overrides if not o.startswith("rates_selection.from_to=")]
 
         if not slices:
@@ -365,58 +365,65 @@ def cmd_run(
         try:
             start_date = case_data["basic_info"]["start_date"]
             life_expectancies = case_data["basic_info"]["life_expectancy"]
+            birth_years = [int(d[:4]) for d in case_data["basic_info"]["date_of_birth"]]
         except KeyError as e:
             raise click.ClickException(f"Missing required basic_info field: {e}") from None
 
-        # Compute horizon as max remaining lifetime
         start_year = int(start_date[:4])
-        birth_years = [int(d[:4]) for d in case_data["basic_info"]["date_of_birth"]]
 
         horizon_years = max(
             (birth_year + life - start_year)
-            for birth_year, life in zip(birth_years, life_expectancies, strict=False)
+            for birth_year, life in zip(
+                birth_years,
+                life_expectancies,
+                strict=False,
+            )
         )
 
         if horizon_years <= 0:
             raise click.ClickException("Computed non-positive planning horizon.")
 
-        start_time = time.perf_counter()
+        # --------------------------------------------------------
+        # Build sweep dimensions
+        # --------------------------------------------------------
 
-        # --------------------------------------------------------
-        # Run ONE Hydra multirun per slice
-        # --------------------------------------------------------
+        # Format slice pairs for Hydra sweep
+        from_to_values = [f"[{start},{end}]" for start, end in slices]
+
+        # Determine max roll across slices
+        roll_values = []
 
         for start, end in slices:
             S = end - start + 1
-
-            if S <= 0:
-                raise click.ClickException(f"Invalid slice [{start},{end}]")
-
-            # Key rule:
-            # roll operates on generated N_n-length series
             max_roll = min(S, horizon_years)
+            for r in range(max_roll):
+                roll_values.append(str(r))
 
-            sweep_overrides = base_overrides + [
-                "rates_selection.method=historical",
-                f"rates_selection.from={start}",
-                f"rates_selection.to={end}",
-                f"rates_selection.roll_sequence=range(0,{max_roll})",
-                "rates_selection.reverse_sequence=true,false",
-            ]
+        # Remove duplicates but preserve order
+        roll_values = list(dict.fromkeys(roll_values))
 
-            cmd = build_hydra_command(
-                case_file,
-                sweep_overrides,
-                trials=trials,
-                trial_jobs=trial_jobs,
-                run_jobs=run_jobs,
-                trial_id=trial_id,
-            )
+        sweep_overrides = base_overrides + [
+            "rates_selection.method=historical",
+            f"rates_selection.from_to={','.join(from_to_values)}",
+            f"rates_selection.roll_sequence={','.join(roll_values)}",
+            "rates_selection.reverse_sequence=true,false",
+        ]
 
-            logger.debug("Executing Hydra experiment multirun:")
-            logger.debug("  {}", " ".join(cmd))
+        cmd = build_hydra_command(
+            case_file,
+            sweep_overrides,
+            trials=trials,
+            trial_jobs=trial_jobs,
+            run_jobs=run_jobs,
+            trial_id=trial_id,
+        )
 
-            subprocess.run(cmd, check=True)
+        logger.debug("Executing SINGLE Hydra experiment multirun:")
+        logger.debug("  {}", " ".join(cmd))
+
+        start_time = time.perf_counter()
+
+        subprocess.run(cmd, check=True)
 
         elapsed = time.perf_counter() - start_time
 

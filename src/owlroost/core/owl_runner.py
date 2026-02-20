@@ -88,7 +88,7 @@ def apply_optimization_overrides(diconf: dict, value: dict):
     apply_generic_overrides("optimization_parameters", diconf, value)
 
 
-def apply_solver_overrides(diconf: dict, value: dict):
+def apply_solver_options_overrides(diconf: dict, value: dict):
     apply_generic_overrides("solver_options", diconf, value)
 
 
@@ -104,7 +104,7 @@ OVERRIDE_HANDLERS = {
     "asset_allocation": apply_asset_allocation_overrides,
     "optimization": apply_optimization_overrides,
     "longevity": apply_longevity_overrides,
-    "solver": apply_solver_overrides,
+    "solver_options": apply_solver_options_overrides,
 }
 
 

@@ -8,7 +8,7 @@ defaults:
   - longevity: default
   - rates_selection: default
   - optimization: default
-  - solver: default
+  - solver_options: default
   - trial: default
   - roost: default
   - hydra/sweep: basic

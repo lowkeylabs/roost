@@ -25,7 +25,7 @@ def test_required_groups_present():
         "longevity",
         "rates_selection",
         "optimization",
-        "solver",
+        "solver_options",
         "trial",
         "roost",
     ]
