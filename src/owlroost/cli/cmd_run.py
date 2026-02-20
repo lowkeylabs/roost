@@ -329,49 +329,97 @@ def cmd_run(
     # ------------------------------------------------------------
 
     experiment_name = None
+    cleaned = []
+
     for o in hydra_overrides:
         if o.startswith("experiment="):
             experiment_name = o.split("=", 1)[1]
+        else:
+            cleaned.append(o)
+
+    base_overrides = cleaned
+    if experiment_name:
+        base_overrides.append(f"roost.experiment={experiment_name}")
 
     if experiment_name == "historical_complete":
         slices = parse_from_to_slices(hydra_overrides)
 
         # Remove experiment + from_to override
-        base_overrides = [
-            o
-            for o in hydra_overrides
-            if not o.startswith("experiment=") and not o.startswith("rates_selection.from_to=")
-        ]
+        base_overrides = [o for o in base_overrides if not o.startswith("rates_selection.from_to=")]
+
+        if not slices:
+            raise click.ClickException("historical_complete requires at least one from_to slice.")
+
+        # --------------------------------------------------------
+        # Determine plan horizon (N_n)
+        # --------------------------------------------------------
+
+        try:
+            with case_file.open("rb") as f:
+                case_data = tomllib.load(f)
+        except Exception as e:
+            raise click.ClickException(
+                f"Failed to read case file for horizon computation: {e}"
+            ) from None
+
+        try:
+            start_date = case_data["basic_info"]["start_date"]
+            life_expectancies = case_data["basic_info"]["life_expectancy"]
+        except KeyError as e:
+            raise click.ClickException(f"Missing required basic_info field: {e}") from None
+
+        # Compute horizon as max remaining lifetime
+        start_year = int(start_date[:4])
+        birth_years = [int(d[:4]) for d in case_data["basic_info"]["date_of_birth"]]
+
+        horizon_years = max(
+            (birth_year + life - start_year)
+            for birth_year, life in zip(birth_years, life_expectancies, strict=False)
+        )
+
+        if horizon_years <= 0:
+            raise click.ClickException("Computed non-positive planning horizon.")
 
         start_time = time.perf_counter()
+
+        # --------------------------------------------------------
+        # Run ONE Hydra multirun per slice
+        # --------------------------------------------------------
 
         for start, end in slices:
             S = end - start + 1
 
-            for roll in range(S):
-                for reverse in (False, True):
-                    run_overrides = base_overrides + [
-                        f"rates_selection.from={start}",
-                        f"rates_selection.to={end}",
-                        f"rates_selection.roll_sequence={roll}",
-                        f"rates_selection.reverse_sequence={str(reverse).lower()}",
-                    ]
+            if S <= 0:
+                raise click.ClickException(f"Invalid slice [{start},{end}]")
 
-                    cmd = build_hydra_command(
-                        case_file,
-                        run_overrides,
-                        trials=trials,
-                        trial_jobs=trial_jobs,
-                        run_jobs=run_jobs,
-                        trial_id=trial_id,
-                    )
+            # Key rule:
+            # roll operates on generated N_n-length series
+            max_roll = min(S, horizon_years)
 
-                    logger.debug("Executing Hydra experiment run:")
-                    logger.debug("  {}", " ".join(cmd))
+            sweep_overrides = base_overrides + [
+                "rates_selection.method=historical",
+                f"rates_selection.from={start}",
+                f"rates_selection.to={end}",
+                f"rates_selection.roll_sequence=range(0,{max_roll})",
+                "rates_selection.reverse_sequence=true,false",
+            ]
 
-                    subprocess.run(cmd, check=True)
+            cmd = build_hydra_command(
+                case_file,
+                sweep_overrides,
+                trials=trials,
+                trial_jobs=trial_jobs,
+                run_jobs=run_jobs,
+                trial_id=trial_id,
+            )
+
+            logger.debug("Executing Hydra experiment multirun:")
+            logger.debug("  {}", " ".join(cmd))
+
+            subprocess.run(cmd, check=True)
 
         elapsed = time.perf_counter() - start_time
+
         logger.info(
             "Experiment 'historical_complete' completed in {}",
             format_elapsed(elapsed),
@@ -379,6 +427,9 @@ def cmd_run(
 
         return
 
+    # --------------------------------------------------------
+    # default processing outside of experiments
+    # --------------------------------------------------------
     cmd = build_hydra_command(
         case_file,
         hydra_overrides,

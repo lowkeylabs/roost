@@ -126,8 +126,15 @@ def run_trial(
     # ---------------------------------------------------------
     # Runtime metadata for effective TOML tracking
     # ---------------------------------------------------------
+
+    roost_cfg = overrides.get("roost", {})
+    experiment_name = roost_cfg.get("experiment")
+    run_name = run_dir.name
+
     roost_runtime = {
         "trial_id": trial_id,
+        "run_name": run_name,
+        "experiment": experiment_name,
         "master_seed": master_seed,
         "rates_seed": rates_seed,
         "longevity_seed": longevity_seed,
