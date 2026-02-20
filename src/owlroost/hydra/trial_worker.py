@@ -26,6 +26,8 @@ def run_trial(
     case_file: Path,
     base_overrides: dict,
     run_dir: Path,
+    master_seed: int,
+    longevity_cfg: dict | None = None,
 ):
     """
     Execute a single stochastic trial.
@@ -37,6 +39,9 @@ def run_trial(
     - No legacy ROOST flags.
     - No bootstrap mutation layer.
     """
+
+    longevity_cfg = longevity_cfg or {}
+    base_overrides = base_overrides or {}
 
     # ---------------------------------------------------------
     # Trial directory
@@ -62,6 +67,10 @@ def run_trial(
     # ---------------------------------------------------------
     longevity_model_active = "longevity" in overrides
 
+    longevity_runtime = {}
+    if longevity_model_active and longevity_seed is not None:
+        longevity_runtime["longevity_seed"] = longevity_seed
+
     # ---------------------------------------------------------
     # Longevity stochastic sampling (Hydra-driven)
     # ---------------------------------------------------------
@@ -69,8 +78,11 @@ def run_trial(
         case_data = tomllib.loads(case_file.read_text())
         ages = case_data["basic_info"]["life_expectancy"]
 
-        # Use TOML section if present, else defaults
         case_longevity = case_data.get("longevity", {})
+        overrides_longevity = overrides.setdefault("longevity", {})
+
+        # Read apply flag from Hydra overrides or config
+        apply_to_plan = longevity_cfg.get("apply_to_plan", False)
 
         health = case_longevity.get("health", ["average"] * len(ages))
         sex = case_longevity.get("sex", ["female"] * len(ages))
@@ -96,21 +108,30 @@ def run_trial(
             for i in range(len(ages))
         ]
 
-        overrides.setdefault("basic_info", {})["life_expectancy"] = sampled_life_exp
-        overrides.setdefault("longevity", {})["longevity_seed"] = longevity_seed
+        # Always record runtime metadata
+        overrides_longevity.setdefault("model", "default")
+        overrides_longevity["health"] = health
+        overrides_longevity["sex"] = sex
+        overrides_longevity["smoker"] = smoker
+        overrides_longevity["partnered"] = partnered
+        overrides_longevity["apply_to_plan"] = apply_to_plan
+
+        # ONLY overwrite if enabled
+        if apply_to_plan:
+            overrides.setdefault("basic_info", {})["life_expectancy"] = sampled_life_exp
+
+        longevity_runtime["base_life_expectancy"] = ages
+        longevity_runtime["calculated_life_expectancy"] = sampled_life_exp
 
     # ---------------------------------------------------------
     # Runtime metadata for effective TOML tracking
     # ---------------------------------------------------------
     roost_runtime = {
         "trial_id": trial_id,
+        "master_seed": master_seed,
         "rates_seed": rates_seed,
         "longevity_seed": longevity_seed,
     }
-
-    longevity_runtime = {}
-    if longevity_seed is not None:
-        longevity_runtime["longevity_seed"] = longevity_seed
 
     logger.debug(
         "Job: {:5} | Trial {:04d} | overrides={} | rates_seed={} | longevity_seed={} | dir={}",

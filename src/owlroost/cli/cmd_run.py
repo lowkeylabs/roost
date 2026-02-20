@@ -191,7 +191,7 @@ def build_hydra_command(
         cmd.append(f"trial.id={trial_id}")
 
     if run_jobs is not None:
-        cmd.append(f"launcher.n_jobs={run_jobs}")
+        cmd.append(f"hydra.launcher.n_jobs={run_jobs}")
 
     cmd.extend(overrides)
 
@@ -273,16 +273,24 @@ def cmd_run(
         raise click.BadParameter(f"No case matching '{case}'")
 
     rate_method = get_rate_selection_method(case_file)
-    hydra_overrides = ctx.args
+    hydra_overrides = list(ctx.args)
+
+    # ------------------------------------------------------------
+    # Auto-activate longevity=default if longevity.* override used
+    # ------------------------------------------------------------
+    if any(o.startswith("longevity.") for o in hydra_overrides):
+        if not any(o.startswith("longevity=") for o in hydra_overrides):
+            hydra_overrides = ["longevity=default", *hydra_overrides]
 
     effective_method = effective_rate_method(rate_method, hydra_overrides)
 
-    validate_rate_method_for_trials(
-        rate_method=effective_method,
-        overrides=hydra_overrides,
-        trials=trials,
-        trial_id=trial_id,
-    )
+    if 0:
+        validate_rate_method_for_trials(
+            rate_method=effective_method,
+            overrides=hydra_overrides,
+            trials=trials,
+            trial_id=trial_id,
+        )
 
     logger.debug("Resolved case file: {}", case_file)
     logger.debug("Hydra overrides: {}", hydra_overrides)

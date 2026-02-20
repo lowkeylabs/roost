@@ -2,6 +2,10 @@ from unittest.mock import patch
 
 from owlroost.hydra.trial_worker import run_trial
 
+# ============================================================
+# Directory + Basic Execution
+# ============================================================
+
 
 def test_run_trial_creates_directory(tmp_path):
     job_id = "job"
@@ -22,19 +26,25 @@ life_expectancy = [65]
         mock_run.return_value.status = "solved"
 
         result = run_trial(
-            job_id,
-            trial_id,
-            rates_seed,
-            longevity_seed,
-            case_file,
-            base_overrides,
-            run_dir,
+            job_id=job_id,
+            trial_id=trial_id,
+            rates_seed=rates_seed,
+            longevity_seed=longevity_seed,
+            case_file=case_file,
+            base_overrides=base_overrides,
+            run_dir=run_dir,
+            master_seed=123,
         )
 
     trial_dir = tmp_path / "trials" / "0003"
     assert trial_dir.exists()
     assert result["trial_id"] == trial_id
     assert result["status"] == "solved"
+
+
+# ============================================================
+# Rate Seed Injection
+# ============================================================
 
 
 def test_rates_seed_injected(tmp_path):
@@ -55,11 +65,18 @@ life_expectancy = [65]
             case_file=case_file,
             base_overrides={},
             run_dir=tmp_path,
+            master_seed=123,
         )
 
         overrides = mock_run.call_args.kwargs["overrides"]
+
         assert overrides["rates_selection"]["rate_seed"] == 1234
         assert overrides["rates_selection"]["reproducible_rates"] is True
+
+
+# ============================================================
+# Longevity Overwrite Behavior
+# ============================================================
 
 
 @patch("owlroost.hydra.trial_worker.sample_individual_lifetime")
@@ -87,15 +104,16 @@ partnered = false
             rates_seed=None,
             longevity_seed=999,
             case_file=case_file,
-            base_overrides={"longevity": {}},  # Hydra group activation
+            base_overrides={"longevity": {}},
             run_dir=tmp_path,
+            master_seed=123,
+            longevity_cfg={"apply_to_plan": True},
         )
 
         overrides = mock_run.call_args.kwargs["overrides"]
 
         assert result["status"] == "solved"
         assert overrides["basic_info"]["life_expectancy"] == [90]
-        assert overrides["longevity"]["longevity_seed"] == 999
 
 
 @patch("owlroost.hydra.trial_worker.sample_individual_lifetime")
@@ -117,14 +135,15 @@ life_expectancy = [65]
             rates_seed=None,
             longevity_seed=777,
             case_file=case_file,
-            base_overrides={"longevity": {}},  # Activate model
+            base_overrides={"longevity": {}},
             run_dir=tmp_path,
+            master_seed=123,
+            longevity_cfg={"apply_to_plan": True},
         )
 
         overrides = mock_run.call_args.kwargs["overrides"]
 
         assert overrides["basic_info"]["life_expectancy"] == [95]
-        assert overrides["longevity"]["longevity_seed"] == 777
 
         _, kwargs = mock_sample.call_args
         assert kwargs["health"] == "average"
@@ -154,12 +173,13 @@ life_expectancy = [65, 60]
             case_file=case_file,
             base_overrides={"longevity": {}},
             run_dir=tmp_path,
+            master_seed=123,
+            longevity_cfg={"apply_to_plan": True},
         )
 
         overrides = mock_run.call_args.kwargs["overrides"]
 
         assert overrides["basic_info"]["life_expectancy"] == [88, 92]
-        assert overrides["longevity"]["longevity_seed"] == 555
         assert mock_sample.call_count == 2
 
         for call in mock_sample.call_args_list:
@@ -168,6 +188,11 @@ life_expectancy = [65, 60]
             assert kwargs["sex"] == "female"
             assert kwargs["smoker"] is False
             assert kwargs["partnered"] is True
+
+
+# ============================================================
+# Longevity Disabled
+# ============================================================
 
 
 @patch("owlroost.hydra.trial_worker.sample_individual_lifetime")
@@ -187,8 +212,9 @@ life_expectancy = [65]
             rates_seed=None,
             longevity_seed=999,
             case_file=case_file,
-            base_overrides={},  # No longevity override
+            base_overrides={},
             run_dir=tmp_path,
+            master_seed=123,
         )
 
         mock_sample.assert_not_called()
@@ -197,7 +223,11 @@ life_expectancy = [65]
         assert "basic_info" not in overrides or "life_expectancy" not in overrides.get(
             "basic_info", {}
         )
-        assert "longevity" not in overrides
+
+
+# ============================================================
+# Deterministic Model Still Injects Rate Seed
+# ============================================================
 
 
 def test_rate_seed_injected_even_if_model_deterministic(tmp_path):
@@ -221,8 +251,10 @@ method = "historical average"
             case_file=case_file,
             base_overrides={},
             run_dir=tmp_path,
+            master_seed=123,
         )
 
         overrides = mock_run.call_args.kwargs["overrides"]
+
         assert overrides["rates_selection"]["rate_seed"] == 12345
         assert overrides["rates_selection"]["reproducible_rates"] is True

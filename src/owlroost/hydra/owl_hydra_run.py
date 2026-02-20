@@ -78,6 +78,7 @@ def orchestrate_trials(
     case_file: Path,
     overrides: dict,
     run_dir: Path,
+    longevity_cfg: dict,
 ):
     """
     Pure orchestration layer.
@@ -102,7 +103,19 @@ def orchestrate_trials(
             longevity_seed,
         )
 
-        trial_args.append((job_id, tid, rates_seed, longevity_seed, case_file, overrides, run_dir))
+        trial_args.append(
+            (
+                job_id,
+                tid,
+                rates_seed,
+                longevity_seed,
+                case_file,
+                overrides,
+                run_dir,
+                master_seed,
+                longevity_cfg,
+            )
+        )
 
     n_trials = len(trial_args)
     results = []
@@ -269,6 +282,7 @@ def run_hydra_job(cfg: DictConfig):
         case_file=case_file,
         overrides=overrides,
         run_dir=run_dir,
+        longevity_cfg=dict(cfg.longevity),
     )
 
 

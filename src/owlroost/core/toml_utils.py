@@ -7,10 +7,9 @@ def toml_plan_name(path: str) -> str:
     """
     Extract Plan Name from an OWL TOML file.
 
-    Expected TOML structure:
-      [Basic Info]
-      Plan Name = "Jack & Jill"
+    If case_name is missing, fallback to filename stem.
     """
+
     p = Path(path)
 
     if not p.exists():
@@ -18,10 +17,11 @@ def toml_plan_name(path: str) -> str:
 
     data = toml.load(p)
 
-    try:
-        name = data["case_name"]
-    except KeyError as e:
-        raise KeyError(f"'Case Name' not found in section of {p}") from e
+    name = data.get("case_name")
+
+    if not name:
+        # Fallback: filename without extension
+        name = p.stem
 
     # Normalize for filesystem safety
-    return name.strip().replace(" ", "_").replace("&", "and")
+    return str(name).strip().replace(" ", "_").replace("&", "and")

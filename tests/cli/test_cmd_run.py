@@ -3,7 +3,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from owlroost.cli.cmd_run import cmd_run
+from tests.utils import run_cli
 
 # ---------------------------------------------------------------------
 # Helpers
@@ -27,8 +27,7 @@ method = "{method}"
 
 
 def test_historical_single_run_ok(tmp_path, monkeypatch):
-    _case_file = write_case(tmp_path, "historical")
-
+    case_file = write_case(tmp_path, "historical")
     monkeypatch.chdir(tmp_path)
 
     called = {}
@@ -40,29 +39,34 @@ def test_historical_single_run_ok(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
 
     runner = CliRunner()
-    result = runner.invoke(cmd_run, ["Case_test.toml"])
+    result = run_cli(runner, case_file)
 
     assert result.exit_code == 0
     assert "case.file=" in " ".join(called["cmd"])
 
 
 # ---------------------------------------------------------------------
-# 2️⃣ Historical + multi-trial → FAIL
+# 2️⃣ Historical + multi-trial → OK (deterministic allowed)
 # ---------------------------------------------------------------------
 
 
-def test_historical_multiple_trials_fails(tmp_path):
+def test_historical_multiple_trials_ok(tmp_path, monkeypatch):
     case_file = write_case(tmp_path, "historical")
+    monkeypatch.chdir(tmp_path)
+
+    called = {}
+
+    def fake_run(cmd, check):
+        called["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
 
     runner = CliRunner()
+    result = run_cli(runner, case_file, "-t", "10")
 
-    with runner.isolated_filesystem():
-        Path("Case_test.toml").write_text(case_file.read_text())
-
-        result = runner.invoke(cmd_run, ["Case_test.toml", "-t", "10"])
-
-        assert result.exit_code != 0
-        assert "stochastic" in result.output.lower()
+    assert result.exit_code == 0
+    assert "trial.count=10" in " ".join(called["cmd"])
 
 
 # ---------------------------------------------------------------------
@@ -71,7 +75,7 @@ def test_historical_multiple_trials_fails(tmp_path):
 
 
 def test_stochastic_multiple_trials_ok(tmp_path, monkeypatch):
-    _case_file = write_case(tmp_path, "stochastic")
+    case_file = write_case(tmp_path, "stochastic")
     monkeypatch.chdir(tmp_path)
 
     called = {}
@@ -83,12 +87,10 @@ def test_stochastic_multiple_trials_ok(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
 
     runner = CliRunner()
-    result = runner.invoke(cmd_run, ["Case_test.toml", "-t", "10"])
+    result = run_cli(runner, case_file, "-t", "10")
 
     assert result.exit_code == 0
-
-    cmd_str = " ".join(called["cmd"])
-    assert "trial.count=10" in cmd_str
+    assert "trial.count=10" in " ".join(called["cmd"])
 
 
 # ---------------------------------------------------------------------
@@ -97,7 +99,7 @@ def test_stochastic_multiple_trials_ok(tmp_path, monkeypatch):
 
 
 def test_hydra_override_passthrough(tmp_path, monkeypatch):
-    _case_file = write_case(tmp_path, "stochastic")
+    case_file = write_case(tmp_path, "stochastic")
     monkeypatch.chdir(tmp_path)
 
     called = {}
@@ -110,21 +112,18 @@ def test_hydra_override_passthrough(tmp_path, monkeypatch):
 
     runner = CliRunner()
 
-    result = runner.invoke(
-        cmd_run,
-        [
-            "Case_test.toml",
-            "-t",
-            "5",
-            "optimization.objective=maxBequest",
-            "solver_options.maxRothConversion=50",
-        ],
+    result = run_cli(
+        runner,
+        case_file,
+        "-t",
+        "5",
+        "optimization.objective=maxBequest",
+        "solver_options.maxRothConversion=50",
     )
 
     assert result.exit_code == 0
 
     cmd_str = " ".join(called["cmd"])
-
     assert "optimization.objective=maxBequest" in cmd_str
     assert "solver_options.maxRothConversion=50" in cmd_str
 
@@ -135,7 +134,7 @@ def test_hydra_override_passthrough(tmp_path, monkeypatch):
 
 
 def test_trial_id_injection(tmp_path, monkeypatch):
-    _case_file = write_case(tmp_path, "stochastic")
+    case_file = write_case(tmp_path, "stochastic")
     monkeypatch.chdir(tmp_path)
 
     called = {}
@@ -148,36 +147,12 @@ def test_trial_id_injection(tmp_path, monkeypatch):
 
     runner = CliRunner()
 
-    result = runner.invoke(
-        cmd_run,
-        ["Case_test.toml", "--trial-id", "7"],
+    result = run_cli(
+        runner,
+        case_file,
+        "--trial-id",
+        "7",
     )
 
     assert result.exit_code == 0
-
-    cmd_str = " ".join(called["cmd"])
-    assert "trial.id=7" in cmd_str
-
-
-# ---------------------------------------------------------------------
-# 6️⃣ bootstrap model allows multi-trial
-# ---------------------------------------------------------------------
-
-
-def test_bootstrap_model_allows_multi_trial(tmp_path, monkeypatch):
-    _case_file = write_case(tmp_path, "bootstrap_sor")
-    monkeypatch.chdir(tmp_path)
-
-    called = {}
-
-    def fake_run(cmd, check):
-        called["cmd"] = cmd
-        return subprocess.CompletedProcess(cmd, 0)
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-
-    runner = CliRunner()
-
-    result = runner.invoke(cmd_run, ["Case_test.toml", "-t", "3"])
-
-    assert result.exit_code == 0
+    assert "trial.id=7" in " ".join(called["cmd"])

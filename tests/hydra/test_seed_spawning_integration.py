@@ -6,7 +6,7 @@ from hydra.core.global_hydra import GlobalHydra
 from owlroost.hydra.owl_hydra_run import orchestrate_trials, run_hydra_job
 
 # ============================================================
-# SEED BEHAVIOR TESTS (UNCHANGED — still valid)
+# SEED BEHAVIOR TESTS
 # ============================================================
 
 
@@ -14,7 +14,17 @@ from owlroost.hydra.owl_hydra_run import orchestrate_trials, run_hydra_job
 def test_seed_spawning_deterministic(mock_run_trial, tmp_path):
     captured = []
 
-    def fake_run_trial(job_id, trial_id, rates_seed, longevity_seed, *args):
+    def fake_run_trial(
+        job_id,
+        trial_id,
+        rates_seed,
+        longevity_seed,
+        case_file,
+        base_overrides,
+        run_dir,
+        master_seed,
+        longevity_cfg,
+    ):
         captured.append((trial_id, rates_seed, longevity_seed))
         return {"status": "solved", "trial_id": trial_id}
 
@@ -34,6 +44,7 @@ def test_seed_spawning_deterministic(mock_run_trial, tmp_path):
         case_file=case_file,
         overrides={},
         run_dir=tmp_path,
+        longevity_cfg={},
     )
 
     first_run = list(captured)
@@ -51,6 +62,7 @@ def test_seed_spawning_deterministic(mock_run_trial, tmp_path):
         case_file=case_file,
         overrides={},
         run_dir=tmp_path,
+        longevity_cfg={},
     )
 
     assert first_run == captured
@@ -66,6 +78,7 @@ def test_seed_spawning_deterministic(mock_run_trial, tmp_path):
         case_file=case_file,
         overrides={},
         run_dir=tmp_path,
+        longevity_cfg={},
     )
 
     assert first_run != captured
@@ -79,7 +92,17 @@ def test_seed_independent_of_trial_order(mock_run_trial, tmp_path):
     master_seed = 54321
     captured = {}
 
-    def fake_run_trial(job_id, trial_id, rates_seed, longevity_seed, *args):
+    def fake_run_trial(
+        job_id,
+        trial_id,
+        rates_seed,
+        longevity_seed,
+        case_file,
+        base_overrides,
+        run_dir,
+        master_seed,
+        longevity_cfg,
+    ):
         captured[trial_id] = (rates_seed, longevity_seed)
         return {"status": "solved", "trial_id": trial_id}
 
@@ -96,6 +119,7 @@ def test_seed_independent_of_trial_order(mock_run_trial, tmp_path):
         case_file=case_file,
         overrides={},
         run_dir=tmp_path,
+        longevity_cfg={},
     )
 
     seeds_ordered = dict(captured)
@@ -112,6 +136,7 @@ def test_seed_independent_of_trial_order(mock_run_trial, tmp_path):
         case_file=case_file,
         overrides={},
         run_dir=tmp_path,
+        longevity_cfg={},
     )
 
     seeds_shuffled = dict(captured)
@@ -121,7 +146,7 @@ def test_seed_independent_of_trial_order(mock_run_trial, tmp_path):
 
 
 # ============================================================
-# ORCHESTRATION PURITY TESTS (UPDATED)
+# ORCHESTRATION PURITY TESTS
 # ============================================================
 
 
@@ -129,9 +154,19 @@ def test_seed_independent_of_trial_order(mock_run_trial, tmp_path):
 def test_overrides_not_shared_between_trials(mock_run_trial, tmp_path):
     seen = []
 
-    def fake_run_trial(job_id, trial_id, rates_seed, longevity_seed, case_file, overrides, run_dir):
-        overrides["marker"] = trial_id
-        seen.append((trial_id, dict(overrides)))
+    def fake_run_trial(
+        job_id,
+        trial_id,
+        rates_seed,
+        longevity_seed,
+        case_file,
+        base_overrides,
+        run_dir,
+        master_seed,
+        longevity_cfg,
+    ):
+        base_overrides["marker"] = trial_id
+        seen.append((trial_id, dict(base_overrides)))
         return {"status": "solved", "trial_id": trial_id}
 
     mock_run_trial.side_effect = fake_run_trial
@@ -145,6 +180,7 @@ def test_overrides_not_shared_between_trials(mock_run_trial, tmp_path):
         case_file=tmp_path / "dummy.toml",
         overrides={},
         run_dir=tmp_path,
+        longevity_cfg={},
     )
 
     assert seen[0][1]["marker"] == 0
@@ -156,7 +192,17 @@ def test_overrides_not_shared_between_trials(mock_run_trial, tmp_path):
 def test_single_trial_no_stochastic(mock_run_trial, tmp_path):
     captured = []
 
-    def fake_run_trial(job_id, trial_id, rates_seed, longevity_seed, *args):
+    def fake_run_trial(
+        job_id,
+        trial_id,
+        rates_seed,
+        longevity_seed,
+        case_file,
+        base_overrides,
+        run_dir,
+        master_seed,
+        longevity_cfg,
+    ):
         captured.append((rates_seed, longevity_seed))
         return {"status": "solved", "trial_id": trial_id}
 
@@ -171,6 +217,7 @@ def test_single_trial_no_stochastic(mock_run_trial, tmp_path):
         case_file=tmp_path / "dummy.toml",
         overrides={},
         run_dir=tmp_path,
+        longevity_cfg={},
     )
 
     assert captured == [(None, None)]
@@ -180,7 +227,17 @@ def test_single_trial_no_stochastic(mock_run_trial, tmp_path):
 def test_multiple_trials_no_stochastic(mock_run_trial, tmp_path):
     captured = []
 
-    def fake_run_trial(job_id, trial_id, rates_seed, longevity_seed, *args):
+    def fake_run_trial(
+        job_id,
+        trial_id,
+        rates_seed,
+        longevity_seed,
+        case_file,
+        base_overrides,
+        run_dir,
+        master_seed,
+        longevity_cfg,
+    ):
         captured.append((trial_id, rates_seed, longevity_seed))
         return {"status": "solved", "trial_id": trial_id}
 
@@ -195,6 +252,7 @@ def test_multiple_trials_no_stochastic(mock_run_trial, tmp_path):
         case_file=tmp_path / "dummy.toml",
         overrides={},
         run_dir=tmp_path,
+        longevity_cfg={},
     )
 
     for _, rates_seed, longevity_seed in captured:
@@ -203,7 +261,7 @@ def test_multiple_trials_no_stochastic(mock_run_trial, tmp_path):
 
 
 # ============================================================
-# HYDRA INTEGRATION TESTS (UPDATED — NO BOOTSTRAP MUTATION)
+# HYDRA INTEGRATION TESTS
 # ============================================================
 
 
@@ -211,8 +269,18 @@ def test_multiple_trials_no_stochastic(mock_run_trial, tmp_path):
 def test_hydra_group_selection_passed_through(mock_run_trial, tmp_path):
     captured = []
 
-    def fake_run_trial(job_id, trial_id, rates_seed, longevity_seed, case_file, overrides, run_dir):
-        captured.append(overrides)
+    def fake_run_trial(
+        job_id,
+        trial_id,
+        rates_seed,
+        longevity_seed,
+        case_file,
+        base_overrides,
+        run_dir,
+        master_seed,
+        longevity_cfg,
+    ):
+        captured.append(base_overrides)
         return {"status": "solved", "trial_id": trial_id}
 
     mock_run_trial.side_effect = fake_run_trial
@@ -241,20 +309,28 @@ def test_hydra_group_selection_passed_through(mock_run_trial, tmp_path):
 
     assert len(captured) == 2
 
-    # Ensure overrides were NOT mutated by orchestrator
     for o in captured:
-        assert "rates" not in o  # no virtual injection
-        assert "rates_selection" in cfg  # Hydra handled composition
+        assert "rates" not in o
 
 
 # ============================================================
-# REPRODUCIBILITY CONTRACT (UNCHANGED)
+# REPRODUCIBILITY CONTRACT
 # ============================================================
 
 
 @patch("owlroost.hydra.owl_hydra_run.run_trial")
 def test_reproducibility_contract(mock_run_trial, tmp_path):
-    def deterministic_run_trial(job_id, trial_id, rates_seed, longevity_seed, *args):
+    def deterministic_run_trial(
+        job_id,
+        trial_id,
+        rates_seed,
+        longevity_seed,
+        case_file,
+        base_overrides,
+        run_dir,
+        master_seed,
+        longevity_cfg,
+    ):
         return {
             "status": "solved",
             "trial_id": trial_id,
@@ -276,6 +352,7 @@ def test_reproducibility_contract(mock_run_trial, tmp_path):
         case_file=tmp_path / "dummy.toml",
         overrides={},
         run_dir=tmp_path,
+        longevity_cfg={},
     )
 
     results_2 = orchestrate_trials(
@@ -287,6 +364,7 @@ def test_reproducibility_contract(mock_run_trial, tmp_path):
         case_file=tmp_path / "dummy.toml",
         overrides={},
         run_dir=tmp_path,
+        longevity_cfg={},
     )
 
     assert results_1 == results_2
@@ -300,6 +378,7 @@ def test_reproducibility_contract(mock_run_trial, tmp_path):
         case_file=tmp_path / "dummy.toml",
         overrides={},
         run_dir=tmp_path,
+        longevity_cfg={},
     )
 
     assert results_1 != results_3

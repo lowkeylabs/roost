@@ -92,6 +92,10 @@ def apply_solver_overrides(diconf: dict, value: dict):
     apply_generic_overrides("solver_options", diconf, value)
 
 
+def apply_longevity_overrides(diconf: dict, value: dict):
+    apply_generic_overrides("longevity", diconf, value)
+
+
 OVERRIDE_HANDLERS = {
     "basic_info": apply_basic_info_overrides,
     "savings_assets": apply_savings_assets_overrides,
@@ -99,6 +103,7 @@ OVERRIDE_HANDLERS = {
     "rates_selection": apply_rates_selection_overrides,
     "asset_allocation": apply_asset_allocation_overrides,
     "optimization": apply_optimization_overrides,
+    "longevity": apply_longevity_overrides,
     "solver": apply_solver_overrides,
 }
 
