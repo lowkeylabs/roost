@@ -12,16 +12,42 @@ It does this by organizing retirement analysis around a small number of clear, o
 
 ## Core Concepts
 
-ROOST introduces six key concepts in extending the work of OWL.
+ROOST introduces seven key concepts in extending the work of OWL.
 
 * **Decision options** define *what question is being asked*
 * **Choice templates** define *policy alternatives*
 * **Cases** define *initial conditions and constraints*
+* **Experiments** define *how runs are generated and organized*
 * **Runs** define *a fixed decision policy applied to a case*
 * **Trials** define *individual realizations of uncertainty*
 * **Results** provide *evidence for comparison and insight*
 
 Cases and runs are shared between OWL and ROOST. They are represented by exactly the same files and outputs.
+
+### Experiments
+
+An **experiment** defines a structured method for generating and organizing runs for a given case.
+
+Conceptually:
+
+```
+Case × Experiment → Many Runs
+```
+
+An experiment answers the question:
+
+> *“How are we exploring this decision or uncertainty dimension?”*
+
+Experiments may:
+
+* Systematically vary a decision parameter (e.g., Social Security claiming age)
+* Sweep across a family of choice templates
+* Enumerate historical market regimes (e.g., roll/reverse of historical slices)
+* Explore timing variations such as retirement age
+* Stress-test exogenous assumptions
+
+Experiments do **not** change what a run is.
+They define how multiple runs are constructed and grouped under a single research objective.
 
 ## Design Philosophy
 
@@ -31,6 +57,7 @@ ROOST treats retirement planning as a **sequential decision problem**:
 * They are revisited annually
 * Outcomes unfold under uncertainty
 * Policies are evaluated across many plausible futures for robustness, not just optimality
+* Experiments systematically generate structured sets of runs for comparison
 
 Rather than asking *“What is the single optimal plan?”*, ROOST helps answer:
 

@@ -2,7 +2,8 @@
 heirs_rate_on_tax_deferred_estate: 30.0
 dividend_rate: 1.8
 obbba_expiration_year: 2032
-method: "stochastic"
+
+method: default
 rate_seed: 973170252
 reproducible_rates: false
 
@@ -26,3 +27,6 @@ to: 2025
 fromto:
   - 1928
   - 1944
+
+roll_sequence: 0
+reverse_sequence: false

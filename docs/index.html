@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.8.26">
+<meta name="generator" content="quarto-1.8.27">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -37,7 +37,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="site_libs/bootstrap/bootstrap-45a48b56c8ad2523a9a31c69be39928e.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
@@ -112,6 +112,8 @@ ul.task-list li input[type="checkbox"] {
   <ul>
   <li><a href="#core-concepts" id="toc-core-concepts" class="nav-link active" data-scroll-target="#core-concepts"><strong>Core Concepts</strong></a>
   <ul>
+  <li><a href="#experiments" id="toc-experiments" class="nav-link" data-scroll-target="#experiments">Experiments</a></li>
+  <li><a href="#examples-of-experiments" id="toc-examples-of-experiments" class="nav-link" data-scroll-target="#examples-of-experiments">Examples of Experiments</a></li>
   <li><a href="#decision-options" id="toc-decision-options" class="nav-link" data-scroll-target="#decision-options">Decision Options</a></li>
   <li><a href="#choice-templates" id="toc-choice-templates" class="nav-link" data-scroll-target="#choice-templates">Choice Templates</a></li>
   <li><a href="#cases" id="toc-cases" class="nav-link" data-scroll-target="#cases">Cases</a></li>
@@ -173,11 +175,69 @@ ul.task-list li input[type="checkbox"] {
 <li><strong>Decision options</strong> define <em>what question is being asked</em></li>
 <li><strong>Choice templates</strong> define <em>policy alternatives</em></li>
 <li><strong>Cases</strong> define <em>initial conditions and constraints</em></li>
+<li><strong>Experiments</strong> define <em>how runs are generated and organized</em></li>
 <li><strong>Runs</strong> define <em>a fixed decision policy applied to a case</em></li>
 <li><strong>Trials</strong> define <em>individual realizations of uncertainty</em></li>
 <li><strong>Results</strong> provide <em>evidence for comparison and insight</em></li>
 </ul>
 <p>Cases and runs are shared between OWL and ROOST. They are represented by exactly the same files and outputs.</p>
+<section id="experiments" class="level3">
+<h3 class="anchored" data-anchor-id="experiments">Experiments</h3>
+<p>An experiment defines a structured method for generating and organizing runs for a given case.</p>
+<p>Conceptually:</p>
+<pre><code>Case × Experiment → Many Runs</code></pre>
+<p>An experiment answers the question:</p>
+<p><em>“How are we exploring this decision or uncertainty dimension?”</em></p>
+<p>Experiments do not change the meaning of a run. They define how runs are constructed and grouped.</p>
+<p>Experiments may:</p>
+<ul>
+<li>Systematically vary a decision parameter</li>
+<li>Sweep across a family of choice templates</li>
+<li>Enumerate historical market regimes</li>
+<li>Explore timing variations (e.g., retirement age, Social Security age)</li>
+<li>Stress-test exogenous assumptions</li>
+</ul>
+<p>Each experiment produces a coherent set of runs, all tied to the same case and timestamp.</p>
+<p>Experiments are fully reproducible from the case file and the experiment definition.</p>
+</section>
+<section id="examples-of-experiments" class="level3">
+<h3 class="anchored" data-anchor-id="examples-of-experiments">Examples of Experiments</h3>
+<p><code>experiment=historical_complete</code></p>
+<p>Enumerates all unique historical regime permutations for a given from/to slice:</p>
+<ul>
+<li><p>roll ∈ [0 … slice_length−1]</p></li>
+<li><p>reverse ∈ {false, true}</p></li>
+</ul>
+<p>This explores robustness to historical phase shifts.</p>
+<p><code>experiment=social_security_sweep</code></p>
+<p>Generates runs for different claiming ages:</p>
+<ul>
+<li>claim_age ∈ {62, 63, …, 70}</li>
+</ul>
+<p>Each run fixes a claiming strategy; trials may vary longevity or returns.</p>
+<p><code>experiment=retirement_age_sweep</code></p>
+<p>Explores retirement timing flexibility:</p>
+<ul>
+<li>retirement_age ∈ {60 … 72}</li>
+</ul>
+<p>Useful for analyzing tradeoffs between longevity risk and income timing.</p>
+<p><code>experiment=roth_bracket_sweep</code></p>
+<p>Compares Roth conversion policies:</p>
+<ul>
+<li>no conversions</li>
+<li>fixed annual conversions</li>
+<li>fill-to-22% bracket</li>
+<li>fill-to-24% bracket</li>
+<li>full OWL optimization</li>
+</ul>
+<p><code>experiment=glidepath_sweep</code></p>
+<p>Varies asset allocation policy families:</p>
+<ul>
+<li>static allocation</li>
+<li>declining equity glidepath</li>
+<li>rising equity glidepath</li>
+</ul>
+</section>
 <section id="decision-options" class="level3">
 <h3 class="anchored" data-anchor-id="decision-options">Decision Options</h3>
 <p>A <strong>decision option</strong> represents a focused retirement question—something the agent can choose and re-choose over time.</p>
@@ -321,6 +381,7 @@ ul.task-list li input[type="checkbox"] {
 <li>They are revisited annually</li>
 <li>Outcomes unfold under uncertainty</li>
 <li>Policies are evaluated across many plausible futures for robustness, not just optimality</li>
+<li>Experiments systematically generate and compare structured sets of runs</li>
 </ul>
 <p>Rather than asking <em>“What is the single optimal plan?”</em>, ROOST helps answer:</p>
 <blockquote class="blockquote">

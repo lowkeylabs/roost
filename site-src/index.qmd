@@ -19,11 +19,87 @@ ROOST introduces six key concepts in extending the work of OWL.
 * **Decision options** define *what question is being asked*
 * **Choice templates** define *policy alternatives*
 * **Cases** define *initial conditions and constraints*
+* **Experiments** define *how runs are generated and organized*
 * **Runs** define *a fixed decision policy applied to a case*
 * **Trials** define *individual realizations of uncertainty*
 * **Results** provide *evidence for comparison and insight*
 
 Cases and runs are shared between OWL and ROOST. They are represented by exactly the same files and outputs.
+
+### Experiments
+
+An experiment defines a structured method for generating and organizing runs for a given case.
+
+Conceptually:
+
+```
+Case × Experiment → Many Runs
+```
+
+An experiment answers the question:
+
+  *“How are we exploring this decision or uncertainty dimension?”*
+
+Experiments do not change the meaning of a run. They define how runs are constructed and grouped.
+
+Experiments may:
+
+* Systematically vary a decision parameter
+* Sweep across a family of choice templates
+* Enumerate historical market regimes
+* Explore timing variations (e.g., retirement age, Social Security age)
+* Stress-test exogenous assumptions
+
+Each experiment produces a coherent set of runs, all tied to the same case and timestamp.
+
+Experiments are fully reproducible from the case file and the experiment definition.
+
+### Examples of Experiments
+
+`experiment=historical_complete`
+
+Enumerates all unique historical regime permutations for a given from/to slice:
+
+* roll ∈ [0 … slice_length−1]
+
+* reverse ∈ {false, true}
+
+This explores robustness to historical phase shifts.
+
+`experiment=social_security_sweep`
+
+Generates runs for different claiming ages:
+
+* claim_age ∈ {62, 63, …, 70}
+
+Each run fixes a claiming strategy; trials may vary longevity or returns.
+
+`experiment=retirement_age_sweep`
+
+Explores retirement timing flexibility:
+
+* retirement_age ∈ {60 … 72}
+
+Useful for analyzing tradeoffs between longevity risk and income timing.
+
+`experiment=roth_bracket_sweep`
+
+Compares Roth conversion policies:
+
+* no conversions
+* fixed annual conversions
+* fill-to-22% bracket
+* fill-to-24% bracket
+* full OWL optimization
+
+`experiment=glidepath_sweep`
+
+Varies asset allocation policy families:
+
+* static allocation
+* declining equity glidepath
+* rising equity glidepath
+
 
 ### Decision Options
 
@@ -185,6 +261,7 @@ ROOST treats retirement planning as a **sequential decision problem**:
 * They are revisited annually
 * Outcomes unfold under uncertainty
 * Policies are evaluated across many plausible futures for robustness, not just optimality
+* Experiments systematically generate and compare structured sets of runs
 
 Rather than asking *“What is the single optimal plan?”*, ROOST helps answer:
 
