@@ -1,5 +1,6 @@
 # src/owlroost/cli/cmd_run.py
 
+import ast
 import subprocess
 import sys
 import time
@@ -35,6 +36,42 @@ helper_groups = [
 # ---------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------
+
+# ---------------------------------------------------------------------
+# Experiment Helpers
+# ---------------------------------------------------------------------
+
+
+def parse_from_to_slices(overrides: list[str]) -> list[tuple[int, int]]:
+    """
+    Extract and parse rates_selection.from_to=[[start,end], ...]
+    """
+    for o in overrides:
+        if o.startswith("rates_selection.from_to="):
+            value = o.split("=", 1)[1]
+            try:
+                slices = ast.literal_eval(value)
+            except Exception:
+                raise click.ClickException(
+                    f"Invalid rates_selection.from_to value: {value}"
+                ) from None
+
+            if not isinstance(slices, list):
+                raise click.ClickException(
+                    "rates_selection.from_to must be a list of [start,end] pairs"
+                )
+
+            result = []
+            for pair in slices:
+                if not isinstance(pair, (list | tuple)) or len(pair) != 2:
+                    raise click.ClickException("Each from_to entry must be [start,end]")
+                result.append((int(pair[0]), int(pair[1])))
+
+            return result
+
+    raise click.ClickException(
+        "historical_complete requires rates_selection.from_to=[[start,end],...]"
+    )
 
 
 def format_elapsed(seconds: float) -> str:
@@ -282,18 +319,65 @@ def cmd_run(
         if not any(o.startswith("longevity=") for o in hydra_overrides):
             hydra_overrides = ["longevity=default", *hydra_overrides]
 
-    effective_method = effective_rate_method(rate_method, hydra_overrides)
-
-    if 0:
-        validate_rate_method_for_trials(
-            rate_method=effective_method,
-            overrides=hydra_overrides,
-            trials=trials,
-            trial_id=trial_id,
-        )
+    effective_rate_method(rate_method, hydra_overrides)
 
     logger.debug("Resolved case file: {}", case_file)
     logger.debug("Hydra overrides: {}", hydra_overrides)
+
+    # ------------------------------------------------------------
+    # Experiment: historical_complete
+    # ------------------------------------------------------------
+
+    experiment_name = None
+    for o in hydra_overrides:
+        if o.startswith("experiment="):
+            experiment_name = o.split("=", 1)[1]
+
+    if experiment_name == "historical_complete":
+        slices = parse_from_to_slices(hydra_overrides)
+
+        # Remove experiment + from_to override
+        base_overrides = [
+            o
+            for o in hydra_overrides
+            if not o.startswith("experiment=") and not o.startswith("rates_selection.from_to=")
+        ]
+
+        start_time = time.perf_counter()
+
+        for start, end in slices:
+            S = end - start + 1
+
+            for roll in range(S):
+                for reverse in (False, True):
+                    run_overrides = base_overrides + [
+                        f"rates_selection.from={start}",
+                        f"rates_selection.to={end}",
+                        f"rates_selection.roll_sequence={roll}",
+                        f"rates_selection.reverse_sequence={str(reverse).lower()}",
+                    ]
+
+                    cmd = build_hydra_command(
+                        case_file,
+                        run_overrides,
+                        trials=trials,
+                        trial_jobs=trial_jobs,
+                        run_jobs=run_jobs,
+                        trial_id=trial_id,
+                    )
+
+                    logger.debug("Executing Hydra experiment run:")
+                    logger.debug("  {}", " ".join(cmd))
+
+                    subprocess.run(cmd, check=True)
+
+        elapsed = time.perf_counter() - start_time
+        logger.info(
+            "Experiment 'historical_complete' completed in {}",
+            format_elapsed(elapsed),
+        )
+
+        return
 
     cmd = build_hydra_command(
         case_file,
