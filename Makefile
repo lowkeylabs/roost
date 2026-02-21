@@ -21,20 +21,20 @@ verify-mode:
 
 
 # ---------------------------------------
-# Versioning / Release
+# Release versioning
 # ---------------------------------------
 
-.PHONY: version version-apply release-patch release-minor release-major
+.PHONY: release release-apply release-patch release-minor release-major
 
 # Preview next patch version (dry-run)
-version:
+release:
 	uv run scripts/bump_version.py
 	@echo ""
 	@echo + Run \"make pre-commit\" and \"uv run pytest\" prior to bumping version.
 	@echo + use \"make version-apply\" to bump version.
 
 # Actually tag patch release
-version-apply:
+release-apply:
 	uv run scripts/bump_version.py patch --apply
 	uv pip install -e . --force-reinstall
 
