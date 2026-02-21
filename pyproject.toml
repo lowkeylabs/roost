@@ -1,6 +1,6 @@
 [project]
 name = "owl-roost"
-version = "0.4.0"
+dynamic = ["version"]
 description = "OWL-ROOST - Retirement Options and Outcomes Studies Toolkit"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -12,7 +12,7 @@ dependencies = [
     "plotly>=6.5.0",
 
     # OWL is under active development; pin to commit for reproducibility
-    "owlplanner @ git+https://github.com/mdlacasse/Owl.git@cf240de",  # 2026-02-19
+    "owlplanner @ git+https://github.com/mdlacasse/Owl.git@938311833c0c87cf3f5b653d5156bac0a0336c6c",  # 2026-02-19
 
     #"owlplanner", #used with uv.sources below.
     "python-dotenv>=1.2.1",
@@ -36,7 +36,7 @@ owlr     = "owlroost.cli._main:cli"
 roost    = "owlroost.cli._main:cli"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 # -------------------------------
@@ -44,7 +44,12 @@ build-backend = "hatchling.build"
 # -------------------------------
 
 [tool.hatch.version]
-path = "src/owlroost/version.py"
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+version_scheme = "guess-next-dev"
+local_scheme = "node-and-date"
+
 
 [tool.hatch.metadata]
 allow-direct-references = true

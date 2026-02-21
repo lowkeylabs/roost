@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PYPROJECT = ROOT / "pyproject.toml"
 TMP = ROOT / ".tmp_owl"
 SRC = TMP / "examples"
-DST = ROOT / "examples" / "owlplanner"
+DST = ROOT / "site-src" / "examples" / "owlplanner"
 
 
 def run(cmd: list[str], cwd: Path | None = None) -> None:
