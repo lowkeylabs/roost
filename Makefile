@@ -29,10 +29,13 @@ verify-mode:
 # Preview next patch version (dry-run)
 version:
 	uv run scripts/bump_version.py
+	@echo ""
+	@echo + Run \"make pre-commit\" and \"uv run pytest\" prior to bumping version.
+	@echo + use \"make version-apply\" to bump version.
 
 # Actually tag patch release
 version-apply:
-	uv run scripts/bump_version.py --apply
+	uv run scripts/bump_version.py patch --apply
 	uv pip install -e . --force-reinstall
 
 # Explicit bump types
@@ -47,4 +50,3 @@ release-minor:
 release-major:
 	uv run scripts/bump_version.py major --apply
 	uv pip install -e . --force-reinstall
-	
