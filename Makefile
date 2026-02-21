@@ -18,3 +18,33 @@ test: sync-dev pre-commit pytest
 verify-mode:
 	uv run python -c "import pkgutil; print([m.name for m in pkgutil.iter_modules() if 'owl' in m.name.lower()])"
 	uv run python -c "import subprocess, pathlib; p=pathlib.Path('../owl-planner'); print(subprocess.check_output(['git','branch','--show-current'], cwd=p).decode().strip())" fixes/bootstrap-sor
+
+
+# ---------------------------------------
+# Versioning / Release
+# ---------------------------------------
+
+.PHONY: version version-apply release-patch release-minor release-major
+
+# Preview next patch version (dry-run)
+version:
+	uv run scripts/bump_version.py
+
+# Actually tag patch release
+version-apply:
+	uv run scripts/bump_version.py --apply
+	uv pip install -e . --force-reinstall
+
+# Explicit bump types
+release-patch:
+	uv run scripts/bump_version.py patch --apply
+	uv pip install -e . --force-reinstall
+
+release-minor:
+	uv run scripts/bump_version.py minor --apply
+	uv pip install -e . --force-reinstall
+
+release-major:
+	uv run scripts/bump_version.py major --apply
+	uv pip install -e . --force-reinstall
+	
