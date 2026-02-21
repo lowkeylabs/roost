@@ -31,22 +31,26 @@ release:
 	uv run scripts/bump_version.py
 	@echo ""
 	@echo + Run \"make pre-commit\" and \"uv run pytest\" prior to bumping version.
-	@echo + use \"make version-apply\" to bump version.
+	@echo + use \"make release-apply\" to bump version at patch level.
 
 # Actually tag patch release
 release-apply:
 	uv run scripts/bump_version.py patch --apply
 	uv pip install -e . --force-reinstall
+	uv run roost --version
 
 # Explicit bump types
 release-patch:
 	uv run scripts/bump_version.py patch --apply
 	uv pip install -e . --force-reinstall
+	uv run roost --version
 
 release-minor:
 	uv run scripts/bump_version.py minor --apply
 	uv pip install -e . --force-reinstall
+	uv run roost --version
 
 release-major:
 	uv run scripts/bump_version.py major --apply
 	uv pip install -e . --force-reinstall
+	uv run roost --version
