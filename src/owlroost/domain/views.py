@@ -1,15 +1,16 @@
-from .case import Case
 from .registry import COLUMN_REGISTRY
 
 
-def build_rows(cases: list[Case], columns: list[str]) -> list[dict]:
+def build_rows(cases, column_keys):
     rows = []
 
     for case in cases:
         row = {}
-        for key in columns:
-            col = COLUMN_REGISTRY[key]
-            row[col.label] = col.extractor(case)
+
+        for key in column_keys:
+            column = COLUMN_REGISTRY[key]
+            row[key] = column.extractor(case)
+
         rows.append(row)
 
     return rows

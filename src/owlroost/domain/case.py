@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 
 from owlplanner.config.schema import config_dict_to_model
@@ -35,6 +36,16 @@ class Case:
     def start_date(self) -> str:
         return self.config.basic_info.start_date
 
+    @property
+    def start_year(self) -> int:
+        start = self.config.basic_info.start_date
+
+        if hasattr(start, "year"):
+            return start.year
+
+        # Assume ISO string
+        return date.fromisoformat(str(start)).year
+
     # ---------------------------------------------------------
     # Assets (computed)
     # ---------------------------------------------------------
@@ -66,3 +77,49 @@ class Case:
     @property
     def spending_profile(self) -> str:
         return self.config.optimization_parameters.spending_profile
+
+    # ---------------------------------------------------------
+    # Ages
+    # ---------------------------------------------------------
+
+    @property
+    def ages(self) -> list[int]:
+        """
+        Current ages at start_date (approximate, year-based).
+        """
+        dobs = self.config.basic_info.date_of_birth
+        if not dobs:
+            return []
+
+        start_year = int(self.start_date.split("-")[0])
+        ages = []
+
+        for dob in dobs:
+            birth_year = int(dob.split("-")[0])
+            ages.append(start_year - birth_year)
+
+        return ages
+
+    @property
+    def life_expectancies(self) -> list[int]:
+        return self.config.basic_info.life_expectancy
+
+    # ---------------------------------------------------------
+    # Fixed income summary
+    # ---------------------------------------------------------
+
+    @property
+    def pension_monthly(self) -> list[float]:
+        return self.config.fixed_income.pension_monthly_amounts or []
+
+    @property
+    def pension_ages(self) -> list[float]:
+        return self.config.fixed_income.pension_ages or []
+
+    @property
+    def social_security_pia(self) -> list[int]:
+        return self.config.fixed_income.social_security_pia_amounts or []
+
+    @property
+    def social_security_ages(self) -> list[float]:
+        return self.config.fixed_income.social_security_ages or []
