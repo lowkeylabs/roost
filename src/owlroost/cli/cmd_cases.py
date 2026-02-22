@@ -2,15 +2,20 @@ from pathlib import Path
 
 import click
 from loguru import logger
+
 from rich import box
 from rich.console import Console
 from rich.table import Table
+from rich.markup import escape
+
+from dataclasses import is_dataclass, asdict
 
 from owlroost.cli.utils import (
     find_case_files,
     index_case_files,
     resolve_case_selector,
 )
+
 from owlroost.domain.case import Case
 from owlroost.domain.formatting import format_value
 from owlroost.domain.registry import COLUMN_REGISTRY, VIEW_REGISTRY
@@ -50,6 +55,14 @@ def cmd_cases(selector, view):
                 console.print(f"[red]No case matching '{sel}'[/red]")
                 return
             paths.append(match)
+
+        # --------------------------------------------
+        # If exactly one case selected → detailed view
+        # --------------------------------------------
+        if len(paths) == 1:
+            case = Case(paths[0])
+            _display_single_case(console, case)
+            return
     else:
         paths = files
 
@@ -83,14 +96,17 @@ def cmd_cases(selector, view):
         show_lines=False,
     )
 
+    table.add_column("ID",justify="right")
+
     # Add columns using registry metadata
     for key in column_keys:
         col = COLUMN_REGISTRY[key]
         table.add_column(col.label, justify=col.align)
 
     # Add rows
-    for row in rows:
-        formatted_row = []
+    for idx,row in enumerate(rows):
+
+        formatted_row = [str(idx)]
 
         for key in column_keys:
             col = COLUMN_REGISTRY[key]
@@ -101,3 +117,75 @@ def cmd_cases(selector, view):
         table.add_row(*formatted_row)
 
     console.print(table)
+
+
+def _display_single_case(console: Console, case: Case):
+    console.print(f"\nCASE: {case.name}")
+    console.print(f"FILE: {case.filename}")
+    console.print("-" * 60)
+    console.print(case.professional_summary, width=70)
+    console.print()
+
+    config = case.config
+
+    # Normalize config to dict
+    if hasattr(config, "model_dump"):          # Pydantic v2
+        config_dict = config.model_dump()
+    elif hasattr(config, "dict"):              # Pydantic v1
+        config_dict = config.dict()
+    elif is_dataclass(config):
+        config_dict = asdict(config)
+    else:
+        config_dict = config
+
+    for section_name, section_value in config_dict.items():
+        _render_section(console, section_name, section_value)
+
+def _render_section(console, name, value, indent=0):
+    indent_str = " " * indent
+
+    header_text = escape(f"[{name}]")
+    console.print(f"\n{indent_str}[bold cyan]{header_text}[/bold cyan]")
+
+    if is_dataclass(value):
+        value = asdict(value)
+
+    if isinstance(value, dict):
+        for key, val in value.items():
+            _render_field(console, key, val, indent + 2)
+    else:
+        formatted = format_value(value, None)
+        console.print(f"{indent_str}  {formatted}")
+
+def _render_field(console, key, value, indent):
+    indent_str = " " * indent
+
+    # Nested dict
+    if isinstance(value, dict):
+        _render_section(console, key, value, indent)
+        return
+
+    # Nested dataclass
+    if is_dataclass(value):
+        _render_section(console, key, asdict(value), indent)
+        return
+
+    # -------------------------------------------------
+    # Determine formatter
+    # -------------------------------------------------
+
+    fmt = None
+
+    # Use registry formatter if key registered
+    if key in COLUMN_REGISTRY:
+        fmt = COLUMN_REGISTRY[key].fmt
+
+    # Special case: asset allocation generic block
+    elif key == "generic":
+        fmt = "allocation"
+
+    formatted = format_value(value, fmt)
+
+    console.print(f"{indent_str}{key} = {formatted}")
+
+    

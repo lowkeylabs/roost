@@ -23,7 +23,7 @@ register_column(
 register_column(
     Column(
         key="start_year",
-        label="Start\nyear",
+        label="Plan\nstart",
         extractor=lambda c: c.start_year,
         group="basic",
         align="center",
@@ -64,9 +64,9 @@ register_column(
 
 register_column(
     Column(
-        key="total_assets",
+        key="total_savings",
         label="Savings\n($k)",
-        extractor=lambda c: c.total_assets,
+        extractor=lambda c: c.total_savings,
         group="basic",
         align="right",
         fmt="float1",
@@ -123,9 +123,9 @@ register_column(
 
 register_column(
     Column(
-        key="taxable",
-        label="Taxable",
-        extractor=lambda c: c.taxable_assets,
+        key="taxable_savings",
+        label="Taxable\n($k)",
+        extractor=lambda c: c.taxable_savings,
         group="assets",
         align="right",
         fmt="currency",
@@ -134,9 +134,9 @@ register_column(
 
 register_column(
     Column(
-        key="tax_deferred",
-        label="Tax-Deferred",
-        extractor=lambda c: c.tax_deferred_assets,
+        key="tax_deferred_savings",
+        label="Tax-def\n($k)",
+        extractor=lambda c: c.tax_deferred_savings,
         group="assets",
         align="right",
         fmt="currency",
@@ -145,9 +145,9 @@ register_column(
 
 register_column(
     Column(
-        key="tax_free",
-        label="Tax-Free",
-        extractor=lambda c: c.tax_free_assets,
+        key="tax_free_savings",
+        label="Tax-Free\n($k)",
+        extractor=lambda c: c.tax_free_savings,
         group="assets",
         align="right",
         fmt="currency",
@@ -189,6 +189,18 @@ register_column(
     )
 )
 
+
+register_column(
+    Column(
+        key="initial_asset_allocation",
+        label="Initial allocations (%)\n[S&P,Bonds,T-Notes,Cash]",
+        extractor=lambda c: c.initial_asset_allocation,
+        group="assets",
+        align="left",
+        fmt="allocation",
+    )
+)
+
 # ---------------------------------------------------------
 # REGISTER VIEWS
 # ---------------------------------------------------------
@@ -196,12 +208,12 @@ register_column(
 register_view(
     "basic",
     [
-        "case_name",
-        "start_year",
+     #   "case_name",
         "household",
+        "start_year",
         "ages",
         "life_expectancy",
-        "total_assets",
+        "total_savings",
         "pensions",
         "pension_ages",
         "ss_pia",
@@ -211,7 +223,26 @@ register_view(
 
 register_view(
     "assets",
-    ["case_name", "total_assets", "taxable", "tax_deferred", "tax_free"],
+    [
+        "household",
+        "start_year",
+        "total_savings",
+        "taxable_savings",
+        "tax_deferred_savings",
+        "tax_free_savings",
+        "initial_asset_allocation",
+    ],
+)
+
+register_view(
+    "longevity",
+    [
+        "longevity_model_type",
+        "life_expectancy",
+        "survival_table",
+        "joint_survival",
+        "max_age",
+    ],
 )
 
 register_view(
