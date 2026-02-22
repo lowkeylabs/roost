@@ -1,35 +1,33 @@
-import tomllib
+from dataclasses import asdict, is_dataclass
 from pathlib import Path
 
 import click
 from loguru import logger
+from rich import box
+from rich.console import Console
+from rich.markup import escape
+from rich.table import Table
 
 from owlroost.cli.utils import (
     find_case_files,
     index_case_files,
-    print_case_list,
     resolve_case_selector,
 )
-
-# ======================================================================
-# Main command
-# ======================================================================
+from owlroost.domain.case import Case
+from owlroost.domain.formatting import format_value
+from owlroost.domain.registry import COLUMN_REGISTRY, VIEW_REGISTRY
+from owlroost.domain.views import build_rows
 
 
 @click.command(name="cases")
-@click.argument(
-    "selector",
-    nargs=-1,  # allow multiple selectors
+@click.argument("selector", nargs=-1)
+@click.option(
+    "--view",
+    default="basic",
+    help="View name (basic, assets, optimization, all)",
 )
-def cmd_cases(selector):
-    """
-    List ROOST case files, display a single case, or compare cases.
-
-    SELECTOR may be:
-      - omitted (list all cases)
-      - one case ID or filename (display)
-      - two or more IDs / filenames (compare)
-    """
+def cmd_cases(selector, view):
+    console = Console()
 
     directory = Path(".")
     logger.debug(f"Scanning directory: {directory}")
@@ -37,282 +35,153 @@ def cmd_cases(selector):
     files = find_case_files(directory)
 
     if not files:
-        click.echo("No .toml case files found.")
+        console.print("No .toml case files found.")
         return
 
     indexed_files = index_case_files(files)
 
-    # ------------------------------------------------------------
-    # Comparison mode (2+ selectors)
-    # ------------------------------------------------------------
-    if len(selector) >= 2:
-        paths: list[Path] = []
+    # --------------------------------------------
+    # Resolve cases
+    # --------------------------------------------
 
+    if selector:
+        paths = []
         for sel in selector:
             match = resolve_case_selector(sel, indexed_files)
             if not match:
-                click.echo(f"No case matching '{sel}'")
+                console.print(f"[red]No case matching '{sel}'[/red]")
                 return
             paths.append(match)
 
-        _display_case_compare(paths)
-        return
-
-    # ------------------------------------------------------------
-    # Single selector → display case
-    # ------------------------------------------------------------
-    if len(selector) == 1:
-        match = resolve_case_selector(selector[0], indexed_files)
-        if not match:
-            click.echo(f"No case matching '{selector[0]}'")
+        # --------------------------------------------
+        # If exactly one case selected → detailed view
+        # --------------------------------------------
+        if len(paths) == 1:
+            case = Case(paths[0])
+            _display_single_case(console, case)
             return
+    else:
+        paths = files
 
-        _display_case(match)
+    cases = [Case(p) for p in paths]
+
+    # --------------------------------------------
+    # Resolve view
+    # --------------------------------------------
+
+    if view not in VIEW_REGISTRY:
+        available = ", ".join(VIEW_REGISTRY.keys())
+        console.print(f"[red]Unknown view '{view}'. Available: {available}[/red]")
         return
 
-    # ------------------------------------------------------------
-    # No selector → list all cases
-    # ------------------------------------------------------------
-    print_case_list(directory)
+    column_keys = VIEW_REGISTRY[view]
+    rows = build_rows(cases, column_keys)
 
-
-# ======================================================================
-# Single-case display
-# ======================================================================
-
-
-def _display_case(path: Path):
-    """
-    Display a concise, human-readable summary of a ROOST case file.
-    """
-    try:
-        with path.open("rb") as f:
-            data = tomllib.load(f)
-    except Exception as e:
-        click.echo(f"Failed to load {path}: {e}")
+    if not rows:
         return
 
-    click.echo(f"CASE FILE : {path.name}")
-    click.echo(f"CASE NAME : {data.get('case_name', '')}")
-    click.echo("-" * 80)
+    # --------------------------------------------
+    # Build Rich table
+    # --------------------------------------------
 
-    # ------------------------------------------------------------
-    # Description
-    # ------------------------------------------------------------
-    desc = data.get("description")
-    if desc:
-        click.echo("DESCRIPTION")
-        click.echo(desc)
-        click.echo()
+    table = Table(
+        header_style="bold cyan",
+        row_styles=["none", "none"],
+        box=box.SIMPLE,
+        show_header=True,
+        show_edge=False,
+        show_lines=False,
+    )
 
-    # ------------------------------------------------------------
-    # Basic household info
-    # ------------------------------------------------------------
-    basic = data.get("basic_info", {})
-    if basic:
-        click.echo("HOUSEHOLD")
-        if basic.get("names"):
-            click.echo(f"  Members        : {', '.join(basic['names'])}")
-        if basic.get("status"):
-            click.echo(f"  Status         : {basic['status']}")
-        if basic.get("date_of_birth"):
-            click.echo(f"  Birth dates    : {', '.join(basic['date_of_birth'])}")
-        if basic.get("life_expectancy"):
-            click.echo(f"  Life expectancy: {', '.join(map(str, basic['life_expectancy']))}")
-        if basic.get("start_date"):
-            click.echo(f"  Start date     : {basic['start_date']}")
-        click.echo()
+    table.add_column("ID", justify="right")
 
-    # ------------------------------------------------------------
-    # Savings assets
-    # ------------------------------------------------------------
-    assets = data.get("savings_assets", {})
-    if assets:
-        click.echo("ASSETS (balances)")
-        click.echo(f"  Taxable        : {sum(assets.get('taxable_savings_balances', []))}")
-        click.echo(f"  Tax-deferred   : {sum(assets.get('tax_deferred_savings_balances', []))}")
-        click.echo(f"  Tax-free       : {sum(assets.get('tax_free_savings_balances', []))}")
-        click.echo()
+    # Add columns using registry metadata
+    for key in column_keys:
+        col = COLUMN_REGISTRY[key]
+        table.add_column(col.label, justify=col.align)
 
-    # ------------------------------------------------------------
-    # Household financial profile
-    # ------------------------------------------------------------
-    hfp = data.get("household_financial_profile", {})
-    if hfp.get("HFP_file_name"):
-        click.echo("HOUSEHOLD FINANCIAL PROFILE")
-        click.echo(f"  HFP file       : {hfp['HFP_file_name']}")
-        click.echo()
+    # Add rows
+    for idx, row in enumerate(rows):
+        formatted_row = [str(idx)]
 
-    # ------------------------------------------------------------
-    # Fixed income
-    # ------------------------------------------------------------
-    fixed = data.get("fixed_income", {})
-    if fixed:
-        if fixed.get("pension_monthly_amounts") or fixed.get("social_security_pia_amounts"):
-            click.echo("FIXED INCOME")
-            if fixed.get("pension_monthly_amounts"):
-                click.echo(
-                    f"  Pensions (monthly): "
-                    f"{', '.join(map(str, fixed['pension_monthly_amounts']))}"
-                )
-            if fixed.get("social_security_pia_amounts"):
-                click.echo(
-                    f"  Social Security PIA: "
-                    f"{', '.join(map(str, fixed['social_security_pia_amounts']))}"
-                )
-            click.echo()
+        for key in column_keys:
+            col = COLUMN_REGISTRY[key]
+            raw_value = row[key]
+            formatted = format_value(raw_value, col.fmt)
+            formatted_row.append(formatted)
 
-    # ------------------------------------------------------------
-    # Rates
-    # ------------------------------------------------------------
-    rates = data.get("rates_selection", {})
-    if rates.get("method"):
-        click.echo("RATES")
-        click.echo(f"  Method         : {rates['method']}")
-        if rates.get("from") is not None and rates.get("to") is not None:
-            click.echo(f"  Window         : {rates['from']}–{rates['to']}")
-        click.echo()
+        table.add_row(*formatted_row)
 
-    # ------------------------------------------------------------
-    # Asset allocation
-    # ------------------------------------------------------------
-    alloc = data.get("asset_allocation", {})
-    if alloc.get("type") or alloc.get("interpolation_method"):
-        click.echo("ASSET ALLOCATION")
-        if alloc.get("type"):
-            click.echo(f"  Type           : {alloc['type']}")
-        if alloc.get("interpolation_method"):
-            click.echo(f"  Interpolation  : {alloc['interpolation_method']}")
-        click.echo()
-
-    # ------------------------------------------------------------
-    # Optimization & solver
-    # ------------------------------------------------------------
-    opt = data.get("optimization_parameters", {})
-    solver = data.get("solver_options", {})
-
-    if opt:
-        click.echo("OPTIMIZATION")
-        if opt.get("objective"):
-            click.echo(f"  Objective      : {opt['objective']}")
-        if opt.get("spending_profile"):
-            click.echo(f"  Spending model : {opt['spending_profile']}")
-        if opt.get("surviving_spouse_spending_percent") is not None:
-            click.echo(f"  Survivor spend : " f"{opt['surviving_spouse_spending_percent']}%")
-
-        if opt.get("objective") == "maxSpending" and solver.get("bequest") is not None:
-            click.echo(f"  Target         : bequest = {solver['bequest']}")
-        if opt.get("objective") == "maxBequest" and solver.get("netSpending") is not None:
-            click.echo(f"  Target         : netSpending = {solver['netSpending']}")
-
-        click.echo()
-
-    if solver:
-        click.echo("SOLVER / ROTH POLICY")
-        if solver.get("solver"):
-            click.echo(f"  Engine              : {solver['solver']}")
-
-        no_roth = solver.get("noRothConversions")
-        if no_roth == "None":
-            click.echo("  Roth excluded       : no one excluded")
-        elif isinstance(no_roth, list) and no_roth:
-            click.echo(f"  Roth excluded       : {', '.join(map(str, no_roth))}")
-        else:
-            click.echo("  Roth excluded       : (not specified)")
-
-        if solver.get("startRothConversions") is not None:
-            click.echo(f"  Roth start year     : {solver['startRothConversions']}")
-        if solver.get("maxRothConversion") is not None:
-            click.echo(f"  Max Roth conversion : {solver['maxRothConversion']}")
-        if solver.get("spendingSlack"):
-            click.echo(f"  Spending slack      : {solver['spendingSlack']}")
-        if solver.get("withMedicare"):
-            click.echo(f"  Medicare modeling   : {solver['withMedicare']}")
-
-        click.echo()
+    console.print(table)
 
 
-# ======================================================================
-# Comparison display
-# ======================================================================
+def _display_single_case(console: Console, case: Case):
+    console.print(f"\nCASE: {case.name}")
+    console.print(f"FILE: {case.filename}")
+    console.print("-" * 60)
+    console.print(case.professional_summary, width=70)
+    console.print()
+
+    config = case.config
+
+    # Normalize config to dict
+    if hasattr(config, "model_dump"):  # Pydantic v2
+        config_dict = config.model_dump()
+    elif hasattr(config, "dict"):  # Pydantic v1
+        config_dict = config.dict()
+    elif is_dataclass(config):
+        config_dict = asdict(config)
+    else:
+        config_dict = config
+
+    for section_name, section_value in config_dict.items():
+        _render_section(console, section_name, section_value)
 
 
-def _display_case_compare(paths: list[Path]):
-    """
-    Display a side-by-side comparison of multiple ROOST case files.
-    """
-    cases = []
+def _render_section(console, name, value, indent=0):
+    indent_str = " " * indent
 
-    for path in paths:
-        try:
-            with path.open("rb") as f:
-                data = tomllib.load(f)
-            cases.append((path.name, data))
-        except Exception as e:
-            click.echo(f"Failed to load {path}: {e}")
-            return
+    header_text = escape(f"[{name}]")
+    console.print(f"\n{indent_str}[bold cyan]{header_text}[/bold cyan]")
 
-    def get(d, *keys):
-        for k in keys:
-            if d is None:
-                return "."
-            d = d.get(k)
-        return "." if d is None else d
+    if is_dataclass(value):
+        value = asdict(value)
 
-    def fmt(val):
-        if isinstance(val, list):
-            return ", ".join(map(str, val)) or "."
-        return "." if val is None else str(val)
+    if isinstance(value, dict):
+        for key, val in value.items():
+            _render_field(console, key, val, indent + 2)
+    else:
+        formatted = format_value(value, None)
+        console.print(f"{indent_str}  {formatted}")
 
-    col_width = 22
-    label_width = 30
 
-    header = f"{'':<{label_width}}"
-    for name, _ in cases:
-        header += f"{name[:col_width]:<{col_width}}"
-    click.echo(header)
-    click.echo("-" * (label_width + col_width * len(cases)))
+def _render_field(console, key, value, indent):
+    indent_str = " " * indent
 
-    rows = [
-        ("CASE NAME", lambda d: d.get("case_name", ".")),
-        ("HFP FILE", lambda d: get(d, "household_financial_profile", "HFP_file_name")),
-        ("HOUSEHOLD NAMES", lambda d: fmt(get(d, "basic_info", "names"))),
-        ("START DATE", lambda d: get(d, "basic_info", "start_date")),
-        ("LIFE EXPECTANCY", lambda d: fmt(get(d, "basic_info", "life_expectancy"))),
-        (
-            "TAXABLE ASSETS",
-            lambda d: sum(get(d, "savings_assets", "taxable_savings_balances") or []),
-        ),
-        (
-            "TAX-DEFERRED ASSETS",
-            lambda d: sum(get(d, "savings_assets", "tax_deferred_savings_balances") or []),
-        ),
-        (
-            "TAX-FREE ASSETS",
-            lambda d: sum(get(d, "savings_assets", "tax_free_savings_balances") or []),
-        ),
-        ("OPT OBJECTIVE", lambda d: get(d, "optimization_parameters", "objective")),
-        (
-            "OPT TARGET",
-            lambda d: f"bequest={get(d,'solver_options','bequest')}"
-            if get(d, "optimization_parameters", "objective") == "maxSpending"
-            else f"netSpending={get(d,'solver_options','netSpending')}"
-            if get(d, "optimization_parameters", "objective") == "maxBequest"
-            else ".",
-        ),
-        (
-            "ROTH EXCLUDED",
-            lambda d: "no one excluded"
-            if get(d, "solver_options", "noRothConversions") == "None"
-            else fmt(get(d, "solver_options", "noRothConversions")),
-        ),
-        ("ROTH START YEAR", lambda d: get(d, "solver_options", "startRothConversions")),
-        ("MAX ROTH CONV", lambda d: get(d, "solver_options", "maxRothConversion")),
-        ("SOLVER", lambda d: get(d, "solver_options", "solver")),
-    ]
+    # Nested dict
+    if isinstance(value, dict):
+        _render_section(console, key, value, indent)
+        return
 
-    for label, extractor in rows:
-        line = f"{label:<{label_width}}"
-        for _, data in cases:
-            line += f"{fmt(extractor(data)):<{col_width}}"
-        click.echo(line)
+    # Nested dataclass
+    if is_dataclass(value):
+        _render_section(console, key, asdict(value), indent)
+        return
+
+    # -------------------------------------------------
+    # Determine formatter
+    # -------------------------------------------------
+
+    fmt = None
+
+    # Use registry formatter if key registered
+    if key in COLUMN_REGISTRY:
+        fmt = COLUMN_REGISTRY[key].fmt
+
+    # Special case: asset allocation generic block
+    elif key == "generic":
+        fmt = "allocation"
+
+    formatted = format_value(value, fmt)
+
+    console.print(f"{indent_str}{key} = {formatted}")

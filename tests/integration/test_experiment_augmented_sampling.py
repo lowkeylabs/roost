@@ -1,4 +1,4 @@
-# tests/integration/test_experiment_historical_complete.py
+# tests/integration/test_experiment_augmented_sampling.py
 
 import tomllib
 from pathlib import Path
@@ -96,7 +96,7 @@ def test_historical_complete_multiple_slices(tmp_path, monkeypatch):
         cmd_run,
         [
             str(case_file),
-            "experiment=historical_complete",
+            "experiment=augmented_sampling",
             "rates_selection.from_to=[[1966,1970],[1988,1992]]",
             "--trial-jobs=1",
             "--run-jobs=1",

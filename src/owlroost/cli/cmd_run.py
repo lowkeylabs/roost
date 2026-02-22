@@ -70,7 +70,7 @@ def parse_from_to_slices(overrides: list[str]) -> list[tuple[int, int]]:
             return result
 
     raise click.ClickException(
-        "historical_complete requires rates_selection.from_to=[[start,end],...]"
+        "augmented_sampling requires rates_selection.from_to=[[start,end],...]"
     )
 
 
@@ -325,7 +325,7 @@ def cmd_run(
     logger.debug("Hydra overrides: {}", hydra_overrides)
 
     # ------------------------------------------------------------
-    # Experiment: historical_complete
+    # Experiment: augmented_sampling
     # ------------------------------------------------------------
 
     experiment_name = None
@@ -341,14 +341,14 @@ def cmd_run(
     if experiment_name:
         base_overrides.append(f"roost.experiment={experiment_name}")
 
-    if experiment_name == "historical_complete":
+    if experiment_name == "augmented_sampling":
         slices = parse_from_to_slices(hydra_overrides)
 
         # Remove original from_to override
         base_overrides = [o for o in base_overrides if not o.startswith("rates_selection.from_to=")]
 
         if not slices:
-            raise click.ClickException("historical_complete requires at least one from_to slice.")
+            raise click.ClickException("augmented_sampling requires at least one from_to slice.")
 
         # --------------------------------------------------------
         # Determine plan horizon (N_n)
@@ -428,7 +428,7 @@ def cmd_run(
         elapsed = time.perf_counter() - start_time
 
         logger.info(
-            "Experiment 'historical_complete' completed in {}",
+            "Experiment 'augmented_sampling' completed in {}",
             format_elapsed(elapsed),
         )
 
