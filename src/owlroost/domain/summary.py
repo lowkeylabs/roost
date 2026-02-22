@@ -208,7 +208,7 @@ register_column(
 register_view(
     "basic",
     [
-     #   "case_name",
+        #   "case_name",
         "household",
         "start_year",
         "ages",

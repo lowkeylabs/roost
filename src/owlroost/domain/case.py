@@ -156,27 +156,6 @@ class Case:
 
         return result
 
-    # ---------------------------------------------------------
-    # Allocation Summary Sentence
-    # ---------------------------------------------------------
-
-    @property
-    def initial_asset_allocation(self) -> list[list[int]]:
-        alloc = self.config.asset_allocation
-
-        if not alloc or not getattr(alloc, "generic", None):
-            return []
-
-        generic = alloc.generic
-        result = []
-
-        for person in generic:
-            if person:
-                result.append(person[0])
-
-        return result
-
-
     @property
     def allocation_sentence(self) -> str:
         allocs = self.initial_asset_allocation
@@ -191,16 +170,15 @@ class Case:
 
         # Otherwise describe per person
         parts = []
-        for name, alloc in zip(self.household_names, allocs):
+        for name, alloc in zip(self.household_names, allocs, strict=False):
             parts.append(f"{name}: {self._allocation_vector_to_sentence(alloc)}")
 
         return " Initial allocations are " + "; ".join(parts) + "."
 
-
     def _allocation_vector_to_sentence(self, alloc: list[int]) -> str:
         labels = ["equities", "bonds", "Treasury notes", "cash"]
 
-        components = [(pct, label) for pct, label in zip(alloc, labels) if pct > 0]
+        components = [(pct, label) for pct, label in zip(alloc, labels, strict=False) if pct > 0]
 
         if not components:
             return "no invested assets"
@@ -226,7 +204,7 @@ class Case:
         start_year = self.start_year
 
         people = []
-        for name, age in zip(names, ages):
+        for name, age in zip(names, ages, strict=False):
             people.append(f"{name} ({age})")
 
         people_str = " and ".join(people)
@@ -254,7 +232,7 @@ class Case:
         longevity_sentence = ""
         if life_exp:
             longevity_sentence = (
-                f" Longevity assumptions extend to ages "
+                " Longevity assumptions extend to ages "
                 + " and ".join(str(x) for x in life_exp)
                 + "."
             )

@@ -20,10 +20,7 @@ def format_value(value, fmt: str | None):
             else:
                 normalized.append(person)
 
-        return "/".join(
-            "[" + ",".join(str(int(x)) for x in alloc) + "]"
-            for alloc in normalized
-        )
+        return "/".join("[" + ",".join(str(int(x)) for x in alloc) + "]" for alloc in normalized)
 
     # -------------------------------------------------
     # DEFAULT FLOAT NORMALIZATION (when no explicit fmt)

@@ -1,21 +1,18 @@
+from dataclasses import asdict, is_dataclass
 from pathlib import Path
 
 import click
 from loguru import logger
-
 from rich import box
 from rich.console import Console
-from rich.table import Table
 from rich.markup import escape
-
-from dataclasses import is_dataclass, asdict
+from rich.table import Table
 
 from owlroost.cli.utils import (
     find_case_files,
     index_case_files,
     resolve_case_selector,
 )
-
 from owlroost.domain.case import Case
 from owlroost.domain.formatting import format_value
 from owlroost.domain.registry import COLUMN_REGISTRY, VIEW_REGISTRY
@@ -96,7 +93,7 @@ def cmd_cases(selector, view):
         show_lines=False,
     )
 
-    table.add_column("ID",justify="right")
+    table.add_column("ID", justify="right")
 
     # Add columns using registry metadata
     for key in column_keys:
@@ -104,8 +101,7 @@ def cmd_cases(selector, view):
         table.add_column(col.label, justify=col.align)
 
     # Add rows
-    for idx,row in enumerate(rows):
-
+    for idx, row in enumerate(rows):
         formatted_row = [str(idx)]
 
         for key in column_keys:
@@ -129,9 +125,9 @@ def _display_single_case(console: Console, case: Case):
     config = case.config
 
     # Normalize config to dict
-    if hasattr(config, "model_dump"):          # Pydantic v2
+    if hasattr(config, "model_dump"):  # Pydantic v2
         config_dict = config.model_dump()
-    elif hasattr(config, "dict"):              # Pydantic v1
+    elif hasattr(config, "dict"):  # Pydantic v1
         config_dict = config.dict()
     elif is_dataclass(config):
         config_dict = asdict(config)
@@ -140,6 +136,7 @@ def _display_single_case(console: Console, case: Case):
 
     for section_name, section_value in config_dict.items():
         _render_section(console, section_name, section_value)
+
 
 def _render_section(console, name, value, indent=0):
     indent_str = " " * indent
@@ -156,6 +153,7 @@ def _render_section(console, name, value, indent=0):
     else:
         formatted = format_value(value, None)
         console.print(f"{indent_str}  {formatted}")
+
 
 def _render_field(console, key, value, indent):
     indent_str = " " * indent
@@ -187,5 +185,3 @@ def _render_field(console, key, value, indent):
     formatted = format_value(value, fmt)
 
     console.print(f"{indent_str}{key} = {formatted}")
-
-    
