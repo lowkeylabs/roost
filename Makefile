@@ -31,7 +31,10 @@ release:
 	uv run scripts/bump_version.py
 	@echo ""
 	@echo + Run \"make pre-commit\" and \"uv run pytest\" prior to bumping version.
-	@echo + use \"make release-apply\" to bump version at patch level.
+	@echo + WARNING - the commands below include the --apply flag!
+	@echo + use \"make release-patch\" to bump version at patch level.
+	@echo + use \"make release-minor\" to bump version at minor version level.
+	@echo + use \"make release-major\" to bump version at major version level.
 
 # Actually tag patch release
 release-apply:
