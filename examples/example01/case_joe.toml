@@ -1,0 +1,70 @@
+case_name = "joe"
+description = "This is an example of a case involving a single individual. Joe is single and will retire in a few years. His wages and contributions are contained in the 'HFP_joe.xlsx' Household Financial Profile."
+
+[basic_info]
+status = "single"
+names = [ "Joe",]
+date_of_birth = [ "1967-01-15",]
+life_expectancy = [ 89,]
+start_date = "2026-01-01"
+
+[savings_assets]
+taxable_savings_balances = [ 338.5,]
+tax_deferred_savings_balances = [ 650.2,]
+tax_free_savings_balances = [ 60.6,]
+
+[household_financial_profile]
+HFP_file_name = "HFP_joe.xlsx"
+
+[fixed_income]
+pension_monthly_amounts = [ 0,]
+pension_ages = [ 65.0,]
+pension_indexed = [ true,]
+social_security_pia_amounts = [ 2360,]
+social_security_ages = [ 67.0,]
+
+[rates_selection]
+heirs_rate_on_tax_deferred_estate = 30.0
+dividend_rate = 1.8
+obbba_expiration_year = 2032
+method = "historical average"
+from = 1969
+to = 2002
+
+[asset_allocation]
+interpolation_method = "s-curve"
+interpolation_center = 15.0
+interpolation_width = 5.0
+type = "individual"
+generic = [ [ [ 60, 40, 0, 0,], [ 70, 30, 0, 0,],],]
+
+[optimization_parameters]
+spending_profile = "smile"
+surviving_spouse_spending_percent = 60
+smile_dip = 15
+smile_increase = 12
+smile_delay = 0
+objective = "maxSpending"
+
+[solver_options]
+maxRothConversion = 50
+startRothConversions = 2026
+bequest = 300
+withSCLoop = true
+withMedicare = "loop"
+solver = "HiGHS"
+
+[results]
+default_plots = "nominal"
+
+[longevity]
+apply_to_plan = false
+partnered = false
+survival_percentile = [ 0.5,]
+sex = [ "female",]
+health = [ "average",]
+smoker = [ false,]
+
+[roost]
+use_bootstrap_model = false
+trials = 1

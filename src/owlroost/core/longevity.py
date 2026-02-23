@@ -293,3 +293,120 @@ def sample_joint_last_survivor(
     life2 = sample_individual_lifetime(rng, age2, health2, sex2, smoker2, partnered)
 
     return max(life1, life2), life1, life2
+# ============================================================
+# Deterministic percentile inversion
+# ============================================================
+
+
+def gm_percentile_age(
+    current_age: float,
+    A: float,
+    B: float,
+    C: float,
+    survival_percentile: float,
+    max_age: int = 120,
+) -> float:
+    """
+    Deterministically compute the age A such that:
+
+        P(alive at A | alive at current_age) = survival_percentile
+
+    Uses integer-age grid consistent with annual planning model.
+    """
+
+    if not (0.0 < survival_percentile <= 1.0):
+        raise ValueError("survival_percentile must be in (0, 1].")
+
+    ages = np.arange(current_age, max_age + 1, 1.0)
+
+    S = survival_function(ages, A, B, C)
+    S0 = survival_function(current_age, A, B, C)
+
+    S_cond = S / S0  # conditional survival
+
+    # Survival is decreasing. We invert it.
+    # Reverse arrays so we can use interpolation safely.
+    return float(
+        np.interp(
+            survival_percentile,
+            S_cond[::-1],
+            ages[::-1],
+        )
+    )
+
+
+def deterministic_individual_lifetime(
+    current_age: float,
+    survival_percentile: float,
+    health: str = "average",
+    sex: str = "female",
+    smoker: bool = False,
+    partnered: bool = False,
+) -> float:
+    """
+    Compute deterministic lifespan at given survival percentile.
+    """
+
+    A, B, C = adjust_parameters(health, current_age, sex, smoker, partnered)
+
+    return gm_percentile_age(
+        current_age=current_age,
+        A=A,
+        B=B,
+        C=C,
+        survival_percentile=survival_percentile,
+    )
+
+
+def deterministic_lifetime_pair(
+    age1: float,
+    age2: float,
+    survival_percentile,
+    health1: str = "average",
+    health2: str = "average",
+    sex1: str = "female",
+    sex2: str = "male",
+    smoker1: bool = False,
+    smoker2: bool = False,
+    partnered: bool = True,
+):
+    """
+    Deterministically compute lifetimes for a pair.
+
+    survival_percentile may be:
+        - scalar → applied to both
+        - list/tuple of length 2 → individual percentiles
+
+    Returns:
+        (life1_age, life2_age, last_survivor_age)
+    """
+
+    if isinstance(survival_percentile, (list, tuple)):
+        if len(survival_percentile) != 2:
+            raise ValueError(
+                "survival_percentile list must have length 2 for paired case."
+            )
+        p1, p2 = survival_percentile
+    else:
+        p1 = p2 = survival_percentile
+
+    life1 = deterministic_individual_lifetime(
+        current_age=age1,
+        survival_percentile=p1,
+        health=health1,
+        sex=sex1,
+        smoker=smoker1,
+        partnered=partnered,
+    )
+
+    life2 = deterministic_individual_lifetime(
+        current_age=age2,
+        survival_percentile=p2,
+        health=health2,
+        sex=sex2,
+        smoker=smoker2,
+        partnered=partnered,
+    )
+
+    return life1, life2, max(life1, life2)
+

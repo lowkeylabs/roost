@@ -202,6 +202,84 @@ register_column(
 )
 
 # ---------------------------------------------------------
+# LONGEVITY
+# ---------------------------------------------------------
+
+register_column(
+    Column(
+        key="life_expectancy",
+        label="OWL\nLife Exp",
+        extractor=lambda c: c.life_expectancies,
+        group="longevity",
+        align="left",
+        fmt="int",
+    )
+)
+
+register_column(
+    Column(
+        key="longevity_percentiles",
+        label="Survival\nPercentile",
+        extractor=lambda c: c.longevity_percentiles,
+        group="longevity",
+        align="left",
+        fmt="float2"
+    )
+)
+
+register_column(
+    Column(
+        key="longevity_health",
+        label="Health",
+        extractor=lambda c: c.longevity_health,
+        group="longevity",
+        align="left",
+    )
+)
+
+register_column(
+    Column(
+        key="longevity_sex",
+        label="Sex",
+        extractor=lambda c: c.longevity_sex,
+        group="longevity",
+        align="left",
+    )
+)
+
+register_column(
+    Column(
+        key="longevity_smoker",
+        label="Smoker",
+        extractor=lambda c: c.longevity_smoker,
+        group="longevity",
+        align="left",
+    )
+)
+
+register_column(
+    Column(
+        key="deterministic_life_ages",
+        label="GM Model\nLife Exp",
+        extractor=lambda c: c.deterministic_life_ages,
+        group="longevity",
+        align="left",
+        fmt="int",
+    )
+)
+
+register_column(
+    Column(
+        key="deterministic_last_survivor_age",
+        label="Last\nSurvivor",
+        extractor=lambda c: c.deterministic_last_survivor_age,
+        group="longevity",
+        align="center",
+        fmt="int",
+    )
+)
+
+# ---------------------------------------------------------
 # REGISTER VIEWS
 # ---------------------------------------------------------
 
@@ -212,7 +290,7 @@ register_view(
         "household",
         "start_year",
         "ages",
-        "life_expectancy",
+        #"life_expectancy",
         "total_savings",
         "pensions",
         "pension_ages",
@@ -237,11 +315,14 @@ register_view(
 register_view(
     "longevity",
     [
-        "longevity_model_type",
+        "household",
+        "ages",
         "life_expectancy",
-        "survival_table",
-        "joint_survival",
-        "max_age",
+        "deterministic_life_ages",
+        "longevity_percentiles",
+        "longevity_health",
+        "longevity_sex",
+        "longevity_smoker",
     ],
 )
 

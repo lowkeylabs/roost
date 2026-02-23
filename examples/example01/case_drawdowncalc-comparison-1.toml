@@ -1,0 +1,69 @@
+case_name = "drawdowncalc-comparison-1"
+description = "This is a case involving a single individual. Case is used for comparing with @hugcity's DrawdownCalc. For max bequest, it should yield $90,882, while an $80k net spending should leave $678,625 as a bequest."
+
+[basic_info]
+status = "single"
+names = [ "Charles",]
+date_of_birth = [ "1967-01-15",]
+life_expectancy = [ 89,]
+start_date = "2026-01-01"
+
+[savings_assets]
+taxable_savings_balances = [ 250.0,]
+tax_deferred_savings_balances = [ 600.0,]
+tax_free_savings_balances = [ 600.0,]
+
+[household_financial_profile]
+HFP_file_name = "edited values"
+
+[fixed_income]
+pension_monthly_amounts = [ 0,]
+pension_ages = [ 65.0,]
+pension_indexed = [ true,]
+social_security_pia_amounts = [ 3000,]
+social_security_ages = [ 70.0,]
+
+[rates_selection]
+heirs_rate_on_tax_deferred_estate = 0.0
+dividend_rate = 0.0
+obbba_expiration_year = 2099
+method = "user"
+values = [ 6.5, 0.0, 0.0, 2.8,]
+from = 1928
+to = 2025
+
+[asset_allocation]
+interpolation_method = "s-curve"
+interpolation_center = 15.0
+interpolation_width = 5.0
+type = "individual"
+generic = [ [ [ 100, 0, 0, 0,], [ 100, 0, 0, 0,],],]
+
+[optimization_parameters]
+spending_profile = "flat"
+surviving_spouse_spending_percent = 60
+objective = "maxBequest"
+
+[solver_options]
+netSpending = 80.0
+maxRothConversion = 50
+startRothConversions = 2026
+solver = "HiGHS"
+spendingSlack = 0
+withSCLoop = false
+withMedicare = "None"
+
+[results]
+default_plots = "today"
+
+[longevity]
+apply_to_plan = false
+partnered = false
+survival_percentile = [ 0.5,]
+sex = [ "female",]
+health = [ "average",]
+smoker = [ false,]
+
+[roost]
+use_bootstrap_model = false
+trials = 1

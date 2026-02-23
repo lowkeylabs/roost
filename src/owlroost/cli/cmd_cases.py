@@ -17,7 +17,13 @@ from owlroost.domain.case import Case
 from owlroost.domain.formatting import format_value
 from owlroost.domain.registry import COLUMN_REGISTRY, VIEW_REGISTRY
 from owlroost.domain.views import build_rows
+from owlroost.core.case_upgrade import case_upgrade
 
+UPGRADE_MESSAGES = {
+    "longevity_added": "Added [longevity] section",
+    "roost_added": "Added [roost] section",
+    "longevity_fixed_alignment": "Fixed [longevity] alignment",
+}
 
 @click.command(name="cases")
 @click.argument("selector", nargs=-1)
@@ -26,7 +32,17 @@ from owlroost.domain.views import build_rows
     default="basic",
     help="View name (basic, assets, optimization, all)",
 )
-def cmd_cases(selector, view):
+@click.option(
+    "--upgrade",
+    is_flag=True,
+    help="Upgrade selected cases to ROOST-compatible structure.",
+)
+@click.option(
+    "--apply",
+    is_flag=True,
+    help="Apply upgrade changes to disk. Default is preview only.",
+)
+def cmd_cases(selector, view,upgrade,apply):
     console = Console()
 
     directory = Path(".")
@@ -64,6 +80,40 @@ def cmd_cases(selector, view):
         paths = files
 
     cases = [Case(p) for p in paths]
+
+    if upgrade:
+        console.print("[bold cyan]Upgrade Preview[/bold cyan]\n")
+
+        any_changes = False
+
+        for case in cases:
+            actions = case_upgrade(case, write=apply)
+
+            # Ignore the "written" flag for preview reporting
+            meaningful_actions = {
+                k: v for k, v in actions.items()
+                if k != "written" and v
+            }
+
+            if meaningful_actions:
+                any_changes = True
+
+                console.print(f"[yellow]{case.filename}[/yellow]")
+
+                for key in meaningful_actions:
+                    message = UPGRADE_MESSAGES.get(key, key)
+                    console.print(f"  ✓ {escape(message)}")
+
+                if apply:
+                    console.print("  → Changes written to disk.\n")
+                else:
+                    console.print("  → Preview only (use --apply to write).\n")
+
+        if not any_changes:
+            console.print("All cases already up-to-date.")
+
+        return
+
 
     # --------------------------------------------
     # Resolve view
