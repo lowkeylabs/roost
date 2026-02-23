@@ -39,11 +39,17 @@ UPGRADE_MESSAGES = {
     help="Upgrade selected cases to ROOST-compatible structure.",
 )
 @click.option(
+    "--set",
+    "mutations",
+    multiple=True,
+    help="Modify case parameter (e.g., --set longevity.sex=male)",
+)
+@click.option(
     "--apply",
     is_flag=True,
-    help="Apply upgrade changes to disk. Default is preview only.",
+    help="Apply changes to disk. Default is preview only.",
 )
-def cmd_cases(selector, view, upgrade, apply):
+def cmd_cases(selector, view, upgrade, mutations, apply):
     console = Console()
 
     directory = Path(".")
@@ -69,16 +75,79 @@ def cmd_cases(selector, view, upgrade, apply):
                 console.print(f"[red]No case matching '{sel}'[/red]")
                 return
             paths.append(match)
-
-        # --------------------------------------------
-        # If exactly one case selected → detailed view
-        # --------------------------------------------
-        if len(paths) == 1:
-            case = Case(paths[0])
-            _display_single_case(console, case)
-            return
     else:
         paths = files
+
+    # --------------------------------------------
+    # Mutation Mode (explicit --set only)
+    # --------------------------------------------
+
+    if mutations:
+        if len(paths) != 1:
+            console.print("[red]Mutation requires exactly one selected case.[/red]")
+            return
+
+        case = Case(paths[0])
+
+        console.print("[bold cyan]Mutation Preview[/bold cyan]\n")
+
+        try:
+            for m in mutations:
+                console.print(f"→ {escape(m)}")
+                case.apply_mutation(m)
+
+            if apply:
+                case.write()
+                console.print("\n✓ Changes written to disk.")
+            else:
+                console.print("\n→ Preview only (use --apply to write).")
+
+        except Exception as e:
+            console.print(f"[red]Mutation failed:[/red] {e}")
+
+        return
+
+    # --------------------------------------------
+    # If exactly one case selected
+    # --------------------------------------------
+
+    if len(paths) == 1:
+        case = Case(paths[0])
+
+        # --------------------------------------------
+        # Upgrade mode (single case)
+        # --------------------------------------------
+        if upgrade:
+            console.print("[bold cyan]Upgrade Preview[/bold cyan]\n")
+
+            actions = case_upgrade(case, write=apply)
+            meaningful_actions = {k: v for k, v in actions.items() if k != "written" and v}
+
+            if meaningful_actions:
+                console.print(f"[yellow]{case.filename}[/yellow]")
+
+                for key in meaningful_actions:
+                    message = UPGRADE_MESSAGES.get(key, key)
+                    console.print(f"  ✓ {escape(message)}")
+
+                if apply:
+                    console.print("  → Changes written to disk.\n")
+                else:
+                    console.print("  → Preview only (use --apply to write).\n")
+            else:
+                console.print("Case already up-to-date.")
+
+            return
+
+        # --------------------------------------------
+        # Single-case detailed view
+        # --------------------------------------------
+        _display_single_case(console, case)
+        return
+
+    # --------------------------------------------
+    # Multiple cases selected
+    # --------------------------------------------
 
     cases = [Case(p) for p in paths]
 
@@ -90,12 +159,10 @@ def cmd_cases(selector, view, upgrade, apply):
         for case in cases:
             actions = case_upgrade(case, write=apply)
 
-            # Ignore the "written" flag for preview reporting
             meaningful_actions = {k: v for k, v in actions.items() if k != "written" and v}
 
             if meaningful_actions:
                 any_changes = True
-
                 console.print(f"[yellow]{case.filename}[/yellow]")
 
                 for key in meaningful_actions:
@@ -142,12 +209,10 @@ def cmd_cases(selector, view, upgrade, apply):
 
     table.add_column("ID", justify="right")
 
-    # Add columns using registry metadata
     for key in column_keys:
         col = COLUMN_REGISTRY[key]
         table.add_column(col.label, justify=col.align)
 
-    # Add rows
     for idx, row in enumerate(rows):
         formatted_row = [str(idx)]
 
@@ -162,6 +227,11 @@ def cmd_cases(selector, view, upgrade, apply):
     console.print(table)
 
 
+# =========================================================
+# Single Case Display
+# =========================================================
+
+
 def _display_single_case(console: Console, case: Case):
     console.print(f"\nCASE: {case.name}")
     console.print(f"FILE: {case.filename}")
@@ -169,12 +239,15 @@ def _display_single_case(console: Console, case: Case):
     console.print(case.professional_summary, width=70)
     console.print()
 
+    # ---------------------------------------------------------
+    # Render core OWL sections
+    # ---------------------------------------------------------
+
     config = case.config
 
-    # Normalize config to dict
-    if hasattr(config, "model_dump"):  # Pydantic v2
+    if hasattr(config, "model_dump"):
         config_dict = config.model_dump()
-    elif hasattr(config, "dict"):  # Pydantic v1
+    elif hasattr(config, "dict"):
         config_dict = config.dict()
     elif is_dataclass(config):
         config_dict = asdict(config)
@@ -183,6 +256,19 @@ def _display_single_case(console: Console, case: Case):
 
     for section_name, section_value in config_dict.items():
         _render_section(console, section_name, section_value)
+
+    # ---------------------------------------------------------
+    # Render ROOST extension sections
+    # ---------------------------------------------------------
+
+    if case.extensions:
+        for name, model in case.extensions.items():
+            if hasattr(model, "model_dump"):
+                section_dict = model.model_dump(exclude_none=True)
+            else:
+                section_dict = model.dict()
+
+            _render_section(console, name, section_dict)
 
 
 def _render_section(console, name, value, indent=0):
@@ -205,27 +291,18 @@ def _render_section(console, name, value, indent=0):
 def _render_field(console, key, value, indent):
     indent_str = " " * indent
 
-    # Nested dict
     if isinstance(value, dict):
         _render_section(console, key, value, indent)
         return
 
-    # Nested dataclass
     if is_dataclass(value):
         _render_section(console, key, asdict(value), indent)
         return
 
-    # -------------------------------------------------
-    # Determine formatter
-    # -------------------------------------------------
-
     fmt = None
 
-    # Use registry formatter if key registered
     if key in COLUMN_REGISTRY:
         fmt = COLUMN_REGISTRY[key].fmt
-
-    # Special case: asset allocation generic block
     elif key == "generic":
         fmt = "allocation"
 

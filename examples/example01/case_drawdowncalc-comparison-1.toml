@@ -17,20 +17,24 @@ tax_free_savings_balances = [ 600.0,]
 HFP_file_name = "edited values"
 
 [fixed_income]
-pension_monthly_amounts = [ 0,]
+pension_monthly_amounts = [ 0.0,]
 pension_ages = [ 65.0,]
 pension_indexed = [ true,]
 social_security_pia_amounts = [ 3000,]
 social_security_ages = [ 70.0,]
+social_security_trim_pct = 0
 
 [rates_selection]
 heirs_rate_on_tax_deferred_estate = 0.0
 dividend_rate = 0.0
 obbba_expiration_year = 2099
 method = "user"
-values = [ 6.5, 0.0, 0.0, 2.8,]
-from = 1928
+from_ = 1928
 to = 2025
+values = [ 6.5, 0.0, 0.0, 2.8,]
+reproducible_rates = false
+reverse_sequence = false
+roll_sequence = 0
 
 [asset_allocation]
 interpolation_method = "s-curve"
@@ -43,6 +47,9 @@ generic = [ [ [ 100, 0, 0, 0,], [ 100, 0, 0, 0,],],]
 spending_profile = "flat"
 surviving_spouse_spending_percent = 60
 objective = "maxBequest"
+smile_dip = 15
+smile_increase = 12
+smile_delay = 0
 
 [solver_options]
 netSpending = 80.0
@@ -60,7 +67,7 @@ default_plots = "today"
 apply_to_plan = false
 partnered = false
 lifetime_percentile = [ 0.6,]
-sex = [ "female",]
+sex = [ "male",]
 health = [ "average",]
 smoker = [ false,]
 

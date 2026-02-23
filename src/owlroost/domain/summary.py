@@ -219,7 +219,7 @@ register_column(
 register_column(
     Column(
         key="longevity_percentiles",
-        label="Survival\nPercentile",
+        label="Longevity\nPct-tiles",
         extractor=lambda c: c.longevity_percentiles,
         group="longevity",
         align="left",
@@ -259,22 +259,47 @@ register_column(
 
 register_column(
     Column(
-        key="deterministic_life_ages",
-        label="GM Model\nLife Exp",
-        extractor=lambda c: c.deterministic_life_ages,
-        group="longevity",
-        align="left",
-        fmt="int",
+        key="extensions",
+        label="Ext",
+        extractor=lambda c: (
+            ("L" if c.has_longevity_section else "") + ("R" if c.has_roost_section else "")
+        ),
+        group="basic",
+        align="center",
+    )
+)
+
+# ---------------------------------------------------------
+# EXTENSION FLAGS
+# ---------------------------------------------------------
+
+register_column(
+    Column(
+        key="has_longevity_section",
+        label="Lon",
+        extractor=lambda c: "✓" if c.has_longevity_section else "",
+        group="basic",
+        align="center",
     )
 )
 
 register_column(
     Column(
-        key="deterministic_last_survivor_age",
-        label="Last\nSurvivor",
-        extractor=lambda c: c.deterministic_last_survivor_age,
-        group="longevity",
+        key="has_roost_section",
+        label="Roost",
+        extractor=lambda c: "✓" if c.has_roost_section else "",
+        group="basic",
         align="center",
+    )
+)
+
+register_column(
+    Column(
+        key="deterministic_life_ages",
+        label="GM Model\nLife Exp",
+        extractor=lambda c: c.deterministic_life_ages,
+        group="longevity",
+        align="left",
         fmt="int",
     )
 )
@@ -286,16 +311,15 @@ register_column(
 register_view(
     "basic",
     [
-        #   "case_name",
         "household",
         "start_year",
         "ages",
-        # "life_expectancy",
         "total_savings",
         "pensions",
         "pension_ages",
         "ss_pia",
         "ss_ages",
+        "extensions",
     ],
 )
 

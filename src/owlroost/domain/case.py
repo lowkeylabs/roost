@@ -1,14 +1,15 @@
+import ast
+import re
 import secrets
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 from owlplanner.config.schema import config_dict_to_model
 from owlplanner.config.toml_io import load_toml, save_toml
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, field_validator
 
-from owlroost.core.longevity import (
-    deterministic_individual_lifetime,
-)
+from owlroost.core.longevity import deterministic_individual_lifetime
 
 # =========================================================
 # ROOST Extension Schemas
@@ -18,7 +19,6 @@ from owlroost.core.longevity import (
 class LongevityConfig(BaseModel):
     apply_to_plan: bool = False
     life_expectancy_seed: int | None = None
-
     partnered: bool = True
 
     lifetime_percentile: list[float] = Field(default_factory=lambda: [0.60])
@@ -60,7 +60,6 @@ class RoostConfig(BaseModel):
     trials: int = 1000
 
 
-# Registry of supported extra sections
 EXTRA_SECTION_REGISTRY: dict[str, type[BaseModel]] = {
     "longevity": LongevityConfig,
     "roost": RoostConfig,
@@ -73,103 +72,188 @@ EXTRA_SECTION_REGISTRY: dict[str, type[BaseModel]] = {
 
 
 class Case:
-    """
-    Domain wrapper around CaseConfig.
-
-    This object exists for:
-    - Calculated attributes
-    - Display normalization
-    - Future expansion
-
-    Supports ROOST extension sections via self.extra:
-      - [longevity]
-      - [roost]
-    """
-
     def __init__(self, path: Path):
         self.path = path
         self._raw_dict, _, _ = load_toml(str(path))
         self.config, self.extra = config_dict_to_model(self._raw_dict)
-
-        # -----------------------------------------------------
-        # Extension Loading (from OWL self.extra)
-        # -----------------------------------------------------
 
         self.extensions: dict[str, BaseModel] = {}
 
         for section_name, schema in EXTRA_SECTION_REGISTRY.items():
             section_data = self.extra.get(section_name)
             if section_data is not None:
-                try:
-                    model = schema(**section_data)
+                model = schema(**section_data)
+                if section_name == "longevity":
+                    model = self._align_longevity(model)
+                self.extensions[section_name] = model
 
-                    # Longevity requires household alignment
-                    if section_name == "longevity":
-                        model = self._align_longevity(model)
+    # =========================================================
+    # Mutation Engine
+    # =========================================================
 
-                    self.extensions[section_name] = model
+    @staticmethod
+    def _parse_literal(value: str) -> Any:
+        value = value.strip()
 
-                except ValidationError as e:
-                    raise ValueError(
-                        f"Invalid [{section_name}] section in {self.path.name}: {e}"
-                    ) from e
+        # ----------------------------------------
+        # Try Python literal first
+        # ----------------------------------------
+        try:
+            return ast.literal_eval(value)
+        except Exception:
+            pass
 
-    # ---------------------------------------------------------
+        # ----------------------------------------
+        # Normalize booleans
+        # ----------------------------------------
+        lowered = value.lower()
+        if lowered == "true":
+            return True
+        if lowered == "false":
+            return False
+        if lowered == "none":
+            return None
+
+        # ----------------------------------------
+        # Handle bracket lists without quotes
+        # Example: [excellent,excellent]
+        # ----------------------------------------
+        if value.startswith("[") and value.endswith("]"):
+            inner = value[1:-1].strip()
+            if not inner:
+                return []
+
+            parts = [x.strip() for x in inner.split(",")]
+            return [Case._parse_literal(x) for x in parts]
+
+        # ----------------------------------------
+        # Handle comma-separated lists
+        # Example: excellent,excellent
+        # ----------------------------------------
+        if "," in value:
+            parts = [x.strip() for x in value.split(",")]
+            return [Case._parse_literal(x) for x in parts]
+
+        # ----------------------------------------
+        # Try numeric conversion
+        # ----------------------------------------
+        try:
+            if "." in value:
+                return float(value)
+            return int(value)
+        except ValueError:
+            pass
+
+        # ----------------------------------------
+        # Fallback: raw string
+        # ----------------------------------------
+        return value
+
+    @staticmethod
+    def _parse_lhs(lhs: str):
+        match = re.match(r"(\w+)\.(\w+)(?:\[(\d+)\])?$", lhs)
+        if not match:
+            raise ValueError(f"Invalid mutation path: {lhs}")
+        section, field, index = match.groups()
+        return section, field, int(index) if index else None
+
+    def apply_mutation(self, assignment: str) -> None:
+        if "=" not in assignment:
+            raise ValueError("Mutation must be of form section.field=value")
+
+        lhs, rhs = assignment.split("=", 1)
+        lhs = lhs.strip()
+        value = self._parse_literal(rhs.strip())
+
+        section, field, index = self._parse_lhs(lhs)
+
+        if section in self.extensions:
+            container = self.extensions[section]
+        elif hasattr(self.config, section):
+            container = getattr(self.config, section)
+        else:
+            raise ValueError(f"Unknown section '{section}'")
+
+        if not hasattr(container, field):
+            raise ValueError(f"Section [{section}] has no field '{field}'")
+
+        current = getattr(container, field)
+
+        if index is not None:
+            if not isinstance(current, list):
+                raise ValueError(f"{field} is not a list")
+            if index >= len(current):
+                raise IndexError(f"Index {index} out of range")
+            current[index] = value
+            setattr(container, field, current)
+        else:
+            setattr(container, field, value)
+
+        self._rebuild_case()
+
+    def _rebuild_case(self):
+        if hasattr(self.config, "model_dump"):
+            core_dict = self.config.model_dump()
+        else:
+            core_dict = self.config.dict()
+
+        updated = dict(self._raw_dict)
+
+        for k, v in core_dict.items():
+            updated[k] = v
+
+        for name, model in self.extensions.items():
+            updated[name] = model.model_dump(exclude_none=True)
+
+        self._raw_dict = updated
+        self.config, self.extra = config_dict_to_model(updated)
+
+        self.extensions = {}
+        for section_name, schema in EXTRA_SECTION_REGISTRY.items():
+            section_data = self.extra.get(section_name)
+            if section_data is not None:
+                model = schema(**section_data)
+                if section_name == "longevity":
+                    model = self._align_longevity(model)
+                self.extensions[section_name] = model
+
+    # =========================================================
     # Persistence
-    # ---------------------------------------------------------
+    # =========================================================
 
     def write(self, path: Path | None = None) -> None:
-        """
-        Write case back to disk, preserving OWL sections and
-        updating ROOST extension sections.
-        """
-
         target_path = Path(path or self.path)
         filename = target_path.name
 
-        # Accept both case_ and Case_
         if filename.lower().startswith("case_"):
             final_path = str(target_path)
         else:
             final_path = str(target_path.with_name(f"case_{filename}"))
 
-        # Sync extensions back into self.extra
         for name, model in self.extensions.items():
             self.extra[name] = model.model_dump(exclude_none=True)
 
-        # Merge extra into original raw dict
         updated_dict = dict(self._raw_dict)
-
         for name, section in self.extra.items():
             updated_dict[name] = section
 
-        # Use OWL save function
         save_toml(updated_dict, final_path)
 
-    # ---------------------------------------------------------
+    # =========================================================
     # Longevity Alignment
-    # ---------------------------------------------------------
+    # =========================================================
 
     def _align_longevity(self, model: LongevityConfig) -> LongevityConfig:
-        """
-        Ensure longevity lists match household size.
-        """
-
         n = len(self.household_names)
-
-        lifetime_percentile = self._resize_list(model.lifetime_percentile, n, 0.60)
-        sex = self._resize_list(model.sex, n, "female")
-        health = self._resize_list(model.health, n, "average")
-        smoker = self._resize_list(model.smoker, n, False)
 
         return LongevityConfig(
             apply_to_plan=model.apply_to_plan,
             life_expectancy_seed=model.life_expectancy_seed,
             partnered=(n == 2),
-            lifetime_percentile=lifetime_percentile,
-            sex=sex,
-            health=health,
-            smoker=smoker,
+            lifetime_percentile=self._resize_list(model.lifetime_percentile, n, 0.60),
+            sex=self._resize_list(model.sex, n, "female"),
+            health=self._resize_list(model.health, n, "average"),
+            smoker=self._resize_list(model.smoker, n, False),
         )
 
     @staticmethod
@@ -179,145 +263,8 @@ class Case:
         return values[:n]
 
     # ---------------------------------------------------------
-    # Extension Accessors
+    # Longevity Accessor Helpers (Required by views)
     # ---------------------------------------------------------
-
-    @property
-    def longevity(self) -> LongevityConfig | None:
-        return self.extensions.get("longevity")
-
-    @property
-    def roost(self) -> RoostConfig | None:
-        return self.extensions.get("roost")
-
-    @property
-    def has_longevity_section(self) -> bool:
-        return "longevity" in self.extra
-
-    # ---------------------------------------------------------
-    # Basic properties
-    # ---------------------------------------------------------
-
-    @property
-    def name(self) -> str:
-        return self.config.case_name or self.path.name
-
-    @property
-    def filename(self) -> str:
-        return self.path.name
-
-    @property
-    def household_names(self) -> list[str]:
-        return self.config.basic_info.names
-
-    @property
-    def start_date(self) -> str:
-        return self.config.basic_info.start_date
-
-    @property
-    def start_year(self) -> int:
-        start = self.config.basic_info.start_date
-        if hasattr(start, "year"):
-            return start.year
-        return date.fromisoformat(str(start)).year
-
-    # ---------------------------------------------------------
-    # Assets (computed)
-    # ---------------------------------------------------------
-
-    @property
-    def taxable_savings(self) -> float:
-        return sum(self.config.savings_assets.taxable_savings_balances)
-
-    @property
-    def tax_deferred_savings(self) -> float:
-        return sum(self.config.savings_assets.tax_deferred_savings_balances)
-
-    @property
-    def tax_free_savings(self) -> float:
-        return sum(self.config.savings_assets.tax_free_savings_balances)
-
-    @property
-    def total_savings(self) -> float:
-        return self.taxable_savings + self.tax_deferred_savings + self.tax_free_savings
-
-    # ---------------------------------------------------------
-    # Optimization
-    # ---------------------------------------------------------
-
-    @property
-    def objective(self) -> str:
-        return self.config.optimization_parameters.objective
-
-    @property
-    def spending_profile(self) -> str:
-        return self.config.optimization_parameters.spending_profile
-
-    # ---------------------------------------------------------
-    # Ages
-    # ---------------------------------------------------------
-
-    @property
-    def ages(self) -> list[int]:
-        dobs = self.config.basic_info.date_of_birth
-        if not dobs:
-            return []
-
-        start_year = int(self.start_date.split("-")[0])
-        ages = []
-
-        for dob in dobs:
-            birth_year = int(dob.split("-")[0])
-            ages.append(start_year - birth_year)
-
-        return ages
-
-    @property
-    def life_expectancies(self) -> list[int]:
-        return self.config.basic_info.life_expectancy
-
-    @property
-    def deterministic_life_ages(self) -> list[float]:
-        """
-        Deterministic life ages derived from the longevity section
-        using percentile-based inversion of the Gompertz–Makeham model.
-
-        Returns empty list if longevity section is absent.
-        """
-
-        if self.longevity is None:
-            return []
-
-        lon = self.longevity
-        current_ages = self.ages
-
-        results: list[float] = []
-
-        for i in range(len(current_ages)):
-            life_age = deterministic_individual_lifetime(
-                current_age=current_ages[i],
-                lifetime_percentile=lon.lifetime_percentile[i],
-                health=lon.health[i],
-                sex=lon.sex[i],
-                smoker=lon.smoker[i],
-                partnered=lon.partnered,
-            )
-            results.append(life_age)
-
-        return results
-
-    @property
-    def deterministic_last_survivor_age(self) -> float | None:
-        """
-        Deterministic last-survivor age for partnered households.
-        """
-
-        ages = self.deterministic_life_ages
-
-        if not ages:
-            return None
-
-        return max(ages)
 
     @property
     def longevity_percentiles(self) -> list[float]:
@@ -349,9 +296,114 @@ class Case:
             return None
         return self.longevity.partnered
 
-    # ---------------------------------------------------------
-    # Fixed income summary
-    # ---------------------------------------------------------
+    # =========================================================
+    # Extension Accessors
+    # =========================================================
+
+    @property
+    def longevity(self):
+        return self.extensions.get("longevity")
+
+    @property
+    def roost(self):
+        return self.extensions.get("roost")
+
+    @property
+    def has_longevity_section(self) -> bool:
+        return "longevity" in self.extra
+
+    @property
+    def has_roost_section(self) -> bool:
+        return "roost" in self.extra
+
+    # =========================================================
+    # Original Properties (UNCHANGED)
+    # =========================================================
+
+    @property
+    def name(self) -> str:
+        return self.config.case_name or self.path.name
+
+    @property
+    def filename(self) -> str:
+        return self.path.name
+
+    @property
+    def household_names(self) -> list[str]:
+        return self.config.basic_info.names
+
+    @property
+    def start_date(self) -> str:
+        return self.config.basic_info.start_date
+
+    @property
+    def start_year(self) -> int:
+        start = self.config.basic_info.start_date
+        if hasattr(start, "year"):
+            return start.year
+        return date.fromisoformat(str(start)).year
+
+    @property
+    def taxable_savings(self) -> float:
+        return sum(self.config.savings_assets.taxable_savings_balances)
+
+    @property
+    def tax_deferred_savings(self) -> float:
+        return sum(self.config.savings_assets.tax_deferred_savings_balances)
+
+    @property
+    def tax_free_savings(self) -> float:
+        return sum(self.config.savings_assets.tax_free_savings_balances)
+
+    @property
+    def total_savings(self) -> float:
+        return self.taxable_savings + self.tax_deferred_savings + self.tax_free_savings
+
+    @property
+    def objective(self) -> str:
+        return self.config.optimization_parameters.objective
+
+    @property
+    def spending_profile(self) -> str:
+        return self.config.optimization_parameters.spending_profile
+
+    @property
+    def ages(self) -> list[int]:
+        dobs = self.config.basic_info.date_of_birth
+        if not dobs:
+            return []
+
+        start_year = int(self.start_date.split("-")[0])
+        return [start_year - int(dob.split("-")[0]) for dob in dobs]
+
+    @property
+    def life_expectancies(self) -> list[int]:
+        return self.config.basic_info.life_expectancy
+
+    @property
+    def deterministic_life_ages(self) -> list[float]:
+        if self.longevity is None:
+            return []
+
+        lon = self.longevity
+        current_ages = self.ages
+
+        return [
+            deterministic_individual_lifetime(
+                current_age=current_ages[i],
+                lifetime_percentile=lon.lifetime_percentile[i],
+                health=lon.health[i],
+                sex=lon.sex[i],
+                smoker=lon.smoker[i],
+                partnered=lon.partnered,
+            )
+            for i in range(len(current_ages))
+        ]
+
+    @property
+    def deterministic_last_survivor_age(self) -> float | None:
+        ages = self.deterministic_life_ages
+        return max(ages) if ages else None
 
     @property
     def pension_monthly(self) -> list[float]:
