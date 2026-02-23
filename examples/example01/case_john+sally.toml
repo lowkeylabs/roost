@@ -61,11 +61,11 @@ default_plots = "today"
 [longevity]
 apply_to_plan = false
 partnered = true
-survival_percentile = [ 0.2, 0.2,]
-sex = [ "male", "female",]
-health = [ "excellent", "excellent",]
+lifetime_percentile = [ 0.6, 0.6,]
+sex = [ "female", "female",]
+health = [ "average", "average",]
 smoker = [ false, false,]
 
 [roost]
-use_bootstrap_model = false
-trials = 1
+master_seed = 2061902228
+trials = 1000

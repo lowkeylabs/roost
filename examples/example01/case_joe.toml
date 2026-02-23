@@ -60,11 +60,11 @@ default_plots = "nominal"
 [longevity]
 apply_to_plan = false
 partnered = false
-survival_percentile = [ 0.5,]
+lifetime_percentile = [ 0.6,]
 sex = [ "female",]
 health = [ "average",]
 smoker = [ false,]
 
 [roost]
-use_bootstrap_model = false
-trials = 1
+master_seed = 3579561642
+trials = 1000

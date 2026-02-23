@@ -1,17 +1,15 @@
 from datetime import date
 from pathlib import Path
-from typing import Dict, Type, List
-
-from pydantic import BaseModel, ValidationError, field_validator
 
 from owlplanner.config.schema import config_dict_to_model
 from owlplanner.config.toml_io import load_toml, save_toml
+from pydantic import BaseModel, ValidationError, field_validator, Field
+import secrets
 
 
 from owlroost.core.longevity import (
     deterministic_individual_lifetime,
 )
-
 
 # =========================================================
 # ROOST Extension Schemas
@@ -24,21 +22,21 @@ class LongevityConfig(BaseModel):
 
     partnered: bool = True
 
-    survival_percentile: List[float]
-    sex: List[str]
-    health: List[str]
-    smoker: List[bool]
+    lifetime_percentile: list[float] = Field(default_factory=lambda: [0.60])
+    sex: list[str] = Field(default_factory=lambda: ["female"])
+    health: list[str] = Field(default_factory=lambda: ["average"])
+    smoker: list[bool] = Field(default_factory=lambda: [False])
 
-    @field_validator("survival_percentile")
+
+    @field_validator("lifetime_percentile")
     @classmethod
     def _validate_percentile_range(cls, v):
         if not v:
-            raise ValueError("survival_percentile cannot be empty.")
+            raise ValueError("lifetime_percentile cannot be empty.")
         for p in v:
             if not (0.0 < p <= 1.0):
-                raise ValueError("survival_percentile must be in (0,1].")
+                raise ValueError("lifetime_percentile must be in (0,1].")
         return v
-    
 
     @field_validator("health", mode="before")
     @classmethod
@@ -60,13 +58,12 @@ class LongevityConfig(BaseModel):
 
 
 class RoostConfig(BaseModel):
-    use_bootstrap_model: bool = False
-    master_seed: int | None = None
-    trials: int | None = None
+    master_seed: int = Field(default_factory=lambda: secrets.randbits(32))
+    trials: int = 1000
 
 
 # Registry of supported extra sections
-EXTRA_SECTION_REGISTRY: Dict[str, Type[BaseModel]] = {
+EXTRA_SECTION_REGISTRY: dict[str, type[BaseModel]] = {
     "longevity": LongevityConfig,
     "roost": RoostConfig,
 }
@@ -100,7 +97,7 @@ class Case:
         # Extension Loading (from OWL self.extra)
         # -----------------------------------------------------
 
-        self.extensions: Dict[str, BaseModel] = {}
+        self.extensions: dict[str, BaseModel] = {}
 
         for section_name, schema in EXTRA_SECTION_REGISTRY.items():
             section_data = self.extra.get(section_name)
@@ -137,7 +134,6 @@ class Case:
             final_path = str(target_path)
         else:
             final_path = str(target_path.with_name(f"case_{filename}"))
-            
 
         # Sync extensions back into self.extra
         for name, model in self.extensions.items():
@@ -163,9 +159,7 @@ class Case:
 
         n = len(self.household_names)
 
-        survival_percentile = self._resize_list(
-            model.survival_percentile, n, 0.50
-        )
+        lifetime_percentile = self._resize_list(model.lifetime_percentile, n, 0.60)
         sex = self._resize_list(model.sex, n, "female")
         health = self._resize_list(model.health, n, "average")
         smoker = self._resize_list(model.smoker, n, False)
@@ -174,7 +168,7 @@ class Case:
             apply_to_plan=model.apply_to_plan,
             life_expectancy_seed=model.life_expectancy_seed,
             partnered=(n == 2),
-            survival_percentile=survival_percentile,
+            lifetime_percentile=lifetime_percentile,
             sex=sex,
             health=health,
             smoker=smoker,
@@ -247,11 +241,7 @@ class Case:
 
     @property
     def total_savings(self) -> float:
-        return (
-            self.taxable_savings
-            + self.tax_deferred_savings
-            + self.tax_free_savings
-        )
+        return self.taxable_savings + self.tax_deferred_savings + self.tax_free_savings
 
     # ---------------------------------------------------------
     # Optimization
@@ -308,7 +298,7 @@ class Case:
         for i in range(len(current_ages)):
             life_age = deterministic_individual_lifetime(
                 current_age=current_ages[i],
-                survival_percentile=lon.survival_percentile[i],
+                lifetime_percentile=lon.lifetime_percentile[i],
                 health=lon.health[i],
                 sex=lon.sex[i],
                 smoker=lon.smoker[i],
@@ -317,7 +307,7 @@ class Case:
             results.append(life_age)
 
         return results
-    
+
     @property
     def deterministic_last_survivor_age(self) -> float | None:
         """
@@ -329,14 +319,13 @@ class Case:
         if not ages:
             return None
 
-        return max(ages)    
+        return max(ages)
 
     @property
     def longevity_percentiles(self) -> list[float]:
         if not self.longevity:
             return []
-        return self.longevity.survival_percentile
-
+        return self.longevity.lifetime_percentile
 
     @property
     def longevity_health(self) -> list[str]:
@@ -344,13 +333,11 @@ class Case:
             return []
         return self.longevity.health
 
-
     @property
     def longevity_sex(self) -> list[str]:
         if not self.longevity:
             return []
         return self.longevity.sex
-
 
     @property
     def longevity_smoker(self) -> list[bool]:
@@ -358,13 +345,11 @@ class Case:
             return []
         return self.longevity.smoker
 
-
     @property
     def longevity_partnered(self) -> bool | None:
         if not self.longevity:
             return None
         return self.longevity.partnered
-
 
     # ---------------------------------------------------------
     # Fixed income summary
@@ -427,11 +412,7 @@ class Case:
     def _allocation_vector_to_sentence(self, alloc: list[int]) -> str:
         labels = ["equities", "bonds", "Treasury notes", "cash"]
 
-        components = [
-            (pct, label)
-            for pct, label in zip(alloc, labels, strict=False)
-            if pct > 0
-        ]
+        components = [(pct, label) for pct, label in zip(alloc, labels, strict=False) if pct > 0]
 
         if not components:
             return "no invested assets"
@@ -495,9 +476,7 @@ class Case:
         allocation_sentence = ""
         alloc_text = self.allocation_sentence
         if alloc_text:
-            allocation_sentence = (
-                f" Their initial portfolio allocation is {alloc_text}."
-            )
+            allocation_sentence = f" Their initial portfolio allocation is {alloc_text}."
 
         return (
             f"{people_str} begin planning in {start_year}. "
@@ -506,4 +485,3 @@ class Case:
             f"{allocation_sentence}"
             f"{longevity_sentence}"
         )
-    

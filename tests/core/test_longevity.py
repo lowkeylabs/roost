@@ -8,6 +8,8 @@ from owlroost.core.longevity import (
     age_dependent_smoker_multiplier,
     sample_individual_lifetime,
     sample_joint_last_survivor,
+    deterministic_individual_lifetime,
+    deterministic_lifetime_pair,
 )
 
 # ============================================================
@@ -68,11 +70,9 @@ def test_adjust_parameters_effect_direction():
     A_exc, B_exc, C_exc = adjust_parameters("excellent", age, "male", False, False)
     A_poor, B_poor, C_poor = adjust_parameters("poor", age, "male", False, False)
 
-    # excellent health should reduce mortality → A, B smaller than average
     assert A_exc < A_avg
     assert B_exc < B_avg
 
-    # poor health should increase mortality → A, B larger
     assert A_poor > A_avg
     assert B_poor > B_avg
 
@@ -88,7 +88,7 @@ def test_sex_difference_effect():
 
 
 # ============================================================
-# Sampling behavior tests
+# Sampling behavior tests (unchanged)
 # ============================================================
 
 
@@ -106,7 +106,7 @@ def test_sampling_reproducibility():
     life1 = sample_individual_lifetime(rng1, 60, "average", "female", False, False)
     life2 = sample_individual_lifetime(rng2, 60, "average", "female", False, False)
 
-    assert life1 == life2  # same seed → same result
+    assert life1 == life2
 
 
 def test_smoker_lifetime_shorter_than_non_smoker():
@@ -118,9 +118,10 @@ def test_smoker_lifetime_shorter_than_non_smoker():
 
     rng = np.random.default_rng(123)
 
-    smoker = sample_individual_lifetime(rng, 60, "average", "male", smoker=True, partnered=False)
+    smoker = sample_individual_lifetime(
+        rng, 60, "average", "male", smoker=True, partnered=False
+    )
 
-    # smoker should die younger (mean shift)
     assert smoker <= non_smoker
 
 
@@ -140,49 +141,78 @@ def test_joint_last_survivor():
         partnered=True,
     )
 
-    # last should be max of the two lifetimes
     assert last == max(life1, life2)
     assert life1 >= 62
     assert life2 >= 60
 
 
 # ============================================================
-# Basic distribution-level sanity checks
+# Deterministic lifetime_percentile tests (NEW)
 # ============================================================
 
 
-def xtest_average_lifetime_reasonable_range():
+def test_lifetime_percentile_monotonicity():
     """
-    Check that average longevity for healthy nonsmokers is not pathological.
-    This is NOT a strict actuarial test, just a stability check.
+    Higher lifetime_percentile → longer lifespan.
     """
-    rng = np.random.default_rng(123)
-    samples = [
-        sample_individual_lifetime(rng, 60, "excellent", "female", False, False)
-        for _ in range(10000)
-    ]
+    age = 60
 
-    mean_age = np.mean(samples)
+    p50 = deterministic_individual_lifetime(age, 0.50)
+    p80 = deterministic_individual_lifetime(age, 0.80)
+    p90 = deterministic_individual_lifetime(age, 0.90)
 
-    # Conservative GM should produce mean around 88–100 for 60yo excellent females
-    assert 85 <= mean_age <= 105
+    assert p50 < p80 < p90
 
 
-def test_excellent_health_advantage():
-    rng = np.random.default_rng(123)
+def test_lifetime_percentile_bounds():
+    age = 60
 
-    excellent = np.mean(
-        [
-            sample_individual_lifetime(rng, 60, "excellent", "female", False, False)
-            for _ in range(5000)
-        ]
+    with pytest.raises(ValueError):
+        deterministic_individual_lifetime(age, -0.1)
+
+    with pytest.raises(ValueError):
+        deterministic_individual_lifetime(age, 1.0)
+
+    with pytest.raises(ValueError):
+        deterministic_individual_lifetime(age, 0.0)
+
+
+def test_deterministic_pair_scalar_percentile():
+    life1, life2, last = deterministic_lifetime_pair(
+        age1=60,
+        age2=58,
+        lifetime_percentile=0.85,
     )
 
-    average = np.mean(
-        [
-            sample_individual_lifetime(rng, 60, "average", "female", False, False)
-            for _ in range(5000)
-        ]
+    assert life1 >= 60
+    assert life2 >= 58
+    assert last == max(life1, life2)
+
+
+def test_deterministic_pair_vector_percentile():
+    life1, life2, last = deterministic_lifetime_pair(
+        age1=60,
+        age2=58,
+        lifetime_percentile=[0.70, 0.90],
     )
 
-    assert excellent >= average + 3.0
+    # second percentile higher → should live longer
+    assert life2 >= life1
+    assert last == max(life1, life2)
+
+
+def test_deterministic_health_effect():
+    """
+    Excellent health should produce longer deterministic lifetime.
+    """
+    age = 60
+
+    exc = deterministic_individual_lifetime(
+        age, lifetime_percentile=0.80, health="excellent"
+    )
+
+    avg = deterministic_individual_lifetime(
+        age, lifetime_percentile=0.80, health="average"
+    )
+
+    assert exc > avg

@@ -13,17 +13,18 @@ from owlroost.cli.utils import (
     index_case_files,
     resolve_case_selector,
 )
+from owlroost.core.case_upgrade import case_upgrade
 from owlroost.domain.case import Case
 from owlroost.domain.formatting import format_value
 from owlroost.domain.registry import COLUMN_REGISTRY, VIEW_REGISTRY
 from owlroost.domain.views import build_rows
-from owlroost.core.case_upgrade import case_upgrade
 
 UPGRADE_MESSAGES = {
     "longevity_added": "Added [longevity] section",
     "roost_added": "Added [roost] section",
     "longevity_fixed_alignment": "Fixed [longevity] alignment",
 }
+
 
 @click.command(name="cases")
 @click.argument("selector", nargs=-1)
@@ -42,7 +43,7 @@ UPGRADE_MESSAGES = {
     is_flag=True,
     help="Apply upgrade changes to disk. Default is preview only.",
 )
-def cmd_cases(selector, view,upgrade,apply):
+def cmd_cases(selector, view, upgrade, apply):
     console = Console()
 
     directory = Path(".")
@@ -90,10 +91,7 @@ def cmd_cases(selector, view,upgrade,apply):
             actions = case_upgrade(case, write=apply)
 
             # Ignore the "written" flag for preview reporting
-            meaningful_actions = {
-                k: v for k, v in actions.items()
-                if k != "written" and v
-            }
+            meaningful_actions = {k: v for k, v in actions.items() if k != "written" and v}
 
             if meaningful_actions:
                 any_changes = True
@@ -113,7 +111,6 @@ def cmd_cases(selector, view,upgrade,apply):
             console.print("All cases already up-to-date.")
 
         return
-
 
     # --------------------------------------------
     # Resolve view

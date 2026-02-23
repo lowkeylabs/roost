@@ -223,7 +223,7 @@ register_column(
         extractor=lambda c: c.longevity_percentiles,
         group="longevity",
         align="left",
-        fmt="float2"
+        fmt="float2",
     )
 )
 
@@ -290,7 +290,7 @@ register_view(
         "household",
         "start_year",
         "ages",
-        #"life_expectancy",
+        # "life_expectancy",
         "total_savings",
         "pensions",
         "pension_ages",
