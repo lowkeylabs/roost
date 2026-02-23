@@ -15,7 +15,7 @@ def run(cmd, capture=True):
     if capture:
         return subprocess.check_output(cmd, text=True).strip()
     else:
-        return subprocess.run(cmd)
+        return subprocess.run(cmd, check=True)
 
 
 def is_git_clean():
@@ -27,12 +27,31 @@ def get_current_branch():
     return run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
 
 
+def get_current_commit_short():
+    return run(["git", "rev-parse", "--short", "HEAD"])
+
+
 def get_current_version():
     try:
         tag = run(["git", "describe", "--tags", "--abbrev=0"])
         return tag.lstrip("v")
     except subprocess.CalledProcessError:
         return "0.0.0"
+
+
+def tag_exists(tag):
+    tags = run(["git", "tag"]).splitlines()
+    return tag in tags
+
+
+def is_up_to_date_with_origin(branch):
+    # Fetch remote state
+    run(["git", "fetch"], capture=False)
+
+    local = run(["git", "rev-parse", branch])
+    remote = run(["git", "rev-parse", f"origin/{branch}"])
+
+    return local == remote
 
 
 def bump(version_str, part):
@@ -77,15 +96,19 @@ def main():
     args = parser.parse_args()
 
     # -----------------------------------------------------
-    # Always compute and show preview first
+    # Compute and show preview
     # -----------------------------------------------------
 
+    branch = get_current_branch()
+    sha = get_current_commit_short()
     current = get_current_version()
     new_version = bump(current, args.part)
     tag = f"v{new_version}"
     message = args.message or f"{tag}"
 
     print("\n=== Version Bump Preview ===")
+    print(f"Branch          : {branch}")
+    print(f"Commit SHA      : {sha}")
     print(f"Current version : {current}")
     print(f"Bump type       : {args.part}")
     print(f"New version     : {new_version}")
@@ -98,16 +121,24 @@ def main():
         return
 
     # -----------------------------------------------------
-    # Safety checks ONLY when applying
+    # Safety checks (ONLY when applying)
     # -----------------------------------------------------
 
     if not is_git_clean():
         print("❌ Working tree is not clean. Commit or stash changes first.")
         sys.exit(1)
 
-    branch = get_current_branch()
     if branch != "main":
         print(f"❌ Refusing to tag from branch '{branch}'. Switch to 'main'.")
+        sys.exit(1)
+
+    if not is_up_to_date_with_origin("main"):
+        print("❌ Local 'main' is not up-to-date with origin/main.")
+        print("   Run: git pull origin main")
+        sys.exit(1)
+
+    if tag_exists(tag):
+        print(f"❌ Tag {tag} already exists.")
         sys.exit(1)
 
     # -----------------------------------------------------
