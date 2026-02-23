@@ -17,7 +17,6 @@ from typing import Any
 
 from owlroost.domain.case import Case, LongevityConfig, RoostConfig
 
-
 # =========================================================
 # Public API
 # =========================================================
@@ -141,4 +140,3 @@ def _resize_longevity(model: LongevityConfig, n: int) -> LongevityConfig:
         health=resize(model.health, "average"),
         smoker=resize(model.smoker, False),
     )
-

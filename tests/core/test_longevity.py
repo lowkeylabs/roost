@@ -6,10 +6,10 @@ from owlroost.core.longevity import (
     SEX_MULTIPLIER,
     adjust_parameters,
     age_dependent_smoker_multiplier,
-    sample_individual_lifetime,
-    sample_joint_last_survivor,
     deterministic_individual_lifetime,
     deterministic_lifetime_pair,
+    sample_individual_lifetime,
+    sample_joint_last_survivor,
 )
 
 # ============================================================
@@ -118,9 +118,7 @@ def test_smoker_lifetime_shorter_than_non_smoker():
 
     rng = np.random.default_rng(123)
 
-    smoker = sample_individual_lifetime(
-        rng, 60, "average", "male", smoker=True, partnered=False
-    )
+    smoker = sample_individual_lifetime(rng, 60, "average", "male", smoker=True, partnered=False)
 
     assert smoker <= non_smoker
 
@@ -207,12 +205,8 @@ def test_deterministic_health_effect():
     """
     age = 60
 
-    exc = deterministic_individual_lifetime(
-        age, lifetime_percentile=0.80, health="excellent"
-    )
+    exc = deterministic_individual_lifetime(age, lifetime_percentile=0.80, health="excellent")
 
-    avg = deterministic_individual_lifetime(
-        age, lifetime_percentile=0.80, health="average"
-    )
+    avg = deterministic_individual_lifetime(age, lifetime_percentile=0.80, health="average")
 
     assert exc > avg

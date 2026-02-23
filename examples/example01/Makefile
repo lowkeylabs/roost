@@ -25,4 +25,3 @@ sync_cases:
 		cp "$$f" "$$lower"; \
 	done
 	@echo "Done."
-	

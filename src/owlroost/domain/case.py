@@ -1,11 +1,10 @@
+import secrets
 from datetime import date
 from pathlib import Path
 
 from owlplanner.config.schema import config_dict_to_model
 from owlplanner.config.toml_io import load_toml, save_toml
-from pydantic import BaseModel, ValidationError, field_validator, Field
-import secrets
-
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from owlroost.core.longevity import (
     deterministic_individual_lifetime,
@@ -26,7 +25,6 @@ class LongevityConfig(BaseModel):
     sex: list[str] = Field(default_factory=lambda: ["female"])
     health: list[str] = Field(default_factory=lambda: ["average"])
     smoker: list[bool] = Field(default_factory=lambda: [False])
-
 
     @field_validator("lifetime_percentile")
     @classmethod

@@ -395,7 +395,7 @@ def deterministic_lifetime_pair(
         (life1_age, life2_age, last_survivor_age)
     """
 
-    if isinstance(lifetime_percentile, (list, tuple)):
+    if isinstance(lifetime_percentile, (list | tuple)):
         if len(lifetime_percentile) != 2:
             raise ValueError("lifetime_percentile list must have length 2.")
         p1, p2 = lifetime_percentile
