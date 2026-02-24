@@ -22,9 +22,31 @@ register_column(
 
 register_column(
     Column(
+        key="file_name",
+        label="Filename",
+        extractor=lambda c: c.filename,
+        group="basic",
+        align="left",
+        # fmt="truncate_20",
+    )
+)
+
+register_column(
+    Column(
         key="start_year",
         label="Plan\nstart",
         extractor=lambda c: c.start_year,
+        group="basic",
+        align="center",
+        fmt="int",
+    )
+)
+
+register_column(
+    Column(
+        key="plan_years",
+        label="Plan\nyears",
+        extractor=lambda c: c.plan_years,
         group="basic",
         align="center",
         fmt="int",
@@ -305,6 +327,149 @@ register_column(
 )
 
 # ---------------------------------------------------------
+# LEVERS (v1 Structural)
+# ---------------------------------------------------------
+
+register_column(
+    Column(
+        key="has_ss_lever",
+        label="SS\nLever",
+        extractor=lambda c: "✓" if c.has_ss_lever else "",
+        group="levers",
+        align="center",
+    )
+)
+
+register_column(
+    Column(
+        key="has_conversion_lever",
+        label="Roth\nLever",
+        extractor=lambda c: "✓" if c.has_conversion_lever else "",
+        group="levers",
+        align="center",
+    )
+)
+
+register_column(
+    Column(
+        key="has_allocation_lever",
+        label="Alloc\nLever",
+        extractor=lambda c: "✓" if c.has_allocation_lever else "",
+        group="levers",
+        align="center",
+    )
+)
+
+register_column(
+    Column(
+        key="has_retirement_lever",
+        label="Retire\nLever",
+        extractor=lambda c: "✓" if c.has_retirement_lever else "",
+        group="levers",
+        align="center",
+    )
+)
+
+register_column(
+    Column(
+        key="pre_tax_share",
+        label="Pre-tax\nShare",
+        extractor=lambda c: c.pre_tax_share,
+        group="levers",
+        align="right",
+        fmt="float2",
+    )
+)
+
+register_column(
+    Column(
+        key="equity_share",
+        label="Equity\nShare",
+        extractor=lambda c: c.equity_share,
+        group="levers",
+        align="right",
+        fmt="float2",
+    )
+)
+
+register_column(
+    Column(
+        key="funded_ratio",
+        label="Funded\nRatio",
+        extractor=lambda c: c.funded_ratio,
+        group="levers",
+        align="right",
+        fmt="float2",
+    )
+)
+
+register_column(
+    Column(
+        key="withdrawl_rate",
+        label="Withdrawl\nRate",
+        extractor=lambda c: c.withdrawl_rate,
+        group="levers",
+        align="right",
+        fmt="percent2",
+    )
+)
+
+
+register_column(
+    Column(
+        key="retirement_horizon",
+        label="Retire\nin (yrs)",
+        extractor=lambda c: c.retirement_horizon,
+        group="levers",
+        align="center",
+        fmt="int_dash",
+    )
+)
+
+register_column(
+    Column(
+        key="max_spending",
+        label="Max\nSpend",
+        extractor=lambda c: c.max_spending,
+        group="levers",
+        align="right",
+        fmt="currency",
+    )
+)
+
+register_column(
+    Column(
+        key="first_year_total_withdrawals",
+        label="First Year\nWithdrawals",
+        extractor=lambda c: c.first_year_total_withdrawals,
+        group="levers",
+        align="right",
+        fmt="currency",
+    )
+)
+
+register_column(
+    Column(
+        key="is_runnable",
+        label="Runs\nOK",
+        extractor=lambda c: "✓" if c.is_runnable else "✗",
+        group="basic",
+        align="center",
+    )
+)
+
+register_column(
+    Column(
+        key="run_error",
+        label="Error",
+        extractor=lambda c: c.run_error or "",
+        group="basic",
+        align="left",
+        # fmt="truncate_40",
+    )
+)
+
+# ---------------------------------------------------------
 # REGISTER VIEWS
 # ---------------------------------------------------------
 
@@ -349,6 +514,33 @@ register_view(
         "longevity_smoker",
     ],
 )
+
+register_view(
+    "levers",
+    [
+        "household",
+        "total_savings",
+        "first_year_total_withdrawals",
+        #"has_ss_lever",
+        #"has_conversion_lever",
+        #"has_allocation_lever",
+        #"has_retirement_lever",
+        "pre_tax_share",
+        "equity_share",
+        "funded_ratio",
+        "withdrawl_rate",
+        "retirement_horizon",
+        # NEW V2 METRICS
+        "plan_years",
+        "max_spending",
+    ],
+)
+
+register_view(
+    "errors",
+    ["file_name", "is_runnable", "run_error"],
+)
+
 
 register_view(
     "optimization",

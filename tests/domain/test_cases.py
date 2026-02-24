@@ -272,3 +272,82 @@ def test_professional_summary_contains_names(tmp_path):
     for name in case.household_names:
         assert name in summary
     assert str(case.start_year) in summary
+
+
+# =========================================================
+# Structural Lever (v1) Tests
+# =========================================================
+
+
+def test_conversion_lever_present(tmp_path):
+    case_file = write_case(tmp_path, ["Alice"])
+    case = Case(case_file)
+
+    # default fixture: tax-deferred and tax-free both > 0
+    assert case.has_conversion_lever is True
+
+
+def test_conversion_lever_absent_if_no_tax_free(tmp_path):
+    case_file = write_case(tmp_path, ["Alice"])
+
+    content = case_file.read_text().replace(
+        "tax_free_savings_balances = [50.0]",
+        "tax_free_savings_balances = [0.0]",
+    )
+    case_file.write_text(content)
+
+    case = Case(case_file)
+
+    assert case.has_conversion_lever is False
+
+
+def test_ss_lever_present_when_pia_positive(tmp_path):
+    case_file = write_case(tmp_path, ["Alice"])
+
+    content = case_file.read_text().replace(
+        "social_security_pia_amounts = [0]",
+        "social_security_pia_amounts = [2000]",
+    )
+    case_file.write_text(content)
+
+    case = Case(case_file)
+
+    assert case.has_ss_lever is True
+
+
+def test_ss_lever_absent_when_pia_zero(tmp_path):
+    case_file = write_case(tmp_path, ["Alice"])
+    case = Case(case_file)
+
+    assert case.has_ss_lever is False
+
+
+def test_allocation_lever_present(tmp_path):
+    case_file = write_case(tmp_path, ["Alice"])
+    case = Case(case_file)
+
+    assert case.has_allocation_lever is True
+
+
+def test_pre_tax_share_computation(tmp_path):
+    case_file = write_case(tmp_path, ["Alice"])
+    case = Case(case_file)
+
+    expected = 200.0 / (100.0 + 200.0 + 50.0)
+    assert case.pre_tax_share == expected
+
+
+def test_equity_share_from_allocation(tmp_path):
+    case_file = write_case(tmp_path, ["Alice"])
+    case = Case(case_file)
+
+    # allocation = [60,40,0,0]
+    assert case.equity_share == 0.60
+
+
+def test_funded_ratio_zero_if_no_spending_defined(tmp_path):
+    case_file = write_case(tmp_path, ["Alice"])
+    case = Case(case_file)
+
+    # fixture does not define explicit spending
+    assert case.funded_ratio == 0.0

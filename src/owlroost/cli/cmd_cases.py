@@ -23,6 +23,7 @@ UPGRADE_MESSAGES = {
     "longevity_added": "Added [longevity] section",
     "roost_added": "Added [roost] section",
     "longevity_fixed_alignment": "Fixed [longevity] alignment",
+    "cache_updated": "Rebuild [cache] section",
 }
 
 
@@ -120,7 +121,21 @@ def cmd_cases(selector, view, upgrade, mutations, apply):
         if upgrade:
             console.print("[bold cyan]Upgrade Preview[/bold cyan]\n")
 
-            actions = case_upgrade(case, write=apply)
+            actions = case_upgrade(case, write=False)
+
+            # Always rebuild cache during upgrade
+            try:
+                case.generate_cache(write=False)
+                actions["cache_updated"] = True
+            except Exception as e:
+                console.print(f"[red]Cache rebuild failed:[/red] {e}")
+                actions["cache_updated"] = False
+
+            # Write once at end if apply
+            if apply and any(v for k, v in actions.items() if k != "written"):
+                case.write()
+                actions["written"] = True
+
             meaningful_actions = {k: v for k, v in actions.items() if k != "written" and v}
 
             if meaningful_actions:
@@ -157,7 +172,20 @@ def cmd_cases(selector, view, upgrade, mutations, apply):
         any_changes = False
 
         for case in cases:
-            actions = case_upgrade(case, write=apply)
+            actions = case_upgrade(case, write=False)
+
+            # Always rebuild cache during upgrade
+            try:
+                case.generate_cache(write=False)
+                actions["cache_updated"] = True
+            except Exception as e:
+                console.print(f"[red]Cache rebuild failed:[/red] {e}")
+                actions["cache_updated"] = False
+
+            # Write once at end if apply
+            if apply and any(v for k, v in actions.items() if k != "written"):
+                case.write()
+                actions["written"] = True
 
             meaningful_actions = {k: v for k, v in actions.items() if k != "written" and v}
 

@@ -68,9 +68,24 @@ def format_value(value, fmt: str | None):
     # SCALAR FORMATTERS
     # -------------------------------------------------
 
+    if fmt == "check":
+        return "✓" if value else "–"
+
     if fmt == "currency":
         try:
             return f"${value:,.0f}"
+        except Exception:
+            return str(value)
+
+    if fmt == "percent":
+        try:
+            return f"{value:,.0%}"
+        except Exception:
+            return str(value)
+
+    if fmt == "percent2":
+        try:
+            return f"{value:,.2%}"
         except Exception:
             return str(value)
 

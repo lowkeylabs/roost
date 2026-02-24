@@ -1,10 +1,13 @@
 import ast
 import re
+import os
 import secrets
-from datetime import date
+from datetime import date, datetime
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
+from owlplanner.config.plan_bridge import config_to_plan
 from owlplanner.config.schema import config_dict_to_model
 from owlplanner.config.toml_io import load_toml, save_toml
 from pydantic import BaseModel, Field, field_validator
@@ -59,12 +62,19 @@ class RoostConfig(BaseModel):
     master_seed: int = Field(default_factory=lambda: secrets.randbits(32))
     trials: int = 1000
 
+class CacheConfig(BaseModel):
+    generated_at: str  # ISO timestamp
+
+    retirement_horizon: int | None = None
+    max_spending: float | None = None
+    first_year_total_withdrawals: float | None = None
+    
 
 EXTRA_SECTION_REGISTRY: dict[str, type[BaseModel]] = {
     "longevity": LongevityConfig,
     "roost": RoostConfig,
+    "cache": CacheConfig,
 }
-
 
 # =========================================================
 # Case
@@ -220,7 +230,28 @@ class Case:
     # =========================================================
     # Persistence
     # =========================================================
+    def generate_cache(self, write: bool = False) -> None:
+        from owlroost.domain.lever import compute_levers
+        from datetime import datetime
 
+        summary = compute_levers(self)
+
+        model = CacheConfig(
+            generated_at=datetime.now().isoformat(),
+            retirement_horizon=summary.retirement_horizon,
+            max_spending=summary.max_spending,
+            first_year_total_withdrawals=summary.first_year_total_withdrawals,
+        )
+
+        self.extensions["cache"] = model
+        self.extra["cache"] = model.model_dump(exclude_none=True)
+
+        # 🔴 CRITICAL: update raw dict
+        self._raw_dict["cache"] = model.model_dump(exclude_none=True)
+
+        if write:
+            self.write()
+            
     def write(self, path: Path | None = None) -> None:
         target_path = Path(path or self.path)
         filename = target_path.name
@@ -261,6 +292,51 @@ class Case:
         if len(values) < n:
             return values + [default] * (n - len(values))
         return values[:n]
+
+    # ---------------------------------------------------------
+    # Cache Accessor
+    # ---------------------------------------------------------
+
+
+    @property
+    def cache(self) -> CacheConfig | None:
+        return self.extensions.get("cache")
+    
+    def _cache_is_valid(self) -> bool:
+        """
+        Cache is valid only if:
+        - cache exists
+        - cache timestamp >= TOML mtime
+        - cache timestamp >= HFP mtime (if exists)
+        """
+
+        cache = self.cache
+        if cache is None:
+            return False
+
+        try:
+            cache_time = datetime.fromisoformat(cache.generated_at)
+        except Exception:
+            return False
+
+        # Compare against TOML file
+        toml_mtime = datetime.fromtimestamp(os.path.getmtime(self.path))
+        if cache_time < toml_mtime:
+            return False
+
+        # Compare against HFP file if present
+        hfp_name = self._raw_dict.get(
+            "household_financial_profile", {}
+        ).get("HFP_file_name")
+
+        if hfp_name and hfp_name != "None":
+            hfp_path = self.path.parent / hfp_name
+            if hfp_path.exists():
+                hfp_mtime = datetime.fromtimestamp(os.path.getmtime(hfp_path))
+                if cache_time < hfp_mtime:
+                    return False
+
+        return True
 
     # ---------------------------------------------------------
     # Longevity Accessor Helpers (Required by views)
@@ -344,6 +420,36 @@ class Case:
         return date.fromisoformat(str(start)).year
 
     @property
+    def plan_years(self) -> int:
+        """
+        Number of years in the plan.
+
+        Defined as the maximum remaining lifetime among household members:
+            max(life_expectancy - current_age)
+
+        Returns 0 if data is unavailable.
+        """
+
+        ages = self.ages
+        life_exp = self.life_expectancies
+
+        if not ages or not life_exp:
+            return 0
+
+        # Ensure aligned lengths
+        n = min(len(ages), len(life_exp))
+
+        remaining_years = [
+            life_exp[i] - ages[i]
+            for i in range(n)
+        ]
+
+        if not remaining_years:
+            return 0
+
+        return max(remaining_years)
+
+    @property
     def taxable_savings(self) -> float:
         return sum(self.config.savings_assets.taxable_savings_balances)
 
@@ -389,13 +495,17 @@ class Case:
         current_ages = self.ages
 
         return [
-            deterministic_individual_lifetime(
-                current_age=current_ages[i],
-                lifetime_percentile=lon.lifetime_percentile[i],
-                health=lon.health[i],
-                sex=lon.sex[i],
-                smoker=lon.smoker[i],
-                partnered=lon.partnered,
+            int(
+                round(
+                    deterministic_individual_lifetime(
+                        current_age=current_ages[i],
+                        lifetime_percentile=lon.lifetime_percentile[i],
+                        health=lon.health[i],
+                        sex=lon.sex[i],
+                        smoker=lon.smoker[i],
+                        partnered=lon.partnered,
+                    )
+                )
             )
             for i in range(len(current_ages))
         ]
@@ -535,3 +645,173 @@ class Case:
             f"{allocation_sentence}"
             f"{longevity_sentence}"
         )
+
+    # =========================================================
+    # Solver-Based Levers (v2)
+    # =========================================================
+
+    def _evaluate_runnable(self):
+        """
+        Evaluate case runnability once and cache result.
+        """
+
+        if hasattr(self, "_runnable_cache"):
+            return
+
+        try:
+            raw = self._raw_dict
+            dirname = str(self.path.parent)
+
+            plan = config_to_plan(
+                raw,
+                dirname=dirname,
+                loadHFP=True,
+                verbose=False,
+                logstreams=[StringIO(), StringIO()],
+            )
+
+            plan.solve(plan.objective, plan.solverOptions)
+
+            if getattr(plan, "caseStatus", None) == "solved":
+                self._runnable_cache = True
+                self._runnable_error = None
+            else:
+                self._runnable_cache = False
+                self._runnable_error = "Solver did not return solved status."
+
+        except Exception as e:
+            self._runnable_cache = False
+            self._runnable_error = str(e)
+
+    @property
+    def is_runnable(self) -> bool:
+        self._evaluate_runnable()
+        return self._runnable_cache
+
+    @property
+    def run_error(self) -> str | None:
+        self._evaluate_runnable()
+        return self._runnable_error
+
+    @property
+    def _lever_summary(self):
+        """
+        Lazy-compute solver-based levers.
+        Cached per Case instance.
+        """
+        if not hasattr(self, "_lever_cache"):
+            from owlroost.domain.lever import compute_levers
+
+            self._lever_cache = compute_levers(self)
+        return self._lever_cache
+
+    @property
+    def retirement_horizon(self) -> int | None:
+        if not self._cache_is_valid():
+            return None
+        return self.cache.retirement_horizon
+
+    @property
+    def max_spending(self) -> float | None:
+        if not self._cache_is_valid():
+            return None
+        return self.cache.max_spending
+        
+    @property
+    def first_year_total_withdrawals(self) -> float | None:
+        if not self._cache_is_valid():
+            return None
+        return self.cache.first_year_total_withdrawals
+
+    @property
+    def has_retirement_lever(self) -> bool:
+        """
+        Retirement lever exists if retirement occurs
+        within the planning horizon and is not already retired.
+        """
+        horizon = self.retirement_horizon
+
+        if horizon is None:
+            return False  # never retires → no lever
+
+        if horizon == 0:
+            return False  # already retired → no lever
+
+        return True
+
+    # =========================================================
+    # Structural Lever Properties (v1)
+    # =========================================================
+
+    @property
+    def has_ss_lever(self) -> bool:
+        """
+        Social Security lever exists only if PIA > 0.
+        """
+        return any(pia > 0 for pia in self.social_security_pia)
+
+    @property
+    def has_conversion_lever(self) -> bool:
+        """
+        Conversion lever exists if both pre-tax and tax-free assets exist.
+        """
+        return self.tax_deferred_savings > 0 and self.tax_free_savings > 0
+
+    @property
+    def has_allocation_lever(self) -> bool:
+        """
+        Allocation lever exists if asset allocation is defined.
+        """
+        return bool(self.initial_asset_allocation)
+
+    @property
+    def pre_tax_share(self) -> float:
+        """
+        Share of total savings in tax-deferred accounts.
+        """
+        total = self.total_savings
+        if total == 0:
+            return 0.0
+        return self.tax_deferred_savings / total
+
+    @property
+    def equity_share(self) -> float:
+        """
+        Equity share from first allocation vector.
+        """
+        allocs = self.initial_asset_allocation
+        if not allocs:
+            return 0.0
+
+        first_alloc = allocs[0]
+        if not first_alloc:
+            return 0.0
+
+        # First element corresponds to equities
+        return first_alloc[0] / 100.0
+
+    @property
+    def funded_ratio(self) -> float:
+        """
+        Simple 25x rule funded ratio approximation.
+        (Assets / 25x annual spending proxy)
+        """
+        
+        spending = self.max_spending
+
+        if not spending or spending <= 0:
+            return 0.0
+
+        return 1000.0 * self.total_savings / (25 * spending)
+
+    @property
+    def withdrawl_rate(self) -> float:
+        """
+        """
+        
+        spending = self.first_year_total_withdrawals
+
+        if not spending or spending <= 0:
+            return 0.0
+
+        return spending /  (1000.0 * self.total_savings)

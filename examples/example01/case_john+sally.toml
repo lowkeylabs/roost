@@ -19,23 +19,19 @@ spousal_surplus_deposit_fraction = 0.5
 HFP_file_name = "HFP_john+sally.xlsx"
 
 [fixed_income]
-pension_monthly_amounts = [ 0.0, 0.0,]
+pension_monthly_amounts = [ 0, 0,]
 pension_ages = [ 65.0, 65.0,]
 pension_indexed = [ false, false,]
 social_security_pia_amounts = [ 3000, 1800,]
 social_security_ages = [ 67.0, 67.0,]
-social_security_trim_pct = 0
 
 [rates_selection]
 heirs_rate_on_tax_deferred_estate = 30.0
 dividend_rate = 1.8
 obbba_expiration_year = 2032
 method = "historical average"
-from_ = 1990
+from = 1990
 to = 2023
-reproducible_rates = false
-reverse_sequence = false
-roll_sequence = 0
 
 [asset_allocation]
 interpolation_method = "linear"
@@ -48,9 +44,6 @@ generic = [ [ [ 60, 40, 0, 0,], [ 60, 40, 0, 0,],], [ [ 60, 40, 0, 0,], [ 60, 40
 spending_profile = "flat"
 surviving_spouse_spending_percent = 60
 objective = "maxBequest"
-smile_dip = 15
-smile_increase = 12
-smile_delay = 0
 
 [solver_options]
 netSpending = 100
@@ -69,10 +62,16 @@ default_plots = "today"
 apply_to_plan = false
 partnered = true
 lifetime_percentile = [ 0.6, 0.6,]
-sex = [ "male", "female",]
+sex = [ "female", "female",]
 health = [ "average", "average",]
 smoker = [ false, false,]
 
 [roost]
-master_seed = 2061902228
+master_seed = 3223906872
 trials = 1000
+
+[cache]
+generated_at = "2026-02-24T15:39:29.776795"
+retirement_horizon = 1
+max_spending = 178268.36
+first_year_total_withdrawals = 114329.92

@@ -19,24 +19,20 @@ spousal_surplus_deposit_fraction = 0.5
 HFP_file_name = "HFP_alex+jamie.xlsx"
 
 [fixed_income]
-pension_monthly_amounts = [ 0.0, 0.0,]
+pension_monthly_amounts = [ 0, 0,]
 pension_ages = [ 65.0, 65.0,]
 pension_indexed = [ false, false,]
 social_security_pia_amounts = [ 3000, 1200,]
 social_security_ages = [ 69.0, 62.083333,]
-social_security_trim_pct = 0
 
 [rates_selection]
 heirs_rate_on_tax_deferred_estate = 30.0
 dividend_rate = 1.72
 obbba_expiration_year = 2032
 method = "user"
-from_ = 1928
-to = 2025
 values = [ 7.0, 4.0, 3.3, 2.8,]
-reproducible_rates = false
-reverse_sequence = false
-roll_sequence = 0
+from = 1928
+to = 2025
 
 [asset_allocation]
 interpolation_method = "linear"
@@ -49,9 +45,6 @@ generic = [ [ [ 60, 40, 0, 0,], [ 60, 40, 0, 0,],], [ [ 60, 40, 0, 0,], [ 60, 40
 spending_profile = "flat"
 surviving_spouse_spending_percent = 60
 objective = "maxSpending"
-smile_dip = 15
-smile_increase = 12
-smile_delay = 0
 
 [solver_options]
 maxRothConversion = 400.0
@@ -73,11 +66,17 @@ default_plots = "today"
 [longevity]
 apply_to_plan = false
 partnered = true
-lifetime_percentile = [ 0.9, 0.9,]
-sex = [ "female", "male",]
-health = [ "excellent", "excellent",]
-smoker = [ false, false,]
+lifetime_percentile = [ 0.6, 0.9,]
+sex = [ "male", "female",]
+health = [ "poor", "average",]
+smoker = [ true, false,]
 
 [roost]
-master_seed = 11954171
+master_seed = 1335355144
 trials = 1000
+
+[cache]
+generated_at = "2026-02-24T15:39:24.197072"
+retirement_horizon = 3
+max_spending = 235191.33
+first_year_total_withdrawals = 147876.91

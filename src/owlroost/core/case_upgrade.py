@@ -6,6 +6,7 @@ Responsible for:
 - Ensuring required ROOST extension sections exist
 - Injecting default [longevity] and [roost] sections when missing
 - Validating structural alignment with household size
+- Applying deterministic longevity to plan (if requested)
 - Writing back to disk if requested
 
 Defaults are defined in schema models.
@@ -16,6 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 from owlroost.domain.case import Case, LongevityConfig, RoostConfig
+
 
 # =========================================================
 # Public API
@@ -36,6 +38,7 @@ def case_upgrade(
         "longevity_added": False,
         "roost_added": False,
         "longevity_fixed_alignment": False,
+        "life_expectancy_updated": False,
         "written": False,
     }
 
@@ -55,6 +58,27 @@ def case_upgrade(
                 print("Aligned longevity section with household.")
 
     # ---------------------------------------------------------
+    # Apply Longevity to Plan (if requested)
+    # ---------------------------------------------------------
+
+    if case.longevity and case.longevity.apply_to_plan:
+        deterministic = case.deterministic_life_ages
+
+        if deterministic:
+            # Round to nearest integer age
+            rounded = [int(round(age)) for age in deterministic]
+
+            current = case.config.basic_info.life_expectancy
+
+            if current != rounded:
+                case.config.basic_info.life_expectancy = rounded
+                case._raw_dict["basic_info"]["life_expectancy"] = rounded
+                actions["life_expectancy_updated"] = True
+
+                if verbose:
+                    print("Applied deterministic longevity to plan.")
+
+    # ---------------------------------------------------------
     # Roost Section
     # ---------------------------------------------------------
 
@@ -69,7 +93,13 @@ def case_upgrade(
     # ---------------------------------------------------------
 
     if write and any(
-        actions[k] for k in ("longevity_added", "roost_added", "longevity_fixed_alignment")
+        actions[k]
+        for k in (
+            "longevity_added",
+            "roost_added",
+            "longevity_fixed_alignment",
+            "life_expectancy_updated",
+        )
     ):
         case.write()
         actions["written"] = True
@@ -90,12 +120,14 @@ def _add_default_longevity(case: Case) -> None:
 
     case.extensions["longevity"] = model
     case.extra["longevity"] = model.model_dump(exclude_none=True)
+    case._raw_dict["longevity"] = model.model_dump(exclude_none=True)
 
 
 def _add_default_roost(case: Case) -> None:
     model = RoostConfig()
     case.extensions["roost"] = model
     case.extra["roost"] = model.model_dump(exclude_none=True)
+    case._raw_dict["roost"] = model.model_dump(exclude_none=True)
 
 
 def _align_longevity(case: Case) -> bool:
@@ -116,6 +148,7 @@ def _align_longevity(case: Case) -> bool:
     if aligned != lon:
         case.extensions["longevity"] = aligned
         case.extra["longevity"] = aligned.model_dump(exclude_none=True)
+        case._raw_dict["longevity"] = aligned.model_dump(exclude_none=True)
         return True
 
     return False

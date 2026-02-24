@@ -24,18 +24,14 @@ pension_ages = [ 65.0, 65.0,]
 pension_indexed = [ false, false,]
 social_security_pia_amounts = [ 2360, 1642,]
 social_security_ages = [ 70.0, 62.083333,]
-social_security_trim_pct = 0
 
 [rates_selection]
 heirs_rate_on_tax_deferred_estate = 30.0
 dividend_rate = 1.7
 obbba_expiration_year = 2032
 method = "historical"
-from_ = 1969
+from = 1969
 to = 2001
-reproducible_rates = false
-reverse_sequence = false
-roll_sequence = 0
 
 [asset_allocation]
 interpolation_method = "s-curve"
@@ -47,10 +43,10 @@ generic = [ [ [ 60, 40, 0, 0,], [ 70, 30, 0, 0,],], [ [ 50, 50, 0, 0,], [ 70, 30
 [optimization_parameters]
 spending_profile = "smile"
 surviving_spouse_spending_percent = 60
-objective = "maxSpending"
 smile_dip = 15
 smile_increase = 12
 smile_delay = 0
+objective = "maxSpending"
 
 [solver_options]
 maxRothConversion = 100
@@ -69,10 +65,16 @@ default_plots = "today"
 apply_to_plan = false
 partnered = true
 lifetime_percentile = [ 0.6, 0.6,]
-sex = [ "male", "female",]
+sex = [ "female", "female",]
 health = [ "average", "average",]
 smoker = [ false, false,]
 
 [roost]
-master_seed = 1956783920
+master_seed = 121962938
 trials = 1000
+
+[cache]
+generated_at = "2026-02-24T15:39:29.110637"
+retirement_horizon = 3
+max_spending = 103395.06
+first_year_total_withdrawals = 0.0

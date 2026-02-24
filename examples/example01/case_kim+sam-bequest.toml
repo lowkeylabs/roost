@@ -71,5 +71,11 @@ health = [ "average", "average",]
 smoker = [ false, false,]
 
 [roost]
-master_seed = 1629019118
+master_seed = 2227782190
 trials = 1000
+
+[cache]
+generated_at = "2026-02-24T15:39:31.360441"
+retirement_horizon = 0
+max_spending = 168293.65
+first_year_total_withdrawals = 197107.83

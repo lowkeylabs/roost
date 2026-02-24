@@ -25,3 +25,5 @@ sync_cases:
 		cp "$$f" "$$lower"; \
 	done
 	@echo "Done."
+	# Delete broken file
+	rm case_drawdowncalc-comparison-1.toml
