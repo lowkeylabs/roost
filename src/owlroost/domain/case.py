@@ -1,6 +1,6 @@
 import ast
-import re
 import os
+import re
 import secrets
 from datetime import date, datetime
 from io import StringIO
@@ -62,13 +62,14 @@ class RoostConfig(BaseModel):
     master_seed: int = Field(default_factory=lambda: secrets.randbits(32))
     trials: int = 1000
 
+
 class CacheConfig(BaseModel):
     generated_at: str  # ISO timestamp
 
     retirement_horizon: int | None = None
     max_spending: float | None = None
     first_year_total_withdrawals: float | None = None
-    
+
 
 EXTRA_SECTION_REGISTRY: dict[str, type[BaseModel]] = {
     "longevity": LongevityConfig,
@@ -231,8 +232,9 @@ class Case:
     # Persistence
     # =========================================================
     def generate_cache(self, write: bool = False) -> None:
-        from owlroost.domain.lever import compute_levers
         from datetime import datetime
+
+        from owlroost.domain.lever import compute_levers
 
         summary = compute_levers(self)
 
@@ -251,7 +253,7 @@ class Case:
 
         if write:
             self.write()
-            
+
     def write(self, path: Path | None = None) -> None:
         target_path = Path(path or self.path)
         filename = target_path.name
@@ -297,11 +299,10 @@ class Case:
     # Cache Accessor
     # ---------------------------------------------------------
 
-
     @property
     def cache(self) -> CacheConfig | None:
         return self.extensions.get("cache")
-    
+
     def _cache_is_valid(self) -> bool:
         """
         Cache is valid only if:
@@ -325,9 +326,7 @@ class Case:
             return False
 
         # Compare against HFP file if present
-        hfp_name = self._raw_dict.get(
-            "household_financial_profile", {}
-        ).get("HFP_file_name")
+        hfp_name = self._raw_dict.get("household_financial_profile", {}).get("HFP_file_name")
 
         if hfp_name and hfp_name != "None":
             hfp_path = self.path.parent / hfp_name
@@ -439,10 +438,7 @@ class Case:
         # Ensure aligned lengths
         n = min(len(ages), len(life_exp))
 
-        remaining_years = [
-            life_exp[i] - ages[i]
-            for i in range(n)
-        ]
+        remaining_years = [life_exp[i] - ages[i] for i in range(n)]
 
         if not remaining_years:
             return 0
@@ -716,7 +712,7 @@ class Case:
         if not self._cache_is_valid():
             return None
         return self.cache.max_spending
-        
+
     @property
     def first_year_total_withdrawals(self) -> float | None:
         if not self._cache_is_valid():
@@ -796,7 +792,7 @@ class Case:
         Simple 25x rule funded ratio approximation.
         (Assets / 25x annual spending proxy)
         """
-        
+
         spending = self.max_spending
 
         if not spending or spending <= 0:
@@ -806,12 +802,11 @@ class Case:
 
     @property
     def withdrawl_rate(self) -> float:
-        """
-        """
-        
+        """ """
+
         spending = self.first_year_total_withdrawals
 
         if not spending or spending <= 0:
             return 0.0
 
-        return spending /  (1000.0 * self.total_savings)
+        return spending / (1000.0 * self.total_savings)

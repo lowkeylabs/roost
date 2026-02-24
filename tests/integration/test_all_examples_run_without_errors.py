@@ -1,13 +1,11 @@
-from pathlib import Path
+import tomllib
 from io import StringIO
+from pathlib import Path
 
 import pytest
-import tomllib
-
 from owlplanner.config.plan_bridge import config_to_plan
 
-
-EXAMPLES_DIR = Path("examples/owlplanner")
+EXAMPLES_DIR = Path("examples/example01")
 
 
 def get_example_files():
@@ -49,6 +47,5 @@ def test_owlplanner_example_runs(path):
         pytest.fail(f"{path.name} raised exception: {e}")
 
     assert getattr(plan, "caseStatus", None) == "solved", (
-        f"{path.name} did not solve successfully. "
-        f"Status: {getattr(plan, 'caseStatus', None)}"
+        f"{path.name} did not solve successfully. " f"Status: {getattr(plan, 'caseStatus', None)}"
     )

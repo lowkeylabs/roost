@@ -18,7 +18,6 @@ from typing import Any
 
 from owlroost.domain.case import Case, LongevityConfig, RoostConfig
 
-
 # =========================================================
 # Public API
 # =========================================================

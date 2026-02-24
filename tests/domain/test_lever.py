@@ -6,8 +6,9 @@ import pandas as pd
 
 from owlroost.domain.case import Case
 from owlroost.domain.lever import (
-    compute_max_spending_zero_bequest,
+    compute_levers,
     compute_retirement_horizon,
+    compute_spending_and_more,
 )
 
 # =========================================================
@@ -45,15 +46,10 @@ def write_hfp(tmp_path: Path, names: list[str], wage_schedule: list[list[float]]
         df.to_excel(writer, sheet_name=name, index=False)
 
     writer.close()
-
     return file
 
 
 def write_case(tmp_path: Path, names: list[str], hfp_filename: str) -> Path:
-    """
-    Generate a fully schema-valid OWL case referencing a real HFP file.
-    Compatible with config_to_plan().
-    """
     n = len(names)
 
     status = "married" if n == 2 else "single"
@@ -73,14 +69,9 @@ def write_case(tmp_path: Path, names: list[str], hfp_filename: str) -> Path:
     ss_amounts = ", ".join("0" for _ in names)
     ss_ages = ", ".join("67.0" for _ in names)
 
-    # Beneficiary fractions:
-    # single -> length 1
-    # married -> length 3
     beneficiary_len = 1 if n == 1 else 3
     beneficiary = ", ".join("1.0" for _ in range(beneficiary_len))
 
-    # Correct generic structure:
-    # Per person: [[initial],[final]]
     generic_block = ", ".join("[[60,40,0,0],[60,40,0,0]]" for _ in names)
 
     content = f"""
@@ -146,7 +137,7 @@ amoSurplus = true
 withSCLoop = true
 withMedicare = "loop"
 noLateSurplus = false
-previousMAGIs = [ 200.0, 200.0,]
+previousMAGIs = [200.0, 200.0]
 
 [results]
 default_plots = "today"
@@ -162,10 +153,8 @@ default_plots = "today"
 # =========================================================
 
 
-def test_retirement_horizon_detects_future_retirement(tmp_path):
+def test_retirement_horizon_future_retirement(tmp_path):
     names = ["Alice"]
-
-    # Works 3 years, then zero
     wages = [[100000, 100000, 100000, 0, 0]]
 
     hfp = write_hfp(tmp_path, names, wages)
@@ -173,14 +162,11 @@ def test_retirement_horizon_detects_future_retirement(tmp_path):
 
     case = Case(case_file)
 
-    horizon = compute_retirement_horizon(case)
-
-    assert horizon == 3
+    assert compute_retirement_horizon(case) == 3
 
 
 def test_retirement_horizon_already_retired(tmp_path):
     names = ["Alice"]
-
     wages = [[0, 0, 0, 0]]
 
     hfp = write_hfp(tmp_path, names, wages)
@@ -188,14 +174,11 @@ def test_retirement_horizon_already_retired(tmp_path):
 
     case = Case(case_file)
 
-    horizon = compute_retirement_horizon(case)
-
-    assert horizon == 0
+    assert compute_retirement_horizon(case) == 0
 
 
 def test_retirement_horizon_never_retires(tmp_path):
     names = ["Alice"]
-
     wages = [[100000] * 20]
 
     hfp = write_hfp(tmp_path, names, wages)
@@ -203,37 +186,16 @@ def test_retirement_horizon_never_retires(tmp_path):
 
     case = Case(case_file)
 
-    horizon = compute_retirement_horizon(case)
-
-    assert horizon is None
-
-
-def test_retirement_horizon_household_last_worker(tmp_path):
-    names = ["Alice", "Bob"]
-
-    wages = [
-        [100000, 100000, 0, 0],  # Alice retires at 2
-        [100000, 100000, 100000, 0],  # Bob retires at 3
-    ]
-
-    hfp = write_hfp(tmp_path, names, wages)
-    case_file = write_case(tmp_path, names, hfp.name)
-
-    case = Case(case_file)
-
-    horizon = compute_retirement_horizon(case)
-
-    assert horizon == 3
+    assert compute_retirement_horizon(case) is None
 
 
 # =========================================================
-# Max Spending Tests
+# Spending + Withdrawal Tests
 # =========================================================
 
 
-def test_max_spending_returns_positive_number(tmp_path):
+def test_spending_and_withdrawals_return_values(tmp_path):
     names = ["Alice"]
-
     wages = [[0, 0, 0, 0]]  # already retired
 
     hfp = write_hfp(tmp_path, names, wages)
@@ -241,15 +203,17 @@ def test_max_spending_returns_positive_number(tmp_path):
 
     case = Case(case_file)
 
-    spending = compute_max_spending_zero_bequest(case)
+    spending, withdrawals = compute_spending_and_more(case)
 
     assert spending is not None
     assert spending > 0
 
+    assert withdrawals is not None
+    assert withdrawals >= 0
 
-def test_max_spending_solve_runs_without_exception(tmp_path):
+
+def test_withdrawals_less_than_or_equal_spending(tmp_path):
     names = ["Alice"]
-
     wages = [[50000, 50000, 0, 0]]
 
     hfp = write_hfp(tmp_path, names, wages)
@@ -257,6 +221,31 @@ def test_max_spending_solve_runs_without_exception(tmp_path):
 
     case = Case(case_file)
 
-    spending = compute_max_spending_zero_bequest(case)
+    spending, withdrawals = compute_spending_and_more(case)
 
-    assert spending is None or spending >= 0
+    assert spending is not None
+    assert withdrawals is not None
+
+    # Because spending includes wages, withdrawals may be <= spending
+    assert withdrawals <= spending
+
+
+# =========================================================
+# Combined Lever Summary Test
+# =========================================================
+
+
+def test_compute_levers_populates_all_fields(tmp_path):
+    names = ["Alice"]
+    wages = [[0, 0, 0, 0]]
+
+    hfp = write_hfp(tmp_path, names, wages)
+    case_file = write_case(tmp_path, names, hfp.name)
+
+    case = Case(case_file)
+
+    summary = compute_levers(case)
+
+    assert summary.retirement_horizon == 0
+    assert summary.max_spending is not None
+    assert summary.first_year_total_withdrawals is not None

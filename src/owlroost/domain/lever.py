@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import numpy as np
-
 from copy import deepcopy
 from dataclasses import dataclass
 from io import StringIO
 
+import numpy as np
 from owlplanner.config.plan_bridge import config_to_plan
 
 from .case import Case
@@ -136,7 +135,7 @@ def compute_retirement_horizon(case: Case) -> int | None:
 # ==========================================================
 
 
-def compute_spending_and_more(case: Case) -> tuple[float | None, float | None]:    
+def compute_spending_and_more(case: Case) -> tuple[float | None, float | None]:
     """
     Solve plan with zero bequest objective and return
     max sustainable first-year net spending.
@@ -179,6 +178,7 @@ def compute_spending_and_more(case: Case) -> tuple[float | None, float | None]:
             withdrawals = float(w[0])
 
     return max_spending, withdrawals
+
 
 # ==========================================================
 # Combined Lever Summary
