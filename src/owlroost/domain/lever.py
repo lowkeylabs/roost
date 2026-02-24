@@ -152,6 +152,13 @@ def compute_spending_and_more(case: Case) -> tuple[float | None, float | None]:
 
     raw.setdefault("solver_options", {})
     raw["solver_options"]["bequest"] = 0
+    raw["solver_options"].pop("netSpending", None)
+
+    import toml
+
+    print("\n===== EFFECTIVE TOML FOR DEBUG =====")
+    print(toml.dumps(raw))
+    print("====================================\n")
 
     plan = config_to_plan(
         raw,
@@ -163,8 +170,10 @@ def compute_spending_and_more(case: Case) -> tuple[float | None, float | None]:
 
     plan.solve(plan.objective, plan.solverOptions)
 
+    print("CASE STATUS:", plan.caseStatus)
+
     if getattr(plan, "caseStatus", None) != "solved":
-        return None
+        return None, None
 
     max_spending = None
     withdrawals = None

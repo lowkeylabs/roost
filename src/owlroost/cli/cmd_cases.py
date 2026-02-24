@@ -112,52 +112,39 @@ def cmd_cases(selector, view, upgrade, mutations, apply):
     # If exactly one case selected
     # --------------------------------------------
 
-    if len(paths) == 1:
+    if len(paths) == 1 and upgrade:
         case = Case(paths[0])
 
-        # --------------------------------------------
-        # Upgrade mode (single case)
-        # --------------------------------------------
-        if upgrade:
-            console.print("[bold cyan]Upgrade Preview[/bold cyan]\n")
+        console.print("[bold cyan]Upgrade Preview[/bold cyan]\n")
 
-            actions = case_upgrade(case, write=False)
+        actions = case_upgrade(case, write=False)
 
-            # Always rebuild cache during upgrade
-            try:
-                case.generate_cache(write=False)
-                actions["cache_updated"] = True
-            except Exception as e:
-                console.print(f"[red]Cache rebuild failed:[/red] {e}")
-                actions["cache_updated"] = False
+        try:
+            case.generate_cache(write=False)
+            actions["cache_updated"] = True
+        except Exception as e:
+            console.print(f"[red]Cache rebuild failed:[/red] {e}")
+            actions["cache_updated"] = False
 
-            # Write once at end if apply
-            if apply and any(v for k, v in actions.items() if k != "written"):
-                case.write()
-                actions["written"] = True
+        if apply and any(v for k, v in actions.items() if k != "written"):
+            case.write()
+            actions["written"] = True
 
-            meaningful_actions = {k: v for k, v in actions.items() if k != "written" and v}
+        meaningful_actions = {k: v for k, v in actions.items() if k != "written" and v}
 
-            if meaningful_actions:
-                console.print(f"[yellow]{case.filename}[/yellow]")
+        if meaningful_actions:
+            console.print(f"[yellow]{case.filename}[/yellow]")
+            for key in meaningful_actions:
+                message = UPGRADE_MESSAGES.get(key, key)
+                console.print(f"  ✓ {escape(message)}")
 
-                for key in meaningful_actions:
-                    message = UPGRADE_MESSAGES.get(key, key)
-                    console.print(f"  ✓ {escape(message)}")
-
-                if apply:
-                    console.print("  → Changes written to disk.\n")
-                else:
-                    console.print("  → Preview only (use --apply to write).\n")
+            if apply:
+                console.print("  → Changes written to disk.\n")
             else:
-                console.print("Case already up-to-date.")
+                console.print("  → Preview only (use --apply to write).\n")
+        else:
+            console.print("Case already up-to-date.")
 
-            return
-
-        # --------------------------------------------
-        # Single-case detailed view
-        # --------------------------------------------
-        _display_single_case(console, case)
         return
 
     # --------------------------------------------
