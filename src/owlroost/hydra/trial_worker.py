@@ -140,15 +140,16 @@ def run_trial(
         "longevity_seed": longevity_seed,
     }
 
-    logger.debug(
-        "Job: {:5} | Trial {:04d} | overrides={} | rates_seed={} | longevity_seed={} | dir={}",
-        job_id,
-        trial_id,
-        overrides,
-        rates_seed if rates_seed is not None else "TOML",
-        longevity_seed if longevity_seed is not None else "TOML",
-        trial_dir.relative_to(run_dir),
-    )
+    if 0:
+        logger.debug(
+            "Job: {:5} | Trial {:04d} | overrides={} | rates_seed={} | longevity_seed={} | dir={}",
+            job_id,
+            trial_id,
+            overrides,
+            rates_seed if rates_seed is not None else "TOML",
+            longevity_seed if longevity_seed is not None else "TOML",
+            trial_dir.relative_to(run_dir),
+        )
 
     # ---------------------------------------------------------
     # Execute case

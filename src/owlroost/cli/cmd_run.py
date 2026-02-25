@@ -1,6 +1,7 @@
 # src/owlroost/cli/cmd_run.py
 
 import ast
+import os
 import subprocess
 import sys
 import time
@@ -284,6 +285,7 @@ def build_run_help(cmd) -> str:
 @click.option("--trial-id", type=int, default=None)
 @click.option("--trial-jobs", type=int, default=None)
 @click.option("--run-jobs", type=int, default=None)
+@click.option("--open-folder", is_flag=True, help="Open experiment folder after run.")
 @click.pass_context
 def cmd_run(
     ctx: click.Context,
@@ -292,6 +294,7 @@ def cmd_run(
     trial_id: int | None,
     trial_jobs: int | None,
     run_jobs: int | None,
+    open_folder: bool,
 ):
     cwd = Path.cwd()
     files = find_case_files(cwd)
@@ -432,6 +435,9 @@ def cmd_run(
             format_elapsed(elapsed),
         )
 
+        if open_folder:
+            open_latest_results_folder()
+
         return
 
     # --------------------------------------------------------
@@ -463,6 +469,57 @@ def cmd_run(
             "Hydra completed successfully in {}",
             format_elapsed(elapsed),
         )
+
+        if open_folder:
+            open_latest_results_folder()
+
+
+def open_latest_results_folder():
+    """
+    Open the most recent experiment folder under ./results.
+    """
+
+    results_dir = Path.cwd() / "results"
+    open_in_file_explorer(results_dir)
+
+
+def _wsl_to_windows_path(path: Path) -> str:
+    """Convert a WSL path to a Windows path using wslpath."""
+    result = subprocess.run(
+        ["wslpath", "-w", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise click.ClickException(f"Failed to convert path for Explorer: {path}")
+    return result.stdout.strip()
+
+
+def open_in_file_explorer(path: Path):
+    if not path.exists():
+        raise click.ClickException(f"Path does not exist: {path}")
+
+    path = path.resolve()
+
+    # ---- WSL detection ----
+    if "microsoft" in os.uname().release.lower():
+        win_path = _wsl_to_windows_path(path)
+        subprocess.run(["explorer.exe", win_path], check=False)
+        return
+
+    # ---- Native Windows ----
+    if sys.platform.startswith("win"):
+        os.startfile(path)  # type: ignore[attr-defined]
+        return
+
+    # ---- macOS ----
+    if sys.platform == "darwin":
+        subprocess.run(["open", path], check=False)
+        return
+
+    # ---- Native Linux ----
+    subprocess.run(["xdg-open", path], check=False)
 
 
 cmd_run.get_help = lambda ctx: build_run_help(cmd_run)

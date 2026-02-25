@@ -749,9 +749,9 @@ class Case:
     @property
     def has_conversion_lever(self) -> bool:
         """
-        Conversion lever exists if both pre-tax and tax-free assets exist.
+        Conversion lever exists if pre-tax assets exist, since these can be converted to tax-free.
         """
-        return self.tax_deferred_savings > 0 and self.tax_free_savings > 0
+        return self.tax_deferred_savings > 0
 
     @property
     def has_allocation_lever(self) -> bool:

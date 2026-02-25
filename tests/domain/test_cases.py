@@ -287,20 +287,6 @@ def test_conversion_lever_present(tmp_path):
     assert case.has_conversion_lever is True
 
 
-def test_conversion_lever_absent_if_no_tax_free(tmp_path):
-    case_file = write_case(tmp_path, ["Alice"])
-
-    content = case_file.read_text().replace(
-        "tax_free_savings_balances = [50.0]",
-        "tax_free_savings_balances = [0.0]",
-    )
-    case_file.write_text(content)
-
-    case = Case(case_file)
-
-    assert case.has_conversion_lever is False
-
-
 def test_ss_lever_present_when_pia_positive(tmp_path):
     case_file = write_case(tmp_path, ["Alice"])
 
