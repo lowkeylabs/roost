@@ -70,7 +70,7 @@ master_seed = 1324157063
 trials = 1000
 
 [cache]
-generated_at = "2026-02-24T15:39:29.333630"
+generated_at = "2026-02-26T14:43:41.727632"
 retirement_horizon = 3
 max_spending = 98271.85
 first_year_total_withdrawals = 65645.97

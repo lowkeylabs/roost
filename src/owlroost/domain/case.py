@@ -60,7 +60,7 @@ class LongevityConfig(BaseModel):
 
 class RoostConfig(BaseModel):
     master_seed: int = Field(default_factory=lambda: secrets.randbits(32))
-    trials: int = 1000
+    trials: int = 1
 
 
 class CacheConfig(BaseModel):

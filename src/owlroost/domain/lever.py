@@ -156,10 +156,6 @@ def compute_spending_and_more(case: Case) -> tuple[float | None, float | None]:
 
     import toml
 
-    print("\n===== EFFECTIVE TOML FOR DEBUG =====")
-    print(toml.dumps(raw))
-    print("====================================\n")
-
     plan = config_to_plan(
         raw,
         dirname=str(dirname),
@@ -169,8 +165,6 @@ def compute_spending_and_more(case: Case) -> tuple[float | None, float | None]:
     )
 
     plan.solve(plan.objective, plan.solverOptions)
-
-    print("CASE STATUS:", plan.caseStatus)
 
     if getattr(plan, "caseStatus", None) != "solved":
         return None, None
