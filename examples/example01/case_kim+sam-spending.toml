@@ -54,7 +54,7 @@ maxRothConversion = 100
 noRothConversions = "None"
 startRothConversions = 2026
 bequest = 0
-solver = "HiGHS"
+solver = "default"
 spendingSlack = 0
 withSCLoop = true
 withMedicare = "loop"
@@ -64,18 +64,19 @@ default_plots = "today"
 
 [longevity]
 apply_to_plan = false
+use_stochastic_model = false
 partnered = true
-lifetime_percentile = [ 0.6, 0.6,]
+lifetime_percentile = [ 0.8, 0.8,]
 sex = [ "female", "female",]
 health = [ "average", "average",]
 smoker = [ false, false,]
 
 [roost]
-master_seed = 4269590661
-trials = 1000
+master_seed = 1819811642
+trials = 1
 
 [cache]
-generated_at = "2026-02-26T14:43:43.941091"
+generated_at = "2026-02-28T11:20:31.898782"
 retirement_horizon = 0
 max_spending = 168293.65
 first_year_total_withdrawals = 197107.83

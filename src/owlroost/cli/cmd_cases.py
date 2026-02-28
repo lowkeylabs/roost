@@ -261,7 +261,7 @@ def _display_single_case(console: Console, case: Case):
     config = case.config
 
     if hasattr(config, "model_dump"):
-        config_dict = config.model_dump()
+        config_dict = config.model_dump(by_alias=True)
     elif hasattr(config, "dict"):
         config_dict = config.dict()
     elif is_dataclass(config):
@@ -279,7 +279,7 @@ def _display_single_case(console: Console, case: Case):
     if case.extensions:
         for name, model in case.extensions.items():
             if hasattr(model, "model_dump"):
-                section_dict = model.model_dump(exclude_none=True)
+                section_dict = model.model_dump(exclude_none=True,by_alias=True)
             else:
                 section_dict = model.dict()
 

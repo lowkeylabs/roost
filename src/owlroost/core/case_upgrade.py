@@ -114,24 +114,30 @@ def case_upgrade(
 
 
 def _add_default_longevity(case: Case) -> None:
+    """
+    Inject default longevity section using schema defaults,
+    then resize via LongevityConfig.resized().
+    """
     model = LongevityConfig(partnered=(len(case.household_names) == 2))
-    model = case._align_longevity(model)
+    model = model.resized(len(case.household_names))
 
     case.extensions["longevity"] = model
-    case.extra["longevity"] = model.model_dump(exclude_none=True)
-    case._raw_dict["longevity"] = model.model_dump(exclude_none=True)
+    case.extra["longevity"] = model.model_dump(exclude_none=True, by_alias=True)
+    case._raw_dict["longevity"] = model.model_dump(exclude_none=True, by_alias=True)
 
 
 def _add_default_roost(case: Case) -> None:
     model = RoostConfig()
     case.extensions["roost"] = model
-    case.extra["roost"] = model.model_dump(exclude_none=True)
-    case._raw_dict["roost"] = model.model_dump(exclude_none=True)
+    case.extra["roost"] = model.model_dump(exclude_none=True, by_alias=True)
+    case._raw_dict["roost"] = model.model_dump(exclude_none=True, by_alias=True)
 
 
 def _align_longevity(case: Case) -> bool:
     """
-    Re-align longevity lists to household size.
+    Re-align longevity lists to household size using
+    LongevityConfig.resized().
+
     Returns True if modification occurred.
     """
 
@@ -141,34 +147,13 @@ def _align_longevity(case: Case) -> bool:
 
     n = len(case.household_names)
 
-    aligned = _resize_longevity(lon, n)
+    aligned = lon.resized(n)
 
-    # Check if anything changed
     if aligned != lon:
         case.extensions["longevity"] = aligned
-        case.extra["longevity"] = aligned.model_dump(exclude_none=True)
-        case._raw_dict["longevity"] = aligned.model_dump(exclude_none=True)
+        case.extra["longevity"] = aligned.model_dump(exclude_none=True, by_alias=True)
+        case._raw_dict["longevity"] = aligned.model_dump(exclude_none=True, by_alias=True)
         return True
 
     return False
 
-
-def _resize_longevity(model: LongevityConfig, n: int) -> LongevityConfig:
-    """
-    Resize all longevity lists to match household size.
-    """
-
-    def resize(values: list, default):
-        if len(values) < n:
-            return values + [default] * (n - len(values))
-        return values[:n]
-
-    return LongevityConfig(
-        apply_to_plan=model.apply_to_plan,
-        life_expectancy_seed=model.life_expectancy_seed,
-        partnered=(n == 2),
-        lifetime_percentile=resize(model.lifetime_percentile, 0.50),
-        sex=resize(model.sex, "female"),
-        health=resize(model.health, "average"),
-        smoker=resize(model.smoker, False),
-    )
