@@ -279,7 +279,7 @@ def _display_single_case(console: Console, case: Case):
     if case.extensions:
         for name, model in case.extensions.items():
             if hasattr(model, "model_dump"):
-                section_dict = model.model_dump(exclude_none=True,by_alias=True)
+                section_dict = model.model_dump(exclude_none=True, by_alias=True)
             else:
                 section_dict = model.dict()
 

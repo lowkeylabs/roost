@@ -154,8 +154,6 @@ def compute_spending_and_more(case: Case) -> tuple[float | None, float | None]:
     raw["solver_options"]["bequest"] = 0
     raw["solver_options"].pop("netSpending", None)
 
-    import toml
-
     plan = config_to_plan(
         raw,
         dirname=str(dirname),

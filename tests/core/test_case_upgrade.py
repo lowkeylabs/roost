@@ -1,12 +1,9 @@
-from pathlib import Path
-
-from owlroost.domain.case import Case
-from owlroost.core.case_upgrade import case_upgrade
-
 from io import StringIO
 
 from owlplanner.config.plan_bridge import config_to_plan
 
+from owlroost.core.case_upgrade import case_upgrade
+from owlroost.domain.case import Case
 
 
 def test_case_upgrade_preserves_rates_selection_from_when_modifying(tmp_path):
@@ -87,6 +84,7 @@ default_plots = "today"
     assert "from =" in written
     assert "from_ =" not in written
 
+
 def test_full_rebuild_write_preserves_rates_from(tmp_path):
     """
     This test mimics the real CLI behavior:
@@ -162,7 +160,6 @@ default_plots = "nominal"
     # 🔴 This SHOULD fail right now
     assert "from =" in written
     assert "from_ =" not in written
-
 
 
 def test_plan_build_then_write_preserves_from(tmp_path):
@@ -265,4 +262,3 @@ default_plots = "nominal"
     # 🔴 This is the real corruption check
     assert "from =" in written
     assert "from_ =" not in written
-

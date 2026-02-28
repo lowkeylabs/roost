@@ -15,7 +15,7 @@ clean:
 
 .PHONY: sync_cases
 
-sync_cases: 
+sync_cases:
 	@echo "Copying .xlsx files..."
 	@for f in ../site-src/examples/owlplanner/*.xlsx; do \
 		[ -e "$$f" ] || continue; \

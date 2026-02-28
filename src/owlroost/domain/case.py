@@ -18,8 +18,8 @@ from owlroost.core.longevity import deterministic_individual_lifetime
 # ROOST Extension Schemas
 # =========================================================
 
-class LongevityConfig(BaseModel):
 
+class LongevityConfig(BaseModel):
     DEFAULT_PERCENTILE: ClassVar[float] = 0.80
     DEFAULT_SEX: ClassVar[str] = "female"
     DEFAULT_HEALTH: ClassVar[str] = "average"
@@ -30,7 +30,9 @@ class LongevityConfig(BaseModel):
     life_expectancy_seed: int | None = None
     partnered: bool = True
 
-    lifetime_percentile: list[float] = Field(default_factory=lambda: [LongevityConfig.DEFAULT_PERCENTILE])
+    lifetime_percentile: list[float] = Field(
+        default_factory=lambda: [LongevityConfig.DEFAULT_PERCENTILE]
+    )
     sex: list[str] = Field(default_factory=lambda: [LongevityConfig.DEFAULT_SEX])
     health: list[str] = Field(default_factory=lambda: [LongevityConfig.DEFAULT_HEALTH])
     smoker: list[bool] = Field(default_factory=lambda: [LongevityConfig.DEFAULT_SMOKER])

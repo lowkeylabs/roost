@@ -156,4 +156,3 @@ def _align_longevity(case: Case) -> bool:
         return True
 
     return False
-

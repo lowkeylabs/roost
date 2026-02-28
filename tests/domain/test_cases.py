@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from owlroost.domain.case import Case, LongevityConfig, RoostConfig
 from owlroost.core.case_upgrade import case_upgrade
+from owlroost.domain.case import Case, LongevityConfig, RoostConfig
 
 # =========================================================
 # Test Fixture Helper
@@ -339,6 +339,7 @@ def test_funded_ratio_zero_if_no_spending_defined(tmp_path):
     # fixture does not define explicit spending
     assert case.funded_ratio == 0.0
 
+
 def test_rates_selection_from_roundtrip_via_case_write(tmp_path):
     """
     Ensure that 'from' in [rates_selection] is not rewritten
@@ -363,6 +364,7 @@ def test_rates_selection_from_roundtrip_via_case_write(tmp_path):
 
     assert "from =" in written
     assert "from_ =" not in written
+
 
 def test_rates_selection_from_roundtrip_via_case_upgrade(tmp_path):
     """
