@@ -4,10 +4,10 @@ defaults:
   - basic_info: default
   - savings_assets: default
   - fixed_income: default
-  - asset_allocations: default
+  - asset_allocation: default
   - longevity: default
   - rates_selection: default
-  - optimization: default
+  - optimization_parameters: default
   - solver_options: default
   - trial: default
   - roost: default

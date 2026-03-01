@@ -1,9 +1,14 @@
+# defaults are applied in case.py longevity_config
 
 apply_to_plan: false
-life_expectancy_seed: 123_456_789
-use_stochastic_model: false
-
-partnered : true
-sex : female
-health : average
-smoker : false
+life_expectancy_seed: 1234567890
+model_name: default
+health:
+  - average
+sex:
+  - female
+smoker:
+  - false
+partnered: true
+lifetime_percentile:
+  - 0.8

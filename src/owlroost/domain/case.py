@@ -24,10 +24,15 @@ class LongevityConfig(BaseModel):
     DEFAULT_SEX: ClassVar[str] = "female"
     DEFAULT_HEALTH: ClassVar[str] = "average"
     DEFAULT_SMOKER: ClassVar[bool] = False
+    DEFAULT_APPLY_TO_PLAN: ClassVar[bool] = False
+    DEFAULT_USE_STOCHASTIC_MODEL: ClassVar[bool] = False
+    DEFAULT_LIFE_EXPECTANCY_SEED: ClassVar[int] = 1_234_567_890
+    DEFAULT_MODEL_NAME: ClassVar[str] = "default"
 
-    apply_to_plan: bool = False
-    use_stochastic_model: bool = False
-    life_expectancy_seed: int | None = None
+    apply_to_plan: bool = DEFAULT_APPLY_TO_PLAN
+    use_stochastic_model: bool = DEFAULT_USE_STOCHASTIC_MODEL
+    life_expectancy_seed: int | None = DEFAULT_LIFE_EXPECTANCY_SEED
+    model_name: str = DEFAULT_MODEL_NAME
     partnered: bool = True
 
     lifetime_percentile: list[float] = Field(
@@ -94,6 +99,7 @@ class LongevityConfig(BaseModel):
 class RoostConfig(BaseModel):
     master_seed: int = Field(default_factory=lambda: secrets.randbits(32))
     trials: int = 1
+    experiment: str | None = None
 
 
 class CacheConfig(BaseModel):
@@ -314,12 +320,29 @@ class Case:
 
         return LongevityConfig(
             apply_to_plan=model.apply_to_plan,
+            use_stochastic_model=model.use_stochastic_model,
             life_expectancy_seed=model.life_expectancy_seed,
             partnered=(n == 2),
-            lifetime_percentile=self._resize_list(model.lifetime_percentile, n, 0.60),
-            sex=self._resize_list(model.sex, n, "female"),
-            health=self._resize_list(model.health, n, "average"),
-            smoker=self._resize_list(model.smoker, n, False),
+            lifetime_percentile=self._resize_list(
+                model.lifetime_percentile,
+                n,
+                LongevityConfig.DEFAULT_PERCENTILE,
+            ),
+            sex=self._resize_list(
+                model.sex,
+                n,
+                LongevityConfig.DEFAULT_SEX,
+            ),
+            health=self._resize_list(
+                model.health,
+                n,
+                LongevityConfig.DEFAULT_HEALTH,
+            ),
+            smoker=self._resize_list(
+                model.smoker,
+                n,
+                LongevityConfig.DEFAULT_SMOKER,
+            ),
         )
 
     @staticmethod

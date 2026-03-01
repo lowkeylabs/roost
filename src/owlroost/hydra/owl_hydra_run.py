@@ -191,21 +191,21 @@ def orchestrate_trials(
 # ---------------------------------------------------------------------
 # Master seed
 # ---------------------------------------------------------------------
-def get_master_seed(cfg: DictConfig, job_id: str) -> int:
-    source = None
-
+def get_master_seed(cfg: DictConfig, job_id: str) -> int | None:
     case_roost = getattr(cfg.case, "ROOST", None)
-    if case_roost and hasattr(case_roost, "master_seed"):
+
+    if case_roost and getattr(case_roost, "master_seed", None) is not None:
         master_seed = int(case_roost.master_seed)
         source = "case"
-    elif hasattr(cfg, "roost") and hasattr(cfg.roost, "master_seed"):
+
+    elif getattr(cfg.roost, "master_seed", None) is not None:
         master_seed = int(cfg.roost.master_seed)
         source = "hydra"
+
     else:
-        raise RuntimeError(
-            "master_seed must be defined either in case [ROOST] "
-            "or in Hydra config (roost.master_seed)"
-        )
+        # No seed defined → deterministic mode
+        logger.info("{} - No master_seed defined (deterministic mode)", job_id)
+        return None
 
     if not fits_uint32(master_seed):
         raise ValueError(f"Invalid master_seed (must fit uint32): {master_seed}")

@@ -69,6 +69,8 @@ default_plots = "today"
 [longevity]
 apply_to_plan = false
 use_stochastic_model = false
+life_expectancy_seed = 1234567890
+model_name = "default"
 partnered = true
 lifetime_percentile = [ 0.8, 0.8,]
 sex = [ "male", "female",]
