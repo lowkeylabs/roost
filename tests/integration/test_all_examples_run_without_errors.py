@@ -7,8 +7,6 @@ from owlplanner.config.plan_bridge import config_to_plan
 
 from owlroost.domain.case import Case
 
-
-
 EXAMPLES_DIR = Path("examples/example01")
 
 
@@ -55,14 +53,12 @@ def test_owlplanner_example_runs(path):
     )
 
 
-
 @pytest.mark.parametrize(
     "path",
     get_example_files(),
     ids=lambda p: p.name,
 )
 def test_rewrite_preserves_solution(path, monkeypatch):
-
     # Move into examples directory
     monkeypatch.chdir(path.parent)
 
@@ -109,6 +105,4 @@ def test_rewrite_preserves_solution(path, monkeypatch):
         assert plan_rewritten.maxSpending == pytest.approx(orig_max_spending, rel=1e-9)
 
     if orig_first_year is not None:
-        assert plan_rewritten.firstYearTotalWithdrawals == pytest.approx(
-            orig_first_year, rel=1e-9
-        )
+        assert plan_rewritten.firstYearTotalWithdrawals == pytest.approx(orig_first_year, rel=1e-9)
