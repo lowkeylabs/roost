@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from owlroost.core.case_upgrade import case_upgrade
 from owlroost.domain.case import Case, LongevityConfig, RoostConfig
 
 # =========================================================
@@ -101,7 +102,7 @@ default_plots = "today"
 def test_longevity_defaults():
     cfg = LongevityConfig()
 
-    assert cfg.lifetime_percentile == [0.60]
+    assert cfg.lifetime_percentile == [0.80]
     assert cfg.sex == ["female"]
     assert cfg.health == ["average"]
     assert cfg.smoker == [False]
@@ -137,7 +138,7 @@ def test_smoker_coercion():
 def test_roost_defaults():
     cfg = RoostConfig()
     assert isinstance(cfg.master_seed, int)
-    assert cfg.trials == 1000
+    assert cfg.trials == 1
 
 
 # =========================================================
@@ -337,3 +338,54 @@ def test_funded_ratio_zero_if_no_spending_defined(tmp_path):
 
     # fixture does not define explicit spending
     assert case.funded_ratio == 0.0
+
+
+def test_rates_selection_from_roundtrip_via_case_write(tmp_path):
+    """
+    Ensure that 'from' in [rates_selection] is not rewritten
+    as 'from_' when Case.write() is called.
+    """
+
+    case_file = write_case(tmp_path, ["Alice"])
+
+    # Ensure fixture uses a historical method with from/to
+    content = case_file.read_text().replace(
+        'method = "user"',
+        'method = "historical"',
+    )
+    case_file.write_text(content)
+
+    case = Case(case_file)
+
+    # Trigger write
+    case.write()
+
+    written = case_file.read_text()
+
+    assert "from =" in written
+    assert "from_ =" not in written
+
+
+def test_rates_selection_from_roundtrip_via_case_upgrade(tmp_path):
+    """
+    Ensure that case_upgrade(write=True) does not rewrite
+    'from' as 'from_'.
+    """
+
+    case_file = write_case(tmp_path, ["Alice"])
+
+    content = case_file.read_text().replace(
+        'method = "user"',
+        'method = "historical"',
+    )
+    case_file.write_text(content)
+
+    case = Case(case_file)
+
+    # Upgrade and write
+    case_upgrade(case, write=True)
+
+    written = case_file.read_text()
+
+    assert "from =" in written
+    assert "from_ =" not in written

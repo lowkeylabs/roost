@@ -1,4 +1,5 @@
 # src/owlroost/core/owl_runner.py
+
 import ast
 import json
 import shutil
@@ -44,73 +45,26 @@ def coerce_override_value(v):
     return v
 
 
-def apply_generic_overrides(key: str, diconf: dict, value: dict):
-    group = diconf.setdefault(key, {})
-    for k, v in value.items():
-        v = coerce_override_value(v)
-        logger.debug("Overrides: {}: {}={}", key, k, v)
-        group[k] = v
+def _normalize_rates_selection(section_dict: dict):
+    """
+    Backward-compatible support for rates_selection.fromto
+    Converts:
+        fromto=[1966,1970]
+    Into:
+        from=1966
+        to=1970
+    """
+    raw = section_dict.pop("fromto", None)
+    if raw is None:
+        return
 
+    fromto = coerce_override_value(raw)
+    if not isinstance(fromto, (list | tuple)) or len(fromto) != 2:
+        raise ValueError(f"Invalid rates_selection.fromto value: {fromto}")
 
-def apply_basic_info_overrides(diconf: dict, value: dict):
-    apply_generic_overrides("basic_info", diconf, value)
-
-
-def apply_savings_assets_overrides(diconf: dict, value: dict):
-    apply_generic_overrides("savings_assets", diconf, value)
-
-
-def apply_fixed_income_overrides(diconf: dict, value: dict):
-    apply_generic_overrides("fixed_income", diconf, value)
-
-
-def apply_rates_selection_overrides(diconf: dict, value: dict):
-    logger.debug(f"apply rates overrides: {value}")
-    value = dict(value)
-
-    raw = value.pop("fromto", None)
-    if raw is not None:
-        fromto = coerce_override_value(raw)
-        if not isinstance(fromto, (list | tuple)) or len(fromto) != 2:
-            raise ValueError(f"Invalid rates.fromto value: {fromto}")
-        frm, to = fromto
-        value["from"] = int(frm)
-        value["to"] = int(to)
-
-    apply_generic_overrides("rates_selection", diconf, value)
-
-
-def apply_asset_allocation_overrides(diconf: dict, value: dict):
-    apply_generic_overrides("asset_allocation", diconf, value)
-
-
-def apply_optimization_overrides(diconf: dict, value: dict):
-    apply_generic_overrides("optimization_parameters", diconf, value)
-
-
-def apply_solver_options_overrides(diconf: dict, value: dict):
-    apply_generic_overrides("solver_options", diconf, value)
-
-
-def apply_longevity_overrides(diconf: dict, value: dict):
-    apply_generic_overrides("longevity", diconf, value)
-
-
-OVERRIDE_HANDLERS = {
-    "basic_info": apply_basic_info_overrides,
-    "savings_assets": apply_savings_assets_overrides,
-    "fixed_income": apply_fixed_income_overrides,
-    "rates_selection": apply_rates_selection_overrides,
-    "asset_allocation": apply_asset_allocation_overrides,
-    "optimization": apply_optimization_overrides,
-    "longevity": apply_longevity_overrides,
-    "solver_options": apply_solver_options_overrides,
-}
-
-
-# ---------------------------------------------------------------------
-# TOML load / override helpers
-# ---------------------------------------------------------------------
+    frm, to = fromto
+    section_dict["from"] = int(frm)
+    section_dict["to"] = int(to)
 
 
 def load_original_toml(case_file: str) -> str:
@@ -120,22 +74,41 @@ def load_original_toml(case_file: str) -> str:
 
 
 def load_and_override_toml(case_file: str, overrides: dict):
+    """
+    Generic section-based override merge.
+
+    Assumptions:
+      - Hydra group names match OWL section names
+      - overrides is structured as:
+            { section_name: { field: value } }
+    """
+
     with open(case_file, encoding="utf-8") as f:
         diconf = toml.load(f)
 
     diconf = deepcopy(diconf)
-    logger.debug(overrides)
+    logger.debug("Overrides: {}", overrides)
 
-    if overrides:
-        for key, value in overrides.items():
-            try:
-                handler = OVERRIDE_HANDLERS[key]
-            except KeyError as e:
-                raise RuntimeError(
-                    f"Unknown override '{key}'. Supported overrides: {list(OVERRIDE_HANDLERS)}"
-                ) from e
+    if not overrides:
+        return diconf
 
-            handler(diconf, value)
+    for section, values in overrides.items():
+        if not isinstance(values, dict):
+            raise RuntimeError(
+                f"Override for section '{section}' must be a dict, got {type(values)}"
+            )
+
+        group = diconf.setdefault(section, {})
+
+        # Special normalization for rates_selection
+        if section == "rates_selection":
+            values = dict(values)
+            _normalize_rates_selection(values)
+
+        for key, value in values.items():
+            coerced = coerce_override_value(value)
+            logger.debug("Overrides: {}: {}={}", section, key, coerced)
+            group[key] = coerced
 
     return diconf
 
@@ -151,24 +124,15 @@ def inject_runtime_sections(
     longevity_runtime: dict | None,
 ):
     """
-    Inject full [roost] and [longevity] sections into effective TOML.
-
-    Does not compute anything.
-    Only records resolved runtime state.
+    Inject runtime-only metadata into effective TOML.
     """
 
-    # -------------------------
-    # ROOST
-    # -------------------------
     if roost_runtime:
         roost_section = toml_dict.setdefault("roost", {})
         for k, v in roost_runtime.items():
             if v is not None:
                 roost_section[k] = v
 
-    # -------------------------
-    # LONGEVITY
-    # -------------------------
     if longevity_runtime:
         longevity_section = toml_dict.setdefault("longevity", {})
         for k, v in longevity_runtime.items():
@@ -243,8 +207,7 @@ def solve_and_save(plan, output_file: str) -> None:
     }
 
     rates_path = output_path.with_suffix("").with_name(output_path.stem + "_rates.xlsx")
-    df = pd.DataFrame(rates_dict)
-    df.to_excel(rates_path, index=False, sheet_name="Rates")
+    pd.DataFrame(rates_dict).to_excel(rates_path, index=False, sheet_name="Rates")
 
     plan.solve(plan.objective, plan.solverOptions)
 
@@ -277,25 +240,24 @@ def run_single_case(
     longevity_runtime: dict | None = None,
 ) -> PlanRunResult:
     """
-    Run a single OWL case using semantic overrides and
-    runtime metadata injection (Hydra-native architecture).
+    Run a single OWL case using direct section-based overrides
+    and runtime metadata injection.
     """
 
-    logger.debug(overrides)
+    logger.debug("run_single_case overrides: {}", overrides)
 
     original_toml = load_original_toml(case_file)
 
-    semantic_overrides = {k: v for k, v in overrides.items() if k in OVERRIDE_HANDLERS}
+    # Only apply structured section overrides
+    toml_dict = load_and_override_toml(case_file, overrides)
 
-    toml_dict = load_and_override_toml(case_file, semantic_overrides)
-
-    # Inject runtime sections BEFORE writing effective TOML
     inject_runtime_sections(
         toml_dict,
         roost_runtime,
         longevity_runtime,
     )
 
+    # Handle HFP relocation
     hfp_section = toml_dict.get("household_financial_profile", {})
     hfp_file = hfp_section.get("HFP_file_name")
 
@@ -317,7 +279,6 @@ def run_single_case(
 
     save_early_files(output_file, modified_toml, original_toml)
 
-    logger.debug("Loading TOML config")
     plan = owl.readConfig(
         toml_buf,
         logstreams="loguru",
@@ -325,10 +286,8 @@ def run_single_case(
     )
 
     if hfp_file:
-        logger.debug("Loading HFP file")
         plan.readHFP(str(hfp_modified))
 
-    logger.debug("Calling solve_and_save")
     solve_and_save(plan, output_file)
 
     status_file = Path(trial_path) / plan.caseStatus.upper()

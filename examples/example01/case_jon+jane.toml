@@ -19,20 +19,24 @@ spousal_surplus_deposit_fraction = 0.0
 HFP_file_name = "HFP_jon+jane.xlsx"
 
 [fixed_income]
-pension_monthly_amounts = [ 0, 0,]
+pension_monthly_amounts = [ 0.0, 0.0,]
 pension_ages = [ 65.0, 65.0,]
 pension_indexed = [ false, false,]
 social_security_pia_amounts = [ 1750, 1750,]
 social_security_ages = [ 65.0, 65.0,]
+social_security_trim_pct = 0
 
 [rates_selection]
 heirs_rate_on_tax_deferred_estate = 30.0
 dividend_rate = 1.8
 obbba_expiration_year = 2032
 method = "user"
-values = [ 10.0, 6.0, 5.0, 3.5,]
 from = 1928
 to = 2024
+values = [ 10.0, 6.0, 5.0, 3.5,]
+reproducible_rates = false
+reverse_sequence = false
+roll_sequence = 0
 
 [asset_allocation]
 interpolation_method = "linear"
@@ -45,13 +49,16 @@ generic = [ [ [ 100, 0, 0, 0,], [ 100, 0, 0, 0,],], [ [ 100, 0, 0, 0,], [ 100, 0
 spending_profile = "flat"
 surviving_spouse_spending_percent = 60
 objective = "maxSpending"
+smile_dip = 15
+smile_increase = 12
+smile_delay = 0
 
 [solver_options]
 maxRothConversion = 0.0
 noRothConversions = "None"
 startRothConversions = 2026
 bequest = 30.0
-solver = "HiGHS"
+solver = "default"
 spendingSlack = 0
 withSCLoop = true
 withMedicare = "loop"
@@ -61,18 +68,21 @@ default_plots = "today"
 
 [longevity]
 apply_to_plan = false
+use_stochastic_model = false
+life_expectancy_seed = 1234567890
+model_name = "default"
 partnered = true
-lifetime_percentile = [ 0.6, 0.6,]
-sex = [ "female", "female",]
+lifetime_percentile = [ 0.8, 0.8,]
+sex = [ "male", "female",]
 health = [ "average", "average",]
 smoker = [ false, false,]
 
 [roost]
-master_seed = 3049476983
-trials = 1000
+master_seed = 3091600463
+trials = 1
 
 [cache]
-generated_at = "2026-02-24T15:39:30.555972"
+generated_at = "2026-02-28T11:20:30.609209"
 retirement_horizon = 8
 max_spending = 162864.9
 first_year_total_withdrawals = 98247.99

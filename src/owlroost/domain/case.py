@@ -5,7 +5,7 @@ import secrets
 from datetime import date, datetime
 from io import StringIO
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from owlplanner.config.plan_bridge import config_to_plan
 from owlplanner.config.schema import config_dict_to_model
@@ -20,14 +20,27 @@ from owlroost.core.longevity import deterministic_individual_lifetime
 
 
 class LongevityConfig(BaseModel):
-    apply_to_plan: bool = False
-    life_expectancy_seed: int | None = None
+    DEFAULT_PERCENTILE: ClassVar[float] = 0.80
+    DEFAULT_SEX: ClassVar[str] = "female"
+    DEFAULT_HEALTH: ClassVar[str] = "average"
+    DEFAULT_SMOKER: ClassVar[bool] = False
+    DEFAULT_APPLY_TO_PLAN: ClassVar[bool] = False
+    DEFAULT_USE_STOCHASTIC_MODEL: ClassVar[bool] = False
+    DEFAULT_LIFE_EXPECTANCY_SEED: ClassVar[int] = 1_234_567_890
+    DEFAULT_MODEL_NAME: ClassVar[str] = "default"
+
+    apply_to_plan: bool = DEFAULT_APPLY_TO_PLAN
+    use_stochastic_model: bool = DEFAULT_USE_STOCHASTIC_MODEL
+    life_expectancy_seed: int | None = DEFAULT_LIFE_EXPECTANCY_SEED
+    model_name: str = DEFAULT_MODEL_NAME
     partnered: bool = True
 
-    lifetime_percentile: list[float] = Field(default_factory=lambda: [0.60])
-    sex: list[str] = Field(default_factory=lambda: ["female"])
-    health: list[str] = Field(default_factory=lambda: ["average"])
-    smoker: list[bool] = Field(default_factory=lambda: [False])
+    lifetime_percentile: list[float] = Field(
+        default_factory=lambda: [LongevityConfig.DEFAULT_PERCENTILE]
+    )
+    sex: list[str] = Field(default_factory=lambda: [LongevityConfig.DEFAULT_SEX])
+    health: list[str] = Field(default_factory=lambda: [LongevityConfig.DEFAULT_HEALTH])
+    smoker: list[bool] = Field(default_factory=lambda: [LongevityConfig.DEFAULT_SMOKER])
 
     @field_validator("lifetime_percentile")
     @classmethod
@@ -57,10 +70,36 @@ class LongevityConfig(BaseModel):
             return [v]
         return list(v)
 
+    def resized(self, n: int) -> "LongevityConfig":
+        """
+        Return a new LongevityConfig resized to household size n,
+        using schema defaults for any newly created entries.
+        """
+
+        def resize(values, default):
+            if len(values) < n:
+                return values + [default] * (n - len(values))
+            return values[:n]
+
+        return LongevityConfig(
+            apply_to_plan=self.apply_to_plan,
+            use_stochastic_model=self.use_stochastic_model,
+            life_expectancy_seed=self.life_expectancy_seed,
+            partnered=(n == 2),
+            lifetime_percentile=resize(
+                self.lifetime_percentile,
+                self.DEFAULT_PERCENTILE,
+            ),
+            sex=resize(self.sex, self.DEFAULT_SEX),
+            health=resize(self.health, self.DEFAULT_HEALTH),
+            smoker=resize(self.smoker, self.DEFAULT_SMOKER),
+        )
+
 
 class RoostConfig(BaseModel):
     master_seed: int = Field(default_factory=lambda: secrets.randbits(32))
-    trials: int = 1000
+    trials: int = 1
+    experiment: str | None = None
 
 
 class CacheConfig(BaseModel):
@@ -204,7 +243,7 @@ class Case:
 
     def _rebuild_case(self):
         if hasattr(self.config, "model_dump"):
-            core_dict = self.config.model_dump()
+            core_dict = self.config.model_dump(by_alias=True)
         else:
             core_dict = self.config.dict()
 
@@ -214,7 +253,7 @@ class Case:
             updated[k] = v
 
         for name, model in self.extensions.items():
-            updated[name] = model.model_dump(exclude_none=True)
+            updated[name] = model.model_dump(exclude_none=True, by_alias=True)
 
         self._raw_dict = updated
         self.config, self.extra = config_dict_to_model(updated)
@@ -246,10 +285,10 @@ class Case:
         )
 
         self.extensions["cache"] = model
-        self.extra["cache"] = model.model_dump(exclude_none=True)
+        self.extra["cache"] = model.model_dump(exclude_none=True, by_alias=True)
 
         # 🔴 CRITICAL: update raw dict
-        self._raw_dict["cache"] = model.model_dump(exclude_none=True)
+        self._raw_dict["cache"] = model.model_dump(exclude_none=True, by_alias=True)
 
         if write:
             self.write()
@@ -264,7 +303,7 @@ class Case:
             final_path = str(target_path.with_name(f"case_{filename}"))
 
         for name, model in self.extensions.items():
-            self.extra[name] = model.model_dump(exclude_none=True)
+            self.extra[name] = model.model_dump(exclude_none=True, by_alias=True)
 
         updated_dict = dict(self._raw_dict)
         for name, section in self.extra.items():
@@ -281,12 +320,29 @@ class Case:
 
         return LongevityConfig(
             apply_to_plan=model.apply_to_plan,
+            use_stochastic_model=model.use_stochastic_model,
             life_expectancy_seed=model.life_expectancy_seed,
             partnered=(n == 2),
-            lifetime_percentile=self._resize_list(model.lifetime_percentile, n, 0.60),
-            sex=self._resize_list(model.sex, n, "female"),
-            health=self._resize_list(model.health, n, "average"),
-            smoker=self._resize_list(model.smoker, n, False),
+            lifetime_percentile=self._resize_list(
+                model.lifetime_percentile,
+                n,
+                LongevityConfig.DEFAULT_PERCENTILE,
+            ),
+            sex=self._resize_list(
+                model.sex,
+                n,
+                LongevityConfig.DEFAULT_SEX,
+            ),
+            health=self._resize_list(
+                model.health,
+                n,
+                LongevityConfig.DEFAULT_HEALTH,
+            ),
+            smoker=self._resize_list(
+                model.smoker,
+                n,
+                LongevityConfig.DEFAULT_SMOKER,
+            ),
         )
 
     @staticmethod
