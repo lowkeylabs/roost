@@ -5,6 +5,8 @@ from pathlib import Path
 import numpy as np
 
 
+from owlplanner.export import build_summary_dic
+
 def _mosek_available():
     import importlib.util
     import os
@@ -27,46 +29,25 @@ def normalize_timestamp(ts) -> str:
     raise TypeError(f"Unsupported timestamp type: {type(ts)}")
 
 
-def metrics_from_plan(plan) -> dict:
+def xxxmetrics_from_plan(plan) -> dict:
+    # using owlplanner.export.build_summary_dic to get metrics.
+    # these are formatted for output, not analysis.
+    dic = build_summary_dic(plan)
+    return dic
+
+
+def metrics_from_plan(plan, N=None) -> dict:
+    # Original code found in: owlplanner.export.py
+    
+    if N is None:
+        N = plan.N_n
+    if not (0 < N <= plan.N_n):
+        raise ValueError(f"Value N={N} is out of reange")
+
     start_year = int(plan.year_n[0])
     final_year = int(plan.year_n[-1])
 
-    # ---- totals: spending ----
-    total_net_spending_nominal = float(np.sum(plan.g_n))
-    total_net_spending_real = float(np.sum(plan.g_n / plan.gamma_n[:-1]))
-
-    # ---- totals: Roth conversions ----
-    total_roth_conversions_nominal = float(np.sum(plan.x_in))
-    total_roth_conversions_real = float(np.sum(np.sum(plan.x_in, axis=0) / plan.gamma_n[:-1]))
-
-    # ---- totals: taxes ----
-    total_tax_ordinary_nominal = float(np.sum(plan.T_n))
-    total_tax_ordinary_real = float(np.sum(plan.T_n / plan.gamma_n[:-1]))
-
-    total_tax_capital_nominal = float(np.sum(plan.U_n))
-    total_tax_capital_real = float(np.sum(plan.U_n / plan.gamma_n[:-1]))
-
-    total_tax_niit_nominal = float(np.sum(plan.J_n))
-    total_tax_niit_real = float(np.sum(plan.J_n / plan.gamma_n[:-1]))
-
-    # ---- totals: Medicare ----
-    total_medicare_premiums_nominal = float(np.sum(plan.m_n + plan.M_n))
-    total_medicare_premiums_real = float(np.sum((plan.m_n + plan.M_n) / plan.gamma_n[:-1]))
-
-    # ---- totals: estate ----
-    estate = np.sum(plan.b_ijn[:, :, plan.N_n], axis=0)
-    estate[1] *= 1 - plan.nu
-
-    total_final_bequest_nominal = float(
-        np.sum(estate) - plan.remaining_debt_balance + plan.fixed_assets_bequest_value
-    )
-
-    total_final_bequest_real = float(total_final_bequest_nominal / plan.gamma_n[-1])
-
-    net_spending_for_plan_year_0 = plan.g_n[0]
-
-    return {
-        # metadata
+    m = {
         "plan_name": plan._name,
         "run_timestamp": normalize_timestamp(plan._timestamp),
         "plan_start_date": str(plan.startDate),
@@ -78,28 +59,52 @@ def metrics_from_plan(plan) -> dict:
         "num_constraints": int(plan.A.ncons),
         # inflation
         "final_inflation_factor": float(plan.gamma_n[-1]),
-        # totals — spending
-        "total_net_spending_real": total_net_spending_real,
-        "total_net_spending_nominal": total_net_spending_nominal,
-        # totals — Roth
-        "total_roth_conversions_real": total_roth_conversions_real,
-        "total_roth_conversions_nominal": total_roth_conversions_nominal,
-        # totals — taxes
-        "total_tax_ordinary_real": total_tax_ordinary_real,
-        "total_tax_ordinary_nominal": total_tax_ordinary_nominal,
-        "total_tax_capital_real": total_tax_capital_real,
-        "total_tax_capital_nominal": total_tax_capital_nominal,
-        "total_tax_niit_real": total_tax_niit_real,
-        "total_tax_niit_nominal": total_tax_niit_nominal,
-        # totals — Medicare
-        "total_medicare_premiums_real": total_medicare_premiums_real,
-        "total_medicare_premiums_nominal": total_medicare_premiums_nominal,
-        # totals — estate
-        "total_final_bequest_real": total_final_bequest_real,
-        "total_final_bequest_nominal": total_final_bequest_nominal,
-        # net spending
-        "net_spending_for_plan_year_0": net_spending_for_plan_year_0,
     }
+
+    m["net_yearly_spending_basis"] = plan.g_n[0] / plan.xi_n[0]
+    m["net_yearly_spending_in_first_year"] = plan.g_n[0]
+    m["net_spending_for_plan_year_0"] = plan.g_n[0]
+
+    # nominal vs real values are based on the inflation factor gamma_n, 
+    #   which is the cumulative product of (1 + inflation_rate) over time.
+
+    # Nominal values are in the dollars of the year they occur, 
+    # Real values are adjusted to the dollars of the first year (year 0) by dividing by gamma_n.
+
+    # ---- totals: spending ----
+    totSpending = np.sum(plan.g_n[:N], axis=0)
+    totSpendingNow = np.sum(plan.g_n[:N] / plan.gamma_n[:N], axis=0)    
+    m["total_net_spending_nominal"] = float(totSpending)
+    m["total_net_spending_real"] = float(totSpendingNow)
+
+    # ---- totals: Roth conversions ----
+    totRoth = np.sum(plan.x_in[:, :N], axis=(0, 1))
+    totRothNow = np.sum(np.sum(plan.x_in[:, :N], axis=0) / plan.gamma_n[:N], axis=0)
+    m["total_roth_conversions_nominal"] = float(totRoth)
+    m["total_roth_conversions_real"] = float(totRothNow)
+
+    # ---- totals: taxes ----
+    taxPaid = np.sum(plan.T_n[:N], axis=0)
+    taxPaidNow = np.sum(plan.T_n[:N] / plan.gamma_n[:N], axis=0)
+    m["total_tax_ordinary_nominal"] = float(taxPaid)
+    m["total_tax_ordinary_real"] = float(taxPaidNow)
+
+
+    # ---- totals: estate ----
+    estate = np.sum(plan.b_ijn[:, :, plan.N_n], axis=0)
+    heirsTaxLiability = (estate[1] + estate[3]) * plan.nu   # tax-deferred and HSA
+    estate[1] *= 1 - plan.nu   # tax-deferred: heirs pay ordinary income tax
+    estate[3] *= 1 - plan.nu   # HSA: non-spouse heirs include full balance in ordinary income
+    endyear = plan.year_n[-1]
+    lyNow = 1.0 / plan.gamma_n[-1]
+    debts = plan.remaining_debt_balance
+    savingsEstate = np.sum(estate)
+    totEstate = savingsEstate - debts + plan.fixed_assets_bequest_value
+
+    m["total_final_bequest_nominal"] = float(totEstate)
+    m["total_final_bequest_real"] = float(totEstate * lyNow)
+
+    return m
 
 
 def write_metrics_json(plan, metrics_path: Path, timing: dict) -> Path:

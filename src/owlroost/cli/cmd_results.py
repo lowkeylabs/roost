@@ -415,8 +415,10 @@ def flatten_trials_for_run(run: Run) -> list[Trial]:
 
 
 def load_metrics(run_dir: Path) -> dict | None:
+    # return metrics key from *_metrics.json if it exists
     p = next(run_dir.glob("*_metrics.json"), None)
-    return json.load(p.open()) if p else None
+    metrics = json.load(p.open()).get("metrics", None) if p else None
+    return metrics
 
 
 def load_case_original_toml(case: Case) -> dict | None:
@@ -548,7 +550,7 @@ def render_run_summary(
             for t in run.trials:
                 m = load_metrics(t.path) or {}
 
-                if (v := m.get("net_spending_for_plan_year_0")) is not None:
+                if (v := m.get("net_yearly_spending_basis")) is not None:
                     yearly_vals.append(v)
 
                 if (v := m.get(f"total_net_spending_{value_mode}")) is not None:
