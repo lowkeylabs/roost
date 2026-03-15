@@ -3,9 +3,8 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-
-
 from owlplanner.export import build_summary_dic
+
 
 def _mosek_available():
     import importlib.util
@@ -38,7 +37,7 @@ def xxxmetrics_from_plan(plan) -> dict:
 
 def metrics_from_plan(plan, N=None) -> dict:
     # Original code found in: owlplanner.export.py
-    
+
     if N is None:
         N = plan.N_n
     if not (0 < N <= plan.N_n):
@@ -65,15 +64,15 @@ def metrics_from_plan(plan, N=None) -> dict:
     m["net_yearly_spending_in_first_year"] = plan.g_n[0]
     m["net_spending_for_plan_year_0"] = plan.g_n[0]
 
-    # nominal vs real values are based on the inflation factor gamma_n, 
+    # nominal vs real values are based on the inflation factor gamma_n,
     #   which is the cumulative product of (1 + inflation_rate) over time.
 
-    # Nominal values are in the dollars of the year they occur, 
+    # Nominal values are in the dollars of the year they occur,
     # Real values are adjusted to the dollars of the first year (year 0) by dividing by gamma_n.
 
     # ---- totals: spending ----
     totSpending = np.sum(plan.g_n[:N], axis=0)
-    totSpendingNow = np.sum(plan.g_n[:N] / plan.gamma_n[:N], axis=0)    
+    totSpendingNow = np.sum(plan.g_n[:N] / plan.gamma_n[:N], axis=0)
     m["total_net_spending_nominal"] = float(totSpending)
     m["total_net_spending_real"] = float(totSpendingNow)
 
@@ -89,13 +88,12 @@ def metrics_from_plan(plan, N=None) -> dict:
     m["total_tax_ordinary_nominal"] = float(taxPaid)
     m["total_tax_ordinary_real"] = float(taxPaidNow)
 
-
     # ---- totals: estate ----
     estate = np.sum(plan.b_ijn[:, :, plan.N_n], axis=0)
-    heirsTaxLiability = (estate[1] + estate[3]) * plan.nu   # tax-deferred and HSA
-    estate[1] *= 1 - plan.nu   # tax-deferred: heirs pay ordinary income tax
-    estate[3] *= 1 - plan.nu   # HSA: non-spouse heirs include full balance in ordinary income
-    endyear = plan.year_n[-1]
+    # heirsTaxLiability = (estate[1] + estate[3]) * plan.nu  # tax-deferred and HSA
+    estate[1] *= 1 - plan.nu  # tax-deferred: heirs pay ordinary income tax
+    estate[3] *= 1 - plan.nu  # HSA: non-spouse heirs include full balance in ordinary income
+    # endyear = plan.year_n[-1]
     lyNow = 1.0 / plan.gamma_n[-1]
     debts = plan.remaining_debt_balance
     savingsEstate = np.sum(estate)
