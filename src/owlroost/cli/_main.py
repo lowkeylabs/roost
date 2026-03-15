@@ -89,4 +89,4 @@ def info(ctx):
     if solver.commit:
         click.echo(f"OWL-Planner commit:  {solver.commit}")
 
-    click.echo( f"{solver}")
+    click.echo(f"{solver}")

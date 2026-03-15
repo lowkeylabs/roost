@@ -5,6 +5,16 @@ from pathlib import Path
 import numpy as np
 
 
+def _mosek_available():
+    import importlib.util
+    import os
+
+    return (
+        importlib.util.find_spec("mosek") is not None
+        and os.environ.get("MOSEKLM_LICENSE_FILE") is not None
+    )
+
+
 def normalize_timestamp(ts) -> str:
     """
     Return an ISO-8601 timestamp string from either
@@ -57,7 +67,6 @@ def metrics_from_plan(plan) -> dict:
 
     return {
         # metadata
-        "schema": "owl.metrics.v1",
         "plan_name": plan._name,
         "run_timestamp": normalize_timestamp(plan._timestamp),
         "plan_start_date": str(plan.startDate),
@@ -93,10 +102,22 @@ def metrics_from_plan(plan) -> dict:
     }
 
 
-def write_metrics_json(plan, metrics_path: Path) -> Path:
+def write_metrics_json(plan, metrics_path: Path, timing: dict) -> Path:
+    solver = plan.solverOptions.get("solver", plan.defaultSolver)
+    if solver == "default":
+        solver = "MOSEK" if _mosek_available() else "HiGHS"
+
+    schema = "roost.metrics.v1"
     metrics = metrics_from_plan(plan)
 
+    output_json = {
+        "schema": schema,
+        "metrics": metrics,
+        "timing": timing,
+        "solver": solver,
+    }
+
     with open(metrics_path, "w") as f:
-        json.dump(metrics, f, indent=2, sort_keys=True)
+        json.dump(output_json, f, indent=2, sort_keys=True)
 
     return metrics_path

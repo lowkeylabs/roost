@@ -3,6 +3,7 @@
 import ast
 import json
 import shutil
+import time
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -209,7 +210,24 @@ def solve_and_save(plan, output_file: str) -> None:
     rates_path = output_path.with_suffix("").with_name(output_path.stem + "_rates.xlsx")
     pd.DataFrame(rates_dict).to_excel(rates_path, index=False, sheet_name="Rates")
 
+    # ------------------------------
+    # Timing wrapper around solve()
+    # ------------------------------
+    start_time = time.time()
+    start_iso = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(start_time))
+
     plan.solve(plan.objective, plan.solverOptions)
+
+    end_time = time.time()
+    end_iso = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(end_time))
+
+    elapsed_seconds = end_time - start_time
+
+    timing = {
+        "solve_start": start_iso,
+        "solve_end": end_iso,
+        "elapsed_seconds": elapsed_seconds,
+    }
 
     if plan.caseStatus != "solved":
         return
@@ -219,7 +237,7 @@ def solve_and_save(plan, output_file: str) -> None:
     plan.saveWorkbook(basename=results_file, overwrite=True)
 
     metrics_path = output_path.with_suffix("").with_name(output_path.stem + "_metrics.json")
-    write_metrics_json(plan, metrics_path)
+    write_metrics_json(plan, metrics_path, timing)
 
     summary_path = output_path.with_suffix("").with_name(output_path.stem + "_summary.json")
     with open(summary_path, "w") as f:

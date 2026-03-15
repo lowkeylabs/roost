@@ -59,24 +59,3 @@ spendingSlack = 0
 
 [results]
 default_plots = "today"
-
-[longevity]
-apply_to_plan = false
-use_stochastic_model = false
-life_expectancy_seed = 1234567890
-model_name = "default"
-partnered = false
-lifetime_percentile = [ 0.8,]
-sex = [ "female",]
-health = [ "average",]
-smoker = [ false,]
-
-[roost]
-master_seed = 731565899
-trials = 1
-
-[cache]
-generated_at = "2026-03-13T10:39:16.570796"
-retirement_horizon = 0
-max_spending = 45298.35
-first_year_total_withdrawals = 53679.98
