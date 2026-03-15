@@ -83,8 +83,10 @@ def info(ctx):
     """Show OWL-Station and OWL solver version information."""
     solver = get_owl_solver_info()
 
-    click.echo(f"OWL-Station version: {__version__}")
+    click.echo(f"OWL-ROOST version: {__version__}")
     click.echo(f"OWL-Planner version: {solver.version}")
 
     if solver.commit:
         click.echo(f"OWL-Planner commit:  {solver.commit}")
+
+    click.echo( f"{solver}")

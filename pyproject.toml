@@ -18,6 +18,7 @@ dependencies = [
     "tqdm>=4.67.1",
     "tomlkit>=0.14.0",
     "rich>=14.3.3",
+    "mosek>=11.1.9",
 ]
 
 [project.optional-dependencies]

@@ -1263,6 +1263,20 @@ wheels = [
 ]
 
 [[package]]
+name = "mosek"
+version = "11.1.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e7/37/c732d9d714ec876e3cd3db67bb603c33cef8956b978e7fb3ce383cf6955f/mosek-11.1.9-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:cc17f259391ec530583e8e2db0d445ef9a6e36c828664f15c4d7291e37026ce4", size = 8791651, upload-time = "2026-03-12T09:01:49.548Z" },
+    { url = "https://files.pythonhosted.org/packages/fd/8b/d5f54f182f3ed11f71f55857ecf8a6c2ba927fceb63b3b87ad510ca56290/mosek-11.1.9-cp39-abi3-manylinux2014_x86_64.whl", hash = "sha256:a2b5812ac86f63ab00f543dcb5c9c60796554c320348f2da78cf2c7193a6643f", size = 15361503, upload-time = "2026-03-12T09:01:52.987Z" },
+    { url = "https://files.pythonhosted.org/packages/19/de/14ad33a1e90d3dc364f83aca6ed57184e975bb2750ec312d093adeed114b/mosek-11.1.9-cp39-abi3-manylinux_2_27_aarch64.whl", hash = "sha256:9098e70a5e8aa3493e12d1ddf8661c8af03868f03928ce124924d603f0c7759d", size = 11074491, upload-time = "2026-03-12T09:01:55.852Z" },
+    { url = "https://files.pythonhosted.org/packages/58/ad/d7809164599aee31770126469081fd4738ed64f18863533212060d44dfba/mosek-11.1.9-cp39-abi3-win_amd64.whl", hash = "sha256:46771f55f73bd6f49b6439f791d91d1818f3300bfc5ed37aabe4cb659836d902", size = 11192651, upload-time = "2026-03-12T09:01:58.216Z" },
+]
+
+[[package]]
 name = "narwhals"
 version = "2.14.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1464,6 +1478,7 @@ dependencies = [
     { name = "hydra-joblib-launcher" },
     { name = "jupyter" },
     { name = "matplotlib" },
+    { name = "mosek" },
     { name = "owlplanner" },
     { name = "plotly" },
     { name = "python-dotenv" },
@@ -1485,6 +1500,7 @@ requires-dist = [
     { name = "hydra-joblib-launcher", specifier = ">=1.2.0" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "matplotlib", specifier = ">=3.10.8" },
+    { name = "mosek", specifier = ">=11.1.9" },
     { name = "owlplanner", git = "https://github.com/mdlacasse/Owl.git?rev=cc9c898aad404d0762b81f65ae5a0fa481dc7b7d" },
     { name = "plotly", specifier = ">=6.5.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.7.0" },

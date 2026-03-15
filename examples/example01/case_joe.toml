@@ -1,5 +1,5 @@
 case_name = "joe"
-description = "This is an example of a case involving a single individual. Joe is single and will retire in a few years. His wages and contributions are contained in the 'HFP_joe.xlsx' Household Financial Profile."
+description = "Joe is a single professional in his late fifties, planning to retire in a few years.  He's built a solid nest egg across taxable, tax-deferred, and Roth accounts—and has been contributing to an HSA while on a high-deductible health plan. He also owns a rental property he plans to sell when he retires to simplify his life and fund his early retirement years.\n\nThis case demonstrates Owl's handling of a single retiree: HSA accounts (with contributions stopping at Medicare), fixed assets (real estate disposition with capital gains), and the full optimization of Roth conversions and withdrawal sequencing. Run with different rate assumptions to see how sequence-of-returns risk affects the optimal strategy.\n"
 
 [basic_info]
 status = "single"
@@ -12,6 +12,7 @@ start_date = "2026-01-01"
 taxable_savings_balances = [ 338.5,]
 tax_deferred_savings_balances = [ 650.2,]
 tax_free_savings_balances = [ 60.6,]
+hsa_savings_balances = [ 32.0,]
 
 [household_financial_profile]
 HFP_file_name = "HFP_joe.xlsx"
@@ -73,11 +74,11 @@ health = [ "average",]
 smoker = [ false,]
 
 [roost]
-master_seed = 2761636822
+master_seed = 1520557998
 trials = 1
 
 [cache]
-generated_at = "2026-02-28T11:20:29.599564"
+generated_at = "2026-03-13T10:39:05.871637"
 retirement_horizon = 3
-max_spending = 98271.85
-first_year_total_withdrawals = 65645.97
+max_spending = 105467.59
+first_year_total_withdrawals = 65808.18

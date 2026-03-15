@@ -1,5 +1,5 @@
-case_name = "Alex+Jamie"
-description = "A case where there is big difference in longevity."
+case_name = "alex+jamie"
+description = "Alex and Jamie face a stark longevity gap: Alex has a shorter life expectancy (72) while Jamie may live to 90. This creates unique planning challenges—how much to spend now vs. preserve for the survivor, and how to structure Roth conversions when one spouse will likely outlive the other by two decades.\n\nThis case showcases Owl's handling of asymmetric life expectancies, the AMO (at-most-one) Roth and AMO surplus options for aggressive optimization, and the importance of survivor spending assumptions. The 60% surviving-spouse factor means Jamie's longer horizon drives much of the strategy.\n"
 
 [basic_info]
 status = "married"
@@ -48,7 +48,7 @@ objective = "maxSpending"
 
 [solver_options]
 maxRothConversion = 400.0
-noRothConversions = "None"
+noRothConversions = "none"
 startRothConversions = 2026
 bequest = 0
 solver = "default"
@@ -75,11 +75,11 @@ health = [ "average", "average",]
 smoker = [ false, false,]
 
 [roost]
-master_seed = 325551178
+master_seed = 335217315
 trials = 1
 
 [cache]
-generated_at = "2026-02-28T11:20:25.696301"
+generated_at = "2026-03-13T10:38:59.355702"
 retirement_horizon = 3
-max_spending = 235191.33
-first_year_total_withdrawals = 147876.91
+max_spending = 233697.81
+first_year_total_withdrawals = 147941.0
