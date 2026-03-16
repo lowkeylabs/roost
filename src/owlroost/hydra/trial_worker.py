@@ -7,7 +7,6 @@ from pathlib import Path
 import numpy as np
 from loguru import logger
 
-from owlroost.core.configure_logging import CURRENT_LOG_LEVEL
 from owlroost.core.longevity import sample_individual_lifetime
 from owlroost.core.owl_runner import run_single_case
 
@@ -154,8 +153,8 @@ def run_trial(
     # ---------------------------------------------------------
     # Execute case
     # ---------------------------------------------------------
-    if CURRENT_LOG_LEVEL not in {"TRACE", "DEBUG"}:
-        logger.info("Job: {:5} | Trial {:04d}", job_id, trial_id)
+    #    if CURRENT_LOG_LEVEL not in {"TRACE", "DEBUG"}:
+    #        logger.info("Job: {:5} | Trial {:04d}", job_id, trial_id)
 
     result = run_single_case(
         case_file=str(case_file),

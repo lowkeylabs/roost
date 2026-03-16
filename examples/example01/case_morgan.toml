@@ -61,3 +61,24 @@ solver = "default"
 
 [results]
 default_plots = "today"
+
+[longevity]
+apply_to_plan = false
+use_stochastic_model = false
+life_expectancy_seed = 1234567890
+model_name = "default"
+partnered = false
+lifetime_percentile = [ 0.8,]
+sex = [ "female",]
+health = [ "average",]
+smoker = [ false,]
+
+[roost]
+master_seed = 3765406451
+trials = 1
+
+[cache]
+generated_at = "2026-03-15T19:51:12.737429"
+retirement_horizon = 0
+max_spending = 44276.61
+first_year_total_withdrawals = 66088.73

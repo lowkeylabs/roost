@@ -82,7 +82,7 @@ def orchestrate_trials(
 ):
     """
     Pure orchestration layer.
-    No model mutation.
+    Robust against worker crashes.
     Fully testable.
     """
 
@@ -119,22 +119,43 @@ def orchestrate_trials(
 
     n_trials = len(trial_args)
     results = []
-    completed = 0
 
     HEARTBEAT_SEC = 1
     last_update = time.monotonic()
 
-    def _on_trial_done(result):
-        results.append(result)
-
+    # -----------------------------------------------------
+    # Single-process mode
+    # -----------------------------------------------------
     if n_jobs == 1:
         for args in trial_args:
-            results.append(run_trial(*args))
+            try:
+                results.append(run_trial(*args))
+            except Exception as e:
+                tid = args[1]
+                logger.exception("{} - Trial {:04d} crashed", job_id, tid)
+
+                results.append(
+                    {
+                        "trial_id": tid,
+                        "rates_seed": args[2],
+                        "longevity_seed": args[3],
+                        "status": "error",
+                        "output": None,
+                        "error": str(e),
+                    }
+                )
+
+    # -----------------------------------------------------
+    # Multiprocessing mode
+    # -----------------------------------------------------
     else:
         with Pool(processes=n_jobs) as pool:
             async_results = [
-                pool.apply_async(run_trial, args, callback=_on_trial_done) for args in trial_args
+                (tid, pool.apply_async(run_trial, args))
+                for tid, args in zip(trial_ids, trial_args, strict=False)
             ]
+
+            completed = 0
 
             with tqdm(
                 total=n_trials,
@@ -144,11 +165,38 @@ def orchestrate_trials(
                 bar_format="{desc}: {percentage:.1f}% |{bar}| {postfix}",
             ) as pbar:
                 while completed < n_trials:
-                    newly_completed = len(results) - completed
+                    for tid, async_r in async_results:
+                        if async_r is None:
+                            continue
 
-                    if newly_completed:
-                        completed += newly_completed
-                        pbar.update(newly_completed)
+                        if async_r.ready():
+                            try:
+                                r = async_r.get()
+
+                            except Exception as e:
+                                logger.exception(
+                                    "{} - Trial {:04d} crashed",
+                                    job_id,
+                                    tid,
+                                )
+
+                                r = {
+                                    "trial_id": tid,
+                                    "rates_seed": None,
+                                    "longevity_seed": None,
+                                    "status": "error",
+                                    "output": None,
+                                    "error": str(e),
+                                }
+
+                            results.append(r)
+
+                            completed += 1
+                            pbar.update(1)
+
+                            async_results = [
+                                (t, a) if t != tid else (t, None) for t, a in async_results
+                            ]
 
                     now = time.monotonic()
                     if now - last_update >= HEARTBEAT_SEC:
@@ -160,13 +208,11 @@ def orchestrate_trials(
                             f"running={completed}/{n_trials}, "
                             f"s_per_trial={spt:.1f}s"
                         )
+
                         pbar.refresh()
                         last_update = now
 
                     time.sleep(0.2)
-
-            for r in async_results:
-                r.get()
 
     solved = [r for r in results if r["status"] == "solved"]
     failed = [r for r in results if r["status"] != "solved"]

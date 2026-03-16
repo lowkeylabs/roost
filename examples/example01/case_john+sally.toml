@@ -26,6 +26,7 @@ pension_indexed = [ true, false,]
 pension_survivor_fraction = [ 0.75, 0.0,]
 social_security_pia_amounts = [ 3000, 1800,]
 social_security_ages = [ 67.0, 67.0,]
+social_security_trim_pct = 0
 
 [rates_selection]
 heirs_rate_on_tax_deferred_estate = 30.0
@@ -34,6 +35,9 @@ obbba_expiration_year = 2032
 method = "historical average"
 from = 1990
 to = 2023
+reproducible_rates = false
+reverse_sequence = false
+roll_sequence = 0
 
 [asset_allocation]
 interpolation_method = "linear"
@@ -46,6 +50,9 @@ generic = [ [ [ 60, 40, 0, 0,], [ 60, 40, 0, 0,],], [ [ 60, 40, 0, 0,], [ 60, 40
 spending_profile = "flat"
 surviving_spouse_spending_percent = 60
 objective = "maxBequest"
+smile_dip = 15
+smile_increase = 12
+smile_delay = 0
 
 [solver_options]
 netSpending = 100
@@ -59,3 +66,24 @@ spendingSlack = 0
 
 [results]
 default_plots = "today"
+
+[longevity]
+apply_to_plan = false
+use_stochastic_model = false
+life_expectancy_seed = 1234567890
+model_name = "default"
+partnered = true
+lifetime_percentile = [ 0.8, 0.8,]
+sex = [ "male", "female",]
+health = [ "average", "average",]
+smoker = [ false, false,]
+
+[roost]
+master_seed = 2021107872
+trials = 1
+
+[cache]
+generated_at = "2026-03-15T19:51:04.055490"
+retirement_horizon = 1
+max_spending = 190764.54
+first_year_total_withdrawals = 152563.24
