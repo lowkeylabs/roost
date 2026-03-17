@@ -1,3 +1,6 @@
+import os
+import subprocess
+import sys
 import tomllib
 from collections.abc import Iterable
 from pathlib import Path
@@ -409,3 +412,42 @@ def normalize_case_file_overrides(args: Iterable[str]) -> list[str]:
             normalized.append(arg)
 
     return normalized
+
+
+def _wsl_to_windows_path(path: Path) -> str:
+    """Convert a WSL path to a Windows path using wslpath."""
+    result = subprocess.run(
+        ["wslpath", "-w", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise click.ClickException(f"Failed to convert path for Explorer: {path}")
+    return result.stdout.strip()
+
+
+def open_in_file_explorer(path: Path):
+    if not path.exists():
+        raise click.ClickException(f"Path does not exist: {path}")
+
+    path = path.resolve()
+
+    # ---- WSL detection ----
+    if "microsoft" in os.uname().release.lower():
+        win_path = _wsl_to_windows_path(path)
+        subprocess.run(["explorer.exe", win_path], check=False)
+        return
+
+    # ---- Native Windows ----
+    if sys.platform.startswith("win"):
+        os.startfile(path)  # type: ignore[attr-defined]
+        return
+
+    # ---- macOS ----
+    if sys.platform == "darwin":
+        subprocess.run(["open", path], check=False)
+        return
+
+    # ---- Native Linux ----
+    subprocess.run(["xdg-open", path], check=False)

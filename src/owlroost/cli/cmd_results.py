@@ -33,6 +33,7 @@ W_RATES = 30
 W_YEAR = 9
 W_NET = 9
 W_BEQ = 9
+W_SECONDS = 7
 
 # ---------------------------------------------------------------------
 # Data models
@@ -108,6 +109,15 @@ def format_k(value) -> str:
         return "—"
     try:
         return f"${round(value / 1000):,}K"
+    except Exception:
+        return "—"
+
+
+def format_d(value) -> str:
+    if value is None:
+        return "—"
+    try:
+        return f"{round(value,2):,}"
     except Exception:
         return "—"
 
@@ -417,7 +427,9 @@ def flatten_trials_for_run(run: Run) -> list[Trial]:
 def load_metrics(run_dir: Path) -> dict | None:
     # return metrics key from *_metrics.json if it exists
     p = next(run_dir.glob("*_metrics.json"), None)
-    metrics = json.load(p.open()).get("metrics", None) if p else None
+    metrics = json.load(p.open()).get("metrics", None) if p else {}
+    timings = json.load(p.open()).get("timing", None) if p else {}
+    metrics["elapsed_seconds"] = timings.get("elapsed_seconds") if timings else None
     return metrics
 
 
@@ -638,6 +650,7 @@ def render_run_trials(
         f"{'':>{W_EXP}} "
         f"{'':<{W_RUN}} "
         f"{'':>{W_TRIAL}} "
+        f"{'':>{W_SECONDS}}"
         f"{'Net/Yr':>{W_YEAR}} "
         f"{'Total Net':>{W_NET}} "
         f"{'Bequest':>{W_BEQ}} "
@@ -646,6 +659,7 @@ def render_run_trials(
     value_display = f"({value_mode} $K)"
     click.echo(
         f"{'ID':>{W_ID}} {'Exp':>{W_EXP}} {'Run':<{W_RUN}} {'Trials':>{W_TRIAL}} "
+        f"{'Elapsed (s)':>{W_SECONDS}} "
         f"{value_display:>{W_YEAR}} {value_display:>{W_NET}} {value_display:>{W_BEQ}}   Overrides"
     )
     render_divider()
@@ -659,6 +673,7 @@ def render_run_trials(
 
         click.echo(
             f"{i:>{W_ID}} {exp_id:>{W_EXP}} {run.name:<{W_RUN}} {t.name:>{W_TRIAL}} "
+            f"{format_d(m.get('elapsed_seconds')):>{W_SECONDS}} "
             f"{format_k(m.get('net_spending_for_plan_year_0')):>{W_YEAR}} "
             f"{format_k(m.get(f'total_net_spending_{value_mode}')):>{W_NET}} "
             f"{format_k(m.get(f'total_final_bequest_{value_mode}')):>{W_BEQ}}   "
