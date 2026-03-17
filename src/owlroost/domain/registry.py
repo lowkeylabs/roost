@@ -11,7 +11,7 @@ class Column:
     group: str
     align: str = "left"  # left | right | center
     header_align: str = "center"  # left | right | center
-    fmt: str | None = None  # None | "currency" | "currency_k" | "float2" | "float3" | "int"
+    fmt: str | None = None  # None / see formatting.py for options
 
 
 COLUMN_REGISTRY: dict[str, Column] = {}

@@ -83,6 +83,12 @@ def format_value(value, fmt: str | None):
         except Exception:
             return str(value)
 
+    if fmt == "percent1":
+        try:
+            return f"{value:,.1%}"
+        except Exception:
+            return str(value)
+
     if fmt == "percent2":
         try:
             return f"{value:,.2%}"
@@ -91,13 +97,20 @@ def format_value(value, fmt: str | None):
 
     if fmt == "currency_k":
         try:
-            return f"${value:,.0f} k"
+            return f"${value/1000.0:,.0f} k"
         except Exception:
             return str(value)
 
     if fmt == "float1":
         try:
             return f"{value:,.1f}"
+        except Exception:
+            return str(value)
+
+    if fmt == "float1_k":
+        try:
+            v = round(value / 1000.0, 1)
+            return f"{ v:,.1f}"
         except Exception:
             return str(value)
 

@@ -1,7 +1,7 @@
 from .registry import Column, register_column, register_view
 
 # =========================================================
-# COLUMNS
+# CORE IDENTIFIERS
 # =========================================================
 
 register_column(
@@ -44,12 +44,16 @@ register_column(
     )
 )
 
+# =========================================================
+# EXPERIMENT STATS
+# =========================================================
+
 register_column(
     Column(
         key="runs",
         label="Runs",
         extractor=lambda r: r.runs,
-        group="audit",
+        group="stats",
         align="right",
     )
 )
@@ -59,7 +63,7 @@ register_column(
         key="trials",
         label="Trials",
         extractor=lambda r: r.trials,
-        group="audit",
+        group="stats",
         align="right",
     )
 )
@@ -69,7 +73,7 @@ register_column(
         key="solved",
         label="Solved",
         extractor=lambda r: r.solved,
-        group="audit",
+        group="stats",
         align="right",
     )
 )
@@ -79,7 +83,7 @@ register_column(
         key="failed",
         label="Failed",
         extractor=lambda r: r.failed,
-        group="audit",
+        group="stats",
         align="right",
     )
 )
@@ -89,7 +93,7 @@ register_column(
         key="slow",
         label="Slow",
         extractor=lambda r: r.slow,
-        group="audit",
+        group="stats",
         align="right",
     )
 )
@@ -99,16 +103,117 @@ register_column(
         key="success_rate",
         label="Success %",
         extractor=lambda r: r.success_rate,
-        group="audit",
+        group="stats",
         align="right",
         fmt="float1",
     )
 )
 
+# =========================================================
+# RUNTIME
+# =========================================================
+
+register_column(
+    Column(
+        key="runtime",
+        label="Time (s)",
+        extractor=lambda r: r.runtime,
+        group="runtime",
+        align="right",
+        fmt="float2",
+    )
+)
+
+# =========================================================
+# FINANCIAL METRICS
+# =========================================================
+
+register_column(
+    Column(
+        key="spend_basis",
+        label="Spend",
+        extractor=lambda r: r.spend_basis,
+        group="financial",
+        align="right",
+        fmt="float1_k",
+    )
+)
+
+register_column(
+    Column(
+        key="total_spend_real",
+        label="Tot Spend",
+        extractor=lambda r: r.total_spend_real,
+        group="financial",
+        align="right",
+        fmt="float1_k",
+    )
+)
+
+register_column(
+    Column(
+        key="bequest_real",
+        label="Bequest",
+        extractor=lambda r: r.bequest_real,
+        group="financial",
+        align="right",
+        fmt="float1_k",
+    )
+)
+
+# =========================================================
+# COMPLEXITY METRICS
+# =========================================================
+
+register_column(
+    Column(
+        key="nvars",
+        label="Vars",
+        extractor=lambda r: r.nvars,
+        group="complexity",
+        align="right",
+        fmt="int",
+    )
+)
+
+register_column(
+    Column(
+        key="ncons",
+        label="Cons",
+        extractor=lambda r: r.ncons,
+        group="complexity",
+        align="right",
+        fmt="int",
+    )
+)
+
+register_column(
+    Column(
+        key="nnz",
+        label="NNZ",
+        extractor=lambda r: r.nnz,
+        group="complexity",
+        align="right",
+        fmt="int",
+    )
+)
+
+register_column(
+    Column(
+        key="int_ratio",
+        label="Int %",
+        extractor=lambda r: r.int_ratio,
+        group="complexity",
+        align="right",
+        fmt="percent1",
+    )
+)
 
 # =========================================================
 # VIEWS
 # =========================================================
+
+# --- Core dashboard (unchanged behavior) ---
 
 register_view(
     "audit_dashboard",
@@ -123,5 +228,58 @@ register_view(
         "failed",
         "slow",
         "success_rate",
+    ],
+)
+
+# --- Runtime + financial diagnostics ---
+
+register_view(
+    "audit_runtime",
+    [
+        "id",
+        "case",
+        "runtime",
+        "spend_basis",
+        "total_spend_real",
+        "bequest_real",
+        "success_rate",
+    ],
+)
+
+# --- Complexity diagnostics ---
+
+register_view(
+    "audit_complexity",
+    [
+        "id",
+        "case",
+        "nvars",
+        "ncons",
+        "nnz",
+        "int_ratio",
+        "success_rate",
+    ],
+)
+
+# --- Full diagnostic view (recommended default for power users) ---
+
+register_view(
+    "audit_full",
+    [
+        "id",
+        "case",
+        "runtime",
+        "runs",
+        "trials",
+        "solved",
+        "failed",
+        "success_rate",
+        "spend_basis",
+        "total_spend_real",
+        "bequest_real",
+        "nvars",
+        "ncons",
+        "nnz",
+        "int_ratio",
     ],
 )

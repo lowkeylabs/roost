@@ -105,17 +105,84 @@ def metrics_from_plan(plan, N=None) -> dict:
     return m
 
 
+def complexity_from_plan(plan) -> dict:
+    """
+    Extract structural complexity metrics from a solved plan.
+
+    These metrics describe the size and structure of the LP/MILP
+    independent of financial outcomes.
+    """
+
+    A = plan.A
+    B = plan.B
+
+    nvars = int(A.nvars)
+    ncons = int(A.ncons)
+
+    # -----------------------------------------
+    # Core size
+    # -----------------------------------------
+    nnz = sum(len(row) for row in A.Aind)
+
+    # -----------------------------------------
+    # Density
+    # -----------------------------------------
+    density = nnz / (nvars * ncons) if nvars and ncons else None
+
+    # -----------------------------------------
+    # Integer structure (MILP complexity)
+    # -----------------------------------------
+    try:
+        num_integer_vars = len(B.integralityList())
+    except Exception:
+        num_integer_vars = None
+
+    # -----------------------------------------
+    # Horizon (time dimension)
+    # -----------------------------------------
+    year_start = int(plan.year_n[0])
+    year_final = int(plan.year_n[-1])
+    horizon = year_final - year_start
+
+    # -----------------------------------------
+    # Derived metrics (very useful diagnostically)
+    # -----------------------------------------
+    nnz_per_var = nnz / nvars if nvars else None
+    nnz_per_cons = nnz / ncons if ncons else None
+    int_ratio = num_integer_vars / nvars if (num_integer_vars is not None and nvars) else None
+
+    return {
+        # --- size ---
+        "num_decision_variables": nvars,
+        "num_constraints": ncons,
+        "num_nonzeros": int(nnz),
+        # --- structure ---
+        "matrix_density": float(density) if density is not None else None,
+        # --- MILP complexity ---
+        "num_integer_variables": int(num_integer_vars) if num_integer_vars is not None else None,
+        "integer_variable_ratio": float(int_ratio) if int_ratio is not None else None,
+        # --- time dimension ---
+        "horizon": int(horizon),
+        # --- derived ---
+        "nnz_per_variable": float(nnz_per_var) if nnz_per_var is not None else None,
+        "nnz_per_constraint": float(nnz_per_cons) if nnz_per_cons is not None else None,
+    }
+
+
 def write_metrics_json(plan, metrics_path: Path, timing: dict) -> Path:
     solver = plan.solverOptions.get("solver", plan.defaultSolver)
     if solver == "default":
         solver = "MOSEK" if _mosek_available() else "HiGHS"
 
     schema = "roost.metrics.v1"
+
     metrics = metrics_from_plan(plan)
+    complexity = complexity_from_plan(plan)
 
     output_json = {
         "schema": schema,
         "metrics": metrics,
+        "complexity": complexity,
         "timing": timing,
         "solver": solver,
     }
