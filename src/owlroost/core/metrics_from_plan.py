@@ -169,6 +169,71 @@ def complexity_from_plan(plan) -> dict:
     }
 
 
+def classify_run_status_from_plan(plan) -> dict:
+    """
+    Returns structured run status classification.
+    """
+
+    case_status = (plan.caseStatus or "").lower()
+    conv = (getattr(plan, "convergenceType", "") or "").lower()
+
+    # --------------------------------------------------
+    # SUCCESS
+    # --------------------------------------------------
+    if case_status == "solved":
+        return {
+            "status": "solved",
+            "failure_category": None,
+            "failure_detail": None,
+        }
+
+    # --------------------------------------------------
+    # 1. Solver never produced a valid solution
+    # --------------------------------------------------
+    # This happens when:
+    #   solverSuccess == False OR objfn is None
+    #
+    # We don't have solverSuccess directly,
+    # but caseStatus remains "unsuccessful"
+    # AND convergenceType stays "undefined"
+    # --------------------------------------------------
+    if conv in ("undefined", "", None):
+        return {
+            "status": "failed",
+            "failure_category": "solver_failure",
+            "failure_detail": "no_feasible_solution",
+        }
+
+    # --------------------------------------------------
+    # 2. Max iteration reached (SC loop)
+    # --------------------------------------------------
+    if "max iteration" in conv:
+        return {
+            "status": "failed",
+            "failure_category": "no_convergence",
+            "failure_detail": "max_iterations",
+        }
+
+    # --------------------------------------------------
+    # 3. Oscillation detected
+    # --------------------------------------------------
+    if "oscillatory" in conv:
+        return {
+            "status": "failed",
+            "failure_category": "no_convergence",
+            "failure_detail": "oscillation",
+        }
+
+    # --------------------------------------------------
+    # 4. Fallback: likely infeasible economic scenario
+    # --------------------------------------------------
+    return {
+        "status": "failed",
+        "failure_category": "infeasible_constraints",
+        "failure_detail": "unknown",
+    }
+
+
 def write_metrics_json(plan, metrics_path: Path, timing: dict) -> Path:
     solver = plan.solverOptions.get("solver", plan.defaultSolver)
     if solver == "default":
@@ -176,15 +241,22 @@ def write_metrics_json(plan, metrics_path: Path, timing: dict) -> Path:
 
     schema = "roost.metrics.v1"
 
-    metrics = metrics_from_plan(plan)
-    complexity = complexity_from_plan(plan)
+    run_status = classify_run_status_from_plan(plan)
+
+    if run_status["status"] == "solved":
+        metrics = metrics_from_plan(plan)
+        complexity = complexity_from_plan(plan)
+    else:
+        metrics = {}
+        complexity = {}
 
     output_json = {
         "schema": schema,
-        "metrics": metrics,
-        "complexity": complexity,
+        "run_status": run_status,
         "timing": timing,
         "solver": solver,
+        "metrics": metrics,
+        "complexity": complexity,
     }
 
     with open(metrics_path, "w") as f:

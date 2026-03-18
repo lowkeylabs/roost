@@ -1,4 +1,4 @@
-from .registry import COLUMN_REGISTRY
+from ..registry import COLUMN_REGISTRY
 
 
 def build_rows(cases, column_keys):

@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from owlroost.core.case_upgrade import case_upgrade
-from owlroost.domain.case import Case, LongevityConfig, RoostConfig
+from owlroost.domain.models.case import Case, LongevityConfig, RoostConfig
 
 # =========================================================
 # Test Fixture Helper

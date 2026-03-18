@@ -14,10 +14,11 @@ from owlroost.cli.utils import (
     resolve_case_selector,
 )
 from owlroost.core.case_upgrade import case_upgrade
-from owlroost.domain.case import Case
 from owlroost.domain.formatting import format_value
+from owlroost.domain.models.case import Case
 from owlroost.domain.registry import COLUMN_REGISTRY, VIEW_REGISTRY
-from owlroost.domain.views import build_rows
+from owlroost.domain.views.analysis_registry import ANALYSIS_VIEW_REGISTRY
+from owlroost.domain.views.table import build_rows
 
 UPGRADE_MESSAGES = {
     "longevity_added": "Added [longevity] section",
@@ -198,8 +199,16 @@ def cmd_cases(selector, view, upgrade, mutations, apply):
     # Resolve view
     # --------------------------------------------
 
+    if view in ANALYSIS_VIEW_REGISTRY:
+        if len(cases) != 1:
+            console.print("[red]Analysis views require exactly one selected case.[/red]")
+            return
+
+        ANALYSIS_VIEW_REGISTRY[view](cases[0])
+        return
+
     if view not in VIEW_REGISTRY:
-        available = ", ".join(VIEW_REGISTRY.keys())
+        available = ", ".join(list(VIEW_REGISTRY.keys()) + list(ANALYSIS_VIEW_REGISTRY.keys()))
         console.print(f"[red]Unknown view '{view}'. Available: {available}[/red]")
         return
 

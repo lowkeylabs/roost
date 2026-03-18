@@ -229,15 +229,15 @@ def solve_and_save(plan, output_file: str) -> None:
         "elapsed_seconds": elapsed_seconds,
     }
 
+    metrics_path = output_path.with_suffix("").with_name(output_path.stem + "_metrics.json")
+    write_metrics_json(plan, metrics_path, timing)
+
     if plan.caseStatus != "solved":
         return
 
     p = Path(output_file)
     results_file = p.with_name(f"{p.stem}_results{p.suffix}")
     plan.saveWorkbook(basename=results_file, overwrite=True)
-
-    metrics_path = output_path.with_suffix("").with_name(output_path.stem + "_metrics.json")
-    write_metrics_json(plan, metrics_path, timing)
 
     summary_path = output_path.with_suffix("").with_name(output_path.stem + "_summary.json")
     with open(summary_path, "w") as f:

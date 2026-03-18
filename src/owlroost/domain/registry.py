@@ -17,6 +17,7 @@ class Column:
 COLUMN_REGISTRY: dict[str, Column] = {}
 GROUP_REGISTRY: dict[str, list[str]] = {}
 VIEW_REGISTRY: dict[str, list[str]] = {}
+CUSTOM_VIEW_REGISTRY: dict[str, Callable] = {}
 
 
 def register_column(column: Column):
@@ -28,3 +29,7 @@ def register_column(column: Column):
 
 def register_view(name: str, column_keys: list[str]):
     VIEW_REGISTRY[name] = column_keys
+
+
+def register_custom_view(name: str, fn: Callable):
+    CUSTOM_VIEW_REGISTRY[name] = fn

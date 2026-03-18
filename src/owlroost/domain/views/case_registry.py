@@ -1,4 +1,4 @@
-from .registry import (
+from ..registry import (
     VIEW_REGISTRY,
     Column,
     register_column,

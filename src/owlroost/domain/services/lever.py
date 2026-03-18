@@ -9,7 +9,7 @@ from io import StringIO
 import numpy as np
 from owlplanner.config.plan_bridge import config_to_plan
 
-from .case import Case
+from ..models.case import Case
 
 # ==========================================================
 # Lever Summary

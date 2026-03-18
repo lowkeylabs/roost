@@ -5,7 +5,7 @@ from pathlib import Path
 from owlplanner.config.schema import KNOWN_SECTIONS
 
 import owlroost
-from owlroost.domain.case import EXTRA_SECTION_REGISTRY
+from owlroost.domain.models.case import EXTRA_SECTION_REGISTRY
 
 CONF_ROOT = Path(owlroost.__file__).resolve().parent / "conf"
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from owlroost.domain.case import Case, LongevityConfig, RoostConfig
+from owlroost.domain.models.case import Case, LongevityConfig, RoostConfig
 
 # =========================================================
 # Public API

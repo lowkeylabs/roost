@@ -1,0 +1,78 @@
+from __future__ import annotations
+
+import statistics
+from collections import defaultdict
+
+from owlroost.domain.models.results import Experiment
+from owlroost.domain.models.rows import RunRow
+from owlroost.domain.services.trials import build_trial_rows
+
+
+def _mean_or_none(values):
+    return statistics.mean(values) if values else None
+
+
+def build_run_rows(experiments: list[Experiment]) -> list[RunRow]:
+    """
+    Aggregate TrialRow → RunRow
+    """
+    trial_rows = build_trial_rows(experiments)
+
+    grouped = defaultdict(list)
+
+    for row in trial_rows:
+        key = (
+            row.experiment_id,
+            row.case,
+            row.date,
+            row.time,
+            row.run,
+        )
+        grouped[key].append(row)
+
+    run_rows: list[RunRow] = []
+
+    for key, rows in grouped.items():
+        experiment_id, case, date, time, run = key
+
+        trials = len(rows)
+        solved = sum(1 for r in rows if r.status == "SOLVED")
+        failed = sum(1 for r in rows if r.status == "FAILED")
+        incomplete = sum(1 for r in rows if r.status == "INCOMPLETE")
+
+        success_rate = (solved / trials * 100) if trials else 0
+
+        runtimes = [r.runtime for r in rows if r.runtime is not None]
+        slow = 0
+        if runtimes:
+            median = statistics.median(runtimes)
+            slow = sum(1 for r in runtimes if r > 3 * median)
+
+        def collect(rows, attr):
+            return [getattr(r, attr) for r in rows if getattr(r, attr) is not None]
+
+        run_rows.append(
+            RunRow(
+                experiment_id=experiment_id,
+                case=case,
+                date=date,
+                time=time,
+                run=run,
+                trials=trials,
+                solved=solved,
+                failed=failed,
+                incomplete=incomplete,
+                success_rate=success_rate,
+                slow=slow,
+                runtime=_mean_or_none(collect(rows, "runtime")),
+                spend_basis=_mean_or_none(collect(rows, "spend_basis")),
+                total_spend_real=_mean_or_none(collect(rows, "total_spend_real")),
+                bequest_real=_mean_or_none(collect(rows, "bequest_real")),
+                nvars=_mean_or_none(collect(rows, "nvars")),
+                ncons=_mean_or_none(collect(rows, "ncons")),
+                nnz=_mean_or_none(collect(rows, "nnz")),
+                int_ratio=_mean_or_none(collect(rows, "int_ratio")),
+            )
+        )
+
+    return run_rows

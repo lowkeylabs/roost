@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import json
-import statistics
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 
 import click
@@ -11,45 +8,17 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
-import owlroost.domain.audit_registry  # noqa: F401
 from owlroost.cli.utils import open_in_file_explorer
-from owlroost.domain.audit import AuditRow
 from owlroost.domain.formatting import format_value
 from owlroost.domain.registry import COLUMN_REGISTRY, VIEW_REGISTRY
-from owlroost.domain.views import build_rows
+from owlroost.domain.services.discovery import discover_experiments
+from owlroost.domain.services.experiments import build_experiment_rows
+from owlroost.domain.services.trials import build_trial_rows
+from owlroost.domain.views.analysis_registry import ANALYSIS_VIEW_REGISTRY
+from owlroost.domain.views.table import build_rows
 
 RESULTS_DIR = Path("results")
-
-
-# =========================================================
-# Data Models
-# =========================================================
-
-
-@dataclass
-class Trial:
-    path: Path
-    status: str
-    runtime: float | None = None
-    data: dict | None = None
-
-
-@dataclass
-class Run:
-    name: str
-    path: Path
-    trials: list[Trial]
-
-
-@dataclass
-class Experiment:
-    id: int
-    case: str
-    date: str
-    time: str
-    path: Path
-    runs: list[Run]
-
+WORKFLOW_NAME = "audit"
 
 # =========================================================
 # CLI
@@ -77,17 +46,34 @@ def cmd_audit(experiment_id, view, run_id, export_id, open_id):
         console.print("[red]Results directory not found.[/red]")
         sys.exit(1)
 
-    experiments = discover_experiments()
+    experiments = discover_experiments(RESULTS_DIR)
 
     if not experiments:
         console.print("[yellow]No experiments found.[/yellow]")
         return
 
     # ---------------------------------------------------------
-    # Validate view
+    # Validate / route view
     # ---------------------------------------------------------
-    if "audit_" + view not in VIEW_REGISTRY:
-        available = ", ".join(VIEW_REGISTRY.keys())
+
+    # Analysis view (failures, etc.)
+    if view in ANALYSIS_VIEW_REGISTRY:
+        if experiment_id is None or len(experiments) != 1:
+            console.print("[red]Analysis views require exactly one experiment ID[/red]")
+            return
+
+        trial_rows = build_trial_rows([experiments[0]])
+        ANALYSIS_VIEW_REGISTRY[view](trial_rows)
+        return
+
+    # Table view
+    view_key = WORKFLOW_NAME + "_" + view
+
+    if view_key not in VIEW_REGISTRY:
+        available = ", ".join(
+            [v.replace(WORKFLOW_NAME + "_", "") for v in VIEW_REGISTRY.keys()]
+            + list(ANALYSIS_VIEW_REGISTRY.keys())
+        )
         console.print(f"[red]Unknown view '{view}'. Available: {available}[/red]")
         return
 
@@ -104,16 +90,19 @@ def cmd_audit(experiment_id, view, run_id, export_id, open_id):
     # ---------------------------------------------------------
     # Build rows
     # ---------------------------------------------------------
-    audit_rows = build_audit_rows(experiments)
+    experiment_rows = build_experiment_rows(experiments)
 
-    column_keys = VIEW_REGISTRY["audit_" + view]
-    rows = build_rows(audit_rows, column_keys)
+    column_keys = VIEW_REGISTRY[view_key]
+    rows = build_rows(experiment_rows, column_keys)
 
     # ---------------------------------------------------------
     # Handle actions (trial-level)
     # ---------------------------------------------------------
     if run_id is not None or export_id is not None or open_id is not None:
-        runtime_rows = build_runtime_rows(experiments)
+        trial_rows = build_trial_rows(experiments)
+        runtime_rows = [
+            {"runtime": r.runtime, "path": r.path} for r in trial_rows if r.runtime is not None
+        ]
 
         if not runtime_rows:
             console.print("[yellow]No runtime data available.[/yellow]")
@@ -173,217 +162,6 @@ def cmd_audit(experiment_id, view, run_id, export_id, open_id):
         table.add_row(*formatted_row)
 
     console.print(table)
-
-
-# =========================================================
-# Row Builders
-# =========================================================
-
-
-def build_audit_rows(experiments: list[Experiment]) -> list[AuditRow]:
-    rows = []
-
-    for exp in experiments:
-        m = compute_experiment_metrics(exp)
-        agg = aggregate_trial_metrics(exp)
-
-        rows.append(
-            AuditRow(
-                id=exp.id,
-                case=exp.case,
-                date=exp.date,
-                time=exp.time,
-                runs=m["runs"],
-                trials=m["trials"],
-                solved=m["solved"],
-                failed=m["failed"],
-                incomplete=m["incomplete"],
-                slow=m["slow"],
-                success_rate=m["success_rate"],
-                runtime=agg.get("runtime"),
-                spend_basis=agg.get("spend_basis"),
-                total_spend_real=agg.get("total_spend_real"),
-                bequest_real=agg.get("bequest_real"),
-                nvars=agg.get("nvars"),
-                ncons=agg.get("ncons"),
-                nnz=agg.get("nnz"),
-                int_ratio=agg.get("int_ratio"),
-            )
-        )
-
-    return rows
-
-
-def build_runtime_rows(experiments):
-    rows = []
-
-    for exp in experiments:
-        for run in exp.runs:
-            for trial in run.trials:
-                if trial.runtime:
-                    rows.append(
-                        {
-                            "runtime": trial.runtime,
-                            "path": trial.path,
-                        }
-                    )
-
-    return rows
-
-
-def aggregate_trial_metrics(exp: Experiment) -> dict:
-    def collect(key):
-        values = []
-        for run in exp.runs:
-            for t in run.trials:
-                if t.data and t.data.get(key) is not None:
-                    values.append(t.data[key])
-        return values
-
-    def mean_or_none(values):
-        return statistics.mean(values) if values else None
-
-    return dict(
-        runtime=mean_or_none(collect("runtime")),
-        spend_basis=mean_or_none(collect("spend_basis")),
-        total_spend_real=mean_or_none(collect("total_spend_real")),
-        bequest_real=mean_or_none(collect("bequest_real")),
-        nvars=mean_or_none(collect("nvars")),
-        ncons=mean_or_none(collect("ncons")),
-        nnz=mean_or_none(collect("nnz")),
-        int_ratio=mean_or_none(collect("int_ratio")),
-    )
-
-
-# =========================================================
-# Discovery (unchanged)
-# =========================================================
-
-
-def discover_experiments() -> list[Experiment]:
-    experiments: list[Experiment] = []
-    exp_id = 0
-
-    for case_dir in sorted(p for p in RESULTS_DIR.iterdir() if p.is_dir()):
-        for date_dir in sorted(p for p in case_dir.iterdir() if p.is_dir()):
-            for time_dir in sorted(p for p in date_dir.iterdir() if p.is_dir()):
-                runs: list[Run] = []
-
-                for run_dir in sorted(
-                    p for p in time_dir.iterdir() if p.is_dir() and p.name.startswith("run_")
-                ):
-                    trials: list[Trial] = []
-                    trials_dir = run_dir / "trials"
-
-                    if trials_dir.exists():
-                        for trial_dir in sorted(p for p in trials_dir.iterdir() if p.is_dir()):
-                            data = extract_trial_data(trial_dir)
-
-                            trials.append(
-                                Trial(
-                                    path=trial_dir,
-                                    status=get_trial_status(trial_dir),
-                                    runtime=data["runtime"] if data else None,
-                                    data=data,
-                                )
-                            )
-
-                    runs.append(Run(run_dir.name, run_dir, trials))
-
-                experiments.append(
-                    Experiment(
-                        id=exp_id,
-                        case=case_dir.name,
-                        date=date_dir.name,
-                        time=time_dir.name,
-                        path=time_dir,
-                        runs=runs,
-                    )
-                )
-
-                exp_id += 1
-
-    return experiments
-
-
-# =========================================================
-# Trial Helpers (unchanged)
-# =========================================================
-
-
-def get_trial_status(trial_dir: Path) -> str:
-    if (trial_dir / "SOLVED").exists():
-        return "SOLVED"
-    if (trial_dir / "UNSUCCESSFUL").exists():
-        return "FAILED"
-    return "INCOMPLETE"
-
-
-def extract_trial_data(trial_dir: Path) -> dict | None:
-    metrics_file = next(trial_dir.glob("*_metrics.*"), None)
-    if not metrics_file:
-        return None
-
-    try:
-        with metrics_file.open() as f:
-            data = json.load(f)
-
-        metrics = data.get("metrics", {})
-        complexity = data.get("complexity", {})
-        timing = data.get("timing", {})
-
-        return {
-            "runtime": timing.get("elapsed_seconds"),
-            "spend_basis": metrics.get("net_yearly_spending_basis"),
-            "total_spend_real": metrics.get("total_net_spending_real"),
-            "bequest_real": metrics.get("total_final_bequest_real"),
-            "nvars": complexity.get("num_decision_variables"),
-            "ncons": complexity.get("num_constraints"),
-            "nnz": complexity.get("num_nonzeros"),
-            "int_ratio": complexity.get("integer_variable_ratio"),
-        }
-
-    except Exception:
-        return None
-
-
-# =========================================================
-# Metrics (unchanged)
-# =========================================================
-
-
-def compute_experiment_metrics(exp: Experiment):
-    trials = []
-    solved = failed = incomplete = 0
-
-    for run in exp.runs:
-        for trial in run.trials:
-            trials.append(trial)
-            if trial.status == "SOLVED":
-                solved += 1
-            elif trial.status == "FAILED":
-                failed += 1
-            else:
-                incomplete += 1
-
-    runtimes = [t.runtime for t in trials if t.runtime]
-    slow = 0
-
-    if runtimes:
-        median = statistics.median(runtimes)
-        slow = sum(1 for r in runtimes if r > 3 * median)
-
-    success_rate = (solved / len(trials) * 100) if trials else 0
-
-    return dict(
-        runs=len(exp.runs),
-        trials=len(trials),
-        solved=solved,
-        failed=failed,
-        incomplete=incomplete,
-        slow=slow,
-        success_rate=success_rate,
-    )
 
 
 # =========================================================
@@ -462,48 +240,3 @@ def export_trial(console, trial_path: Path):
                 zf.write(file, file.relative_to(trial_path))
 
     console.print(f"[green]Exported:[/green] {zip_path}")
-
-
-# =========================================================
-# Detail View (unchanged)
-# =========================================================
-
-
-def render_experiment_detail(console: Console, exp: Experiment):
-    console.print(f"[bold cyan]Experiment {exp.id}[/bold cyan]")
-    console.print(f"Case: {exp.case}")
-    console.print(f"Date: {exp.date}  Time: {exp.time}\n")
-
-    table = Table(box=box.SIMPLE)
-
-    table.add_column("RUN")
-    table.add_column("TRIALS", justify="right")
-    table.add_column("SOLVED", justify="right")
-    table.add_column("FAILED", justify="right")
-    table.add_column("SLOW", justify="right")
-    table.add_column("SUCCESS %", justify="right")
-
-    for run in exp.runs:
-        runtimes = [t.runtime for t in run.trials if t.runtime]
-
-        slow = 0
-        if runtimes:
-            median = statistics.median(runtimes)
-            slow = sum(1 for r in runtimes if r > 3 * median)
-
-        trials = len(run.trials)
-        solved = sum(1 for t in run.trials if t.status == "SOLVED")
-        failed = sum(1 for t in run.trials if t.status == "FAILED")
-
-        success_rate = (solved / trials * 100) if trials else 0
-
-        table.add_row(
-            run.name,
-            str(trials),
-            str(solved),
-            str(failed),
-            str(slow),
-            f"{success_rate:.1f}",
-        )
-
-    console.print(table)

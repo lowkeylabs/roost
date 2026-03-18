@@ -1,4 +1,4 @@
-from .registry import Column, register_column, register_view
+from ..registry import Column, register_column, register_view
 
 # =========================================================
 # CORE IDENTIFIERS
@@ -209,6 +209,52 @@ register_column(
     )
 )
 
+
+# =========================================================
+# TRIAL-LEVEL / FAILURE COLUMNS
+# =========================================================
+
+register_column(
+    Column(
+        key="failure_category",
+        label="Category",
+        extractor=lambda r: r.failure_category,
+        group="failure",
+        align="left",
+    )
+)
+
+register_column(
+    Column(
+        key="failure_detail",
+        label="Detail",
+        extractor=lambda r: r.failure_detail,
+        group="failure",
+        align="left",
+    )
+)
+
+register_column(
+    Column(
+        key="status",
+        label="Status",
+        extractor=lambda r: r.status,
+        group="failure",
+        align="left",
+    )
+)
+
+register_column(
+    Column(
+        key="path",
+        label="Path",
+        extractor=lambda r: str(r.path),
+        group="failure",
+        align="left",
+    )
+)
+
+
 # =========================================================
 # VIEWS
 # =========================================================
@@ -238,6 +284,7 @@ register_view(
     [
         "id",
         "case",
+        "trials",
         "runtime",
         "spend_basis",
         "total_spend_real",
@@ -281,5 +328,17 @@ register_view(
         "ncons",
         "nnz",
         "int_ratio",
+    ],
+)
+
+# --- Failure examples (trial-level) ---
+
+register_view(
+    "audit_failure_examples",
+    [
+        "failure_category",
+        "status",
+        "runtime",
+        "path",
     ],
 )

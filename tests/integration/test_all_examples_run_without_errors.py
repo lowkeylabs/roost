@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from owlplanner.config.plan_bridge import config_to_plan
 
-from owlroost.domain.case import Case
+from owlroost.domain.models.case import Case
 
 EXAMPLES_DIR = Path("examples/example01")
 

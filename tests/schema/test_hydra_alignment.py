@@ -4,7 +4,7 @@ import pytest
 import yaml
 
 import owlroost
-from owlroost.domain.case import EXTRA_SECTION_REGISTRY
+from owlroost.domain.models.case import EXTRA_SECTION_REGISTRY
 
 # ------------------------------------------------------------
 # Locate conf directory robustly

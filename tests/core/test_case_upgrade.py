@@ -3,7 +3,7 @@ from io import StringIO
 from owlplanner.config.plan_bridge import config_to_plan
 
 from owlroost.core.case_upgrade import case_upgrade
-from owlroost.domain.case import Case
+from owlroost.domain.models.case import Case
 
 
 def test_case_upgrade_preserves_rates_selection_from_when_modifying(tmp_path):
