@@ -3,7 +3,6 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-from owlplanner.export import build_summary_dic
 
 
 def _mosek_available():
@@ -17,10 +16,6 @@ def _mosek_available():
 
 
 def normalize_timestamp(ts) -> str:
-    """
-    Return an ISO-8601 timestamp string from either
-    a datetime or a string.
-    """
     if isinstance(ts, datetime):
         return ts.isoformat()
     if isinstance(ts, str):
@@ -28,167 +23,12 @@ def normalize_timestamp(ts) -> str:
     raise TypeError(f"Unsupported timestamp type: {type(ts)}")
 
 
-def xxxmetrics_from_plan(plan) -> dict:
-    # using owlplanner.export.build_summary_dic to get metrics.
-    # these are formatted for output, not analysis.
-    dic = build_summary_dic(plan)
-    return dic
-
-
-def metrics_from_plan(plan, N=None) -> dict:
-    # Original code found in: owlplanner.export.py
-
-    if N is None:
-        N = plan.N_n
-    if not (0 < N <= plan.N_n):
-        raise ValueError(f"Value N={N} is out of reange")
-
-    start_year = int(plan.year_n[0])
-    final_year = int(plan.year_n[-1])
-
-    m = {
-        "plan_name": plan._name,
-        "run_timestamp": normalize_timestamp(plan._timestamp),
-        "plan_start_date": str(plan.startDate),
-        # horizon
-        "year_start": start_year,
-        "year_final_bequest": final_year,
-        # model size
-        "num_decision_variables": int(plan.A.nvars),
-        "num_constraints": int(plan.A.ncons),
-        # inflation
-        "final_inflation_factor": float(plan.gamma_n[-1]),
-    }
-
-    m["net_yearly_spending_basis"] = plan.g_n[0] / plan.xi_n[0]
-    m["net_yearly_spending_in_first_year"] = plan.g_n[0]
-    m["net_spending_for_plan_year_0"] = plan.g_n[0]
-
-    # nominal vs real values are based on the inflation factor gamma_n,
-    #   which is the cumulative product of (1 + inflation_rate) over time.
-
-    # Nominal values are in the dollars of the year they occur,
-    # Real values are adjusted to the dollars of the first year (year 0) by dividing by gamma_n.
-
-    # ---- totals: spending ----
-    totSpending = np.sum(plan.g_n[:N], axis=0)
-    totSpendingNow = np.sum(plan.g_n[:N] / plan.gamma_n[:N], axis=0)
-    m["total_net_spending_nominal"] = float(totSpending)
-    m["total_net_spending_real"] = float(totSpendingNow)
-
-    # ---- totals: Roth conversions ----
-    totRoth = np.sum(plan.x_in[:, :N], axis=(0, 1))
-    totRothNow = np.sum(np.sum(plan.x_in[:, :N], axis=0) / plan.gamma_n[:N], axis=0)
-    m["total_roth_conversions_nominal"] = float(totRoth)
-    m["total_roth_conversions_real"] = float(totRothNow)
-
-    # ---- totals: taxes ----
-    taxPaid = np.sum(plan.T_n[:N], axis=0)
-    taxPaidNow = np.sum(plan.T_n[:N] / plan.gamma_n[:N], axis=0)
-    m["total_tax_ordinary_nominal"] = float(taxPaid)
-    m["total_tax_ordinary_real"] = float(taxPaidNow)
-
-    # ---- totals: estate ----
-    estate = np.sum(plan.b_ijn[:, :, plan.N_n], axis=0)
-    # heirsTaxLiability = (estate[1] + estate[3]) * plan.nu  # tax-deferred and HSA
-    estate[1] *= 1 - plan.nu  # tax-deferred: heirs pay ordinary income tax
-    estate[3] *= 1 - plan.nu  # HSA: non-spouse heirs include full balance in ordinary income
-    # endyear = plan.year_n[-1]
-    lyNow = 1.0 / plan.gamma_n[-1]
-    debts = plan.remaining_debt_balance
-    savingsEstate = np.sum(estate)
-    totEstate = savingsEstate - debts + plan.fixed_assets_bequest_value
-
-    m["total_final_bequest_nominal"] = float(totEstate)
-    m["total_final_bequest_real"] = float(totEstate * lyNow)
-
-    return m
-
-
-def complexity_from_plan(plan) -> dict:
-    """
-    Extract structural complexity metrics from a solved plan.
-
-    These metrics describe the size and structure of the LP/MILP
-    independent of financial outcomes.
-    """
-
-    A = plan.A
-    B = plan.B
-
-    nvars = int(A.nvars)
-    ncons = int(A.ncons)
-
-    # -----------------------------------------
-    # Core size
-    # -----------------------------------------
-    nnz = sum(len(row) for row in A.Aind)
-
-    # -----------------------------------------
-    # Density
-    # -----------------------------------------
-    density = nnz / (nvars * ncons) if nvars and ncons else None
-
-    # -----------------------------------------
-    # Integer structure (MILP complexity)
-    # -----------------------------------------
-    try:
-        num_integer_vars = len(B.integralityList())
-    except Exception:
-        num_integer_vars = None
-
-    # -----------------------------------------
-    # Horizon (time dimension)
-    # -----------------------------------------
-    year_start = int(plan.year_n[0])
-    year_final = int(plan.year_n[-1])
-    horizon = year_final - year_start
-
-    # -----------------------------------------
-    # Derived metrics (very useful diagnostically)
-    # -----------------------------------------
-    nnz_per_var = nnz / nvars if nvars else None
-    nnz_per_cons = nnz / ncons if ncons else None
-    int_ratio = num_integer_vars / nvars if (num_integer_vars is not None and nvars) else None
-
-    return {
-        # --- size ---
-        "num_decision_variables": nvars,
-        "num_constraints": ncons,
-        "num_nonzeros": int(nnz),
-        # --- structure ---
-        "matrix_density": float(density) if density is not None else None,
-        # --- MILP complexity ---
-        "num_integer_variables": int(num_integer_vars) if num_integer_vars is not None else None,
-        "integer_variable_ratio": float(int_ratio) if int_ratio is not None else None,
-        # --- time dimension ---
-        "horizon": int(horizon),
-        # --- derived ---
-        "nnz_per_variable": float(nnz_per_var) if nnz_per_var is not None else None,
-        "nnz_per_constraint": float(nnz_per_cons) if nnz_per_cons is not None else None,
-    }
-
-
-def classify_run_status_from_plan(plan, diagnostics: dict | None = None) -> dict:
-    """
-    Returns structured run status classification using diagnostics-driven logic.
-    Avoids recomputing diagnostics if already available.
-    """
-
+# =========================================================
+# RUN STATUS
+# =========================================================
+def classify_run_status_from_plan(plan) -> dict:
     case_status = (plan.caseStatus or "").lower()
-    conv = (getattr(plan, "convergenceType", "") or "").lower()
 
-    # -----------------------------------------
-    # Use provided diagnostics or compute once
-    # -----------------------------------------
-    if diagnostics is None:
-        diagnostics = diagnostics_from_plan(plan)
-
-    flags = diagnostics.get("flags", [])
-
-    # --------------------------------------------------
-    # SUCCESS
-    # --------------------------------------------------
     if case_status == "solved":
         return {
             "status": "solved",
@@ -196,316 +36,491 @@ def classify_run_status_from_plan(plan, diagnostics: dict | None = None) -> dict
             "failure_detail": None,
         }
 
-    # --------------------------------------------------
-    # ECONOMIC INFEASIBILITY (primary path)
-    # --------------------------------------------------
-    if any(
-        f in flags
-        for f in [
-            "cumulative_real_erosion",
-            "future_real_return_deficit",
-            "sustained_real_return_stress",
-        ]
-    ):
-        return {
-            "status": "failed",
-            "failure_category": "economic_infeasibility",
-            "failure_detail": "negative_real_return_environment",
-        }
-
-    # --------------------------------------------------
-    # WITHDRAWAL / TAX PRESSURE
-    # --------------------------------------------------
-    if any(
-        f in flags
-        for f in [
-            "extreme_withdrawal_pressure",
-            "future_withdrawal_pressure",
-        ]
-    ):
-        return {
-            "status": "failed",
-            "failure_category": "economic_infeasibility",
-            "failure_detail": "withdrawal_pressure",
-        }
-
-    # --------------------------------------------------
-    # LIQUIDITY FAILURE
-    # --------------------------------------------------
-    if "insufficient_liquidity" in flags:
-        return {
-            "status": "failed",
-            "failure_category": "economic_infeasibility",
-            "failure_detail": "liquidity_shortfall",
-        }
-
-    # --------------------------------------------------
-    # SOLVER FAILURE
-    # --------------------------------------------------
-    if conv in ("undefined", "", None):
-        return {
-            "status": "failed",
-            "failure_category": "solver_failure",
-            "failure_detail": "no_feasible_solution",
-        }
-
-    # --------------------------------------------------
-    # NO CONVERGENCE
-    # --------------------------------------------------
-    if "max iteration" in conv:
-        return {
-            "status": "failed",
-            "failure_category": "no_convergence",
-            "failure_detail": "max_iterations",
-        }
-
-    if "oscillatory" in conv:
-        return {
-            "status": "failed",
-            "failure_category": "no_convergence",
-            "failure_detail": "oscillation",
-        }
-
-    # --------------------------------------------------
-    # FALLBACK
-    # --------------------------------------------------
     return {
         "status": "failed",
-        "failure_category": "infeasible_constraints",
-        "failure_detail": "unknown",
+        "failure_category": "unknown",
+        "failure_detail": case_status,
     }
 
 
-def diagnostics_from_plan(plan) -> dict:
+# =========================================================
+# METRICS
+# =========================================================
+def financials_from_plan(plan, N=None) -> dict:
+    if N is None:
+        N = plan.N_n
+    if not (0 < N <= plan.N_n):
+        raise ValueError(f"Value N={N} is out of range")
+
+    gamma = plan.gamma_n[:N]
+
+    start_year = int(plan.year_n[0])
+    final_year = int(plan.year_n[-1])
+
+    identity = {
+        "plan_name": plan._name,
+        "run_timestamp": normalize_timestamp(plan._timestamp),
+        "plan_start_date": str(plan.startDate),
+        "year_start": start_year,
+        "year_final_bequest": final_year,
+        "num_decision_variables": int(plan.A.nvars),
+        "num_constraints": int(plan.A.ncons),
+    }
+
+    inflation = {
+        "final_factor": float(plan.gamma_n[-1]),
+    }
+
+    spending = {
+        "year0": {
+            "future": float(plan.g_n[0]),
+            "today": float(plan.g_n[0] / plan.gamma_n[0]),
+        },
+        "total": {
+            "future": float(np.sum(plan.g_n[:N])),
+            "today": float(np.sum(plan.g_n[:N] / gamma)),
+        },
+    }
+
+    roth = {
+        "total": {
+            "future": float(np.sum(plan.x_in[:, :N])),
+            "today": float(np.sum(np.sum(plan.x_in[:, :N], axis=0) / gamma)),
+        }
+    }
+
+    taxes = {
+        "total": {
+            "future": float(np.sum(plan.T_n[:N])),
+            "today": float(np.sum(plan.T_n[:N] / gamma)),
+        }
+    }
+
+    estate = np.sum(plan.b_ijn[:, :, plan.N_n], axis=0).copy()
+    estate[1] *= 1 - plan.nu
+    estate[3] *= 1 - plan.nu
+
+    savings_estate = np.sum(estate)
+    debts = plan.remaining_debt_balance
+
+    bequest_future = savings_estate - debts + plan.fixed_assets_bequest_value
+    bequest_today = bequest_future / plan.gamma_n[-1]
+
+    bequest = {
+        "total": {
+            "future": float(bequest_future),
+            "today": float(bequest_today),
+        }
+    }
+
+    spending_future = plan.g_n[:N]
+    spending_today = spending_future / gamma
+
+    tax_future = plan.T_n[:N]
+    tax_today = tax_future / gamma
+
+    roth_future = np.sum(plan.x_in[:, :N], axis=0)
+    roth_today = roth_future / gamma
+
+    assets_future = np.sum(plan.b_ijn[:, :, :N], axis=(0, 1))
+    assets_today = assets_future / gamma
+
+    timeseries = {
+        "spending": {
+            "future_by_year": spending_future.tolist(),
+            "today_by_year": spending_today.tolist(),
+        },
+        "taxes": {
+            "future_by_year": tax_future.tolist(),
+            "today_by_year": tax_today.tolist(),
+        },
+        "roth": {
+            "future_by_year": roth_future.tolist(),
+            "today_by_year": roth_today.tolist(),
+        },
+        "assets": {
+            "future_by_year": assets_future.tolist(),
+            "today_by_year": assets_today.tolist(),
+        },
+        "inflation": {
+            "factor_by_year": gamma.tolist(),
+        },
+    }
+
+    return {
+        "identity": identity,
+        "inflation": inflation,
+        "spending": spending,
+        "roth": roth,
+        "taxes": taxes,
+        "bequest": bequest,
+        "timeseries": timeseries,
+    }
+
+
+# =========================================================
+# COMPLEXITY
+# =========================================================
+def complexity_from_plan(plan) -> dict:
+    A = plan.A
+    B = plan.B
+
+    nvars = int(A.nvars)
+    ncons = int(A.ncons)
+
+    nnz = sum(len(row) for row in A.Aind)
+    density = nnz / (nvars * ncons) if nvars and ncons else None
+
+    try:
+        num_integer_vars = len(B.integralityList())
+    except Exception:
+        num_integer_vars = None
+
+    year_start = int(plan.year_n[0])
+    year_final = int(plan.year_n[-1])
+    horizon = year_final - year_start
+
+    nnz_per_var = nnz / nvars if nvars else None
+    nnz_per_cons = nnz / ncons if ncons else None
+    int_ratio = num_integer_vars / nvars if (num_integer_vars and nvars) else None
+
+    return {
+        "num_decision_variables": nvars,
+        "num_constraints": ncons,
+        "num_nonzeros": int(nnz),
+        "matrix_density": float(density) if density else None,
+        "num_integer_variables": int(num_integer_vars) if num_integer_vars else None,
+        "integer_variable_ratio": float(int_ratio) if int_ratio else None,
+        "horizon": int(horizon),
+        "nnz_per_variable": float(nnz_per_var) if nnz_per_var else None,
+        "nnz_per_constraint": float(nnz_per_cons) if nnz_per_cons else None,
+    }
+
+
+# =========================================================
+# RISK - SCENARIO
+# =========================================================
+def scenario_risk_from_plan(plan) -> dict:
     tau = plan.tau_kn
 
-    # -----------------------------------------
-    # Returns
-    # -----------------------------------------
-    stock_returns = tau[0]
+    stock = np.asarray(tau[0], dtype=float)
+    inflation = np.asarray(tau[3], dtype=float)
 
-    avg_return = float(np.mean(stock_returns))
-    min_return = float(np.min(stock_returns))
+    if stock.size == 0 or inflation.size == 0:
+        return {"valid": False, "reason": "empty return series"}
 
-    first5_avg = float(np.mean(stock_returns[:5]))
-    first10_avg = float(np.mean(stock_returns[:10]))
+    N = min(len(stock), len(inflation))
+    stock = stock[:N]
+    inflation = inflation[:N]
 
-    worst_drawdown = float(np.min(np.cumprod(1 + stock_returns)))
+    avg_return = float(np.mean(stock))
+    min_return = float(np.min(stock))
+    max_return = float(np.max(stock))
+    std_return = float(np.std(stock))
 
-    # -----------------------------------------
-    # Inflation
-    # -----------------------------------------
-    inflation = tau[3]
+    first5_avg = float(np.mean(stock[: min(5, N)]))
+    first10_avg = float(np.mean(stock[: min(10, N)]))
+
+    growth = np.cumprod(1 + stock)
+    worst_drawdown = float(np.min(growth))
+
     avg_inflation = float(np.mean(inflation))
+    max_inflation = float(np.max(inflation))
 
-    # -----------------------------------------
-    # REAL RETURNS (🔥 CORE SIGNAL)
-    # -----------------------------------------
-    real_returns = (1 + stock_returns) / (1 + inflation) - 1
+    real_returns = (1 + stock) / (1 + inflation) - 1
+    avg_real_return = float(np.mean(real_returns))
+
     real_growth = np.cumprod(1 + real_returns)
+    min_real_growth = float(np.min(real_growth))
 
-    # --- immediate stress (point-in-time)
-    immediate_real_stress_year = None
-    for i, r in enumerate(real_returns):
-        if r < 0:
-            immediate_real_stress_year = i
-            break
-
-    # --- sustained stress (rolling window)
-    sustained_real_stress_year = None
-    window = 5
-    for i in range(len(real_returns) - window + 1):
-        if np.mean(real_returns[i : i + window]) < 0:
-            sustained_real_stress_year = i
-            break
-
-    # --- cumulative erosion
-    real_failure_year = None
-    for i, val in enumerate(real_growth):
-        if val < 0.9:
-            real_failure_year = i
-            break
-
-    # --- peak year
-    peak_real_year_index = int(np.argmax(real_growth)) if len(real_growth) > 0 else None
-
-    # -----------------------------------------
-    # Spending & withdrawals (year 0)
-    # -----------------------------------------
-    spending = None
-    withdrawals = None
-    tax = None
-    withdrawal_to_spending_ratio = None
-
-    if hasattr(plan, "g_n") and len(plan.g_n) > 0:
-        spending = float(plan.g_n[0])
-
-    w = None
-    if hasattr(plan, "w_ijn"):
-        w = np.sum(plan.w_ijn, axis=(0, 1))
-        if len(w) > 0:
-            withdrawals = float(w[0])
-
-    if hasattr(plan, "T_n") and len(plan.T_n) > 0:
-        tax = float(plan.T_n[0])
-
-    if spending and withdrawals:
-        withdrawal_to_spending_ratio = withdrawals / spending
-
-    # -----------------------------------------
-    # Forward-looking diagnostics (years 1–5)
-    # -----------------------------------------
-    future_spending = None
-    future_withdrawals = None
-    future_ratio = None
-
-    if hasattr(plan, "g_n") and len(plan.g_n) > 5:
-        future_spending = float(np.mean(plan.g_n[1:6]))
-
-    if w is not None and len(w) > 5:
-        future_withdrawals = float(np.mean(w[1:6]))
-
-    if future_spending and future_withdrawals:
-        future_ratio = future_withdrawals / future_spending
-
-    # -----------------------------------------
-    # Year mapping
-    # -----------------------------------------
-    year0 = int(plan.year_n[0]) if hasattr(plan, "year_n") else None
-
-    def to_year(idx):
-        return int(year0 + idx) if (year0 is not None and idx is not None) else None
-
-    # -----------------------------------------
-    # Flags
-    # -----------------------------------------
     flags = []
 
     if first5_avg < 0:
         flags.append("negative_early_sequence")
 
-    if min_return < -0.3:
+    if first10_avg < avg_return:
+        flags.append("weak_start_relative_to_average")
+
+    if worst_drawdown < 0.7:
+        flags.append("deep_drawdown")
+
+    if worst_drawdown < 0.5:
         flags.append("severe_drawdown")
 
     if avg_return < 0.02:
         flags.append("low_return_environment")
 
+    if std_return > 0.18:
+        flags.append("high_volatility")
+
     if avg_inflation > 0.035:
         flags.append("high_inflation")
 
-    if first10_avg < avg_inflation:
-        flags.append("negative_real_returns_early")
-        flags.append("future_real_return_deficit")
+    if max_inflation > 0.06:
+        flags.append("inflation_spike")
 
-    if withdrawal_to_spending_ratio:
-        if withdrawal_to_spending_ratio > 1.3:
-            flags.append("high_tax_drag")
-        if withdrawal_to_spending_ratio > 1.6:
-            flags.append("extreme_withdrawal_pressure")
+    if avg_real_return < 0:
+        flags.append("negative_real_return_environment")
 
-    if future_ratio and future_ratio > 1.3:
-        flags.append("future_withdrawal_pressure")
+    if min_real_growth < 0.7:
+        flags.append("real_wealth_erosion")
 
-    if immediate_real_stress_year is not None:
-        flags.append("immediate_real_return_stress")
+    if "negative_early_sequence" in flags and "high_inflation" in flags:
+        scenario_type = "stagflation_sequence"
+    elif "negative_early_sequence" in flags:
+        scenario_type = "bad_sequence"
+    elif "high_inflation" in flags:
+        scenario_type = "inflation_stress"
+    elif "low_return_environment" in flags:
+        scenario_type = "low_return"
+    else:
+        scenario_type = "baseline"
 
-    if sustained_real_stress_year is not None:
-        flags.append("sustained_real_return_stress")
+    # ✅ NORMALIZED SEVERITY
+    severity = 0.0
+    severity += min(1.0, max(0.0, -first5_avg / 0.10))
+    severity += min(1.0, max(0.0, (0.05 - avg_return) / 0.05))
+    severity += min(1.0, max(0.0, (avg_inflation - 0.02) / 0.04))
+    severity += min(1.0, max(0.0, (0.7 - worst_drawdown) / 0.7))
+    severity = float(min(1.0, severity / 4.0))
 
-    if real_failure_year is not None:
-        flags.append("cumulative_real_erosion")
-
-    if spending and withdrawals and withdrawals < spending:
-        flags.append("insufficient_liquidity")
-
-    # -----------------------------------------
-    # Rate-driven failure summary
-    # -----------------------------------------
-    rate_driven_failures = {
-        "immediate_real_stress_year": to_year(immediate_real_stress_year),
-        "sustained_real_stress_year": to_year(sustained_real_stress_year),
-        "cumulative_real_failure_year": to_year(real_failure_year),
-        "peak_real_year": to_year(peak_real_year_index),
-        "real_growth_first10": real_growth[:10].tolist(),
-        "real_return_first10": real_returns[:10].tolist(),
-    }
-
-    # -----------------------------------------
-    # Human-readable notes (🔥 NEW)
-    # -----------------------------------------
-    notes = []
-
-    if avg_inflation > avg_return:
-        notes.append("Average inflation exceeds average returns, leading to negative real growth.")
-
-    if immediate_real_stress_year is not None:
-        notes.append(
-            f"Real returns are negative as early as year {to_year(immediate_real_stress_year)}."
-        )
-
-    if sustained_real_stress_year is not None:
-        notes.append(
-            f"Sustained negative real return environment begins around year {to_year(sustained_real_stress_year)}."
-        )
-
-    if real_failure_year is not None:
-        notes.append(
-            f"Cumulative real wealth falls below 90% of starting value by year {to_year(real_failure_year)}."
-        )
-
-    if withdrawal_to_spending_ratio and withdrawal_to_spending_ratio > 1.0:
-        notes.append("Withdrawals exceed spending, indicating tax drag or inefficient liquidation.")
-
-    # -----------------------------------------
-    # Return
-    # -----------------------------------------
     return {
-        "avg_return": avg_return,
-        "min_return": min_return,
-        "first5_avg_return": first5_avg,
-        "first10_avg_return": first10_avg,
-        "worst_drawdown_factor": worst_drawdown,
-        "avg_inflation": avg_inflation,
-        "first_year_spending": spending,
-        "first_year_withdrawals": withdrawals,
-        "first_year_tax": tax,
-        "withdrawal_to_spending_ratio": withdrawal_to_spending_ratio,
-        "future_avg_spending_years_1_5": future_spending,
-        "future_avg_withdrawals_years_1_5": future_withdrawals,
-        "future_withdrawal_to_spending_ratio": future_ratio,
-        "rate_driven_failures": rate_driven_failures,
+        "valid": True,
+        "horizon": int(N),
+        "returns": {
+            "avg": avg_return,
+            "min": min_return,
+            "max": max_return,
+            "std": std_return,
+            "first5_avg": first5_avg,
+            "first10_avg": first10_avg,
+        },
+        "drawdown": {"worst_growth_factor": worst_drawdown},
+        "inflation": {"avg": avg_inflation, "max": max_inflation},
+        "real": {
+            "avg_return": avg_real_return,
+            "min_growth_factor": min_real_growth,
+        },
+        "classification": {"scenario_type": scenario_type},
+        "severity_score": severity,
         "flags": flags,
-        "notes": notes,
     }
 
 
+# =========================================================
+# RISK - OUTCOME
+# =========================================================
+def outcome_risk_from_plan(plan) -> dict:
+    try:
+        N = int(plan.N_n)
+    except Exception as e:
+        return {"valid": False, "reason": f"N_error: {str(e)}"}
+
+    assets_future = np.array([float(np.sum(plan.b_ijn[:, :, n])) for n in range(N)], dtype=float)
+
+    gamma = np.asarray(plan.gamma_n[:N], dtype=float)
+    assets_today = assets_future / gamma
+
+    spending_today = np.asarray(plan.g_n[:N], dtype=float) / gamma
+
+    min_assets = float(np.min(assets_today))
+    max_assets = float(np.max(assets_today))
+    final_assets = float(assets_today[-1])
+    median_assets = float(np.median(assets_today))
+
+    depleted = bool(min_assets <= 1e-6)
+
+    depletion_year_index = None
+    if depleted:
+        idx = np.where(assets_today <= 1e-6)[0]
+        if len(idx):
+            depletion_year_index = int(idx[0])
+
+    years_to_depletion = int(depletion_year_index) if depleted else int(N)
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratios = spending_today / assets_today
+
+    valid = ratios[np.isfinite(ratios)]
+    max_ratio = float(np.max(valid)) if len(valid) else None
+    avg_ratio = float(np.mean(valid)) if len(valid) else None
+
+    fragility_10 = int(np.sum(valid > 0.10)) if len(valid) else None
+    fragility_20 = int(np.sum(valid > 0.20)) if len(valid) else None
+
+    running_max = np.maximum.accumulate(assets_today)
+    drawdowns = assets_today / running_max
+    drawdowns = drawdowns[np.isfinite(drawdowns)]
+    worst_drawdown = float(np.min(drawdowns)) if len(drawdowns) else None
+
+    tail = max(5, int(0.25 * N))
+    late_assets = assets_today[-tail:]
+    late_running_max = np.maximum.accumulate(late_assets)
+    late_dd = late_assets / late_running_max
+    late_dd = late_dd[np.isfinite(late_dd)]
+    late_drawdown = float(np.min(late_dd)) if len(late_dd) else None
+
+    # ✅ NEW METRICS
+    terminal_ratio = None
+    if final_assets > 0:
+        terminal_ratio = float(spending_today[-1] / final_assets)
+
+    min_cushion = None
+    if max_assets > 0:
+        min_cushion = float(min_assets / max_assets)
+
+    consumption_ratio = None
+    if spending_today[0] > 0:
+        consumption_ratio = float(spending_today[-1] / spending_today[0])
+
+    flags = []
+
+    if depleted:
+        flags.append("depleted")
+    if worst_drawdown is not None and worst_drawdown < 0.5:
+        flags.append("severe_asset_drawdown")
+    if max_ratio is not None and max_ratio > 0.10:
+        flags.append("high_spending_pressure")
+    if max_assets > 0 and final_assets < 0.25 * max_assets:
+        flags.append("ending_asset_erosion")
+
+    if depleted:
+        risk_level = "failure"
+    elif worst_drawdown is not None and worst_drawdown < 0.6:
+        risk_level = "high"
+    elif max_ratio is not None and max_ratio > 0.08:
+        risk_level = "moderate"
+    else:
+        risk_level = "low"
+
+    return {
+        "valid": True,
+        "horizon": int(N),
+        "assets": {
+            "min_today": min_assets,
+            "median_today": median_assets,
+            "max_today": max_assets,
+            "final_today": final_assets,
+        },
+        "depletion": {
+            "depleted": depleted,
+            "first_depletion_index": depletion_year_index,
+            "years_to_depletion": years_to_depletion,
+        },
+        "sustainability": {
+            "max_spending_to_assets_ratio": max_ratio,
+            "avg_spending_to_assets_ratio": avg_ratio,
+        },
+        "fragility": {
+            "years_ratio_above_10pct": fragility_10,
+            "years_ratio_above_20pct": fragility_20,
+        },
+        "drawdown": {
+            "worst_drawdown_factor": worst_drawdown,
+            "lifecycle_drawdown_factor": worst_drawdown,
+            "late_life_drawdown_factor": late_drawdown,
+        },
+        "terminal": {
+            "spending_to_assets_ratio": terminal_ratio,
+        },
+        "cushion": {
+            "min_cushion_ratio": min_cushion,
+        },
+        "consumption": {
+            "final_to_initial_ratio": consumption_ratio,
+        },
+        "classification": {"risk_level": risk_level},
+        "flags": flags,
+    }
+
+
+# =========================================================
+# RISK WRAPPER
+# =========================================================
+def risk_from_plan(plan) -> dict:
+    try:
+        scenario = scenario_risk_from_plan(plan)
+    except Exception as e:
+        scenario = {"valid": False, "reason": str(e)}
+
+    if (plan.caseStatus or "").lower() == "solved":
+        outcome = outcome_risk_from_plan(plan)
+    else:
+        outcome = {"valid": False, "reason": "plan_not_solved"}
+
+    return {"scenario": scenario, "outcome": outcome}
+
+
+# =========================================================
+# SCORING
+# =========================================================
+def score_trial(metrics: dict) -> dict:
+    outcome = metrics.get("risk", {}).get("outcome", {})
+
+    if not outcome.get("valid"):
+        return {"score": -1.0}
+
+    assets = outcome["assets"]
+    sustainability = outcome["sustainability"]
+    drawdown = outcome["drawdown"]
+    fragility = outcome["fragility"]
+
+    final_assets = assets.get("final_today", 0)
+    median_assets = assets.get("median_today", 0)
+    worst_dd = drawdown.get("worst_drawdown_factor", 0)
+    max_ratio = sustainability.get("max_spending_to_assets_ratio", 1)
+
+    fragility_penalty = (fragility.get("years_ratio_above_10pct", 0) or 0) * 0.02 + (
+        fragility.get("years_ratio_above_20pct", 0) or 0
+    ) * 0.05
+
+    wealth_score = np.log1p(max(final_assets, 0)) / 15
+    stability_score = worst_dd if worst_dd is not None else 0
+    sustainability_score = max(0, 1 - (max_ratio or 1))
+    median_score = median_assets / (median_assets + 1_000_000)
+
+    score = (
+        0.4 * wealth_score + 0.2 * stability_score + 0.2 * sustainability_score + 0.2 * median_score
+    )
+
+    score -= fragility_penalty
+
+    score = float(max(0.0, min(1.0, score)))
+
+    return {"score": score}
+
+
+# =========================================================
+# WRITE JSON
+# =========================================================
 def write_metrics_json(plan, metrics_path: Path, timing: dict) -> Path:
     solver = plan.solverOptions.get("solver", plan.defaultSolver)
     if solver == "default":
         solver = "MOSEK" if _mosek_available() else "HiGHS"
 
-    schema = "roost.metrics.v1"
+    schema = "roost.metrics.v2"
 
-    diagnostics = diagnostics_from_plan(plan)
-    run_status = classify_run_status_from_plan(plan, diagnostics=diagnostics)
+    run_status = classify_run_status_from_plan(plan)
+    risk = risk_from_plan(plan)
 
     if run_status["status"] == "solved":
-        metrics = metrics_from_plan(plan)
-        complexity = complexity_from_plan(plan)
+        financial = financials_from_plan(plan)
     else:
-        metrics = {}
-        complexity = {}
+        financial = {}
 
     complexity = complexity_from_plan(plan)
+
+    score = score_trial({"risk": risk, "financial": financial})
 
     output_json = {
         "schema": schema,
         "run_status": run_status,
         "timing": timing,
         "solver": solver,
-        "metrics": metrics,
+        "financial": financial,
+        "risk": risk,
         "complexity": complexity,
-        "diagnostics": diagnostics,
+        "score": score,
     }
 
     with open(metrics_path, "w") as f:
