@@ -84,6 +84,8 @@ def classify_failure(row: TrialRow) -> str:
 def view_failures(trial_rows: list[TrialRow]):
     console = Console()
 
+    MAX_EXAMPLES = 5
+
     # -------------------------------------------------
     # Runtime baseline (median)
     # -------------------------------------------------
@@ -127,7 +129,7 @@ def view_failures(trial_rows: list[TrialRow]):
             counts[category] += 1
 
             # store a few examples
-            if len(examples[category]) < 3:
+            if len(examples[category]) < MAX_EXAMPLES:
                 examples[category].append(row)
 
     # -------------------------------------------------

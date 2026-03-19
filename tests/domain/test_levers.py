@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from owlroost.domain.models.case import Case
-from owlroost.domain.services.lever import (
+from owlroost.domain.services.levers import (
     compute_levers,
     compute_retirement_horizon,
     compute_spending_and_more,

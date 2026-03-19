@@ -271,9 +271,7 @@ class Case:
     # Persistence
     # =========================================================
     def generate_cache(self, write: bool = False) -> None:
-        from datetime import datetime
-
-        from owlroost.domain.lever import compute_levers
+        from owlroost.domain.services.levers import compute_levers
 
         summary = compute_levers(self)
 
@@ -752,7 +750,7 @@ class Case:
         Cached per Case instance.
         """
         if not hasattr(self, "_lever_cache"):
-            from owlroost.domain.lever import compute_levers
+            from owlroost.domain.services.levers import compute_levers
 
             self._lever_cache = compute_levers(self)
         return self._lever_cache

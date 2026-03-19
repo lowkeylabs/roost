@@ -36,6 +36,8 @@ def adapt_metrics(data: dict | None) -> dict:
     complexity: dict[str, Any] = data.get("complexity") or {}
     timing: dict[str, Any] = data.get("timing") or {}
     run_status: dict[str, Any] = data.get("run_status") or {}
+    diagnostics: dict[str, Any] = data.get("diagnostics") or {}
+    rate_fail: dict[str, Any] = diagnostics.get("rate_driven_failures") or {}
 
     # -------------------------------------------------
     # Normalize values
@@ -66,12 +68,12 @@ def adapt_metrics(data: dict | None) -> dict:
         "spend_basis": metrics.get("net_yearly_spending_basis"),
         "total_spend_real": metrics.get("total_net_spending_real"),
         "bequest_real": metrics.get("total_final_bequest_real"),
-        # Optional extended metrics (future views)
+        # Optional extended metrics
         "roth_conversions_real": metrics.get("total_roth_conversions_real"),
         "tax_ordinary_real": metrics.get("total_tax_ordinary_real"),
         "inflation_factor": metrics.get("final_inflation_factor"),
         # =================================================
-        # Complexity metrics (complexity section ONLY)
+        # Complexity metrics
         # =================================================
         "nvars": complexity.get("num_decision_variables"),
         "ncons": complexity.get("num_constraints"),
@@ -80,4 +82,31 @@ def adapt_metrics(data: dict | None) -> dict:
         # Optional extended complexity
         "horizon": complexity.get("horizon"),
         "density": complexity.get("matrix_density"),
+        # =================================================
+        # Diagnostics (🔥 NEW — high value)
+        # =================================================
+        "avg_return": diagnostics.get("avg_return"),
+        "avg_inflation": diagnostics.get("avg_inflation"),
+        "min_return": diagnostics.get("min_return"),
+        # Spending pressure
+        "withdrawal_to_spending_ratio": diagnostics.get("withdrawal_to_spending_ratio"),
+        "future_withdrawal_to_spending_ratio": diagnostics.get(
+            "future_withdrawal_to_spending_ratio"
+        ),
+        # First-year signals
+        "first_year_spending": diagnostics.get("first_year_spending"),
+        "first_year_withdrawals": diagnostics.get("first_year_withdrawals"),
+        "first_year_tax": diagnostics.get("first_year_tax"),
+        # =================================================
+        # Rate-driven failure timeline (🔥 KEY)
+        # =================================================
+        "immediate_real_stress_year": rate_fail.get("immediate_real_stress_year"),
+        "sustained_real_stress_year": rate_fail.get("sustained_real_stress_year"),
+        "cumulative_real_failure_year": rate_fail.get("cumulative_real_failure_year"),
+        "peak_real_year": rate_fail.get("peak_real_year"),
+        # =================================================
+        # Flags + Notes (🔥 EXPLAINABILITY)
+        # =================================================
+        "flags": diagnostics.get("flags"),
+        "notes": diagnostics.get("notes"),
     }

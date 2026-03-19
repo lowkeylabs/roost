@@ -54,6 +54,7 @@ def build_trial_rows(experiments: list[Experiment]) -> list[TrialRow]:
                         # -----------------------------
                         runtime=runtime,
                         status=status,
+                        solver=adapted.get("solver"),
                         # -----------------------------
                         # Failure classification
                         # -----------------------------
@@ -65,6 +66,9 @@ def build_trial_rows(experiments: list[Experiment]) -> list[TrialRow]:
                         spend_basis=adapted.get("spend_basis"),
                         total_spend_real=adapted.get("total_spend_real"),
                         bequest_real=adapted.get("bequest_real"),
+                        roth_conversions_real=adapted.get("roth_conversions_real"),
+                        tax_ordinary_real=adapted.get("tax_ordinary_real"),
+                        inflation_factor=adapted.get("inflation_factor"),
                         # -----------------------------
                         # Complexity metrics
                         # -----------------------------
@@ -72,6 +76,33 @@ def build_trial_rows(experiments: list[Experiment]) -> list[TrialRow]:
                         ncons=adapted.get("ncons"),
                         nnz=adapted.get("nnz"),
                         int_ratio=adapted.get("int_ratio"),
+                        horizon=adapted.get("horizon"),
+                        density=adapted.get("density"),
+                        # -----------------------------
+                        # Diagnostics (NEW)
+                        # -----------------------------
+                        avg_return=adapted.get("avg_return"),
+                        avg_inflation=adapted.get("avg_inflation"),
+                        min_return=adapted.get("min_return"),
+                        withdrawal_to_spending_ratio=adapted.get("withdrawal_to_spending_ratio"),
+                        future_withdrawal_to_spending_ratio=adapted.get(
+                            "future_withdrawal_to_spending_ratio"
+                        ),
+                        first_year_spending=adapted.get("first_year_spending"),
+                        first_year_withdrawals=adapted.get("first_year_withdrawals"),
+                        first_year_tax=adapted.get("first_year_tax"),
+                        # -----------------------------
+                        # Failure timeline (KEY)
+                        # -----------------------------
+                        immediate_real_stress_year=adapted.get("immediate_real_stress_year"),
+                        sustained_real_stress_year=adapted.get("sustained_real_stress_year"),
+                        cumulative_real_failure_year=adapted.get("cumulative_real_failure_year"),
+                        peak_real_year=adapted.get("peak_real_year"),
+                        # -----------------------------
+                        # Explainability
+                        # -----------------------------
+                        flags=adapted.get("flags"),
+                        notes=adapted.get("notes"),
                         # -----------------------------
                         # Location
                         # -----------------------------

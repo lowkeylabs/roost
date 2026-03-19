@@ -5,11 +5,13 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 from io import StringIO
+from typing import TYPE_CHECKING
 
 import numpy as np
 from owlplanner.config.plan_bridge import config_to_plan
 
-from ..models.case import Case
+if TYPE_CHECKING:
+    from ..models.case import Case
 
 # ==========================================================
 # Lever Summary

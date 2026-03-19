@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from ..registry import Column, register_column, register_view
 
 # =========================================================
@@ -211,8 +213,18 @@ register_column(
 
 
 # =========================================================
-# TRIAL-LEVEL / FAILURE COLUMNS
+# TRIAL-LEVEL
 # =========================================================
+
+register_column(
+    Column(
+        key="trial_id",
+        label="ID",
+        extractor=lambda r: Path(r.path).name if r.path else None,
+        group="failure",
+        align="right",
+    )
+)
 
 register_column(
     Column(
@@ -251,6 +263,37 @@ register_column(
         extractor=lambda r: str(r.path),
         group="failure",
         align="left",
+    )
+)
+
+register_column(
+    Column(
+        key="trial_id",
+        label="ID",
+        extractor=lambda r: r.trial_id,
+        group="failure",
+        align="right",
+    )
+)
+
+register_column(
+    Column(
+        key="failure_year",
+        label="Year",
+        extractor=lambda r: r.cumulative_real_failure_year,
+        group="failure",
+        align="right",
+    )
+)
+
+register_column(
+    Column(
+        key="withdrawal_pressure",
+        label="W/S",
+        extractor=lambda r: r.withdrawal_to_spending_ratio,
+        fmt=".2f",
+        group="failure",
+        align="right",
     )
 )
 
@@ -337,8 +380,9 @@ register_view(
     "audit_failure_examples",
     [
         "failure_category",
+        "failure_year",  # 🔥 new
+        "withdrawal_pressure",  # 🔥 new
         "status",
         "runtime",
-        "path",
     ],
 )
