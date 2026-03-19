@@ -33,3 +33,33 @@ TRIAL_VIEW = [
         dtype=str,
     ),
 ]
+
+RUN_VIEW = [
+    MetricSpec(key="run_id", label="Run"),
+    MetricSpec(key="trial_count", label="Trials", align="right"),
+    MetricSpec(
+        key="success_rate",
+        label="Success %",
+        fmt="percent",
+    ),
+    MetricSpec(
+        key="fail_rate",
+        label="Fail %",
+        fmt="percent",
+    ),
+    MetricSpec(
+        key="avg_bequest",
+        label="Avg Bequest",
+        fmt="currency",
+    ),
+    MetricSpec(
+        key="median_bequest",
+        label="Median Bequest",
+        fmt="currency",
+    ),
+    MetricSpec(
+        key="avg_time",
+        label="Avg Time (s)",
+        fmt="float2",
+    ),
+]

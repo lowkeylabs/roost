@@ -24,12 +24,16 @@ class MetricSpec:
     # Identity
     # -----------------------------------------------------
     key: str  # unique key (e.g. "spending_total_today")
-    path: str  # dot path in JSON (e.g. "financial.spending.total.today")
+    label: str
+
+    # -----------------------------------------------------
+    # Extraction location (or none if derived)
+    # -----------------------------------------------------
+    path: str | None = None  # dot path in JSON (e.g. "financial.spending.total.today")
 
     # -----------------------------------------------------
     # Display
     # -----------------------------------------------------
-    label: str
     fmt: str = "default"  # formatting key (reuse format_value)
     align: str = "right"
 
@@ -57,6 +61,10 @@ class MetricSpec:
         """
         Extract value from nested dict using path.
         """
+        if self.path is None:
+            # already flat dict (e.g., aggregated data)
+            return data.get(self.key)
+
         if self.compute_fn:
             return self.compute_fn(data)
 
