@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 # =========================================================
@@ -48,6 +48,11 @@ class MetricSpec:
     # -----------------------------------------------------
     is_timeseries: bool = False
     is_required: bool = False
+
+    # -----------------------------------------------------
+    # Aggregation (NEW)
+    # -----------------------------------------------------
+    aggregates: list[str] = field(default_factory=list)
 
     # -----------------------------------------------------
     # Optional derived metric (NOT used yet)

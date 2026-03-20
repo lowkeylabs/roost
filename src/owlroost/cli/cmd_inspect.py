@@ -135,7 +135,7 @@ def cmd_inspect(
             if not trial_rows:
                 continue
 
-            summary = aggregate_rows(trial_rows)
+            summary = aggregate_rows(trial_rows, TRIAL_VIEW)
 
             # include run index for display
             summary["run_id"] = i
@@ -150,63 +150,6 @@ def cmd_inspect(
         console.print("\n[bold]Runs (latest experiment)[/bold]\n")
 
         render_run(console, run_rows, RUN_VIEW)
-
-        return
-
-        # -----------------------------------------
-        # Resolve run index (support negative)
-        # -----------------------------------------
-        if id < 0:
-            run_index = num_runs + id
-        else:
-            run_index = id
-
-        if run_index < 0 or run_index >= num_runs:
-            console.print(f"[red]Invalid run id[/red] (valid range: {-num_runs} to {num_runs-1})")
-            return
-
-        run = exp.runs[run_index]
-
-        # -----------------------------------------
-        # Build trial rows
-        # -----------------------------------------
-        rows = []
-
-        for trial in run.trials:
-            row = build_trial_row(trial.path, TRIAL_VIEW)
-            if row:
-                rows.append(row)
-
-        if not rows:
-            console.print("[yellow]No metrics found[/yellow]")
-            return
-
-        # -----------------------------------------
-        # Apply filters / sort / top (optional but powerful)
-        # -----------------------------------------
-        try:
-            rows = apply_filters(rows, TRIAL_VIEW, filters)
-        except ValueError as e:
-            console.print(f"[red]{e}[/red]")
-            return
-
-        try:
-            rows = apply_sort(rows, TRIAL_VIEW, sort_key)
-        except ValueError as e:
-            console.print(f"[red]{e}[/red]")
-            return
-
-        rows = apply_top(rows, top_n)
-
-        # -----------------------------------------
-        # Aggregate
-        # -----------------------------------------
-        summary = aggregate_rows(rows)
-
-        console.print(f"\n[bold]Run {run_index}[/bold]")
-        console.print(f"[dim]{run.path}[/dim]\n")
-
-        render_trial(console, summary, RUN_VIEW)
 
         return
 

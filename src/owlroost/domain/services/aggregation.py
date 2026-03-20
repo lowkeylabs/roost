@@ -1,65 +1,45 @@
-from __future__ import annotations
+from owlroost.domain.metrics.metric_spec import MetricSpec
+from owlroost.domain.services.aggregation_registry import AGG_FUNCS
 
-import statistics
 
-
-def aggregate_rows(rows: list[dict]) -> dict:
-    """
-    Generic aggregation over trial rows.
-    Returns a flat dict of aggregated values.
-    """
-
+def aggregate_rows(rows: list[dict], specs: list[MetricSpec]) -> dict:
     if not rows:
         return {}
 
-    total = len(rows)
+    summary = {}
 
-    # -----------------------------
-    # Status
-    # -----------------------------
-    solved = [r for r in rows if r.get("status") == "solved"]
-    failed = [r for r in rows if r.get("status") == "failed"]
+    # -------------------------------------------------
+    # MetricSpec-driven aggregation
+    # -------------------------------------------------
+    for spec in specs:
+        if not spec.aggregates:
+            continue
 
-    success_rate = len(solved) / total if total else 0.0
-    fail_rate = len(failed) / total if total else 0.0
+        values = [r.get(spec.key) for r in rows if isinstance(r.get(spec.key), (int | float))]
 
-    # -----------------------------
-    # Numeric helpers
-    # -----------------------------
-    def numeric_values(key, subset=None):
-        subset = subset or rows
-        return [r[key] for r in subset if isinstance(r.get(key), (int | float))]
+        for agg in spec.aggregates:
+            func = AGG_FUNCS.get(agg)
+            if not func:
+                continue
 
-    # -----------------------------
-    # Bequest
-    # -----------------------------
-    bequests = numeric_values("bequest", solved)
+            summary[f"{spec.key}_{agg}"] = func(values)
 
-    avg_bequest = statistics.mean(bequests) if bequests else None
-    med_bequest = statistics.median(bequests) if bequests else None
+    # -------------------------------------------------
+    # Core counts
+    # -------------------------------------------------
+    trial_count = len(rows)
+    summary["trial_count"] = trial_count
 
-    # -----------------------------
-    # Time
-    # -----------------------------
-    times = numeric_values("elapsed")
+    solved = sum(1 for r in rows if r.get("status") == "solved")
+    failed = sum(1 for r in rows if r.get("status") == "failed")
 
-    avg_time = statistics.mean(times) if times else None
+    summary["solved_count"] = solved
+    summary["failed_count"] = failed
 
-    # -----------------------------
-    # Risk distribution
-    # -----------------------------
-    risk_counts = {}
-    for r in solved:
-        risk = r.get("risk")
-        if risk:
-            risk_counts[risk] = risk_counts.get(risk, 0) + 1
+    # -------------------------------------------------
+    # Percent metrics
+    # -------------------------------------------------
+    summary["success_pct"] = solved / trial_count if trial_count else 0.0
+    summary["fail_pct"] = failed / trial_count if trial_count else 0.0
 
-    return {
-        "trial_count": total,
-        "success_rate": success_rate,
-        "fail_rate": fail_rate,
-        "avg_bequest": avg_bequest,
-        "median_bequest": med_bequest,
-        "avg_time": avg_time,
-        "risk_counts": risk_counts,
-    }
+    return summary
