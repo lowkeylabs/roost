@@ -1,5 +1,5 @@
-import statistics
 import math
+import statistics
 
 
 def mean(values):
@@ -34,8 +34,14 @@ def percentile(values, p):
     return values[f] + (values[c] - values[f]) * (k - f)
 
 
+def len_(values):
+    return len(values) if values else 0
+
+
 AGG_FUNCS = {
     "mean": mean,
+    "pct": mean,
+    "cnt": len_,
     "median": median,
     "sum": sum_,
     "min": min_,
@@ -43,4 +49,3 @@ AGG_FUNCS = {
     "p10": lambda v: percentile(v, 10),
     "p90": lambda v: percentile(v, 90),
 }
-

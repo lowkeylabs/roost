@@ -1,45 +1,74 @@
-from owlroost.domain.metrics.metric_spec import MetricSpec
+from owlroost.domain.metrics.view_registry import ResolvedMetric
 from owlroost.domain.services.aggregation_registry import AGG_FUNCS
 
 
-def aggregate_rows(rows: list[dict], specs: list[MetricSpec]) -> dict:
+def aggregate_rows(rows: list[dict], resolved_metrics: list[ResolvedMetric]) -> dict:
     if not rows:
         return {}
 
     summary = {}
 
-    # -------------------------------------------------
-    # MetricSpec-driven aggregation
-    # -------------------------------------------------
-    for spec in specs:
-        if not spec.aggregates:
+    # ----------------------------------------
+    # Aggregations (delegated to registry)
+    # ----------------------------------------
+    for rm in resolved_metrics:
+        if not rm.aggregate:
             continue
 
-        values = [r.get(spec.key) for r in rows if isinstance(r.get(spec.key), (int | float))]
+        agg_name = rm.aggregate
 
-        for agg in spec.aggregates:
-            func = AGG_FUNCS.get(agg)
-            if not func:
-                continue
+        if agg_name not in AGG_FUNCS:
+            raise ValueError(f"Unknown aggregation '{agg_name}' for metric '{rm.key}'")
 
-            summary[f"{spec.key}_{agg}"] = func(values)
+        func = AGG_FUNCS[agg_name]
 
-    # -------------------------------------------------
-    # Core counts
-    # -------------------------------------------------
-    trial_count = len(rows)
-    summary["trial_count"] = trial_count
+        values = [r.get(rm.key) for r in rows if r.get(rm.key) is not None]
 
-    solved = sum(1 for r in rows if r.get("status") == "solved")
-    failed = sum(1 for r in rows if r.get("status") == "failed")
+        if not values:
+            summary[f"{rm.key}_{agg_name}"] = None
+            continue
 
-    summary["solved_count"] = solved
-    summary["failed_count"] = failed
+        try:
+            summary[f"{rm.key}_{agg_name}"] = func(values)
+        except Exception as e:
+            raise RuntimeError(
+                f"Aggregation '{agg_name}' failed for '{rm.key}' with values={values}"
+            ) from e
 
-    # -------------------------------------------------
-    # Percent metrics
-    # -------------------------------------------------
-    summary["success_pct"] = solved / trial_count if trial_count else 0.0
-    summary["fail_pct"] = failed / trial_count if trial_count else 0.0
+    # ----------------------------------------
+    # INVARIANT PROPAGATION (from metric specs)
+    # ----------------------------------------
+    for rm in resolved_metrics:
+        if not getattr(rm.spec, "is_invariant", False):
+            continue
+
+        key = rm.key
+        values = {r.get(key) for r in rows}
+
+        if not values:
+            summary[key] = None
+            continue
+
+        if len(values) > 1:
+            raise ValueError(f"Invariant metric '{key}' has multiple values: {values}")
+
+        summary[key] = next(iter(values))
+
+    # ----------------------------------------
+    # CONTEXT PROPAGATION (auto-detect invariants)
+    # ----------------------------------------
+    known_keys = {rm.key for rm in resolved_metrics}
+
+    for key in rows[0].keys():
+        if key in known_keys:
+            continue  # already handled
+
+        values = {r.get(key) for r in rows}
+
+        if len(values) == 1:
+            # safe invariant → propagate
+            summary[key] = next(iter(values))
+
+        # else: ignore (non-invariant context like per-trial values)
 
     return summary

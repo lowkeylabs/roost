@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import yaml
+
 from ..models.results import Experiment, Run, Trial
 
 # =========================================================
@@ -42,7 +44,28 @@ def discover_experiments(results_dir) -> list[Experiment]:
                                 )
                             )
 
-                    runs.append(Run(run_dir.name, run_dir, trials))
+                    # load Hydra meta for this run (if available)
+                    meta = load_hydra_meta(run_dir)
+
+                    job_id = meta.get("job_id")
+                    run_id = None
+
+                    if job_id and job_id.startswith("run_"):
+                        try:
+                            run_id = int(job_id.split("_")[1])
+                        except Exception:
+                            pass
+
+                    runs.append(
+                        Run(
+                            name=run_dir.name,
+                            path=run_dir,
+                            trials=trials,
+                            job_id=job_id,
+                            run_id=run_id,
+                            master_seed=meta.get("master_seed"),
+                        )
+                    )
 
                 experiments.append(
                     Experiment(
@@ -93,3 +116,15 @@ def extract_trial_data(trial_dir: Path) -> dict | None:
 
     except Exception:
         return None
+
+
+def load_hydra_meta(run_dir: Path) -> dict:
+    meta_file = run_dir / "hydra_meta.yaml"
+    if not meta_file.exists():
+        return {}
+
+    try:
+        with meta_file.open() as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}

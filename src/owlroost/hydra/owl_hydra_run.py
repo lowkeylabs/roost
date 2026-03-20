@@ -175,9 +175,10 @@ def orchestrate_trials(
 
                             except Exception as e:
                                 logger.exception(
-                                    "{} - Trial {:04d} crashed",
+                                    "{} - Trial {:04d} crashed: {}",
                                     job_id,
                                     tid,
+                                    e,
                                 )
 
                                 r = {
@@ -228,7 +229,7 @@ def orchestrate_trials(
         logger.warning(
             "{} - Failed trial IDs: {}",
             job_id,
-            [r["trial_id"] for r in failed],
+            [r["trial_id"] for r in sorted(failed, key=lambda x: x["trial_id"])],
         )
 
     return results

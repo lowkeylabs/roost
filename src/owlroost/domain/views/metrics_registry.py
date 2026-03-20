@@ -15,4 +15,3 @@ register_view(
         "bequest_median",
     ],
 )
-

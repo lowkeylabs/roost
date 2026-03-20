@@ -1,4 +1,4 @@
-# src/owlroost/domain/models/audit.py
+# src/owlroost/domain/models/results.py
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +17,9 @@ class Run:
     name: str
     path: Path
     trials: list[Trial]
+    job_id: str | None = None
+    run_id: int | None = None
+    master_seed: int | None = None
 
 
 @dataclass
@@ -27,3 +30,7 @@ class Experiment:
     time: str
     path: Path
     runs: list[Run]
+
+    @property
+    def experiment_id(self) -> str:
+        return f"{self.date}_{self.time}"

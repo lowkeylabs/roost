@@ -48,6 +48,7 @@ class MetricSpec:
     # -----------------------------------------------------
     is_timeseries: bool = False
     is_required: bool = False
+    is_invariant: bool = False  # does not change across trials (e.g. problem_id)
 
     # -----------------------------------------------------
     # Aggregation (NEW)
@@ -62,16 +63,12 @@ class MetricSpec:
     # -----------------------------------------------------
     # Extraction
     # -----------------------------------------------------
-    def extract(self, data: dict) -> Any:
-        """
-        Extract value from nested dict using path.
-        """
-        if self.path is None:
-            # already flat dict (e.g., aggregated data)
-            return data.get(self.key)
-
+    def extract(self, data: dict):
         if self.compute_fn:
             return self.compute_fn(data)
+
+        if self.path is None:
+            return data.get(self.key)
 
         current = data
         for part in self.path.split("."):

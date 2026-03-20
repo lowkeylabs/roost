@@ -44,6 +44,17 @@ def classify_run_status_from_plan(plan) -> dict:
 
 
 # =========================================================
+# RUN IDENTITY
+# =========================================================
+
+
+def identity_from_plan(plan) -> dict:
+    return {
+        "plan_name": plan._name,
+    }
+
+
+# =========================================================
 # METRICS
 # =========================================================
 def financials_from_plan(plan, N=None) -> dict:
@@ -57,14 +68,9 @@ def financials_from_plan(plan, N=None) -> dict:
     start_year = int(plan.year_n[0])
     final_year = int(plan.year_n[-1])
 
-    identity = {
-        "plan_name": plan._name,
-        "run_timestamp": normalize_timestamp(plan._timestamp),
-        "plan_start_date": str(plan.startDate),
-        "year_start": start_year,
-        "year_final_bequest": final_year,
-        "num_decision_variables": int(plan.A.nvars),
-        "num_constraints": int(plan.A.ncons),
+    horizon = {
+        "start_year": int(start_year),
+        "final_year": int(final_year),
     }
 
     inflation = {
@@ -148,7 +154,7 @@ def financials_from_plan(plan, N=None) -> dict:
     }
 
     return {
-        "identity": identity,
+        "horizon": horizon,
         "inflation": inflation,
         "spending": spending,
         "roth": roth,
@@ -500,6 +506,8 @@ def write_metrics_json(plan, metrics_path: Path, timing: dict) -> Path:
 
     schema = "roost.metrics.v2"
 
+    identity = identity_from_plan(plan)
+
     run_status = classify_run_status_from_plan(plan)
     risk = risk_from_plan(plan)
 
@@ -514,6 +522,7 @@ def write_metrics_json(plan, metrics_path: Path, timing: dict) -> Path:
 
     output_json = {
         "schema": schema,
+        "identity": identity,
         "run_status": run_status,
         "timing": timing,
         "solver": solver,

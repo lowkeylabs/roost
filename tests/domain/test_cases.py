@@ -33,7 +33,7 @@ def write_case(tmp_path: Path, names: list[str]) -> Path:
     ss_amounts = ", ".join("0" for _ in names)
     ss_ages = ", ".join("67.0" for _ in names)
 
-    generic_block = ", ".join("[[60,40,0,0]]" for _ in names)
+    generic_block = ", ".join("[[60,40,0,0],[60,40,0,0]]" for _ in names)
 
     content = f"""
 case_name = "{'+'.join(names)}"
