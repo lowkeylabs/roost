@@ -4,13 +4,14 @@ import sys
 from pathlib import Path
 
 import click
+from loguru import logger
 from rich.console import Console
 
 from owlroost.domain.metrics import load_metrics
 from owlroost.domain.metrics.view_registry import METRIC_VIEW_REGISTRY, get_view
 from owlroost.domain.services.discovery import discover_experiments
 from owlroost.domain.services.rows import build_run_rows, build_trial_rows
-from owlroost.domain.views.inspect import render_rows
+from owlroost.domain.views.inspect import render_table
 
 # Ensure metrics + views are registered
 load_metrics()
@@ -215,7 +216,10 @@ def list_views_for_context(display_level: str, display_mode: str, row: dict | No
 @click.option("--top", "top_n", type=int)
 @click.option("--filter", "filters", multiple=True)
 @click.option("--views", "list_views", is_flag=True, help="List available views")
-def cmd_inspect(args, run_override, view_name, sort_key, top_n, filters, list_views):
+@click.option(
+    "--pivot", is_flag=True, default=None, help="Render metrics as rows and items as columns"
+)
+def cmd_inspect(args, run_override, view_name, sort_key, top_n, filters, list_views, pivot):
     console = Console()
 
     # ---------------------------------------------------------
@@ -336,12 +340,16 @@ def cmd_inspect(args, run_override, view_name, sort_key, top_n, filters, list_vi
     # Resolve view
     # ---------------------------------------------------------
     try:
-        selected_view = get_view(display_level, view_name)
+        selected_view, layout = get_view(display_level, view_name)
     except KeyError:
         available = ", ".join(sorted(METRIC_VIEW_REGISTRY[display_level].keys()))
         console.print(f"[red]Unknown view '{view_name}'[/red]")
         console.print(f"[dim]Available: {available}[/dim]")
         return
+
+    logger.debug(f"pivot: {pivot}")
+    if pivot:
+        layout = "pivot"
 
     # ---------------------------------------------------------
     # Apply filters/sort/top
@@ -355,7 +363,10 @@ def cmd_inspect(args, run_override, view_name, sort_key, top_n, filters, list_vi
     # ---------------------------------------------------------
     # Header
     # ---------------------------------------------------------
-    header.append(f"[dim]view: {display_level}:{view_name}[/dim]")
+    if pivot:
+        header.append(f"[dim]View: {display_level}:{view_name} PIVOT[/dim]")
+    else:
+        header.append(f"[dim]View: {display_level}:{view_name}[/dim]")
 
     # ---------------------------------------------------------
     # Render
@@ -365,4 +376,4 @@ def cmd_inspect(args, run_override, view_name, sort_key, top_n, filters, list_vi
         console.print(line)
     console.print()
 
-    render_rows(console, final_rows, selected_view)
+    render_table(console, final_rows, selected_view, layout=layout)

@@ -21,7 +21,7 @@ def aggregate_rows(rows: list[dict]) -> dict:
             continue
 
         # Only valid (non-null) values
-        values = [r.get(key) for r in rows if r.get(key) is not None]
+        values = [v for r in rows if (v := r.get(key)) is not None and isinstance(v, (int | float))]
 
         for agg_name in spec.aggregates:
             if agg_name not in AGG_FUNCS:
@@ -54,7 +54,7 @@ def aggregate_rows(rows: list[dict]) -> dict:
         if not getattr(spec, "is_invariant", False):
             continue
 
-        values = {r.get(key) for r in rows}
+        values = {v for r in rows if (v := r.get(key)) is not None and _is_hashable(v)}
 
         if not values:
             summary[key] = None
@@ -73,9 +73,22 @@ def aggregate_rows(rows: list[dict]) -> dict:
         if key in summary:
             continue  # already handled
 
-        values = {r.get(key) for r in rows}
+        values = {v for r in rows if (v := r.get(key)) is not None and _is_hashable(v)}
 
         if len(values) == 1:
             summary[key] = next(iter(values))
 
     return summary
+
+
+# =====================================================
+# Helpers
+# =====================================================
+
+
+def _is_hashable(v):
+    try:
+        hash(v)
+        return True
+    except TypeError:
+        return False

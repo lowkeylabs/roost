@@ -2,6 +2,11 @@ def build_context(exp, run, trial) -> dict:
     """
     Extract context from Experiment, Run, Trial objects.
     No knowledge of MetricSpec here.
+
+    Extended to include:
+      - experiment-level common overrides
+      - run-specific overrides
+      - flattened override keys for filtering/pivoting
     """
 
     # ----------------------------
@@ -15,6 +20,13 @@ def build_context(exp, run, trial) -> dict:
         "experiment_time": exp.time,
     }
 
+    # Add experiment-level overrides
+    exp_overrides = getattr(exp, "common_overrides", {}) or {}
+    exp_ctx["experiment_overrides"] = exp_overrides
+
+    # Flatten experiment overrides
+    exp_ctx.update(_flatten("exp_override", exp_overrides))
+
     # ----------------------------
     # Run
     # ----------------------------
@@ -24,6 +36,16 @@ def build_context(exp, run, trial) -> dict:
         "job_name": getattr(run, "job_id", None),
         "master_seed": getattr(run, "master_seed", None),
     }
+
+    # Add run-level overrides
+    run_common = getattr(run, "common_overrides", {}) or {}
+    run_specific = getattr(run, "run_overrides", {}) or {}
+
+    run_ctx["run_common_overrides"] = run_common
+    run_ctx["run_specific_overrides"] = run_specific
+
+    # Flatten run-specific overrides (most useful for comparison)
+    run_ctx.update(_flatten("run_override", run_specific))
 
     # ----------------------------
     # Trial
@@ -52,6 +74,25 @@ def enrich_row(row: dict | None, exp, run, trial) -> dict | None:
             row[k] = v
 
     return row
+
+
+# =========================================================
+# Helpers
+# =========================================================
+
+
+def _flatten(prefix: str, d: dict) -> dict:
+    """
+    Flatten a dict into dot-prefixed keys.
+
+    Example:
+        {"rates.method": "bootstrap"} →
+        {"exp_override.rates.method": "bootstrap"}
+    """
+    if not d:
+        return {}
+
+    return {f"{prefix}.{k}": v for k, v in d.items()}
 
 
 def _safe_int(x):

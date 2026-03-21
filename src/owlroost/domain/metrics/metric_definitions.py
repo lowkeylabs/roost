@@ -32,6 +32,7 @@ register_metric(
     )
 )
 
+
 # =========================================================
 # STATUS / CORE
 # =========================================================
@@ -81,7 +82,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="failure_reason",
-        path="run_status.failure_reason",
+        path="run_status.failure_category",
         label="Failure Reason",
         dtype=str,
     )
@@ -273,6 +274,16 @@ register_metric(
     )
 )
 
+register_metric(
+    MetricSpec(
+        key="scenario_type",
+        path="risk.scenario.classification.scenario_type",
+        label="Risk scenario",
+        dtype=str,
+        align="left",
+    )
+)
+
 
 # =========================================================
 # COMPLEXITY (SECONDARY — DEBUGGING)
@@ -295,5 +306,28 @@ register_metric(
         label="# Constraints",
         fmt="int",
         aggregates=["mean"],
+    )
+)
+
+# =========================================================
+# OVERRIDES
+# =========================================================
+
+
+def _format_overrides(overrides: dict | None) -> str:
+    if not overrides:
+        return ""
+
+    lines = [f"{k}={v}" for k, v in sorted(overrides.items())]
+    return "\n".join(lines)
+
+
+register_metric(
+    MetricSpec(
+        key="run_overrides_display",
+        label="Run-specific overrides",
+        align="left",
+        compute_fn=lambda d: _format_overrides(d.get("run_specific_overrides")),
+        dtype=str,
     )
 )

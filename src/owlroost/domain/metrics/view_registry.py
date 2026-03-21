@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from .metric_registry import METRIC_REGISTRY, get_metric
 from .metric_spec import MetricSpec
 
-METRIC_VIEW_REGISTRY: dict[str, dict[str, list[str]]] = {
+METRIC_VIEW_REGISTRY: dict[str, dict[str, dict]] = {
     "trial": {},
     "run": {},
     "experiments": {},
@@ -44,12 +44,17 @@ class ResolvedMetric:
         return self.spec.dtype
 
 
-def register_view(level: str, name: str, metric_keys: list[str]):
-    METRIC_VIEW_REGISTRY[level][name] = metric_keys
+def register_view(level: str, name: str, metric_keys: list[str], layout: str = "table"):
+    METRIC_VIEW_REGISTRY[level][name] = {
+        "metrics": metric_keys,
+        "layout": layout,
+    }
 
 
 def get_view(level: str, name: str):
-    keys = METRIC_VIEW_REGISTRY[level][name]
+    view_def = METRIC_VIEW_REGISTRY[level][name]
+    keys = view_def["metrics"]
+    layout = view_def.get("layout", "table")
 
     resolved = []
     missing = []
@@ -81,7 +86,7 @@ def get_view(level: str, name: str):
     if missing:
         raise KeyError(f"View '{level}:{name}' references unknown metrics: {missing}")
 
-    return resolved
+    return resolved, layout
 
 
 def list_views(level: str):

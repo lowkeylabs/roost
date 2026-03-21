@@ -13,6 +13,7 @@ register_view(
         "bequest",
         "spending",
         "risk",
+        "scenario_type",
     ],
 )
 
@@ -31,9 +32,8 @@ register_view(
         ("trial", "cnt"),
         ("success", "pct"),
         ("fail", "pct"),
-        ("bequest", "mean"),
         ("bequest", "median"),
-        ("elapsed", "mean"),
+        "run_overrides_display",
     ],
 )
 
@@ -59,6 +59,7 @@ register_view(
         "bequest",
         "elapsed",
     ],
+    layout="pivot",
 )
 
 
@@ -79,6 +80,7 @@ register_view(
         "risk",
         "elapsed",
     ],
+    layout="pivot",
 )
 
 

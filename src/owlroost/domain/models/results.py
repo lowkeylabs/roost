@@ -1,6 +1,6 @@
 # src/owlroost/domain/models/results.py
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -21,6 +21,17 @@ class Run:
     run_id: int | None = None
     master_seed: int | None = None
 
+    # ----------------------------
+    # NEW: Hydra + override info
+    # ----------------------------
+    meta: dict = field(default_factory=dict)
+
+    # Overrides common across all runs in experiment
+    common_overrides: dict = field(default_factory=dict)
+
+    # Overrides unique to this run
+    run_overrides: dict = field(default_factory=dict)
+
 
 @dataclass
 class Experiment:
@@ -30,6 +41,11 @@ class Experiment:
     time: str
     path: Path
     runs: list[Run]
+
+    # ----------------------------
+    # NEW: shared overrides across runs
+    # ----------------------------
+    common_overrides: dict = field(default_factory=dict)
 
     @property
     def experiment_id(self) -> str:
