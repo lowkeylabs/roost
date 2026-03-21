@@ -219,7 +219,15 @@ def list_views_for_context(display_level: str, display_mode: str, row: dict | No
 @click.option(
     "--pivot", is_flag=True, default=None, help="Render metrics as rows and items as columns"
 )
-def cmd_inspect(args, run_override, view_name, sort_key, top_n, filters, list_views, pivot):
+@click.option(
+    "--explain",
+    is_flag=True,
+    default=None,
+    help="Include explanations for metrics",
+)
+def cmd_inspect(
+    args, run_override, view_name, sort_key, top_n, filters, list_views, pivot, explain
+):
     console = Console()
 
     # ---------------------------------------------------------
@@ -340,7 +348,7 @@ def cmd_inspect(args, run_override, view_name, sort_key, top_n, filters, list_vi
     # Resolve view
     # ---------------------------------------------------------
     try:
-        selected_view, layout = get_view(display_level, view_name)
+        selected_view, layout, view_explain = get_view(display_level, view_name)
     except KeyError:
         available = ", ".join(sorted(METRIC_VIEW_REGISTRY[display_level].keys()))
         console.print(f"[red]Unknown view '{view_name}'[/red]")
@@ -350,6 +358,11 @@ def cmd_inspect(args, run_override, view_name, sort_key, top_n, filters, list_vi
     logger.debug(f"pivot: {pivot}")
     if pivot:
         layout = "pivot"
+
+    if explain is None:
+        explain_flag = view_explain
+    else:
+        explain_flag = explain
 
     # ---------------------------------------------------------
     # Apply filters/sort/top
@@ -376,4 +389,4 @@ def cmd_inspect(args, run_override, view_name, sort_key, top_n, filters, list_vi
         console.print(line)
     console.print()
 
-    render_table(console, final_rows, selected_view, layout=layout)
+    render_table(console, final_rows, selected_view, layout=layout, explain=explain_flag)

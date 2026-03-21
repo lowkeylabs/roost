@@ -44,10 +44,13 @@ class ResolvedMetric:
         return self.spec.dtype
 
 
-def register_view(level: str, name: str, metric_keys: list[str], layout: str = "table"):
+def register_view(
+    level: str, name: str, metric_keys: list[str], layout: str = "table", explain: bool = False
+):
     METRIC_VIEW_REGISTRY[level][name] = {
         "metrics": metric_keys,
         "layout": layout,
+        "explain": explain,
     }
 
 
@@ -55,6 +58,7 @@ def get_view(level: str, name: str):
     view_def = METRIC_VIEW_REGISTRY[level][name]
     keys = view_def["metrics"]
     layout = view_def.get("layout", "table")
+    explain = view_def.get("explain", False)
 
     resolved = []
     missing = []
@@ -86,7 +90,7 @@ def get_view(level: str, name: str):
     if missing:
         raise KeyError(f"View '{level}:{name}' references unknown metrics: {missing}")
 
-    return resolved, layout
+    return resolved, layout, explain
 
 
 def list_views(level: str):
