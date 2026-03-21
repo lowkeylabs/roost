@@ -60,10 +60,10 @@ register_metric(
     MetricSpec(
         key="success",
         label="Success",
-        compute_fn=lambda d: 1 if d.get("run_status", {}).get("status") == "solved" else 0,
+        compute_fn=lambda d: 1 if d.get("status") == "solved" else 0,
         dtype=int,
         fmt="percent",
-        aggregates=["pct"],
+        aggregates=["cnt", "pct"],
     )
 )
 
@@ -71,10 +71,10 @@ register_metric(
     MetricSpec(
         key="fail",
         label="Fail",
-        compute_fn=lambda d: 0 if d.get("run_status", {}).get("status") == "solved" else 1,
+        compute_fn=lambda d: 0 if d.get("status") == "solved" else 1,
         dtype=int,
         fmt="percent",
-        aggregates=["pct"],
+        aggregates=["cnt", "pct"],
     )
 )
 
@@ -92,7 +92,7 @@ register_metric(
         key="is_failed",
         label="Failed?",
         dtype=bool,
-        compute_fn=lambda d: d.get("run_status", {}).get("status") == "failed",
+        compute_fn=lambda d: d.get("status") == "failed",
     )
 )
 
@@ -101,7 +101,7 @@ register_metric(
         key="is_solved",
         label="Solved?",
         dtype=bool,
-        compute_fn=lambda d: d.get("run_status", {}).get("status") == "solved",
+        compute_fn=lambda d: d.get("status") == "solved",
     )
 )
 

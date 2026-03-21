@@ -6,12 +6,10 @@ import click
 from rich.console import Console
 
 from owlroost.domain.metrics import load_metrics
-from owlroost.domain.metrics.view_registry import get_view
-from owlroost.domain.services.aggregation import aggregate_rows
-from owlroost.domain.services.context import enrich_row
+from owlroost.domain.metrics.view_registry import METRIC_VIEW_REGISTRY, get_view
 from owlroost.domain.services.discovery import discover_experiments
-from owlroost.domain.services.metrics import build_trial_row
-from owlroost.domain.views.inspect import render_run, render_trial
+from owlroost.domain.services.rows import build_run_rows, build_trial_rows
+from owlroost.domain.views.inspect import render_rows
 
 # Ensure metrics + views are registered
 load_metrics()
@@ -24,14 +22,11 @@ RESULTS_DIR = Path("results")
 # =========================================================
 
 
-def base_metric_specs(resolved_view):
-    seen = {}
-    for rm in resolved_view:
-        seen[rm.spec.key] = rm.spec
-    return list(seen.values())
+def view_keys(view):
+    return {rm.key for rm in view}
 
 
-def apply_sort(rows: list[dict], specs: list, sort_key: str):
+def apply_sort(rows, view, sort_key):
     if not sort_key:
         return rows
 
@@ -44,10 +39,10 @@ def apply_sort(rows: list[dict], specs: list, sort_key: str):
     elif sort_key.startswith("-"):
         key = sort_key[1:]
 
-    valid_keys = {rm.key for rm in specs}
+    valid_keys = view_keys(view)
+
     if key not in valid_keys:
-        valid = ", ".join(sorted(valid_keys))
-        raise ValueError(f"Invalid sort key '{key}'. Valid: {valid}")
+        raise ValueError(f"Invalid sort key '{key}'. Valid: {', '.join(sorted(valid_keys))}")
 
     def safe_value(row):
         v = row.get(key)
@@ -58,7 +53,7 @@ def apply_sort(rows: list[dict], specs: list, sort_key: str):
     return sorted(rows, key=safe_value, reverse=(direction == -1))
 
 
-def parse_filter(expr: str):
+def parse_filter(expr):
     for op in ["=", ">", "<"]:
         if op in expr:
             key, val = expr.split(op, 1)
@@ -66,26 +61,25 @@ def parse_filter(expr: str):
     raise ValueError(f"Invalid filter '{expr}'")
 
 
-def coerce_value(val: str):
+def coerce_value(val):
     try:
         return float(val)
     except ValueError:
         return val.lower()
 
 
-def apply_filters(rows: list[dict], specs: list, filters: tuple[str]):
+def apply_filters(rows, view, filters):
     if not filters:
         return rows
 
-    valid_keys = {rm.key for rm in specs}
+    valid_keys = view_keys(view)
 
     parsed = []
     for f in filters:
         key, op, val = parse_filter(f)
 
         if key not in valid_keys:
-            valid = ", ".join(sorted(valid_keys))
-            raise ValueError(f"Invalid filter key '{key}'. Valid: {valid}")
+            raise ValueError(f"Invalid filter key '{key}'. Valid: {', '.join(sorted(valid_keys))}")
 
         parsed.append((key, op, coerce_value(val)))
 
@@ -98,39 +92,30 @@ def apply_filters(rows: list[dict], specs: list, filters: tuple[str]):
 
             rv_cmp = rv.lower() if isinstance(rv, str) else rv
 
-            if op == "=":
-                if rv_cmp != val:
-                    return False
-            elif op == ">":
-                if not isinstance(rv_cmp, (int | float)) or rv_cmp <= val:
-                    return False
-            elif op == "<":
-                if not isinstance(rv_cmp, (int | float)) or rv_cmp >= val:
-                    return False
+            if op == "=" and rv_cmp != val:
+                return False
+            if op == ">" and (not isinstance(rv_cmp, (int | float)) or rv_cmp <= val):
+                return False
+            if op == "<" and (not isinstance(rv_cmp, (int | float)) or rv_cmp >= val):
+                return False
 
         return True
 
     return [r for r in rows if match(r)]
 
 
-def apply_top(rows: list[dict], top_n: int | None):
+def apply_top(rows, top_n):
     if top_n is None:
         return rows
-    if top_n <= 0:
-        return []
-    return rows[:top_n]
+    return rows[:top_n] if top_n > 0 else []
 
 
 # =========================================================
-# Argument parsing (NEW CORE)
+# Argument parsing
 # =========================================================
 
 
 def parse_args(args):
-    """
-    Returns: (level, run_id, trial_id)
-    """
-
     tokens = list(args)
 
     def is_int(x):
@@ -143,15 +128,12 @@ def parse_args(args):
     if not tokens:
         return level, run_id, trial_id
 
-    # inspect 3
     if len(tokens) == 1 and is_int(tokens[0]):
         return "run", int(tokens[0]), None
 
-    # inspect 3 4
     if len(tokens) == 2 and is_int(tokens[0]) and is_int(tokens[1]):
         return "trial", int(tokens[0]), int(tokens[1])
 
-    # inspect run 3 [4]
     if tokens[0] == "run":
         if len(tokens) > 1 and is_int(tokens[1]):
             run_id = int(tokens[1])
@@ -159,13 +141,11 @@ def parse_args(args):
             return "trial", run_id, int(tokens[2])
         return "run", run_id, None
 
-    # inspect trial 4
     if tokens[0] == "trial":
         if len(tokens) > 1 and is_int(tokens[1]):
             return "trial", None, int(tokens[1])
         return "trial", None, None
 
-    # inspect 3 trial 4
     if is_int(tokens[0]):
         run_id = int(tokens[0])
         if len(tokens) > 2 and tokens[1] == "trial" and is_int(tokens[2]):
@@ -187,16 +167,12 @@ def parse_args(args):
 @click.option("--sort", "sort_key", type=str)
 @click.option("--top", "top_n", type=int)
 @click.option("--filter", "filters", multiple=True)
-def cmd_inspect(
-    args,
-    run_override: int | None,
-    view_name: str,
-    sort_key: str | None,
-    top_n: int | None,
-    filters: list[str],
-):
+def cmd_inspect(args, run_override, view_name, sort_key, top_n, filters):
     console = Console()
 
+    # ---------------------------------------------------------
+    # Parse inputs
+    # ---------------------------------------------------------
     try:
         level, run_id, trial_id = parse_args(args)
     except ValueError as e:
@@ -216,147 +192,101 @@ def cmd_inspect(
         console.print("[yellow]No experiments found[/yellow]")
         return
 
-    trial_view = get_view("trial", view_name)
-    run_view = get_view("run", view_name)
-
-    # =========================================================
-    # BUILD GLOBAL RUN LIST
-    # =========================================================
-
-    run_rows = []
-
-    for exp_index, exp in enumerate(experiments):
-        for run_index, r in enumerate(exp.runs):
-            trial_rows = []
-
-            for trial in r.trials:
-                base = enrich_row({}, exp, r, trial)
-
-                row = build_trial_row(
-                    trial.path,
-                    base_metric_specs(run_view),
-                    base_row=base,
-                )
-                if row:
-                    trial_rows.append(row)
-
-            if not trial_rows:
-                continue
-
-            summary = aggregate_rows(trial_rows, run_view)
-
-            summary["_ref"] = {
-                "exp_index": exp_index,
-                "run_index": run_index,
-            }
-
-            run_rows.append(summary)
-
-    if not run_rows:
-        console.print("[yellow]No metrics found[/yellow]")
-        return
-
+    # ---------------------------------------------------------
+    # Resolve view (DISPLAY ONLY)
+    # ---------------------------------------------------------
     try:
-        run_rows = apply_filters(run_rows, run_view, filters)
-        run_rows = apply_sort(run_rows, run_view, sort_key)
-    except ValueError as e:
-        console.print(f"[red]{e}[/red]")
+        selected_view = get_view(level, view_name)
+    except KeyError:
+        available = ", ".join(sorted(METRIC_VIEW_REGISTRY[level].keys()))
+        console.print(f"[red]Unknown view '{view_name}'[/red]")
+        console.print(f"[dim]Available: {available}[/dim]")
         return
 
+    # ---------------------------------------------------------
+    # Build FULL run rows
+    # ---------------------------------------------------------
+    run_rows = build_run_rows(experiments)
+
+    run_rows = apply_filters(run_rows, selected_view, filters)
+    run_rows = apply_sort(run_rows, selected_view, sort_key)
     run_rows = apply_top(run_rows, top_n)
+
+    header = []
+    final_rows = None
 
     # =========================================================
     # RUN LIST
     # =========================================================
+    if level == "run" and run_id is None:
+        header = [
+            "[bold]Runs (all experiments)[/bold]",
+            f"[dim]view: run:{view_name}[/dim]",
+        ]
+        final_rows = run_rows
 
-    if run_id is None and level == "run":
-        console.print("\n[bold]Runs (all experiments)[/bold]")
-        console.print(f"[dim]view: run:{view_name}[/dim]\n")
-        render_run(console, run_rows, run_view)
-        return
+    else:
+        # =====================================================
+        # SELECT RUN
+        # =====================================================
+        if run_id is None:
+            run_id = len(run_rows) - 1
 
-    # =========================================================
-    # SELECT RUN
-    # =========================================================
+        if run_id < 0 or run_id >= len(run_rows):
+            console.print("[red]Invalid run id[/red]")
+            return
 
-    if run_id is None:
-        run_id = len(run_rows) - 1
+        selected = run_rows[run_id]
+        ref = selected["_ref"]
 
-    if run_id < 0 or run_id >= len(run_rows):
-        console.print("[red]Invalid run id[/red]")
-        return
+        exp = experiments[ref["exp_index"]]
+        run = exp.runs[ref["run_index"]]
 
-    selected = run_rows[run_id]
-    ref = selected["_ref"]
+        # -----------------------------------------------------
+        # Build FULL trial rows
+        # -----------------------------------------------------
+        rows = build_trial_rows(exp, run)
 
-    exp = experiments[ref["exp_index"]]
-    run = exp.runs[ref["run_index"]]
+        rows = apply_filters(rows, selected_view, filters)
+        rows = apply_sort(rows, selected_view, sort_key)
+        rows = apply_top(rows, top_n)
 
-    # =========================================================
-    # BUILD TRIAL ROWS
-    # =========================================================
+        # =====================================================
+        # TRIAL LIST
+        # =====================================================
+        if trial_id is None:
+            header = [
+                f"[bold cyan]TRIAL[/bold cyan] | [bold]{view_name}[/bold]",
+                f"[dim]Exp {ref['exp_index']} | Run {ref['run_index']}[/dim]",
+                f"[dim]{run.path}[/dim]",
+                f"[dim]view: {level}:{view_name}[/dim]",
+            ]
+            final_rows = rows
 
-    rows = []
+        # =====================================================
+        # SINGLE TRIAL
+        # =====================================================
+        else:
+            if trial_id < 0 or trial_id >= len(rows):
+                console.print("[red]Invalid trial id[/red]")
+                return
 
-    for trial in run.trials:
-        base = enrich_row({}, exp, run, trial)
+            trial = run.trials[trial_id]
+            row = rows[trial_id]
 
-        row = build_trial_row(
-            trial.path,
-            base_metric_specs(trial_view),
-            base_row=base,
-        )
-        if row:
-            rows.append(row)
+            header = [
+                f"[bold]Run {ref['run_index']} - Trial {trial_id}[/bold]",
+                f"[dim]{trial.path}[/dim]",
+                f"[dim]view: {level}:{view_name}[/dim]",
+            ]
+            final_rows = row
 
-    if not rows:
-        console.print("[yellow]No metrics found[/yellow]")
-        return
+    # ---------------------------------------------------------
+    # Render (single place)
+    # ---------------------------------------------------------
+    console.print()
+    for line in header:
+        console.print(line)
+    console.print()
 
-    try:
-        rows = apply_filters(rows, trial_view, filters)
-        rows = apply_sort(rows, trial_view, sort_key)
-    except ValueError as e:
-        console.print(f"[red]{e}[/red]")
-        return
-
-    rows = apply_top(rows, top_n)
-
-    # =========================================================
-    # TRIAL LIST
-    # =========================================================
-
-    if trial_id is None:
-        console.print(f"\n[bold cyan]TRIAL[/bold cyan] [dim]|[/dim] [bold]{view_name}[/bold]\n")
-        console.print(f"[dim]Exp {ref['exp_index']} | Run {ref['run_index']}[/dim]")
-        console.print(f"[dim]{run.path}[/dim]\n")
-
-        render_run(console, rows, trial_view)
-        return
-
-    # =========================================================
-    # SINGLE TRIAL
-    # =========================================================
-
-    if trial_id < 0 or trial_id >= len(run.trials):
-        console.print("[red]Invalid trial id[/red]")
-        return
-
-    trial = run.trials[trial_id]
-
-    base = enrich_row({}, exp, run, trial)
-
-    row = build_trial_row(
-        trial.path,
-        base_metric_specs(trial_view),
-        base_row=base,
-    )
-
-    if not row:
-        console.print("[red]No _metrics.json found[/red]")
-        return
-
-    console.print(f"\n[bold]Trial {trial_id} (Run {ref['run_index']})[/bold]")
-    console.print(f"[dim]{trial.path}[/dim]\n")
-
-    render_trial(console, row, trial_view)
+    render_rows(console, final_rows, selected_view)

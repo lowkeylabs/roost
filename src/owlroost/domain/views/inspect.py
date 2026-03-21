@@ -1,65 +1,49 @@
-from rich import box
 from rich.table import Table
 
 from owlroost.domain.formatting import format_value
 
 
-def get_row_value(row: dict, rm):
-    """
-    Resolve correct key based on aggregate.
-    """
-    if rm.aggregate:
-        return row.get(f"{rm.key}_{rm.aggregate}")
-    return row.get(rm.key)
+def render_rows(console, rows, view):
+    if rows is None:
+        console.print("[yellow]No data[/yellow]")
+        return
 
+    # Normalize single row
+    if isinstance(rows, dict):
+        rows = [rows]
 
-# =========================================================
-# Trial View
-# =========================================================
+    if not rows:
+        console.print("[yellow]No data[/yellow]")
+        return
 
+    table = Table()
 
-def render_trial(console, row: dict, specs):
-    table = Table(
-        box=box.SIMPLE,
-        show_header=True,
-        header_style="bold cyan",
-        show_edge=False,
-    )
-
-    table.add_column("Metric", style="cyan")
-    table.add_column("Value", justify="right")
-
-    for rm in specs:
-        val = get_row_value(row, rm)
-        table.add_row(rm.label, format_value(val, rm.fmt))
-
-    console.print(table)
-
-
-# =========================================================
-# Run View
-# =========================================================
-
-
-def render_run(console, rows: list[dict], specs):
-    table = Table(
-        box=box.SIMPLE,
-        show_header=True,
-        header_style="bold cyan",
-        show_edge=False,
-    )
-
+    # -----------------------------------------------------
+    # Columns
+    # -----------------------------------------------------
     table.add_column("ID", justify="right")
 
-    for rm in specs:
-        table.add_column(rm.label, justify=rm.align)
+    for rm in view:
+        label = rm.spec.label or rm.spec.key
+        table.add_column(label, justify=rm.spec.align or "right")
 
+    # -----------------------------------------------------
+    # Rows
+    # -----------------------------------------------------
     for i, row in enumerate(rows):
         values = [str(i)]
 
-        for rm in specs:
-            val = get_row_value(row, rm)
-            values.append(format_value(val, rm.fmt))
+        for rm in view:
+            lookup_key = rm.key
+
+            if getattr(rm, "aggregate", None):
+                agg_key = f"{rm.key}_{rm.aggregate}"
+                if agg_key in row:
+                    lookup_key = agg_key
+
+            val = row.get(lookup_key)
+            formatted = format_value(val, rm.spec.fmt)
+            values.append(formatted)
 
         table.add_row(*values)
 

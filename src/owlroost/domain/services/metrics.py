@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from owlroost.domain.metrics.metric_registry import METRIC_REGISTRY
 from owlroost.domain.metrics.metric_spec import MetricSpec
 
 
@@ -54,11 +55,17 @@ def extract_row(data: dict, specs: list[MetricSpec], base_row: dict | None = Non
 
 def build_trial_row(
     trial_path: Path,
-    specs: list[MetricSpec],
+    specs: list[MetricSpec] | None = None,
     base_row: dict | None = None,
 ) -> dict | None:
     data = load_metrics(trial_path)
     if not data:
         return None
+
+    # -------------------------------------------------
+    # FULL EXTRACTION SUPPORT (THIS IS THE FIX)
+    # -------------------------------------------------
+    if specs is None:
+        specs = list(METRIC_REGISTRY.values())
 
     return extract_row(data, specs, base_row=base_row)
