@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import click
@@ -156,6 +157,52 @@ def parse_args(args):
 
 
 # =========================================================
+# View helpers
+# =========================================================
+
+
+def list_views_for_level(level: str) -> list[str]:
+    return sorted(METRIC_VIEW_REGISTRY.get(level, {}).keys())
+
+
+def resolve_default_view(display_level: str, display_mode: str, row: dict | None) -> str:
+    if display_level == "run":
+        return "default"
+
+    if display_level == "trial":
+        if display_mode == "list":
+            return "default"
+
+        if display_mode == "detail":
+            status = (row or {}).get("status")
+            if status == "failed":
+                return "failures"
+            return "fragility"
+
+    return "default"
+
+
+def list_views_for_context(display_level: str, display_mode: str, row: dict | None):
+    all_views = list_views_for_level(display_level)
+
+    if display_level != "trial" or display_mode != "detail":
+        return {"all": all_views}
+
+    status = (row or {}).get("status")
+
+    if status == "failed":
+        return {
+            "recommended": ["failures"],
+            "all": all_views,
+        }
+
+    return {
+        "recommended": ["fragility", "outcomes"],
+        "all": all_views,
+    }
+
+
+# =========================================================
 # CLI
 # =========================================================
 
@@ -167,7 +214,8 @@ def parse_args(args):
 @click.option("--sort", "sort_key", type=str)
 @click.option("--top", "top_n", type=int)
 @click.option("--filter", "filters", multiple=True)
-def cmd_inspect(args, run_override, view_name, sort_key, top_n, filters):
+@click.option("--views", "list_views", is_flag=True, help="List available views")
+def cmd_inspect(args, run_override, view_name, sort_key, top_n, filters, list_views):
     console = Console()
 
     # ---------------------------------------------------------
@@ -192,43 +240,23 @@ def cmd_inspect(args, run_override, view_name, sort_key, top_n, filters):
         console.print("[yellow]No experiments found[/yellow]")
         return
 
-    # ---------------------------------------------------------
-    # Resolve view (DISPLAY ONLY)
-    # ---------------------------------------------------------
-    try:
-        selected_view = get_view(level, view_name)
-    except KeyError:
-        available = ", ".join(sorted(METRIC_VIEW_REGISTRY[level].keys()))
-        console.print(f"[red]Unknown view '{view_name}'[/red]")
-        console.print(f"[dim]Available: {available}[/dim]")
-        return
-
-    # ---------------------------------------------------------
-    # Build FULL run rows
-    # ---------------------------------------------------------
     run_rows = build_run_rows(experiments)
 
-    run_rows = apply_filters(run_rows, selected_view, filters)
-    run_rows = apply_sort(run_rows, selected_view, sort_key)
-    run_rows = apply_top(run_rows, top_n)
-
     header = []
-    final_rows = None
+    display_level = None
+    display_mode = "list"
+    detail_row = None
 
     # =========================================================
     # RUN LIST
     # =========================================================
     if level == "run" and run_id is None:
-        header = [
-            "[bold]Runs (all experiments)[/bold]",
-            f"[dim]view: run:{view_name}[/dim]",
-        ]
-        final_rows = run_rows
+        display_level = "run"
+        working_rows = run_rows
+
+        header = ["[bold]Runs (all experiments)[/bold]"]
 
     else:
-        # =====================================================
-        # SELECT RUN
-        # =====================================================
         if run_id is None:
             run_id = len(run_rows) - 1
 
@@ -242,47 +270,95 @@ def cmd_inspect(args, run_override, view_name, sort_key, top_n, filters):
         exp = experiments[ref["exp_index"]]
         run = exp.runs[ref["run_index"]]
 
-        # -----------------------------------------------------
-        # Build FULL trial rows
-        # -----------------------------------------------------
-        rows = build_trial_rows(exp, run)
+        trial_rows = build_trial_rows(exp, run)
 
-        rows = apply_filters(rows, selected_view, filters)
-        rows = apply_sort(rows, selected_view, sort_key)
-        rows = apply_top(rows, top_n)
-
-        # =====================================================
         # TRIAL LIST
-        # =====================================================
         if trial_id is None:
+            display_level = "trial"
+            display_mode = "list"
+            working_rows = trial_rows
+
             header = [
-                f"[bold cyan]TRIAL[/bold cyan] | [bold]{view_name}[/bold]",
+                "[bold cyan]TRIAL[/bold cyan]",
                 f"[dim]Exp {ref['exp_index']} | Run {ref['run_index']}[/dim]",
                 f"[dim]{run.path}[/dim]",
-                f"[dim]view: {level}:{view_name}[/dim]",
             ]
-            final_rows = rows
 
-        # =====================================================
         # SINGLE TRIAL
-        # =====================================================
         else:
-            if trial_id < 0 or trial_id >= len(rows):
+            if trial_id < 0 or trial_id >= len(trial_rows):
                 console.print("[red]Invalid trial id[/red]")
                 return
 
+            display_level = "trial"
+            display_mode = "detail"
+            detail_row = trial_rows[trial_id]
+            working_rows = [detail_row]
+
             trial = run.trials[trial_id]
-            row = rows[trial_id]
 
             header = [
                 f"[bold]Run {ref['run_index']} - Trial {trial_id}[/bold]",
                 f"[dim]{trial.path}[/dim]",
-                f"[dim]view: {level}:{view_name}[/dim]",
             ]
-            final_rows = row
 
     # ---------------------------------------------------------
-    # Render (single place)
+    # View listing
+    # ---------------------------------------------------------
+    if list_views:
+        context_views = list_views_for_context(display_level, display_mode, detail_row)
+
+        console.print()
+        console.print(f"[bold]Available views for level '{display_level}':[/bold]")
+        console.print("[dim](use --view <name>)[/dim]")
+
+        if "recommended" in context_views:
+            console.print("\n[bold]Recommended:[/bold]")
+            for v in context_views["recommended"]:
+                console.print(f"  {v}")
+
+        console.print("\n[bold]All:[/bold]")
+        for v in context_views["all"]:
+            console.print(f"  {v}")
+
+        console.print()
+        return
+
+    # ---------------------------------------------------------
+    # Default view override (only if user didn't specify)
+    # ---------------------------------------------------------
+    user_provided_view = "--view" in sys.argv
+
+    if not user_provided_view:
+        view_name = resolve_default_view(display_level, display_mode, detail_row)
+
+    # ---------------------------------------------------------
+    # Resolve view
+    # ---------------------------------------------------------
+    try:
+        selected_view = get_view(display_level, view_name)
+    except KeyError:
+        available = ", ".join(sorted(METRIC_VIEW_REGISTRY[display_level].keys()))
+        console.print(f"[red]Unknown view '{view_name}'[/red]")
+        console.print(f"[dim]Available: {available}[/dim]")
+        return
+
+    # ---------------------------------------------------------
+    # Apply filters/sort/top
+    # ---------------------------------------------------------
+    working_rows = apply_filters(working_rows, selected_view, filters)
+    working_rows = apply_sort(working_rows, selected_view, sort_key)
+    working_rows = apply_top(working_rows, top_n)
+
+    final_rows = working_rows
+
+    # ---------------------------------------------------------
+    # Header
+    # ---------------------------------------------------------
+    header.append(f"[dim]view: {display_level}:{view_name}[/dim]")
+
+    # ---------------------------------------------------------
+    # Render
     # ---------------------------------------------------------
     console.print()
     for line in header:
