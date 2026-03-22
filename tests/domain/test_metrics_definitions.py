@@ -6,7 +6,7 @@ def test_expected_metrics_present():
         "status",
         "elapsed",
         "bequest",
-        "spending",
+        "spending_total",
         "risk",
         "ending_assets",
         "min_cushion",

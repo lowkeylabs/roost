@@ -1,18 +1,20 @@
 import math
 import statistics
-from dataclasses import dataclass
 from collections.abc import Callable
-from typing import Any, TypeAlias
+from dataclasses import dataclass
+from typing import Any
+
 
 @dataclass(slots=True)
 class AggContext:
-    agg_values: list[Any]        # aggregated values (displayed)
-    n_valid: int | None          # non-null values used in aggregation
-    n_total: int | None          # total rows considered
+    agg_values: list[Any]  # aggregated values (displayed)
+    n_valid: int | None  # non-null values used in aggregation
+    n_total: int | None  # total rows considered
     aggregation: str | None
-    metric_key: str              # e.g. "bequest"
+    metric_key: str  # e.g. "bequest"
 
-AggExplainFn: TypeAlias = Callable[[AggContext], str]
+
+type AggExplainFn = Callable[[AggContext], str]
 
 
 # =========================================================
@@ -61,7 +63,7 @@ def len_(values):
 # =========================================================
 
 AGG_FUNCS: dict[str, Callable[[list[Any]], Any]] = {}
-AGG_EXPLAINS: dict[str, AggExplainFn ] = {}
+AGG_EXPLAINS: dict[str, AggExplainFn] = {}
 
 
 def register_aggregation(
@@ -91,12 +93,7 @@ register_aggregation(
     "mean",
     mean,
     explain=lambda ctx: (
-        "Average"
-        + (
-            f" based on {ctx.n_valid}/{ctx.n_total} observations"
-            if ctx.n_total
-            else ""
-        )
+        "Average" + (f" based on {ctx.n_valid}/{ctx.n_total} observations" if ctx.n_total else "")
     ),
 )
 
@@ -105,11 +102,7 @@ register_aggregation(
     mean,
     explain=lambda ctx: (
         "Based on "
-        + (
-            f"{ctx.n_valid}/{ctx.n_total} observations"
-            if ctx.n_total
-            else "available observations"
-        )
+        + (f"{ctx.n_valid}/{ctx.n_total} observations" if ctx.n_total else "available observations")
     ),
 )
 
@@ -128,11 +121,7 @@ register_aggregation(
     median,
     explain=lambda ctx: (
         "Median (50th percentile)"
-        + (
-            f" based on {ctx.n_valid}/{ctx.n_total} observations"
-            if ctx.n_total
-            else ""
-        )
+        + (f" based on {ctx.n_valid}/{ctx.n_total} observations" if ctx.n_total else "")
     ),
 )
 
@@ -140,12 +129,7 @@ register_aggregation(
     "sum",
     sum_,
     explain=lambda ctx: (
-        "Total"
-        + (
-            f" based on {ctx.n_valid}/{ctx.n_total} observations"
-            if ctx.n_total
-            else ""
-        )
+        "Total" + (f" based on {ctx.n_valid}/{ctx.n_total} observations" if ctx.n_total else "")
     ),
 )
 
@@ -154,11 +138,7 @@ register_aggregation(
     min_,
     explain=lambda ctx: (
         "Minimum observed value"
-        + (
-            f" (based on {ctx.n_valid}/{ctx.n_total} observations)"
-            if ctx.n_total
-            else ""
-        )
+        + (f" (based on {ctx.n_valid}/{ctx.n_total} observations)" if ctx.n_total else "")
     ),
 )
 
@@ -167,11 +147,7 @@ register_aggregation(
     max_,
     explain=lambda ctx: (
         "Maximum observed value"
-        + (
-            f" (based on {ctx.n_valid}/{ctx.n_total} observations)"
-            if ctx.n_total
-            else ""
-        )
+        + (f" (based on {ctx.n_valid}/{ctx.n_total} observations)" if ctx.n_total else "")
     ),
 )
 
@@ -180,11 +156,7 @@ register_aggregation(
     lambda v: percentile(v, 10),
     explain=lambda ctx: (
         "10th percentile (downside outcome)"
-        + (
-            f" based on {ctx.n_valid}/{ctx.n_total} observations"
-            if ctx.n_total
-            else ""
-        )
+        + (f" based on {ctx.n_valid}/{ctx.n_total} observations" if ctx.n_total else "")
     ),
 )
 
@@ -193,10 +165,6 @@ register_aggregation(
     lambda v: percentile(v, 90),
     explain=lambda ctx: (
         "90th percentile (upside outcome)"
-        + (
-            f" based on {ctx.n_valid}/{ctx.n_total} observations"
-            if ctx.n_total
-            else ""
-        )
+        + (f" based on {ctx.n_valid}/{ctx.n_total} observations" if ctx.n_total else "")
     ),
 )

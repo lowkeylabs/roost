@@ -21,7 +21,7 @@ register_metric(
     MetricSpec(
         key="experiment",
         label="Exp",
-        #is_invariant=True,
+        # is_invariant=True,
         aggregates=["cnt"],
         description="Experiment identifier grouping multiple runs",
         explain_value_static="Used to group runs under a shared configuration",
@@ -32,7 +32,7 @@ register_metric(
     MetricSpec(
         key="run",
         label="Run",
-        #is_invariant=True,
+        # is_invariant=True,
         aggregates=["cnt"],
         description="Run identifier within an experiment",
         explain_value_static="Each run represents a distinct parameterization",
@@ -100,7 +100,7 @@ register_metric(
         aggregates=["cnt", "pct"],
         description="Indicator of successful optimization",
         explain_value_static="1 = solved successfully, 0 = failure",
-        #interpret_series_fn=lambda v, _: f"{sum(v)/len(v):.0%} success rate",
+        # interpret_series_fn=lambda v, _: f"{sum(v)/len(v):.0%} success rate",
     )
 )
 
@@ -114,7 +114,7 @@ register_metric(
         aggregates=["cnt", "pct"],
         description="Indicator of failed optimization",
         explain_value_static="1 = failure, 0 = success",
-        #interpret_series_fn=lambda v, _: f"{sum(v)/len(v):.0%} failure rate",
+        # interpret_series_fn=lambda v, _: f"{sum(v)/len(v):.0%} failure rate",
     )
 )
 
@@ -170,7 +170,7 @@ register_metric(
         path="financial.spending.total.today",
         label="Total\nSpending",
         fmt="currency",
-        aggregates=["mean","median","p10","p90"],
+        aggregates=["mean", "median", "p10", "p90"],
         description="Total lifetime spending",
         explain_value_static="Represents total consumption over the plan",
     )
@@ -182,7 +182,7 @@ register_metric(
         path="financial.spending.year0.today",
         label="Annual\nspending",
         fmt="currency",
-        aggregates=["mean","median","p10","p90"],
+        aggregates=["mean", "median", "p10", "p90"],
         description="Annual spending over life of plan",
         explain_value_static="Represents amount spent annually, not including conversions, taxes, etc.",
     )
@@ -395,10 +395,12 @@ register_metric(
 # OVERRIDES
 # =========================================================
 
+
 def _format_overrides(overrides: dict | None) -> str:
     if not overrides:
         return ""
     return "\n".join(f"{k}={v}" for k, v in sorted(overrides.items()))
+
 
 register_metric(
     MetricSpec(

@@ -4,8 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..services.aggregation_registry import get_aggregation_explain
-from ..services.aggregation_registry import AggContext
+from ..services.aggregation_registry import AggContext, get_aggregation_explain
 
 # =========================================================
 # MetricSpec
@@ -208,7 +207,6 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
         # raw value (pre-aggregation)
         raw_values.append(resolve_metric_value(r, rm.key, None))
 
-
     parts = []
 
     # ----------------------------------------
@@ -256,8 +254,8 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
                         n_valid = rows[0].get(f"{rm.key}_{agg}_n")
                     ctx = AggContext(
                         agg_values=values,
-                        n_total = n_total,
-                        n_valid = n_valid,
+                        n_total=n_total,
+                        n_valid=n_valid,
                         aggregation=agg,
                         metric_key=rm.key,
                     )

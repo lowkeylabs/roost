@@ -34,7 +34,7 @@ def test_extract_metrics_end_to_end():
     assert row["status"] == "solved"
     assert row["elapsed"] == 10.5
     assert row["bequest"] == 100000
-    assert row["spending"] == 50000
+    assert row["spending_total"] == 50000
     assert row["risk"] == "low"
 
 

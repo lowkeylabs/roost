@@ -39,7 +39,7 @@ register_view(
         ("spending_total", "median"),
         ("bequest", "median"),
         "has_overrides_display",
-        #"run_overrides_display",
+        # "run_overrides_display",
     ],
     description="Summary of run-level results including success rates and median outcomes",
     tags=["summary"],
