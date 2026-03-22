@@ -4,7 +4,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from owlroost.domain.services.aggregation_registry import get_aggregation_explain
+from ..services.aggregation_registry import get_aggregation_explain
+from ..services.aggregation_registry import AggContext
 
 # =========================================================
 # MetricSpec
@@ -198,8 +199,15 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
     # Resolve values
     # ----------------------------------------
     values = []
+    raw_values = []
+
     for r in rows:
+        # aggregated value (what's displayed)
         values.append(resolve_metric_value(r, rm.key, agg))
+
+        # raw value (pre-aggregation)
+        raw_values.append(resolve_metric_value(r, rm.key, None))
+
 
     parts = []
 
@@ -241,7 +249,20 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
 
             if explain_fn:
                 try:
-                    parts.append(f"{rm.key}: {explain_fn(values)}")
+                    n_total = 1
+                    n_valid = 1
+                    if rows and isinstance(rows[0], dict):
+                        n_total = rows[0].get("trial_cnt")
+                        n_valid = rows[0].get(f"{rm.key}_{agg}_n")
+                    ctx = AggContext(
+                        agg_values=values,
+                        n_total = n_total,
+                        n_valid = n_valid,
+                        aggregation=agg,
+                        metric_key=rm.key,
+                    )
+                    parts.append(f"{explain_fn(ctx)}")
+
                 except Exception:
                     parts.append(f"{rm.key}: aggregation '{agg}' (explain error)")
             else:

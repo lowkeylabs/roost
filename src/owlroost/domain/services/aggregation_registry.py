@@ -1,7 +1,19 @@
 import math
 import statistics
+from dataclasses import dataclass
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TypeAlias
+
+@dataclass(slots=True)
+class AggContext:
+    agg_values: list[Any]        # aggregated values (displayed)
+    n_valid: int | None          # non-null values used in aggregation
+    n_total: int | None          # total rows considered
+    aggregation: str | None
+    metric_key: str              # e.g. "bequest"
+
+AggExplainFn: TypeAlias = Callable[[AggContext], str]
+
 
 # =========================================================
 # Core aggregation functions
@@ -49,13 +61,13 @@ def len_(values):
 # =========================================================
 
 AGG_FUNCS: dict[str, Callable[[list[Any]], Any]] = {}
-AGG_EXPLAINS: dict[str, Callable[[list[Any]], str]] = {}
+AGG_EXPLAINS: dict[str, AggExplainFn ] = {}
 
 
 def register_aggregation(
     name: str,
     func: Callable[[list[Any]], Any],
-    explain: Callable[[list[Any]], str] | None = None,
+    explain: AggExplainFn | None = None,
 ):
     AGG_FUNCS[name] = func
 
@@ -72,59 +84,119 @@ def get_aggregation_explain(name: str):
 
 
 # =========================================================
-# Default registrations
+# Default registrations (REVISED)
 # =========================================================
 
 register_aggregation(
     "mean",
     mean,
-    explain=lambda v: f"average across rows (n={len(v)})",
+    explain=lambda ctx: (
+        "Average"
+        + (
+            f" based on {ctx.n_valid}/{ctx.n_total} observations"
+            if ctx.n_total
+            else ""
+        )
+    ),
 )
 
 register_aggregation(
     "pct",
     mean,
-    explain=lambda v: f"average (percent-style metric) (n={len(v)})",
+    explain=lambda ctx: (
+        "Based on "
+        + (
+            f"{ctx.n_valid}/{ctx.n_total} observations"
+            if ctx.n_total
+            else "available observations"
+        )
+    ),
 )
 
 register_aggregation(
     "cnt",
     len_,
-    explain=lambda v: f"count of rows (n={len(v)})",
+    explain=lambda ctx: (
+        f"{ctx.n_valid}/{ctx.n_total} observations"
+        if ctx.n_total is not None
+        else "Count of observations"
+    ),
 )
 
 register_aggregation(
     "median",
     median,
-    explain=lambda v: f"median (50th percentile) (n={len(v)})",
+    explain=lambda ctx: (
+        "Median (50th percentile)"
+        + (
+            f" based on {ctx.n_valid}/{ctx.n_total} observations"
+            if ctx.n_total
+            else ""
+        )
+    ),
 )
 
 register_aggregation(
     "sum",
     sum_,
-    explain=lambda v: f"sum across rows (n={len(v)})",
+    explain=lambda ctx: (
+        "Total"
+        + (
+            f" based on {ctx.n_valid}/{ctx.n_total} observations"
+            if ctx.n_total
+            else ""
+        )
+    ),
 )
 
 register_aggregation(
     "min",
     min_,
-    explain=lambda v: f"minimum value across rows (n={len(v)})",
+    explain=lambda ctx: (
+        "Minimum observed value"
+        + (
+            f" (based on {ctx.n_valid}/{ctx.n_total} observations)"
+            if ctx.n_total
+            else ""
+        )
+    ),
 )
 
 register_aggregation(
     "max",
     max_,
-    explain=lambda v: f"maximum value across rows (n={len(v)})",
+    explain=lambda ctx: (
+        "Maximum observed value"
+        + (
+            f" (based on {ctx.n_valid}/{ctx.n_total} observations)"
+            if ctx.n_total
+            else ""
+        )
+    ),
 )
 
 register_aggregation(
     "p10",
     lambda v: percentile(v, 10),
-    explain=lambda v: f"10th percentile (downside outcome) (n={len(v)})",
+    explain=lambda ctx: (
+        "10th percentile (downside outcome)"
+        + (
+            f" based on {ctx.n_valid}/{ctx.n_total} observations"
+            if ctx.n_total
+            else ""
+        )
+    ),
 )
 
 register_aggregation(
     "p90",
     lambda v: percentile(v, 90),
-    explain=lambda v: f"90th percentile (upside outcome) (n={len(v)})",
+    explain=lambda ctx: (
+        "90th percentile (upside outcome)"
+        + (
+            f" based on {ctx.n_valid}/{ctx.n_total} observations"
+            if ctx.n_total
+            else ""
+        )
+    ),
 )

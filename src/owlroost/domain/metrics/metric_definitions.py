@@ -2,7 +2,7 @@ from .metric_registry import register_metric
 from .metric_spec import MetricSpec
 
 # =========================================================
-# CONTEXT METRICS (from enrichment layer)
+# CONTEXT METRICS
 # =========================================================
 
 register_metric(
@@ -12,15 +12,43 @@ register_metric(
         dtype=str,
         align="left",
         is_invariant=True,
+        description="Name of the household or planning scenario",
+        explain_value_static="Identifies which case this result belongs to",
     )
 )
 
-register_metric(MetricSpec(key="experiment", label="Exp", is_invariant=True, aggregates=["cnt"]))
+register_metric(
+    MetricSpec(
+        key="experiment",
+        label="Exp",
+        #is_invariant=True,
+        aggregates=["cnt"],
+        description="Experiment identifier grouping multiple runs",
+        explain_value_static="Used to group runs under a shared configuration",
+    )
+)
 
-register_metric(MetricSpec(key="run", label="Run", is_invariant=True, aggregates=["cnt"]))
+register_metric(
+    MetricSpec(
+        key="run",
+        label="Run",
+        #is_invariant=True,
+        aggregates=["cnt"],
+        description="Run identifier within an experiment",
+        explain_value_static="Each run represents a distinct parameterization",
+    )
+)
 
-
-register_metric(MetricSpec(key="trial", label="Trial", dtype=int, aggregates=["cnt"]))
+register_metric(
+    MetricSpec(
+        key="trial",
+        label="Trial",
+        dtype=int,
+        aggregates=["cnt"],
+        description="Trial index within a run",
+        explain_value_static="Each trial is one simulated scenario realization",
+    )
+)
 
 register_metric(
     MetricSpec(
@@ -29,9 +57,10 @@ register_metric(
         compute_fn=lambda d: d.get("master_seed"),
         dtype=int,
         is_invariant=True,
+        description="Random seed controlling simulation reproducibility",
+        explain_value_static="Ensures deterministic scenario generation",
     )
 )
-
 
 # =========================================================
 # STATUS / CORE
@@ -44,6 +73,8 @@ register_metric(
         label="Status",
         dtype=str,
         align="left",
+        description="Outcome status of the optimization run",
+        explain_value_static="Indicates whether the solver succeeded or failed",
     )
 )
 
@@ -54,6 +85,8 @@ register_metric(
         label="Time (s)",
         fmt="float2",
         aggregates=["mean", "p90"],
+        description="Time required to solve the optimization",
+        explain_value_static="Lower values indicate faster solve performance",
     )
 )
 
@@ -65,6 +98,9 @@ register_metric(
         dtype=int,
         fmt="percent",
         aggregates=["cnt", "pct"],
+        description="Indicator of successful optimization",
+        explain_value_static="1 = solved successfully, 0 = failure",
+        #interpret_series_fn=lambda v, _: f"{sum(v)/len(v):.0%} success rate",
     )
 )
 
@@ -76,6 +112,9 @@ register_metric(
         dtype=int,
         fmt="percent",
         aggregates=["cnt", "pct"],
+        description="Indicator of failed optimization",
+        explain_value_static="1 = failure, 0 = success",
+        #interpret_series_fn=lambda v, _: f"{sum(v)/len(v):.0%} failure rate",
     )
 )
 
@@ -85,6 +124,7 @@ register_metric(
         path="run_status.failure_category",
         label="Failure Reason",
         dtype=str,
+        description="Category of failure when optimization does not solve",
     )
 )
 
@@ -94,6 +134,7 @@ register_metric(
         label="Failed?",
         dtype=bool,
         compute_fn=lambda d: d.get("status") == "failed",
+        description="Boolean indicator of failure",
     )
 )
 
@@ -103,11 +144,12 @@ register_metric(
         label="Solved?",
         dtype=bool,
         compute_fn=lambda d: d.get("status") == "solved",
+        description="Boolean indicator of success",
     )
 )
 
 # =========================================================
-# FINANCIAL (PRIMARY OUTCOMES)
+# FINANCIAL
 # =========================================================
 
 register_metric(
@@ -117,16 +159,32 @@ register_metric(
         label="Bequest",
         fmt="currency",
         aggregates=["mean", "median", "p10", "p90"],
+        description="Total wealth remaining at the end of the plan",
+        explain_value_static="Higher values indicate more leftover wealth",
     )
 )
 
 register_metric(
     MetricSpec(
-        key="spending",
+        key="spending_total",
         path="financial.spending.total.today",
-        label="Spending",
+        label="Total\nSpending",
         fmt="currency",
-        aggregates=["mean"],
+        aggregates=["mean","median","p10","p90"],
+        description="Total lifetime spending",
+        explain_value_static="Represents total consumption over the plan",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="spending_annual",
+        path="financial.spending.year0.today",
+        label="Annual\nspending",
+        fmt="currency",
+        aggregates=["mean","median","p10","p90"],
+        description="Annual spending over life of plan",
+        explain_value_static="Represents amount spent annually, not including conversions, taxes, etc.",
     )
 )
 
@@ -137,6 +195,8 @@ register_metric(
         label="Taxes",
         fmt="currency",
         aggregates=["mean"],
+        description="Total taxes paid",
+        explain_value_static="Reflects tax burden of the strategy",
     )
 )
 
@@ -147,14 +207,14 @@ register_metric(
         label="Roth",
         fmt="currency",
         aggregates=["mean"],
+        description="Total Roth balances or conversions",
+        explain_value_static="Indicates tax-efficient positioning",
     )
 )
 
-
 # =========================================================
-# RISK — OUTCOME (CRITICAL)
+# RISK
 # =========================================================
-
 
 register_metric(
     MetricSpec(
@@ -162,6 +222,8 @@ register_metric(
         path="risk.outcome.classification.risk_level",
         label="Risk",
         dtype=str,
+        description="Risk classification of the outcome",
+        explain_value_static="Categorizes outcome severity (safe, fragile, failure)",
     )
 )
 
@@ -172,6 +234,8 @@ register_metric(
         label="Ending Assets",
         fmt="currency",
         aggregates=["mean", "median", "p10", "p90"],
+        description="Assets remaining at the end of the simulation",
+        explain_value_static="Higher values indicate stronger outcomes",
     )
 )
 
@@ -182,6 +246,8 @@ register_metric(
         label="Min Cushion",
         fmt="percent2",
         aggregates=["mean"],
+        description="Minimum safety margin during the plan",
+        explain_value_static="Lower values indicate higher risk of depletion",
     )
 )
 
@@ -192,6 +258,8 @@ register_metric(
         label="Worst Drawdown",
         fmt="percent2",
         aggregates=["mean"],
+        description="Maximum portfolio drawdown",
+        explain_value_static="Captures downside volatility risk",
     )
 )
 
@@ -202,12 +270,13 @@ register_metric(
         label="Terminal S/A",
         fmt="percent2",
         aggregates=["mean"],
+        description="Spending-to-assets ratio at end of plan",
+        explain_value_static="Higher values may indicate stress at horizon",
     )
 )
 
-
 # =========================================================
-# DEPLETION (FAILURE SIGNAL)
+# DEPLETION
 # =========================================================
 
 register_metric(
@@ -216,6 +285,8 @@ register_metric(
         path="risk.outcome.depletion.depleted",
         label="Depleted",
         dtype=bool,
+        description="Whether assets were exhausted",
+        explain_value_static="True indicates financial failure",
     )
 )
 
@@ -226,12 +297,13 @@ register_metric(
         label="Years to Depletion",
         fmt="int",
         aggregates=["mean"],
+        description="Time until assets are depleted",
+        explain_value_static="Lower values indicate earlier failure",
     )
 )
 
-
 # =========================================================
-# SCENARIO DIAGNOSTICS (WHY IT FAILED)
+# SCENARIO
 # =========================================================
 
 register_metric(
@@ -241,6 +313,8 @@ register_metric(
         label="Scenario Severity",
         fmt="float2",
         aggregates=["mean"],
+        description="Severity of the economic scenario",
+        explain_value_static="Higher values indicate worse conditions",
     )
 )
 
@@ -251,6 +325,8 @@ register_metric(
         label="Avg Return",
         fmt="percent2",
         aggregates=["mean"],
+        description="Average return during the scenario",
+        explain_value_static="Higher values indicate stronger markets",
     )
 )
 
@@ -261,6 +337,8 @@ register_metric(
         label="Worst Return",
         fmt="percent2",
         aggregates=["mean"],
+        description="Worst observed return in the scenario",
+        explain_value_static="Captures downside shocks",
     )
 )
 
@@ -271,6 +349,8 @@ register_metric(
         label="Avg Inflation",
         fmt="percent2",
         aggregates=["mean"],
+        description="Average inflation rate",
+        explain_value_static="Higher values reduce real purchasing power",
     )
 )
 
@@ -281,12 +361,12 @@ register_metric(
         label="Risk scenario",
         dtype=str,
         align="left",
+        description="Classification of economic scenario",
     )
 )
 
-
 # =========================================================
-# COMPLEXITY (SECONDARY — DEBUGGING)
+# COMPLEXITY
 # =========================================================
 
 register_metric(
@@ -296,6 +376,7 @@ register_metric(
         label="# Vars",
         fmt="int",
         aggregates=["mean"],
+        description="Number of decision variables in optimization",
     )
 )
 
@@ -306,6 +387,7 @@ register_metric(
         label="# Constraints",
         fmt="int",
         aggregates=["mean"],
+        description="Number of constraints in optimization",
     )
 )
 
@@ -313,14 +395,10 @@ register_metric(
 # OVERRIDES
 # =========================================================
 
-
 def _format_overrides(overrides: dict | None) -> str:
     if not overrides:
         return ""
-
-    lines = [f"{k}={v}" for k, v in sorted(overrides.items())]
-    return "\n".join(lines)
-
+    return "\n".join(f"{k}={v}" for k, v in sorted(overrides.items()))
 
 register_metric(
     MetricSpec(
@@ -329,5 +407,29 @@ register_metric(
         align="left",
         compute_fn=lambda d: _format_overrides(d.get("run_specific_overrides")),
         dtype=str,
+        description="Overrides applied to this run",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="has_overrides",
+        label="Has\noverrides",
+        align="left",
+        compute_fn=lambda d: True if len(d.get("run_specific_overrides")) > 0 else False,
+        dtype=str,
+        description="Indicates presence of overrides",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="has_overrides_display",
+        label="Has\noverrides",
+        align="center",
+        compute_fn=lambda d: "Yes" if len(d.get("run_specific_overrides")) > 0 else "-",
+        dtype=str,
+        description="Display-friendly override indicator",
+        explain_value_static="Alternate inputs were used for this run.",
     )
 )
