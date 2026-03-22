@@ -15,6 +15,8 @@ register_view(
         "risk",
         "scenario_type",
     ],
+    description="Core trial metrics for quick inspection of outcomes and performance",
+    tags=["summary"],
 )
 
 
@@ -28,13 +30,13 @@ register_view(
     [
         "experiment",
         "case_name",
-        "run",
         ("trial", "cnt"),
         ("success", "pct"),
-        ("fail", "pct"),
         ("bequest", "median"),
         "run_overrides_display",
     ],
+    description="Summary of run-level results including success rates and median outcomes",
+    tags=["summary"],
 )
 
 # =========================================================
@@ -60,6 +62,8 @@ register_view(
         "elapsed",
     ],
     layout="pivot",
+    description="Detailed view of failed trials, highlighting depletion timing and downside metrics",
+    tags=["failure", "risk", "diagnostics"],
 )
 
 
@@ -81,6 +85,8 @@ register_view(
         "elapsed",
     ],
     layout="pivot",
+    description="Identifies fragile scenarios with low cushion, high drawdowns, or near-failure conditions",
+    tags=["risk", "diagnostics"],
 )
 
 
@@ -100,6 +106,8 @@ register_view(
         "min_cushion",
         "bequest",
     ],
+    description="Analyzes economic conditions (returns, inflation) associated with outcomes",
+    tags=["scenario", "diagnostics"],
 )
 
 
@@ -118,6 +126,8 @@ register_view(
         "taxes",
         "roth",
     ],
+    description="Distribution of financial outcomes including wealth, spending, and tax impacts",
+    tags=["distribution", "summary"],
 )
 
 # =========================================================
@@ -141,4 +151,6 @@ register_view(
         "worst_drawdown_mean",
         "elapsed_mean",
     ],
+    description="Aggregated diagnostics across trials including success rates, distribution metrics, and averages",
+    tags=["diagnostics", "distribution"],
 )

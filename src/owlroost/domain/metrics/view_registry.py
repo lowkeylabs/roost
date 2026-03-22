@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Union
 
 from .metric_registry import METRIC_REGISTRY, get_metric
 from .metric_spec import MetricSpec
@@ -8,6 +9,8 @@ METRIC_VIEW_REGISTRY: dict[str, dict[str, dict]] = {
     "run": {},
     "experiments": {},
 }
+
+MetricKey = Union[str, tuple[str, str]]  # noqa: UP007
 
 
 @dataclass
@@ -44,14 +47,42 @@ class ResolvedMetric:
         return self.spec.dtype
 
 
+# ===============================================
+# Registration
+# ===============================================
+
+
 def register_view(
-    level: str, name: str, metric_keys: list[str], layout: str = "table", explain: bool = False
+    level: str,
+    name: str,
+    metric_keys: list[MetricKey],
+    layout: str = "table",
+    explain: bool = False,
+    description: str | None = None,
+    tags: list[str] | None = None,
 ):
     METRIC_VIEW_REGISTRY[level][name] = {
         "metrics": metric_keys,
         "layout": layout,
         "explain": explain,
+        "description": description or "",
+        "tags": tags or [],
     }
+
+
+# ===============================================
+# Resolution
+# ===============================================
+
+
+def resolve_metric(key):
+    # aggregate form: ("bequest", "mean")
+    if isinstance(key, tuple):
+        base, agg = key
+        spec = get_metric(base)
+        return (spec, agg)
+
+    return (get_metric(key), None)
 
 
 def get_view(level: str, name: str):
@@ -93,15 +124,126 @@ def get_view(level: str, name: str):
     return resolved, layout, explain
 
 
+# ===============================================
+# View metadata and help
+# ===============================================
+
+
+def view_keys(view):
+    return {rm.key for rm in view}
+
+
+def get_view_tags(level: str, name: str) -> list[str]:
+    entry = METRIC_VIEW_REGISTRY.get(level, {}).get(name)
+    if not entry:
+        return []
+    return entry.get("tags", [])
+
+
+def get_view_description(level: str, name: str) -> str:
+    entry = METRIC_VIEW_REGISTRY.get(level, {}).get(name)
+    if not entry:
+        return ""
+    return entry.get("description", "")
+
+
 def list_views(level: str):
-    return list(METRIC_VIEW_REGISTRY[level].keys())
+    return sorted(METRIC_VIEW_REGISTRY[level].keys())
 
 
-def resolve_metric(key):
-    # aggregate form: ("bequest", "mean")
-    if isinstance(key, tuple):
-        base, agg = key
-        spec = get_metric(base)
-        return (spec, agg)
+def view_help(
+    display_level: str,
+    display_mode: str,
+    row: dict | None = None,
+    tag_filter: str | None = None,
+) -> str:
+    """
+    Render help text for available views in the current context.
+    Optionally filter by tag.
+    """
 
-    return (get_metric(key), None)
+    context_views = list_views_for_context(display_level, display_mode, row)
+
+    lines: list[str] = []
+
+    lines.append(f"[bold]Available views for level '{display_level}':[/bold]")
+    lines.append("[dim](use --view <name>)[/dim]\n")
+
+    if tag_filter:
+        lines.append(f"[dim]Filtering by tag: '{tag_filter}'[/dim]\n")
+
+    def render_group(title: str, views: list[str]):
+        group_lines = []
+
+        for v in views:
+            tags = get_view_tags(display_level, v)
+
+            # Apply tag filter
+            if tag_filter and tag_filter not in tags:
+                continue
+
+            desc = get_view_description(display_level, v)
+            tag_str = f" [dim]({', '.join(tags)})[/dim]" if tags else ""
+
+            if desc:
+                group_lines.append(f"  {v:<12} - {desc}{tag_str}")
+            else:
+                group_lines.append(f"  {v}{tag_str}")
+
+        # Only render group if it has entries
+        if group_lines:
+            lines.append(f"[bold]{title}:[/bold]")
+            lines.extend(group_lines)
+            lines.append("")
+
+    if "recommended" in context_views:
+        render_group("Recommended", context_views["recommended"])
+
+    render_group("All", context_views["all"])
+
+    # Handle case where filter matches nothing
+    if len(lines) <= 2:
+        lines.append(f"[yellow]No views match tag '{tag_filter}'[/yellow]\n")
+
+    return "\n".join(lines)
+
+
+def list_views_for_level(level: str) -> list[str]:
+    return sorted(METRIC_VIEW_REGISTRY.get(level, {}).keys())
+
+
+def resolve_default_view(display_level: str, display_mode: str, row: dict | None) -> str:
+    if display_level == "run":
+        return "default"
+
+    if display_level == "trial":
+        if display_mode == "list":
+            return "default"
+
+        if display_mode == "detail":
+            status = (row or {}).get("status")
+            if status == "failed":
+                return "failures"
+            return "fragility"
+
+    return "default"
+
+
+def list_views_for_context(display_level: str, display_mode: str, row: dict | None):
+    all_views = list_views_for_level(display_level)
+
+    if display_level != "trial" or display_mode != "detail":
+        return {"all": all_views}
+
+    status = (row or {}).get("status")
+
+    if status == "failed":
+        return {
+            "recommended": ["failures"],
+            "all": all_views,
+        }
+
+    return {
+        "recommended": ["fragility", "outcomes"],
+        "all": all_views,
+    }

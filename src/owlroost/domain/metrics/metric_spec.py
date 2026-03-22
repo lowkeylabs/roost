@@ -4,11 +4,14 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from owlroost.domain.services.aggregation_registry import get_aggregation_explain
+
 # =========================================================
 # MetricSpec
 # =========================================================
 
-DEBUG_EXPLANATIONS = True
+DEV_FALLBACK_ENABLED = True
+EXPLAIN_FACETS = {"def", "value", "aggregation", "debug", "all"}
 
 
 @dataclass(slots=True)
@@ -66,9 +69,30 @@ class MetricSpec:
     # Notes and more
     # -----------------------------------------------------
     description: str | None = None
-    interpretation: str | None = None
+    explain_value_static: str | None = None
 
     interpret_series_fn: Callable[[list[Any], list[dict]], str] | None = None
+    explain_value_fn: Callable[[Any, dict], str] | None = None
+
+    def has_value_explanation(self, values: list[Any]) -> bool:
+        if len(values) > 1:
+            return self.interpret_series_fn is not None
+        return bool(self.explain_value_fn or self.explain_value_static)
+
+    def supports_facet(self, facet: str, values: list[Any]) -> bool:
+        if facet == "def":
+            return bool(self.description)
+
+        if facet == "value":
+            return self.has_value_explanation(values)
+
+        if facet == "aggregation":
+            return True  # depends on rm, handled externally
+
+        if facet == "debug":
+            return True
+
+        return False
 
     # -----------------------------------------------------
     # Extraction
@@ -87,6 +111,54 @@ class MetricSpec:
             current = current.get(part)
 
         return current
+
+    def missing_explain_hints(
+        self,
+        explain: set[str],
+        values: list[Any],
+        rows: list[dict],
+        rm=None,  # optional for aggregation context
+    ) -> list[str]:
+        """
+        Return actionable hints for missing explanation facets.
+        """
+
+        hints = []
+
+        key = self.key
+
+        # ----------------------------------------
+        # DEF
+        # ----------------------------------------
+        if "def" in explain and not self.description:
+            hints.append(f"MetricSpec('{key}'): add description=... in metric_definitions.py")
+
+        # ----------------------------------------
+        # VALUE
+        # ----------------------------------------
+        if "value" in explain:
+            if len(values) > 1:
+                if not self.interpret_series_fn:
+                    hints.append(
+                        f"MetricSpec('{key}'): add interpret_series_fn(values, rows) in metric_definitions.py"
+                    )
+            else:
+                if not (self.explain_value_fn or self.explain_value_static):
+                    hints.append(
+                        f"MetricSpec('{key}'): add explain_value_fn(value, row) or explain_value_static=... in metric_definitions.py"
+                    )
+
+        # ----------------------------------------
+        # AGGREGATION
+        # ----------------------------------------
+        if "aggregation" in explain and rm is not None:
+            agg = getattr(rm, "aggregate", None)
+            if agg:
+                hints.append(
+                    f"Aggregation '{agg}' for '{key}': register explain in aggregation_registry.py via register_aggregation(...)"
+                )
+
+        return hints
 
 
 # =========================================================
@@ -111,49 +183,97 @@ def extract_metrics(data: dict, specs: list[MetricSpec]) -> dict:
     return row
 
 
-def explain_metric_series(rm, rows):
-    spec = rm.spec
+def explain_metric_series(rm, rows, explain: set[str] | None = None):
+    explain = explain or set()
 
+    if "all" in explain:
+        explain = {"def", "value", "aggregation"} | ({"debug"} if "debug" in explain else set())
+
+    if not explain:
+        return ""
+
+    spec = rm.spec
+    agg = getattr(rm, "aggregate", None)
+    # ----------------------------------------
+    # Resolve values
+    # ----------------------------------------
     values = []
     for r in rows:
-        values.append(resolve_metric_value(r, rm.key, getattr(rm, "aggregate", None)))
+        values.append(resolve_metric_value(r, rm.key, agg))
 
-    # Priority 1: series-level interpretation
-    if spec.interpret_series_fn:
+    parts = []
+
+    # ----------------------------------------
+    # DEF (definition)
+    # ----------------------------------------
+    if "def" in explain:
+        if spec.description:
+            parts.append(spec.description)
+
+    # ----------------------------------------
+    # VALUE (interpretation)
+    # ----------------------------------------
+    if "value" in explain:
+        # Series-level preferred
+        if spec.interpret_series_fn:
+            try:
+                parts.append(spec.interpret_series_fn(values, rows))
+            except Exception:
+                parts.append("⚠️ interpretation error")
+
+        # Single value fallback
+        elif len(values) == 1 and spec.explain_value_fn:
+            try:
+                parts.append(spec.explain_value_fn(values[0], rows[0]))
+            except Exception:
+                parts.append("⚠️ value explanation error")
+
+        # Static fallback
+        elif spec.explain_value_static:
+            parts.append(spec.explain_value_static)
+
+    # ----------------------------------------
+    # AGGREGATION (basic support)
+    # ----------------------------------------
+    if "aggregation" in explain:
+        if agg:
+            explain_fn = get_aggregation_explain(agg)
+
+            if explain_fn:
+                try:
+                    parts.append(f"{rm.key}: {explain_fn(values)}")
+                except Exception:
+                    parts.append(f"{rm.key}: aggregation '{agg}' (explain error)")
+            else:
+                parts.append(f"{rm.key}: aggregated across rows using '{agg}'")
+
+    # ----------------------------------------
+    # DEV fallback (only if nothing else)
+    # ----------------------------------------
+    show_debug = "debug" in explain or (not parts and DEV_FALLBACK_ENABLED)
+    if show_debug:
+        hints = False
         try:
-            return spec.interpret_series_fn(values, rows)
+            preview = values[:5]
+            more = "..." if len(values) > 5 else ""
+
+            hints = spec.missing_explain_hints(explain, values, rows, rm)
+
+            hint_str = "\n".join(f"- {h}" for h in hints) if hints else "- no hints"
+
+            msg = (
+                f"[dim]values={preview}{more}[/dim]\n"
+                f"[dim]metric='{rm.key}' explain={sorted(explain)}[/dim]\n"
+                f"[dim]aggregate='{agg}'[/dim]\n"
+                f"[dim]fix:[/dim]\n{hint_str}"
+            )
+
         except Exception:
-            return "⚠️ interpretation error"
+            msg = f"[dim](no explanation available) metric='{rm.key}'[/dim]"
 
-    # Priority 2: fallback → single value interpretation
-    if len(values) == 1:
-        val = values[0]
+        parts.append(msg)
 
-        if hasattr(spec, "explain"):
-            return spec.explain(val, rows[0])
-
-    # 3. Static fallback
-    if getattr(spec, "interpretation", None):
-        return spec.interpretation
-
-    if getattr(spec, "description", None):
-        return spec.description
-
-    # 4. DEFAULT DEV FALLBACK 👇
-    # Show values + hint for developer
-    try:
-        # shorten values for readability
-        preview = values[:5]
-        more = "..." if len(values) > 5 else ""
-
-        return_string = f"values={preview}{more} → add interpret_series_fn to '{rm.key}'"
-    except Exception:
-        return_string = f"(no interpretation) → add interpret_series_fn to '{rm.key}'"
-
-    if DEBUG_EXPLANATIONS:
-        return return_string
-    else:
-        return ""
+    return "\n".join(parts)
 
 
 def resolve_metric_value(row: dict, key: str, aggregate: str | None):
@@ -168,3 +288,8 @@ def resolve_metric_value(row: dict, key: str, aggregate: str | None):
             lookup_key = agg_key
 
     return row.get(lookup_key)
+
+
+def facet_help(explain_opts):
+    msg = f"help message with facets: {EXPLAIN_FACETS}\n" f"{explain_opts}"
+    return msg

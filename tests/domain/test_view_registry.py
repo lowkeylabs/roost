@@ -9,7 +9,7 @@ def test_default_trial_view_exists():
 
 
 def test_get_trial_view_returns_specs():
-    view, layout = get_view("trial", "default")
+    view, _layout, _explain = get_view("trial", "default")
 
     assert len(view) > 0
     for spec in view:
@@ -17,7 +17,7 @@ def test_get_trial_view_returns_specs():
 
 
 def test_get_run_view_returns_specs():
-    view, layout = get_view("run", "default")
+    view, _layout, _explain = get_view("run", "default")
 
     assert len(view) > 0
     for spec in view:
@@ -26,4 +26,4 @@ def test_get_run_view_returns_specs():
 
 def test_invalid_view_raises():
     with pytest.raises(KeyError):
-        _v, _l = get_view("trial", "nonexistent")
+        _v, _l, _e = get_view("trial", "nonexistent")

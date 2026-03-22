@@ -16,7 +16,7 @@ def get_value(row, rm):
 # =========================================================
 # Main dispatcher
 # =========================================================
-def render_table(console, rows, view, layout="table", explain=False):
+def render_table(console, rows, view, layout="table", explain: set[str] | None = None):
     if layout == "pivot":
         return render_pivot_table(console, rows, view, explain=explain)
     else:
@@ -41,7 +41,7 @@ def make_table():
 # =========================================================
 # Standard table (row-wise)
 # =========================================================
-def render_standard_table(console, rows, view, explain=False):
+def render_standard_table(console, rows, view, explain: set[str] | None = None):
     if rows is None:
         console.print("[yellow]No data[/yellow]")
         return
@@ -53,6 +53,8 @@ def render_standard_table(console, rows, view, explain=False):
     if not rows:
         console.print("[yellow]No data[/yellow]")
         return
+
+    explain = explain or set()
 
     table = make_table()
 
@@ -84,7 +86,7 @@ def render_standard_table(console, rows, view, explain=False):
         explanation_row = [""]  # for ID column
 
         for rm in view:
-            explanation = explain_metric_series(rm, rows)
+            explanation = explain_metric_series(rm, rows, explain)
             explanation_row.append(explanation)
 
         table.add_row(*explanation_row, style="dim")
@@ -95,7 +97,7 @@ def render_standard_table(console, rows, view, explain=False):
 # =========================================================
 # Pivot table (metrics as rows)
 # =========================================================
-def render_pivot_table(console, rows, view, explain=False):
+def render_pivot_table(console, rows, view, explain: set[str] | None = None):
     if rows is None:
         console.print("[yellow]No data[/yellow]")
         return
@@ -107,6 +109,8 @@ def render_pivot_table(console, rows, view, explain=False):
     if not rows:
         console.print("[yellow]No data[/yellow]")
         return
+
+    explain = explain or set()
 
     # ----------------------------------------
     # Build table
@@ -127,6 +131,8 @@ def render_pivot_table(console, rows, view, explain=False):
     # ----------------------------------------
     # Each metric becomes a row
     # ----------------------------------------
+    # rm : resolved metric with all attributes
+
     for rm in view:
         # Label
         label = rm.spec.label or rm.spec.key
@@ -142,7 +148,7 @@ def render_pivot_table(console, rows, view, explain=False):
 
         # Explanation (series-aware)
         if explain:
-            explanation = explain_metric_series(rm, rows)
+            explanation = explain_metric_series(rm, rows, explain)
             row_cells.append(explanation)
 
         table.add_row(*row_cells)

@@ -8,8 +8,10 @@ from loguru import logger
 from rich.console import Console
 
 from owlroost.domain.metrics import load_metrics
-from owlroost.domain.metrics.view_registry import METRIC_VIEW_REGISTRY, get_view
+from owlroost.domain.metrics.metric_spec import EXPLAIN_FACETS, facet_help
+from owlroost.domain.metrics.view_registry import get_view, resolve_default_view, view_help
 from owlroost.domain.services.discovery import discover_experiments
+from owlroost.domain.services.query import apply_filters, apply_sort, apply_top
 from owlroost.domain.services.rows import build_run_rows, build_trial_rows
 from owlroost.domain.views.inspect import render_table
 
@@ -18,99 +20,8 @@ load_metrics()
 
 RESULTS_DIR = Path("results")
 
-
-# =========================================================
-# Helpers
-# =========================================================
-
-
-def view_keys(view):
-    return {rm.key for rm in view}
-
-
-def apply_sort(rows, view, sort_key):
-    if not sort_key:
-        return rows
-
-    direction = -1
-    key = sort_key
-
-    if sort_key.startswith("+"):
-        direction = 1
-        key = sort_key[1:]
-    elif sort_key.startswith("-"):
-        key = sort_key[1:]
-
-    valid_keys = view_keys(view)
-
-    if key not in valid_keys:
-        raise ValueError(f"Invalid sort key '{key}'. Valid: {', '.join(sorted(valid_keys))}")
-
-    def safe_value(row):
-        v = row.get(key)
-        if v is None:
-            return float("inf") if direction == 1 else float("-inf")
-        return v
-
-    return sorted(rows, key=safe_value, reverse=(direction == -1))
-
-
-def parse_filter(expr):
-    for op in ["=", ">", "<"]:
-        if op in expr:
-            key, val = expr.split(op, 1)
-            return key.strip(), op, val.strip()
-    raise ValueError(f"Invalid filter '{expr}'")
-
-
-def coerce_value(val):
-    try:
-        return float(val)
-    except ValueError:
-        return val.lower()
-
-
-def apply_filters(rows, view, filters):
-    if not filters:
-        return rows
-
-    valid_keys = view_keys(view)
-
-    parsed = []
-    for f in filters:
-        key, op, val = parse_filter(f)
-
-        if key not in valid_keys:
-            raise ValueError(f"Invalid filter key '{key}'. Valid: {', '.join(sorted(valid_keys))}")
-
-        parsed.append((key, op, coerce_value(val)))
-
-    def match(row):
-        for key, op, val in parsed:
-            rv = row.get(key)
-
-            if rv is None:
-                return False
-
-            rv_cmp = rv.lower() if isinstance(rv, str) else rv
-
-            if op == "=" and rv_cmp != val:
-                return False
-            if op == ">" and (not isinstance(rv_cmp, (int | float)) or rv_cmp <= val):
-                return False
-            if op == "<" and (not isinstance(rv_cmp, (int | float)) or rv_cmp >= val):
-                return False
-
-        return True
-
-    return [r for r in rows if match(r)]
-
-
-def apply_top(rows, top_n):
-    if top_n is None:
-        return rows
-    return rows[:top_n] if top_n > 0 else []
-
+EXPLAIN_SPECIAL = {"none", "help"}
+EXPLAIN_ALL = EXPLAIN_FACETS | EXPLAIN_SPECIAL
 
 # =========================================================
 # Argument parsing
@@ -158,49 +69,43 @@ def parse_args(args):
 
 
 # =========================================================
-# View helpers
+# Explain parser
 # =========================================================
 
 
-def list_views_for_level(level: str) -> list[str]:
-    return sorted(METRIC_VIEW_REGISTRY.get(level, {}).keys())
+def parse_explain(explain_opts, view_explain):
+    """
+    Normalize CLI explain options into a set of facets.
 
+    Returns:
+        set[str]
+    """
 
-def resolve_default_view(display_level: str, display_mode: str, row: dict | None) -> str:
-    if display_level == "run":
-        return "default"
+    # ----------------------------------------
+    # No CLI input → fall back to view default
+    # ----------------------------------------
+    if not explain_opts:
+        return {"all"} if view_explain else set()
 
-    if display_level == "trial":
-        if display_mode == "list":
-            return "default"
+    parts = set()
 
-        if display_mode == "detail":
-            status = (row or {}).get("status")
-            if status == "failed":
-                return "failures"
-            return "fragility"
+    for opt in explain_opts:
+        for p in opt.split(","):
+            p = p.strip()
+            if not p:
+                continue
+            if p not in EXPLAIN_ALL:
+                valid = ", ".join(sorted(EXPLAIN_ALL))
+                raise ValueError(f"Invalid explain option '{p}'. Valid: {valid}")
+            parts.add(p)
 
-    return "default"
+    # ----------------------------------------
+    # Special handling
+    # ----------------------------------------
+    if "none" in parts:
+        return set()
 
-
-def list_views_for_context(display_level: str, display_mode: str, row: dict | None):
-    all_views = list_views_for_level(display_level)
-
-    if display_level != "trial" or display_mode != "detail":
-        return {"all": all_views}
-
-    status = (row or {}).get("status")
-
-    if status == "failed":
-        return {
-            "recommended": ["failures"],
-            "all": all_views,
-        }
-
-    return {
-        "recommended": ["fragility", "outcomes"],
-        "all": all_views,
-    }
+    return set(parts)
 
 
 # =========================================================
@@ -221,12 +126,14 @@ def list_views_for_context(display_level: str, display_mode: str, row: dict | No
 )
 @click.option(
     "--explain",
-    is_flag=True,
-    default=None,
-    help="Include explanations for metrics",
+    "explain_opts",
+    multiple=True,
+    help=(
+        "Explanation facets (repeatable or comma-separated): " f"{', '.join(sorted(EXPLAIN_ALL))}"
+    ),
 )
 def cmd_inspect(
-    args, run_override, view_name, sort_key, top_n, filters, list_views, pivot, explain
+    args, run_override, view_name, sort_key, top_n, filters, list_views, pivot, explain_opts
 ):
     console = Console()
 
@@ -317,23 +224,14 @@ def cmd_inspect(
     # ---------------------------------------------------------
     # View listing
     # ---------------------------------------------------------
-    if list_views:
-        context_views = list_views_for_context(display_level, display_mode, detail_row)
+    if view_name == "help" or list_views:
+        tag_filter = None
 
-        console.print()
-        console.print(f"[bold]Available views for level '{display_level}':[/bold]")
-        console.print("[dim](use --view <name>)[/dim]")
+        # Support: --view help risk
+        if view_name == "help" and args:
+            tag_filter = args[0]
 
-        if "recommended" in context_views:
-            console.print("\n[bold]Recommended:[/bold]")
-            for v in context_views["recommended"]:
-                console.print(f"  {v}")
-
-        console.print("\n[bold]All:[/bold]")
-        for v in context_views["all"]:
-            console.print(f"  {v}")
-
-        console.print()
+        console.print(view_help(display_level, display_mode, detail_row, tag_filter))
         return
 
     # ---------------------------------------------------------
@@ -350,7 +248,7 @@ def cmd_inspect(
     try:
         selected_view, layout, view_explain = get_view(display_level, view_name)
     except KeyError:
-        available = ", ".join(sorted(METRIC_VIEW_REGISTRY[display_level].keys()))
+        available = ", ".join(list_views(display_level))
         console.print(f"[red]Unknown view '{view_name}'[/red]")
         console.print(f"[dim]Available: {available}[/dim]")
         return
@@ -359,10 +257,15 @@ def cmd_inspect(
     if pivot:
         layout = "pivot"
 
-    if explain is None:
-        explain_flag = view_explain
-    else:
-        explain_flag = explain
+    if any(opt.strip() == "help" for opt in explain_opts):
+        console.print(facet_help(explain_opts))
+        return
+
+    try:
+        explain_set = parse_explain(explain_opts, view_explain)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        return
 
     # ---------------------------------------------------------
     # Apply filters/sort/top
@@ -389,4 +292,4 @@ def cmd_inspect(
         console.print(line)
     console.print()
 
-    render_table(console, final_rows, selected_view, layout=layout, explain=explain_flag)
+    render_table(console, final_rows, selected_view, layout=layout, explain=explain_set)

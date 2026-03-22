@@ -39,7 +39,7 @@ def test_extract_metrics_end_to_end():
 
 
 def test_view_and_registry_integration():
-    view, _layout = get_view("trial", "default")
+    view, _layout, _explain = get_view("trial", "default")
 
     keys = [spec.key for spec in view]
 
