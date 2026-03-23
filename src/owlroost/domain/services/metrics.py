@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from owlplanner.config.toml_io import load_toml
+
 from owlroost.domain.metrics.metric_registry import METRIC_REGISTRY
 from owlroost.domain.metrics.metric_spec import MetricSpec
 
@@ -16,6 +18,33 @@ def load_metrics(trial_path: Path) -> dict | None:
         return json.loads(file.read_text())
     except Exception:
         return None
+
+
+def load_effective(trial_path: Path) -> dict:
+    file = next(trial_path.glob("*_effective.toml"), None)
+
+    if not file:
+        return {}
+
+    try:
+        result = load_toml(str(file))
+
+        # Case 1: OWL tuple return
+        if isinstance(result, tuple):
+            for item in result:
+                if isinstance(item, dict):
+                    return item
+            return {}
+
+        # Case 2: direct dict
+        if isinstance(result, dict):
+            return result
+
+        # Case 3: unexpected (string, etc.)
+        return {}
+
+    except Exception:
+        return {}
 
 
 def extract_row(data: dict, specs: list[MetricSpec], base_row: dict | None = None) -> dict:
@@ -58,13 +87,22 @@ def build_trial_row(
     specs: list[MetricSpec] | None = None,
     base_row: dict | None = None,
 ) -> dict | None:
+    #
     data = load_metrics(trial_path)
-    if not data:
+    metrics_data = load_metrics(trial_path)
+    if not metrics_data:
         return None
 
-    # -------------------------------------------------
-    # FULL EXTRACTION SUPPORT (THIS IS THE FIX)
-    # -------------------------------------------------
+    effective_data = load_effective(trial_path)
+
+    # ----------------------------------------
+    # Unified data payload (NEW)
+    # ----------------------------------------
+    data = {
+        **metrics_data,
+        "_inputs": effective_data,  # namespaced input layer
+    }
+
     if specs is None:
         specs = list(METRIC_REGISTRY.values())
 

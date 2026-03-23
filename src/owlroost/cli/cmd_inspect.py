@@ -271,7 +271,10 @@ def cmd_inspect(
     # ---------------------------------------------------------
     # Layout defaults based on display_mode (NEW)
     # ---------------------------------------------------------
-    if pivot is None:
+    if pivot is True:
+        layout = "pivot"
+    elif pivot is None:
+        # default behavior
         if display_mode in ("summary", "detail"):
             layout = "pivot"
 

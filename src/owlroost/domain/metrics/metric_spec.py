@@ -11,49 +11,58 @@ from ..services.aggregation_registry import AggContext, get_aggregation_explain
 # =========================================================
 
 DEV_FALLBACK_ENABLED = True
-EXPLAIN_FACETS = {"def", "value", "aggregation", "debug", "all"}
+
+EXPLAIN_FACETS = {
+    "variables",
+    "values",
+    "sources",
+    "debug",
+    "all",
+}
+
+# Backward compatibility (optional safety)
+FACET_ALIASES = {
+    "def": "variables",
+    "value": "values",
+    "aggregation": "sources",
+}
 
 
 @dataclass(slots=True)
 class MetricSpec:
     """
     Defines a single metric extracted from _metrics.json.
-
-    This is the canonical definition used to:
-        - extract values from JSON
-        - render columns in CLI
-        - enable aggregation (future)
     """
 
     # -----------------------------------------------------
     # Identity
     # -----------------------------------------------------
-    key: str  # unique key (e.g. "spending_total_today")
+    key: str
     label: str
 
     # -----------------------------------------------------
-    # Extraction location (or none if derived)
+    # Extraction
     # -----------------------------------------------------
-    path: str | None = None  # dot path in JSON (e.g. "financial.spending.total.today")
+    path: str | None = None
 
     # -----------------------------------------------------
     # Display
     # -----------------------------------------------------
-    fmt: str = "default"  # formatting key (reuse format_value)
+    fmt: str = "default"
     align: str = "right"
 
     # -----------------------------------------------------
     # Typing / semantics
     # -----------------------------------------------------
-    dtype: type = float  # float, int, str, bool
-    category: str = "general"  # financial, risk, timing, etc.
+    dtype: type = float
+    category: str = "general"
 
     # -----------------------------------------------------
     # Behavior flags
     # -----------------------------------------------------
     is_timeseries: bool = False
     is_required: bool = False
-    is_invariant: bool = False  # does not change across trials (e.g. problem_id)
+    is_invariant: bool = False
 
     # -----------------------------------------------------
     # Visibility
@@ -61,38 +70,48 @@ class MetricSpec:
     show_if: Callable[[dict], bool] | None = None
 
     # -----------------------------------------------------
-    # Aggregation (NEW)
+    # Aggregation
     # -----------------------------------------------------
     aggregates: list[str] = field(default_factory=list)
 
     # -----------------------------------------------------
-    # Optional derived metric
+    # Derived metric
     # -----------------------------------------------------
     compute_fn: Callable[[dict], Any] | None = None
 
     # -----------------------------------------------------
-    # Notes and more
+    # Semantics
     # -----------------------------------------------------
     description: str | None = None
-    explain_value_static: str | None = None
 
-    interpret_series_fn: Callable[[list[Any], list[dict]], str] | None = None
+    # Legacy (kept for compatibility)
+    explain_value_static: str | None = None
     explain_value_fn: Callable[[Any, dict], str] | None = None
 
+    # Primary meaning layer (preferred going forward)
+    value_fn: Callable[[Any, dict], str] | None = None
+    value_series_fn: Callable[[list[Any], list[dict]], str] | None = None
+
+    # -----------------------------------------------------
+    # Capability checks
+    # -----------------------------------------------------
     def has_value_explanation(self, values: list[Any]) -> bool:
-        if len(values) > 1:
-            return self.interpret_series_fn is not None
-        return bool(self.explain_value_fn or self.explain_value_static)
+        return bool(
+            self.value_fn
+            or self.value_series_fn
+            or self.explain_value_fn
+            or self.explain_value_static
+        )
 
     def supports_facet(self, facet: str, values: list[Any]) -> bool:
-        if facet == "def":
+        if facet == "variables":
             return bool(self.description)
 
-        if facet == "value":
+        if facet == "values":
             return self.has_value_explanation(values)
 
-        if facet == "aggregation":
-            return True  # depends on rm, handled externally
+        if facet == "sources":
+            return True
 
         if facet == "debug":
             return True
@@ -103,64 +122,64 @@ class MetricSpec:
     # Extraction
     # -----------------------------------------------------
     def extract(self, data: dict):
+        """
+        Resolve value for this metric.
+
+        Priority:
+            1. compute_fn (derived metric)
+            2. path (raw extraction)
+            3. None
+        """
+        # ----------------------------------------
+        # Derived metric (takes precedence)
+        # ----------------------------------------
         if self.compute_fn:
-            return self.compute_fn(data)
-
-        if self.path is None:
-            return data.get(self.key)
-
-        current = data
-        for part in self.path.split("."):
-            if not isinstance(current, dict):
+            try:
+                return self.compute_fn(data)
+            except Exception:
                 return None
-            current = current.get(part)
 
-        return current
+        # ----------------------------------------
+        # Path-based extraction
+        # ----------------------------------------
+        if not self.path:
+            return None
 
+        try:
+            value = data
+            for part in self.path.split("."):
+                if value is None:
+                    return None
+                value = value.get(part)
+            return value
+        except Exception:
+            return None
+
+    # -----------------------------------------------------
+    # Dev hints
+    # -----------------------------------------------------
     def missing_explain_hints(
         self,
         explain: set[str],
         values: list[Any],
         rows: list[dict],
-        rm=None,  # optional for aggregation context
+        rm=None,
     ) -> list[str]:
-        """
-        Return actionable hints for missing explanation facets.
-        """
-
         hints = []
-
         key = self.key
 
-        # ----------------------------------------
-        # DEF
-        # ----------------------------------------
-        if "def" in explain and not self.description:
-            hints.append(f"MetricSpec('{key}'): add description=... in metric_definitions.py")
+        if "variables" in explain and not self.description:
+            hints.append(f"MetricSpec('{key}'): add description=...")
 
-        # ----------------------------------------
-        # VALUE
-        # ----------------------------------------
-        if "value" in explain:
-            if len(values) > 1:
-                if not self.interpret_series_fn:
-                    hints.append(
-                        f"MetricSpec('{key}'): add interpret_series_fn(values, rows) in metric_definitions.py"
-                    )
-            else:
-                if not (self.explain_value_fn or self.explain_value_static):
-                    hints.append(
-                        f"MetricSpec('{key}'): add explain_value_fn(value, row) or explain_value_static=... in metric_definitions.py"
-                    )
+        if "values" in explain:
+            if not self.has_value_explanation(values):
+                hints.append(f"MetricSpec('{key}'): add value_fn(...) or value_series_fn(...)")
 
-        # ----------------------------------------
-        # AGGREGATION
-        # ----------------------------------------
-        if "aggregation" in explain and rm is not None:
+        if "sources" in explain and rm is not None:
             agg = getattr(rm, "aggregate", None)
             if agg:
                 hints.append(
-                    f"Aggregation '{agg}' for '{key}': register explain in aggregation_registry.py via register_aggregation(...)"
+                    f"Aggregation '{agg}' for '{key}': register explain in aggregation_registry.py"
                 )
 
         return hints
@@ -172,9 +191,6 @@ class MetricSpec:
 
 
 def extract_metrics(data: dict, specs: list[MetricSpec]) -> dict:
-    """
-    Extract all metrics into a flat dict.
-    """
     row = {}
 
     for spec in specs:
@@ -188,17 +204,26 @@ def extract_metrics(data: dict, specs: list[MetricSpec]) -> dict:
     return row
 
 
+# =========================================================
+# Explain Engine
+# =========================================================
+
+
 def explain_metric_series(rm, rows, explain: set[str] | None = None):
     explain = explain or set()
 
+    # normalize aliases
+    explain = {FACET_ALIASES.get(f, f) for f in explain}
+
     if "all" in explain:
-        explain = {"def", "value", "aggregation"} | ({"debug"} if "debug" in explain else set())
+        explain = {"variables", "values", "sources"} | ({"debug"} if "debug" in explain else set())
 
     if not explain:
         return ""
 
     spec = rm.spec
     agg = getattr(rm, "aggregate", None)
+
     # ----------------------------------------
     # Resolve values
     # ----------------------------------------
@@ -206,57 +231,58 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
     raw_values = []
 
     for r in rows:
-        # aggregated value (what's displayed)
         values.append(resolve_metric_value(r, rm.key, agg))
-
-        # raw value (pre-aggregation)
         raw_values.append(resolve_metric_value(r, rm.key, None))
 
     parts = []
 
     # ----------------------------------------
-    # DEF (definition)
+    # VARIABLES
     # ----------------------------------------
-    if "def" in explain:
+    if "variables" in explain:
         if spec.description:
             parts.append(spec.description)
 
     # ----------------------------------------
-    # VALUE (interpretation)
+    # VALUES (primary meaning layer)
     # ----------------------------------------
-    if "value" in explain:
-        # Series-level preferred
-        if spec.interpret_series_fn:
-            try:
-                parts.append(spec.interpret_series_fn(values, rows))
-            except Exception:
-                parts.append("⚠️ interpretation error")
+    if "values" in explain:
+        try:
+            if len(values) > 1 and spec.value_series_fn:
+                parts.append(spec.value_series_fn(values, rows))
 
-        # Single value fallback
-        elif len(values) == 1 and spec.explain_value_fn:
-            try:
+            elif len(values) == 1 and spec.value_fn:
+                parts.append(spec.value_fn(values[0], rows[0]))
+
+            elif len(values) == 1 and spec.explain_value_fn:
                 parts.append(spec.explain_value_fn(values[0], rows[0]))
-            except Exception:
-                parts.append("⚠️ value explanation error")
 
-        # Static fallback
-        elif spec.explain_value_static:
-            parts.append(spec.explain_value_static)
+            elif spec.explain_value_static:
+                parts.append(spec.explain_value_static)
+
+        except Exception:
+            parts.append("value explanation error")
 
     # ----------------------------------------
-    # AGGREGATION (basic support)
+    # SOURCES
     # ----------------------------------------
-    if "aggregation" in explain:
+    if "sources" in explain:
         if agg:
             explain_fn = get_aggregation_explain(agg)
 
-            if explain_fn:
-                try:
-                    n_total = 1
-                    n_valid = 1
-                    if rows and isinstance(rows[0], dict):
-                        n_total = rows[0].get("trial_cnt")
-                        n_valid = rows[0].get(f"{rm.key}_{agg}_n")
+            try:
+                n_total = None
+                n_valid = None
+
+                if rows and isinstance(rows[0], dict):
+                    n_total = rows[0].get("trial_cnt")
+                    n_valid = rows[0].get(f"{rm.key}_{agg}_n")
+
+                # ✅ KEY FIX: treat single observation as raw
+                if n_valid is not None and n_valid <= 1:
+                    parts.append("Raw value from metrics")
+
+                elif explain_fn:
                     ctx = AggContext(
                         agg_values=values,
                         n_total=n_total,
@@ -264,25 +290,28 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
                         aggregation=agg,
                         metric_key=rm.key,
                     )
-                    parts.append(f"{explain_fn(ctx)}")
+                    parts.append(explain_fn(ctx))
 
-                except Exception:
-                    parts.append(f"{rm.key}: aggregation '{agg}' (explain error)")
-            else:
-                parts.append(f"{rm.key}: aggregated across rows using '{agg}'")
+                else:
+                    parts.append(f"Aggregated using '{agg}'")
+
+            except Exception:
+                parts.append(f"Aggregated using '{agg}'")
+
+        else:
+            parts.append("Raw value from metrics")
 
     # ----------------------------------------
-    # DEV fallback (only if nothing else)
+    # DEBUG / FALLBACK
     # ----------------------------------------
     show_debug = "debug" in explain or (not parts and DEV_FALLBACK_ENABLED)
+
     if show_debug:
-        hints = False
         try:
             preview = values[:5]
             more = "..." if len(values) > 5 else ""
 
             hints = spec.missing_explain_hints(explain, values, rows, rm)
-
             hint_str = "\n".join(f"- {h}" for h in hints) if hints else "- no hints"
 
             msg = (
@@ -300,10 +329,12 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
     return "\n".join(parts)
 
 
+# =========================================================
+# Value Resolver
+# =========================================================
+
+
 def resolve_metric_value(row: dict, key: str, aggregate: str | None):
-    """
-    Resolve value from row, handling aggregate suffixes.
-    """
     lookup_key = key
 
     if aggregate:
@@ -314,27 +345,38 @@ def resolve_metric_value(row: dict, key: str, aggregate: str | None):
     return row.get(lookup_key)
 
 
+# =========================================================
+# CLI Help
+# =========================================================
+
+
 def facet_help(explain_opts):
-    msg = f"help message with facets: {EXPLAIN_FACETS}\n" f"{explain_opts}"
-    return msg
+    return (
+        "Explain facets:\n"
+        "  variables  → definition of the metric\n"
+        "  values     → meaning of the result\n"
+        "  sources    → how the value was derived\n"
+        f"\nAvailable: {sorted(EXPLAIN_FACETS)}\n"
+        f"{explain_opts}"
+    )
+
+
+# =========================================================
+# Visibility Context
+# =========================================================
 
 
 def build_visibility_context(rows: list[dict]) -> dict:
     n = len(rows)
 
-    # detect trial count if available
     trial_cnt = None
     if rows and isinstance(rows[0], dict):
         trial_cnt = rows[0].get("trial_cnt")
 
-    # -----------------------------------------------------
-    # Statistical context (NOT UI shape)
-    # -----------------------------------------------------
     if trial_cnt is not None:
         is_single = trial_cnt == 1
         is_stochastic = trial_cnt > 1
     else:
-        # fallback for non-run contexts (e.g. trial lists)
         is_single = n == 1
         is_stochastic = n > 1
 

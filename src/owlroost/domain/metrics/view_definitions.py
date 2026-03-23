@@ -33,6 +33,7 @@ register_view(
         "case_name",
         "experiment",
         "run",
+        "rates_method",
         ("trial", "cnt"),
         ("success", "pct"),
         ("spending_annual", "median"),
@@ -53,7 +54,7 @@ register_view(
         "experiment",
         "run",
         "trial",  # raw value
-        "success",  # raw (will show 0/1 or 100%)
+        "rates_method",
         ("spending_annual", "median"),
         ("spending_total", "median"),
         ("bequest", "median"),

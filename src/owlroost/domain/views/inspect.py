@@ -56,6 +56,9 @@ def render_table(console, rows, view, layout="table", explain: set[str] | None =
     # ----------------------------------------
     # Dispatch
     # ----------------------------------------
+
+    print("LAYOUT:", layout, type(layout))
+
     if layout == "pivot":
         return render_pivot_table(console, rows, filtered_view, explain=explain)
     else:
@@ -156,7 +159,12 @@ def render_pivot_table(console, rows, view, explain: set[str] | None = None):
     table = make_table()
 
     # First column = metric labels
-    table.add_column("Metric", justify="left")
+    table.add_column(
+        "Metric",
+        justify="left",
+        min_width=24,  # ← adjust to taste (22–30 works well)
+        no_wrap=True,  # ← prevents ugly multi-line metric labels
+    )
 
     # One column per row (run/trial)
     for i, _row in enumerate(rows):
@@ -178,6 +186,9 @@ def render_pivot_table(console, rows, view, explain: set[str] | None = None):
         agg = getattr(rm, "aggregate", None)
 
         # Context-aware label
+        if label:
+            label = label.replace("\n", " ").strip()
+
         if agg and ctx["is_stochastic"]:
             label = f"{label} ({agg})"
 
