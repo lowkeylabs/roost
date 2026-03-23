@@ -21,7 +21,6 @@ register_metric(
     MetricSpec(
         key="experiment",
         label="Exp",
-        # is_invariant=True,
         aggregates=["cnt"],
         description="Experiment identifier grouping multiple runs",
         explain_value_static="Used to group runs under a shared configuration",
@@ -32,7 +31,6 @@ register_metric(
     MetricSpec(
         key="run",
         label="Run",
-        # is_invariant=True,
         aggregates=["cnt"],
         description="Run identifier within an experiment",
         explain_value_static="Each run represents a distinct parameterization",
@@ -100,7 +98,6 @@ register_metric(
         aggregates=["cnt", "pct"],
         description="Indicator of successful optimization",
         explain_value_static="1 = solved successfully, 0 = failure",
-        # interpret_series_fn=lambda v, _: f"{sum(v)/len(v):.0%} success rate",
     )
 )
 
@@ -114,7 +111,6 @@ register_metric(
         aggregates=["cnt", "pct"],
         description="Indicator of failed optimization",
         explain_value_static="1 = failure, 0 = success",
-        # interpret_series_fn=lambda v, _: f"{sum(v)/len(v):.0%} failure rate",
     )
 )
 

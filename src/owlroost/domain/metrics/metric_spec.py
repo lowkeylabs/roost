@@ -56,6 +56,11 @@ class MetricSpec:
     is_invariant: bool = False  # does not change across trials (e.g. problem_id)
 
     # -----------------------------------------------------
+    # Visibility
+    # -----------------------------------------------------
+    show_if: Callable[[dict], bool] | None = None
+
+    # -----------------------------------------------------
     # Aggregation (NEW)
     # -----------------------------------------------------
     aggregates: list[str] = field(default_factory=list)
@@ -312,3 +317,30 @@ def resolve_metric_value(row: dict, key: str, aggregate: str | None):
 def facet_help(explain_opts):
     msg = f"help message with facets: {EXPLAIN_FACETS}\n" f"{explain_opts}"
     return msg
+
+
+def build_visibility_context(rows: list[dict]) -> dict:
+    n = len(rows)
+
+    # detect trial count if available
+    trial_cnt = None
+    if rows and isinstance(rows[0], dict):
+        trial_cnt = rows[0].get("trial_cnt")
+
+    # -----------------------------------------------------
+    # Statistical context (NOT UI shape)
+    # -----------------------------------------------------
+    if trial_cnt is not None:
+        is_single = trial_cnt == 1
+        is_stochastic = trial_cnt > 1
+    else:
+        # fallback for non-run contexts (e.g. trial lists)
+        is_single = n == 1
+        is_stochastic = n > 1
+
+    return {
+        "n_rows": n,
+        "trial_cnt": trial_cnt,
+        "is_single": is_single,
+        "is_stochastic": is_stochastic,
+    }

@@ -45,6 +45,29 @@ register_view(
     tags=["summary"],
 )
 
+register_view(
+    "run",
+    "summary",
+    [
+        "case_name",
+        "experiment",
+        "run",
+        "trial",  # raw value
+        "success",  # raw (will show 0/1 or 100%)
+        ("spending_annual", "median"),
+        ("spending_total", "median"),
+        ("bequest", "median"),
+        ("ending_assets", "mean"),
+        ("min_cushion", "mean"),
+        ("worst_drawdown", "mean"),
+        "has_overrides_display",
+    ],
+    layout="pivot",
+    description="Single-run summary using raw values (non-aggregated)",
+    tags=["summary"],
+)
+
+
 # =========================================================
 # TRIAL DIAGNOSTICS VIEWS
 # =========================================================
@@ -146,16 +169,16 @@ register_view(
     [
         "run",
         ("trial", "cnt"),
-        "success_pct",
-        "fail_pct",
-        "bequest_mean",
-        "bequest_median",
-        "bequest_p10",
-        "bequest_p90",
-        "ending_assets_mean",
-        "min_cushion_mean",
-        "worst_drawdown_mean",
-        "elapsed_mean",
+        ("success", "pct"),
+        ("fail", "pct"),
+        ("bequest", "mean"),
+        ("bequest", "median"),
+        ("bequest", "p10"),
+        ("bequest", "p90"),
+        ("ending_assets", "mean"),
+        ("min_cushion", "mean"),
+        ("worst_drawdown", "mean"),
+        ("elapsed", "mean"),
     ],
     description="Aggregated diagnostics across trials including success rates, distribution metrics, and averages",
     tags=["diagnostics", "distribution"],

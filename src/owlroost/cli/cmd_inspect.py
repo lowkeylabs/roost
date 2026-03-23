@@ -4,12 +4,16 @@ import sys
 from pathlib import Path
 
 import click
-from loguru import logger
 from rich.console import Console
 
 from owlroost.domain.metrics import load_metrics
 from owlroost.domain.metrics.metric_spec import EXPLAIN_FACETS, facet_help
-from owlroost.domain.metrics.view_registry import get_view, resolve_default_view, view_help
+from owlroost.domain.metrics.view_registry import (
+    get_view,
+    list_views,
+    resolve_default_view,
+    view_help,
+)
 from owlroost.domain.services.discovery import discover_experiments
 from owlroost.domain.services.query import apply_filters, apply_sort, apply_top
 from owlroost.domain.services.rows import build_run_rows, build_trial_rows
@@ -120,7 +124,7 @@ def parse_explain(explain_opts, view_explain):
 @click.option("--sort", "sort_key", type=str)
 @click.option("--top", "top_n", type=int)
 @click.option("--filter", "filters", multiple=True)
-@click.option("--views", "list_views", is_flag=True, help="List available views")
+@click.option("--views", "list_views_flag", is_flag=True, help="List available views")
 @click.option(
     "--pivot", is_flag=True, default=None, help="Render metrics as rows and items as columns"
 )
@@ -133,7 +137,7 @@ def parse_explain(explain_opts, view_explain):
     ),
 )
 def cmd_inspect(
-    args, run_override, view_name, sort_key, top_n, filters, list_views, pivot, explain_opts
+    args, run_override, view_name, sort_key, top_n, filters, list_views_flag, pivot, explain_opts
 ):
     console = Console()
 
@@ -193,12 +197,12 @@ def cmd_inspect(
 
         # TRIAL LIST
         if trial_id is None:
-            display_level = "trial"
-            display_mode = "list"
-            working_rows = trial_rows
+            display_level = "run"
+            display_mode = "summary"
+            working_rows = [selected]  # <-- key change
 
             header = [
-                "[bold cyan]TRIAL[/bold cyan]",
+                "[bold cyan]RUN[/bold cyan]",
                 f"[dim]Exp {ref['exp_index']} | Run {ref['run_index']}[/dim]",
                 f"[dim]{run.path}[/dim]",
             ]
@@ -224,11 +228,11 @@ def cmd_inspect(
     # ---------------------------------------------------------
     # View listing
     # ---------------------------------------------------------
-    if view_name == "help" or list_views:
+    if view_name == "help" or list_views_flag:
         tag_filter = None
 
-        # Support: --view help risk
-        if view_name == "help" and args:
+        # Only treat args as tag filter when NOT selecting a run/trial
+        if view_name == "help" and level == "run" and run_id is None and args:
             tag_filter = args[0]
 
         console.print(view_help(display_level, display_mode, detail_row, tag_filter))
@@ -242,6 +246,17 @@ def cmd_inspect(
     if not user_provided_view:
         view_name = resolve_default_view(display_level, display_mode, detail_row)
 
+        # -----------------------------------------------------
+        # Optional: smarter defaults for run summary (NEW)
+        # -----------------------------------------------------
+        if display_level == "run" and display_mode == "summary":
+            trial_cnt = working_rows[0].get("trial_cnt", 1)
+
+            if trial_cnt == 1:
+                view_name = "summary"
+            else:
+                view_name = "diagnostics"
+
     # ---------------------------------------------------------
     # Resolve view
     # ---------------------------------------------------------
@@ -253,9 +268,12 @@ def cmd_inspect(
         console.print(f"[dim]Available: {available}[/dim]")
         return
 
-    logger.debug(f"pivot: {pivot}")
-    if pivot:
-        layout = "pivot"
+    # ---------------------------------------------------------
+    # Layout defaults based on display_mode (NEW)
+    # ---------------------------------------------------------
+    if pivot is None:
+        if display_mode in ("summary", "detail"):
+            layout = "pivot"
 
     if any(opt.strip() == "help" for opt in explain_opts):
         console.print(facet_help(explain_opts))
@@ -279,10 +297,12 @@ def cmd_inspect(
     # ---------------------------------------------------------
     # Header
     # ---------------------------------------------------------
+    mode_tag = f" ({display_mode})" if display_mode != "list" else ""
+
     if pivot:
-        header.append(f"[dim]View: {display_level}:{view_name} PIVOT[/dim]")
+        header.append(f"[dim]View: {display_level}:{view_name}{mode_tag} PIVOT[/dim]")
     else:
-        header.append(f"[dim]View: {display_level}:{view_name}[/dim]")
+        header.append(f"[dim]View: {display_level}:{view_name}{mode_tag}[/dim]")
 
     # ---------------------------------------------------------
     # Render

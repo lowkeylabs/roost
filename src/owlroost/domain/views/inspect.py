@@ -2,7 +2,11 @@ from rich import box
 from rich.table import Table
 
 from owlroost.domain.formatting import format_value
-from owlroost.domain.metrics.metric_spec import explain_metric_series, resolve_metric_value
+from owlroost.domain.metrics.metric_spec import (
+    build_visibility_context,
+    explain_metric_series,
+    resolve_metric_value,
+)
 
 
 # =========================================================
@@ -17,12 +21,45 @@ def get_value(row, rm):
 # Main dispatcher
 # =========================================================
 def render_table(console, rows, view, layout="table", explain: set[str] | None = None):
-    if layout == "pivot":
-        return render_pivot_table(console, rows, view, explain=explain)
-    else:
+    if rows is None:
         return render_standard_table(console, rows, view, explain=explain)
 
-    return
+    # Normalize single row early
+    if isinstance(rows, dict):
+        rows = [rows]
+
+    # ----------------------------------------
+    # APPLY show_if filtering (NEW)
+    # ----------------------------------------
+    ctx = build_visibility_context(rows)
+
+    filtered_view = [rm for rm in view if (rm.spec.show_if is None or rm.spec.show_if(ctx))]
+
+    # ----------------------------------------
+    # Deduplicate aggregates for single-row (NEW)
+    # ----------------------------------------
+    if ctx["is_single"]:
+        seen = set()
+        deduped = []
+
+        for rm in filtered_view:
+            key = rm.key  # ignore aggregation
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+            deduped.append(rm)
+
+        filtered_view = deduped
+
+    # ----------------------------------------
+    # Dispatch
+    # ----------------------------------------
+    if layout == "pivot":
+        return render_pivot_table(console, rows, filtered_view, explain=explain)
+    else:
+        return render_standard_table(console, rows, filtered_view, explain=explain)
 
 
 # =========================================================
@@ -111,6 +148,7 @@ def render_pivot_table(console, rows, view, explain: set[str] | None = None):
         return
 
     explain = explain or set()
+    ctx = build_visibility_context(rows)
 
     # ----------------------------------------
     # Build table
@@ -135,9 +173,13 @@ def render_pivot_table(console, rows, view, explain: set[str] | None = None):
 
     for rm in view:
         # Label
+
         label = rm.spec.label or rm.spec.key
-        if getattr(rm, "aggregate", None):
-            label = f"{label} ({rm.aggregate})"
+        agg = getattr(rm, "aggregate", None)
+
+        # Context-aware label
+        if agg and ctx["is_stochastic"]:
+            label = f"{label} ({agg})"
 
         row_cells = [label]
 
