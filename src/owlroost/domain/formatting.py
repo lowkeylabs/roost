@@ -22,6 +22,29 @@ def format_value(value, fmt: str | None):
 
         return "/".join("[" + ",".join(str(int(x)) for x in alloc) + "]" for alloc in normalized)
 
+    if fmt == "overrides":
+        if not value:
+            return "-"
+
+        # Expecting a dict
+        if isinstance(value, dict):
+            lines = []
+
+            for k, v in sorted(value.items()):
+                # Apply aliasing
+                if isinstance(k, str):
+                    k = k.replace("fixed_income.social_security_ages", "ss_ages")
+
+                # Format value recursively (important!)
+                v_str = format_value(v, None)
+
+                lines.append(f"{k}\n{v_str}")
+
+            return "\n".join(lines)
+
+        # Fallback if unexpected type
+        return str(value)
+
     # -------------------------------------------------
     # DEFAULT FLOAT NORMALIZATION (when no explicit fmt)
     # -------------------------------------------------

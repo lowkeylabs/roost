@@ -14,6 +14,10 @@ from owlroost.domain.metrics.metric_spec import (
 # =========================================================
 def get_value(row, rm):
     val = resolve_metric_value(row, rm.key, getattr(rm, "aggregate", None))
+    # Apply display transform BEFORE formatting
+    if rm.spec.display_fn:
+        val = rm.spec.display_fn(val)
+
     return format_value(val, rm.spec.fmt)
 
 
@@ -56,8 +60,6 @@ def render_table(console, rows, view, layout="table", explain: set[str] | None =
     # ----------------------------------------
     # Dispatch
     # ----------------------------------------
-
-    print("LAYOUT:", layout, type(layout))
 
     if layout == "pivot":
         return render_pivot_table(console, rows, filtered_view, explain=explain)

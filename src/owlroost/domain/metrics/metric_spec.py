@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from statistics import median
 from typing import Any
 
+from ..formatting import format_value
 from ..services.aggregation_registry import AggContext, get_aggregation_explain
 
 # =========================================================
@@ -11,6 +13,8 @@ from ..services.aggregation_registry import AggContext, get_aggregation_explain
 # =========================================================
 
 DEV_FALLBACK_ENABLED = True
+EMPTY_RETURN = "-"
+
 
 EXPLAIN_FACETS = {
     "variables",
@@ -83,25 +87,22 @@ class MetricSpec:
     # Semantics
     # -----------------------------------------------------
     description: str | None = None
+    display_fn: Callable[[Any], Any] | None = None  # called in inspect.py, in get_view
 
-    # Legacy (kept for compatibility)
-    explain_value_static: str | None = None
-    explain_value_fn: Callable[[Any, dict], str] | None = None
-
-    # Primary meaning layer (preferred going forward)
+    # Primary meaning layer
     value_fn: Callable[[Any, dict], str] | None = None
-    value_series_fn: Callable[[list[Any], list[dict]], str] | None = None
+    value_series_fn: Callable[[list[Any], list[Any], list[dict]], str] | None = None
+
+    def __post_init__(self):
+        # Enforce value_series_fn for all metrics
+        if self.value_series_fn is None:
+            self.value_series_fn = default_series_fn(self)
 
     # -----------------------------------------------------
     # Capability checks
     # -----------------------------------------------------
     def has_value_explanation(self, values: list[Any]) -> bool:
-        return bool(
-            self.value_fn
-            or self.value_series_fn
-            or self.explain_value_fn
-            or self.explain_value_static
-        )
+        return bool(self.value_fn or self.value_series_fn)
 
     def supports_facet(self, facet: str, values: list[Any]) -> bool:
         if facet == "variables":
@@ -130,18 +131,14 @@ class MetricSpec:
             2. path (raw extraction)
             3. None
         """
-        # ----------------------------------------
-        # Derived metric (takes precedence)
-        # ----------------------------------------
+        # Derived metric
         if self.compute_fn:
             try:
                 return self.compute_fn(data)
             except Exception:
                 return None
 
-        # ----------------------------------------
         # Path-based extraction
-        # ----------------------------------------
         if not self.path:
             return None
 
@@ -172,7 +169,7 @@ class MetricSpec:
             hints.append(f"MetricSpec('{key}'): add description=...")
 
         if "values" in explain:
-            if not self.has_value_explanation(values):
+            if not self.value_fn and not self.value_series_fn:
                 hints.append(f"MetricSpec('{key}'): add value_fn(...) or value_series_fn(...)")
 
         if "sources" in explain and rm is not None:
@@ -244,24 +241,25 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
             parts.append(spec.description)
 
     # ----------------------------------------
-    # VALUES (primary meaning layer)
+    # VALUES (semantic meaning)
     # ----------------------------------------
     if "values" in explain:
         try:
-            if len(values) > 1 and spec.value_series_fn:
-                parts.append(spec.value_series_fn(values, rows))
+            ctx = build_visibility_context(rows)
 
-            elif len(values) == 1 and spec.value_fn:
-                parts.append(spec.value_fn(values[0], rows[0]))
+            results = "-"
+            if ctx["is_stochastic"]:
+                fn = spec.value_series_fn or default_series_fn(spec.fmt)
+                results = fn(values, raw_values, rows)
 
-            elif len(values) == 1 and spec.explain_value_fn:
-                parts.append(spec.explain_value_fn(values[0], rows[0]))
+            elif ctx["is_single"] and spec.value_fn:
+                results = spec.value_fn(values[0], rows[0])
 
-            elif spec.explain_value_static:
-                parts.append(spec.explain_value_static)
+            parts.append(results)
 
-        except Exception:
+        except Exception as e:
             parts.append("value explanation error")
+            parts.append(f"\n[red]{type(e).__name__}: {e}[/red]")
 
     # ----------------------------------------
     # SOURCES
@@ -278,7 +276,6 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
                     n_total = rows[0].get("trial_cnt")
                     n_valid = rows[0].get(f"{rm.key}_{agg}_n")
 
-                # ✅ KEY FIX: treat single observation as raw
                 if n_valid is not None and n_valid <= 1:
                     parts.append("Raw value from metrics")
 
@@ -305,6 +302,8 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
     # DEBUG / FALLBACK
     # ----------------------------------------
     show_debug = "debug" in explain or (not parts and DEV_FALLBACK_ENABLED)
+    if not parts:
+        parts.append("-")
 
     if show_debug:
         try:
@@ -312,15 +311,17 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
             more = "..." if len(values) > 5 else ""
 
             hints = spec.missing_explain_hints(explain, values, rows, rm)
-            hint_str = "\n".join(f"- {h}" for h in hints) if hints else "- no hints"
+            if hints:
+                hint_str = "\n".join(f"- {h}" for h in hints)
+            else:
+                hint_str = ""
 
             msg = (
                 f"[dim]values={preview}{more}[/dim]\n"
                 f"[dim]metric='{rm.key}' explain={sorted(explain)}[/dim]\n"
                 f"[dim]aggregate='{agg}'[/dim]\n"
-                f"[dim]fix:[/dim]\n{hint_str}"
+                + (f"[dim]fix:[/dim]\n{hint_str}" if hint_str else "")
             )
-
         except Exception:
             msg = f"[dim](no explanation available) metric='{rm.key}'[/dim]"
 
@@ -386,3 +387,84 @@ def build_visibility_context(rows: list[dict]) -> dict:
         "is_single": is_single,
         "is_stochastic": is_stochastic,
     }
+
+
+# =========================================================
+# Default series function
+# =========================================================
+
+
+def default_series_fn(spec):
+    fmt = spec.fmt
+
+    def fn(values, raw, rows):
+        clean = [v for v in raw if v is not None]
+        if not clean:
+            return EMPTY_RETURN
+
+        # ----------------------------------------
+        # INVARIANT (case_name, rates_method)
+        # ----------------------------------------
+        if spec.is_invariant:
+            return str(clean[0]) if clean else EMPTY_RETURN
+
+        # ----------------------------------------
+        # COUNT METRICS (trial, exp, run)
+        # ----------------------------------------
+        if spec.key in ("trial", "exp", "run") or "cnt" in (spec.aggregates or []):
+            return format_value(clean[0], fmt)
+
+        # ----------------------------------------
+        # BOOLEAN / SUCCESS METRICS
+        # ----------------------------------------
+        if spec.dtype in (bool, int) and "pct" in (spec.aggregates or []):
+            total = len(clean)
+            success = sum(1 for v in clean if v)
+            return f"{success}/{total} ({format_value(success/total, 'percent')})"
+
+        # ----------------------------------------
+        # RUN COMPARISON (not statistical aggregation)
+        # ----------------------------------------
+        ctx = build_visibility_context(rows)
+
+        if ctx["n_rows"] > 1 and ctx["trial_cnt"] is not None:
+            # comparing runs, not aggregating trials
+
+            unique = list(dict.fromkeys(clean))
+
+            if len(unique) == 1:
+                return format_value(unique[0], fmt)
+
+            return f"{len(unique)} distinct values"
+
+        # ----------------------------------------
+        # NUMERIC (financial, risk)
+        # ----------------------------------------
+        if all(isinstance(v, (int, float)) for v in clean):  # noqa: UP038
+            if len(clean) == 1:
+                return format_value(clean[0], fmt)
+
+            med = median(clean)
+            lo = min(clean)
+            hi = max(clean)
+
+            return (
+                f"Median {format_value(med, fmt)}, "
+                f"range {format_value(lo, fmt)} → {format_value(hi, fmt)}"
+            )
+
+        # ----------------------------------------
+        # STRING / CATEGORICAL
+        # ----------------------------------------
+        if all(isinstance(v, str) for v in clean):
+            unique = list(dict.fromkeys(clean))
+            if len(unique) == 1:
+                return unique[0]
+            return f"{len(unique)} distinct values"
+
+        # ----------------------------------------
+        # FALLBACK
+        # ----------------------------------------
+        return str(clean[0])
+
+    return fn

@@ -27,6 +27,23 @@ def build_run_rows(experiments):
 
             summary = aggregate_rows(trial_rows)
 
+            # -------------------------------------------------
+            # Carry forward non-aggregated fields (robust)
+            # -------------------------------------------------
+            for k in trial_rows[0].keys():
+                if k in summary:
+                    continue
+
+                vals = [r.get(k) for r in trial_rows if r.get(k) not in (None, {}, [])]
+
+                if not vals:
+                    continue
+
+                # If all meaningful values are identical → keep it
+                first = vals[0]
+                if all(v == first for v in vals):
+                    summary[k] = first
+
             summary["_ref"] = {
                 "exp_index": exp_index,
                 "run_index": run_index,

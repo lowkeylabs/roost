@@ -34,6 +34,7 @@ register_view(
         "experiment",
         "run",
         "rates_method",
+        "run_specific_overrides",
         ("trial", "cnt"),
         ("success", "pct"),
         ("spending_annual", "median"),
