@@ -169,6 +169,7 @@ register_view(
     "run",
     "diagnostics",
     [
+        "expriment",
         "run",
         ("trial", "cnt"),
         ("success", "pct"),
