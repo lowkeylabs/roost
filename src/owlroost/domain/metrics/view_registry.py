@@ -10,13 +10,19 @@ METRIC_VIEW_REGISTRY: dict[str, dict[str, dict]] = {
     "experiments": {},
 }
 
-MetricKey = Union[str, tuple[str, str]]  # noqa: UP007
+MetricKey = Union[  # noqa: UP007
+    str,
+    tuple[str, str],  # (key, aggregate)
+    tuple[str, dict],  # (key, opts)
+    tuple[str, str, dict],  # (key, aggregate, opts)
+]
 
 
 @dataclass
 class ResolvedMetric:
     spec: MetricSpec
     aggregate: str | None = None
+    view_show_if: str | None = None
 
     # -----------------------------
     # Core identity
@@ -94,29 +100,23 @@ def get_view(level: str, name: str):
     resolved = []
     missing = []
 
-    for k in keys:
-        # Aggregate metric
-        if isinstance(k, tuple):
-            base, agg = k
+    for item in keys:
+        parsed = parse_view_item(item)
 
-            if base not in METRIC_REGISTRY:
-                missing.append(k)
-                continue
+        key = parsed["key"]
+        agg = parsed["aggregate"]
+        view_show_if = parsed["view_show_if"]
 
-            spec = get_metric(base)
+        if key not in METRIC_REGISTRY:
+            missing.append(item)
+            continue
 
-            if agg not in (spec.aggregates or []):
-                raise KeyError(f"Metric '{base}' does not support aggregate '{agg}'")
+        spec = get_metric(key)
 
-            resolved.append(ResolvedMetric(spec, agg))
+        if agg and agg not in (spec.aggregates or []):
+            raise KeyError(f"Metric '{key}' does not support aggregate '{agg}'")
 
-        # Simple metric
-        else:
-            if k not in METRIC_REGISTRY:
-                missing.append(k)
-                continue
-
-            resolved.append(ResolvedMetric(get_metric(k)))
+        resolved.append(ResolvedMetric(spec, agg, view_show_if))
 
     if missing:
         raise KeyError(f"View '{level}:{name}' references unknown metrics: {missing}")
@@ -149,6 +149,53 @@ def get_view_description(level: str, name: str) -> str:
 
 def list_views(level: str):
     return sorted(METRIC_VIEW_REGISTRY[level].keys())
+
+
+def parse_view_item(item):
+    if isinstance(item, str):
+        return {"key": item, "aggregate": None, "view_show_if": None}
+
+    if isinstance(item, tuple):
+        # ----------------------------------------
+        # (key, agg)
+        # ----------------------------------------
+        if len(item) == 2:
+            key, second = item
+
+            # Case: (key, {"show_if": ...})
+            if isinstance(second, dict):
+                return {
+                    "key": key,
+                    "aggregate": None,
+                    "view_show_if": second.get("show_if"),
+                }
+
+            # Case: (key, agg)
+            return {
+                "key": key,
+                "aggregate": second,
+                "view_show_if": None,
+            }
+
+        # ----------------------------------------
+        # (key, agg, opts)
+        # ----------------------------------------
+        if len(item) == 3:
+            key, agg, opts = item
+            return {
+                "key": key,
+                "aggregate": agg,
+                "view_show_if": (opts or {}).get("show_if"),
+            }
+
+    if isinstance(item, dict):
+        return {
+            "key": item["key"],
+            "aggregate": item.get("aggregate"),
+            "view_show_if": item.get("show_if"),
+        }
+
+    raise ValueError(f"Invalid view item: {item}")
 
 
 def view_help(

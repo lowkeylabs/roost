@@ -15,7 +15,6 @@ from ..services.aggregation_registry import AggContext, get_aggregation_explain
 DEV_FALLBACK_ENABLED = True
 EMPTY_RETURN = "-"
 
-
 EXPLAIN_FACETS = {
     "variables",
     "values",
@@ -87,10 +86,9 @@ class MetricSpec:
     # Semantics
     # -----------------------------------------------------
     description: str | None = None
-    display_fn: Callable[[Any], Any] | None = None  # called in inspect.py, in get_view
+    display_fn: Callable[[Any], Any] | None = None
 
-    # Primary meaning layer
-    value_fn: Callable[[Any, dict], str] | None = None
+    # Unified meaning layer (series-based only)
     value_series_fn: Callable[[list[Any], list[Any], list[dict]], str] | None = None
 
     def __post_init__(self):
@@ -102,7 +100,7 @@ class MetricSpec:
     # Capability checks
     # -----------------------------------------------------
     def has_value_explanation(self, values: list[Any]) -> bool:
-        return bool(self.value_fn or self.value_series_fn)
+        return bool(self.value_series_fn)
 
     def supports_facet(self, facet: str, values: list[Any]) -> bool:
         if facet == "variables":
@@ -169,8 +167,8 @@ class MetricSpec:
             hints.append(f"MetricSpec('{key}'): add description=...")
 
         if "values" in explain:
-            if not self.value_fn and not self.value_series_fn:
-                hints.append(f"MetricSpec('{key}'): add value_fn(...) or value_series_fn(...)")
+            if not self.value_series_fn:
+                hints.append(f"MetricSpec('{key}'): add value_series_fn(...)")
 
         if "sources" in explain and rm is not None:
             agg = getattr(rm, "aggregate", None)
@@ -241,20 +239,12 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
             parts.append(spec.description)
 
     # ----------------------------------------
-    # VALUES (semantic meaning)
+    # VALUES (unified series-based)
     # ----------------------------------------
     if "values" in explain:
         try:
-            ctx = build_visibility_context(rows)
-
-            results = "-"
-            if ctx["is_stochastic"]:
-                fn = spec.value_series_fn or default_series_fn(spec.fmt)
-                results = fn(values, raw_values, rows)
-
-            elif ctx["is_single"] and spec.value_fn:
-                results = spec.value_fn(values[0], rows[0])
-
+            fn = spec.value_series_fn or default_series_fn(spec)
+            results = fn(values, raw_values, rows)
             parts.append(results)
 
         except Exception as e:
@@ -311,10 +301,7 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
             more = "..." if len(values) > 5 else ""
 
             hints = spec.missing_explain_hints(explain, values, rows, rm)
-            if hints:
-                hint_str = "\n".join(f"- {h}" for h in hints)
-            else:
-                hint_str = ""
+            hint_str = "\n".join(f"- {h}" for h in hints) if hints else ""
 
             msg = (
                 f"[dim]values={preview}{more}[/dim]\n"
@@ -403,13 +390,13 @@ def default_series_fn(spec):
             return EMPTY_RETURN
 
         # ----------------------------------------
-        # INVARIANT (case_name, rates_method)
+        # INVARIANT
         # ----------------------------------------
         if spec.is_invariant:
             return str(clean[0]) if clean else EMPTY_RETURN
 
         # ----------------------------------------
-        # COUNT METRICS (trial, exp, run)
+        # COUNT METRICS
         # ----------------------------------------
         if spec.key in ("trial", "exp", "run") or "cnt" in (spec.aggregates or []):
             return format_value(clean[0], fmt)
@@ -423,13 +410,11 @@ def default_series_fn(spec):
             return f"{success}/{total} ({format_value(success/total, 'percent')})"
 
         # ----------------------------------------
-        # RUN COMPARISON (not statistical aggregation)
+        # RUN COMPARISON
         # ----------------------------------------
         ctx = build_visibility_context(rows)
 
         if ctx["n_rows"] > 1 and ctx["trial_cnt"] is not None:
-            # comparing runs, not aggregating trials
-
             unique = list(dict.fromkeys(clean))
 
             if len(unique) == 1:
@@ -438,7 +423,7 @@ def default_series_fn(spec):
             return f"{len(unique)} distinct values"
 
         # ----------------------------------------
-        # NUMERIC (financial, risk)
+        # NUMERIC DISTRIBUTION
         # ----------------------------------------
         if all(isinstance(v, (int, float)) for v in clean):  # noqa: UP038
             if len(clean) == 1:

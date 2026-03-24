@@ -120,7 +120,7 @@ def parse_explain(explain_opts, view_explain):
 @click.command(name="inspect")
 @click.argument("args", nargs=-1)
 @click.option("--run", "run_override", type=int)
-@click.option("--view", "view_name", default="default")
+@click.option("--view", "view_name", default=None)
 @click.option("--sort", "sort_key", type=str)
 @click.option("--top", "top_n", type=int)
 @click.option("--filter", "filters", multiple=True)
@@ -241,21 +241,24 @@ def cmd_inspect(
     # ---------------------------------------------------------
     # Default view override (only if user didn't specify)
     # ---------------------------------------------------------
-    user_provided_view = "--view" in sys.argv
+    if 0:
+        user_provided_view = "--view" in sys.argv
 
-    if not user_provided_view:
+        if not user_provided_view:
+            view_name = resolve_default_view(display_level, display_mode, detail_row)
+
+            # -----------------------------------------------------
+            # Optional: smarter defaults for run summary (NEW)
+            # -----------------------------------------------------
+            if display_level == "run" and display_mode == "summary":
+                trial_cnt = working_rows[0].get("trial_cnt", 1)
+
+                if trial_cnt == 1:
+                    view_name = "summary"
+                else:
+                    view_name = "diagnostics"
+    if view_name is None:
         view_name = resolve_default_view(display_level, display_mode, detail_row)
-
-        # -----------------------------------------------------
-        # Optional: smarter defaults for run summary (NEW)
-        # -----------------------------------------------------
-        if display_level == "run" and display_mode == "summary":
-            trial_cnt = working_rows[0].get("trial_cnt", 1)
-
-            if trial_cnt == 1:
-                view_name = "summary"
-            else:
-                view_name = "diagnostics"
 
     # ---------------------------------------------------------
     # Resolve view

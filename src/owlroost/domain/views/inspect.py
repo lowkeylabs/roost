@@ -37,7 +37,26 @@ def render_table(console, rows, view, layout="table", explain: set[str] | None =
     # ----------------------------------------
     ctx = build_visibility_context(rows)
 
-    filtered_view = [rm for rm in view if (rm.spec.show_if is None or rm.spec.show_if(ctx))]
+    def view_allows(show_if, layout):
+        if show_if is None:
+            return True
+        if show_if == "is_pivot":
+            return layout == "pivot"
+        if show_if == "is_table":
+            return layout == "table"
+        return True
+
+    filtered_view = []
+
+    for rm in view:
+        # Metric-level show_if (existing behavior)
+
+        if rm.view_show_if and not view_allows(rm.view_show_if, layout):
+            continue
+
+        filtered_view.append(rm)
+
+    # filtered_view = [rm for rm in view if (rm.spec.show_if is None or rm.spec.show_if(ctx))]
 
     # ----------------------------------------
     # Deduplicate aggregates for single-row (NEW)

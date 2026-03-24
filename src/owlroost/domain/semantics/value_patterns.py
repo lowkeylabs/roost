@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
 from statistics import mean, median
+from typing import Any
 
 from ..formatting import format_value
-
 
 # =========================================================
 # Helpers
@@ -202,4 +202,3 @@ def series_best_case(fmt: str | None = None) -> Callable:
         return f"Best {format_value(max(clean), fmt)}"
 
     return fn
-
