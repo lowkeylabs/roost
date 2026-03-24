@@ -35,6 +35,7 @@ register_view(
         "run",
         ("trial", "cnt"),
         "rates_method",
+        ("rates_values",{"show_if":"is_pivot"}),
         ("run_specific_overrides", {"show_if": "is_pivot"}),
         ("has_overrides_display", {"show_if": "is_table"}),
         ("success", "pct"),

@@ -398,6 +398,19 @@ register_metric(
 
 register_metric(
     MetricSpec(
+        key="rates_values",
+        path="_inputs.rates_selection.values",
+        label="Rates values",
+        dtype=list,
+        align="left",
+        description="static rates values for User method",
+        value_series_fn=wrap_value_fn(lambda v, _: f"Static rates input for '{v}' method"),
+    )
+)
+
+
+register_metric(
+    MetricSpec(
         key="objective",
         path="_inputs.optimization_parameters.objective",
         label="Objective",
