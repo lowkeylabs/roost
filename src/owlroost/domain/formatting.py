@@ -34,6 +34,7 @@ def format_value(value, fmt: str | None):
                 # Apply aliasing
                 if isinstance(k, str):
                     k = k.replace("fixed_income.social_security_ages", "ss_ages")
+                    k = k.replace("solver_options.spendingSlack", "spendSlack")
 
                 # Format value recursively (important!)
                 v_str = format_value(v, None)

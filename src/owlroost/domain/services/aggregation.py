@@ -1,7 +1,7 @@
 from loguru import logger
 
 from owlroost.domain.metrics.metric_registry import METRIC_REGISTRY
-from owlroost.domain.services.aggregation_registry import AGG_FUNCS
+from owlroost.domain.services.aggregation_registry import AGG_DEFAULT_FMT, AGG_FUNCS
 
 
 def aggregate_rows(rows: list[dict]) -> dict:
@@ -23,7 +23,7 @@ def aggregate_rows(rows: list[dict]) -> dict:
         # Only valid (non-null) values
         values = [v for r in rows if (v := r.get(key)) is not None and isinstance(v, (int | float))]
 
-        for agg_name in spec.aggregates:
+        for agg_name, fmt in _normalize_aggregates(spec.aggregates, spec.fmt):
             if agg_name not in AGG_FUNCS:
                 raise ValueError(f"Unknown aggregation '{agg_name}' for metric '{key}'")
 
@@ -41,6 +41,7 @@ def aggregate_rows(rows: list[dict]) -> dict:
             try:
                 func = AGG_FUNCS[agg_name]
                 summary[f"{key}_{agg_name}"] = func(values)
+                summary[f"{key}_{agg_name}__fmt"] = fmt
             except Exception as e:
                 raise RuntimeError(
                     f"Aggregation '{agg_name}' failed for '{key}' with values={values}"
@@ -92,3 +93,18 @@ def _is_hashable(v):
         return True
     except TypeError:
         return False
+
+
+def _normalize_aggregates(aggregates, spec_fmt):
+    result = []
+
+    for a in aggregates:
+        if isinstance(a, tuple):
+            name, fmt = a
+        else:
+            name = a
+            fmt = AGG_DEFAULT_FMT.get(name) or spec_fmt
+
+        result.append((name, fmt))
+
+    return result

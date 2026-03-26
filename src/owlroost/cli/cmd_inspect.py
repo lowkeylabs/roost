@@ -265,10 +265,11 @@ def cmd_inspect(
     # ---------------------------------------------------------
     try:
         selected_view, layout, view_explain = get_view(display_level, view_name)
-    except KeyError:
+    except KeyError as e:
         available = ", ".join(list_views(display_level))
-        console.print(f"[red]Unknown view '{view_name}'[/red]")
+        console.print(f"[red]Failed to load view '{view_name}'[/red]")
         console.print(f"[dim]Available: {available}[/dim]")
+        console.print(f"[yellow]Error: {e}[/yellow]")  # 🔥 THIS IS THE KEY LINE
         return
 
     # ---------------------------------------------------------

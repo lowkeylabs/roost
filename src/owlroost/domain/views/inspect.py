@@ -13,12 +13,15 @@ from owlroost.domain.metrics.metric_spec import (
 # Shared value resolver
 # =========================================================
 def get_value(row, rm):
-    val = resolve_metric_value(row, rm.key, getattr(rm, "aggregate", None))
+    val, fmt_override = resolve_metric_value(row, rm.key, getattr(rm, "aggregate", None))
+
     # Apply display transform BEFORE formatting
     if rm.spec.display_fn:
         val = rm.spec.display_fn(val)
 
-    return format_value(val, rm.spec.fmt)
+    fmt = fmt_override or rm.spec.fmt
+
+    return format_value(val, fmt)
 
 
 # =========================================================
@@ -201,6 +204,20 @@ def render_pivot_table(console, rows, view, explain: set[str] | None = None):
     # rm : resolved metric with all attributes
 
     for rm in view:
+        # ----------------------------------------
+        # Separator row
+        # ----------------------------------------
+        if getattr(rm, "is_separator", False):
+            # total columns:
+            n_cols = 1 + len(rows) + (1 if explain else 0)
+
+            # ----------------------------------------
+            # Always render as blank row (safe)
+            # ----------------------------------------
+            table.add_row(*([""] * n_cols))
+
+            continue
+
         # Label
 
         label = rm.spec.label or rm.spec.key

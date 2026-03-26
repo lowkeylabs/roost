@@ -21,7 +21,7 @@ def build_context(exp, run, trial) -> dict:
     }
 
     # Add experiment-level overrides
-    exp_overrides = getattr(exp, "common_overrides", {}) or {}
+    exp_overrides = _filter_overrides(getattr(exp, "common_overrides", {}) or {})
     exp_ctx["experiment_overrides"] = exp_overrides
 
     # Flatten experiment overrides
@@ -38,7 +38,7 @@ def build_context(exp, run, trial) -> dict:
     }
 
     # Add run-level overrides
-    run_common = getattr(run, "common_overrides", {}) or {}
+    run_common = _filter_overrides(getattr(run, "common_overrides", {}) or {})
     run_specific = getattr(run, "run_overrides", {}) or {}
 
     run_ctx["run_common_overrides"] = run_common
@@ -79,6 +79,21 @@ def enrich_row(row: dict | None, exp, run, trial) -> dict | None:
 # =========================================================
 # Helpers
 # =========================================================
+
+
+def _filter_overrides(d: dict) -> dict:
+    """
+    Remove non-user-facing or redundant override keys.
+    """
+    if not d:
+        return {}
+
+    EXCLUDE = {
+        "case.file",
+        "trial.count",
+    }
+
+    return {k: v for k, v in d.items() if k not in EXCLUDE}
 
 
 def _flatten(prefix: str, d: dict) -> dict:

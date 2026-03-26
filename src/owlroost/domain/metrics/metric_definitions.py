@@ -37,6 +37,74 @@ def wrap_value_fn(fn):
 
 
 # =========================================================
+# USER INPUTS
+# =========================================================
+
+register_metric(
+    MetricSpec(
+        key="minimum_spending",
+        label="Min Spending Req",
+        path="_inputs.risk_analysis.minimum_spending",
+        fmt="currency",
+        description="Minimum spending before it gets uncomfortable",
+    )
+)
+
+# =========================================================
+# RISK ANALYSIS INPUTS
+# =========================================================
+
+register_metric(
+    MetricSpec(
+        key="soft_fail_consecutive_years_threshold",
+        label="Soft Fail\nConsec Years",
+        path="_inputs.risk_analysis.soft_fail_consecutive_years_threshhold",
+        fmt="int",
+        description="Number of consecutive years below minimum spending required to trigger a soft failure",
+        value_series_fn=wrap_value_fn(
+            lambda v, _: f"{v} consecutive years below minimum spending triggers soft failure"
+        ),
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="soft_fail_total_years_threshold",
+        label="Soft Fail\nTotal Years",
+        path="_inputs.risk_analysis.soft_fail_total_years_threshhold",
+        fmt="int",
+        description="Total number of years below minimum spending (not necessarily consecutive) required to trigger a soft failure",
+        value_series_fn=wrap_value_fn(
+            lambda v, _: f"{v} total years below minimum spending triggers soft failure"
+        ),
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="soft_fail_min_spending_ratio",
+        label="Soft Fail\nMin Ratio",
+        path="_inputs.risk_analysis.soft_fail_min_spending_ratio",
+        fmt="percent",
+        description="Minimum acceptable spending as a fraction of required spending; falling below this triggers a soft failure due to severity",
+        value_series_fn=wrap_value_fn(
+            lambda v, _: f"Spending below {int(v*100)}% of minimum is considered severe shortfall"
+        ),
+    )
+)
+
+
+register_metric(
+    MetricSpec(
+        key="net_spending",
+        label="Target Spending",
+        path="_inputs.financial.net_spending",
+        fmt="currency",
+    )
+)
+
+
+# =========================================================
 # CONTEXT METRICS
 # =========================================================
 
@@ -332,6 +400,20 @@ register_metric(
 
 register_metric(
     MetricSpec(
+        key="common_overrides",
+        label="Common\noverrides",
+        align="left",
+        compute_fn=lambda d: d.get("run_common_overrides"),
+        fmt="overrides",
+        dtype=dict,
+        description="Overrides applied to this run",
+        value_series_fn=overrides_series_fn,
+    )
+)
+
+
+register_metric(
+    MetricSpec(
         key="has_overrides",
         label="Has\noverrides",
         align="left",
@@ -484,6 +566,10 @@ register_metric(
         value_series_fn=wrap_value_fn(
             lambda v, _: f"Minimum cushion: {format_value(v, 'percent2')}"
         ),
+        description=(
+            "Minimum asset cushion relative to required spending. "
+            "Measures how close the plan comes to financial exhaustion."
+        ),
     )
 )
 
@@ -497,6 +583,10 @@ register_metric(
         value_series_fn=wrap_value_fn(
             lambda v, _: f"Worst drawdown: {format_value(v, 'percent2')}"
         ),
+        description=(
+            "Largest percentage decline in portfolio value from peak to trough. "
+            "Captures market risk exposure."
+        ),
     )
 )
 
@@ -509,6 +599,10 @@ register_metric(
         aggregates=["mean"],
         value_series_fn=wrap_value_fn(
             lambda v, _: f"Terminal spending/assets ratio: {format_value(v, 'percent2')}"
+        ),
+        description=(
+            "Final assets divided by final spending requirement. "
+            "Values >1 indicate surplus; values near 0 indicate depletion risk."
         ),
     )
 )
@@ -633,5 +727,430 @@ register_metric(
         fmt="int",
         aggregates=["mean"],
         value_series_fn=wrap_value_fn(lambda v, _: f"{v} constraints"),
+    )
+)
+
+
+# =========================================================
+# BASE TIMESERIES
+# =========================================================
+
+register_metric(
+    MetricSpec(
+        key="spending_series",
+        label="Spending Series",
+        path="financial.timeseries.spending.today_by_year",
+        dtype=list,
+        is_timeseries=True,
+        description="Annual spending path (today dollars)",
+    )
+)
+
+
+# =========================================================
+# SPENDING PROFILE
+# =========================================================
+
+register_metric(
+    MetricSpec(
+        key="spending_min",
+        label="Min Spending",
+        fmt="currency",
+        compute_fn=lambda r: (min(r["spending_series"]) if r.get("spending_series") else None),
+        aggregates=["mean", "median", "p10"],
+        description=(
+            "Lowest annual spending observed in the simulation. "
+            "Represents the worst lifestyle outcome experienced."
+        ),
+    )
+)
+
+
+register_metric(
+    MetricSpec(
+        key="spending_max",
+        label="Max Spending",
+        fmt="currency",
+        compute_fn=lambda r: (max(r["spending_series"]) if r.get("spending_series") else None),
+        aggregates=["mean", "p90"],
+    )
+)
+
+
+register_metric(
+    MetricSpec(
+        key="spending_drop_pct",
+        label="Max Drop",
+        fmt="percent2",
+        compute_fn=lambda r: (
+            (r["spending_annual"] - min(r["spending_series"])) / r["spending_annual"]
+            if r.get("spending_series") and r.get("spending_annual")
+            else None
+        ),
+        aggregates=["mean", "p90"],
+        description=(
+            "Maximum percentage drop from baseline spending. "
+            "Measures how much lifestyle must be reduced during stress scenarios."
+        ),
+    )
+)
+
+
+# =========================================================
+# SLACK METRICS
+# =========================================================
+
+register_metric(
+    MetricSpec(
+        key="max_feasible_slack",
+        label="Max Slack",
+        fmt="percent2",
+        compute_fn=lambda r: (
+            (r["spending_annual"] - r["minimum_spending"]) / r["spending_annual"]
+            if (
+                r.get("spending_annual") is not None
+                and r.get("minimum_spending") is not None
+                and r["spending_annual"] != 0
+            )
+            else None
+        ),
+        aggregates=["mean"],
+        description=(
+            "Maximum spending reduction the plan can tolerate while remaining feasible. "
+            "Represents available flexibility buffer."
+        ),
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="observed_slack_required",
+        label="Slack Required",
+        fmt="percent2",
+        compute_fn=lambda r: (
+            (r["spending_annual"] - min(r["spending_series"])) / r["spending_annual"]
+            if r.get("spending_series") and r.get("spending_annual")
+            else None
+        ),
+        aggregates=["mean", "p90"],
+        description=(
+            "Percentage reduction in spending required to maintain feasibility. "
+            "Indicates how much flexibility is needed under adverse conditions."
+        ),
+    )
+)
+
+
+register_metric(
+    MetricSpec(
+        key="slack_feasible",
+        label="Slack OK",
+        dtype=bool,
+        compute_fn=lambda r: (
+            r.get("observed_slack_required") <= r.get("max_feasible_slack")
+            if (
+                r.get("observed_slack_required") is not None
+                and r.get("max_feasible_slack") is not None
+            )
+            else None
+        ),
+        description=(
+            "True if required spending reductions are within feasible limits. "
+            "False indicates the plan cannot adapt sufficiently under stress."
+        ),
+    )
+)
+
+# =========================================================
+# BEHAVIORAL METRIC (VERY USEFUL)
+# =========================================================
+
+register_metric(
+    MetricSpec(
+        key="years_below_minimum",
+        label="Years < Min",
+        fmt="int",
+        compute_fn=lambda r: (
+            sum(1 for v in r["spending_series"] if v < r["minimum_spending"])
+            if r.get("spending_series") and r.get("minimum_spending")
+            else None
+        ),
+        aggregates=["mean", "p90"],
+        description=(
+            "Number of years spending falls below minimum_spending. "
+            "Captures frequency of lifestyle shortfall across the plan horizon."
+        ),
+    )
+)
+
+
+register_metric(
+    MetricSpec(
+        key="hard_fail",
+        label="Hard Fail",
+        dtype=int,
+        fmt="int",  # default fallback (used only if no aggregate override)
+        aggregates=[
+            ("cnt_true", "int"),  # number of failed trials
+            ("pct", "percent"),  # probability of failure
+        ],
+        compute_fn=lambda r: (
+            0 if r.get("status") == "solved" else 1 if r.get("status") is not None else None
+        ),
+        description="Indicator that LP solver failed (1=fail, 0=success)",
+        value_series_fn=wrap_value_fn(
+            lambda v, _: _bool_value(v == 1, "Failure occurred", "No failure")
+        ),
+    )
+)
+
+
+def _soft_fail_details(r):
+    series = r.get("spending_series")
+    min_spend = r.get("minimum_spending")
+
+    if series is None or len(series) == 0 or min_spend is None:
+        return None
+
+    inputs = r.get("_inputs", {}).get("risk_analysis", {}) or {}
+
+    consec_thresh = inputs.get("soft_fail_consecutive_years_threshhold", 5)
+    total_thresh = inputs.get("soft_fail_total_years_threshhold", 5)
+    ratio_thresh = inputs.get("soft_fail_min_spending_ratio", 0.8)
+
+    below = [v < min_spend for v in series]
+
+    total_years = sum(below)
+
+    max_consec = 0
+    cur = 0
+    for b in below:
+        if b:
+            cur += 1
+            max_consec = max(max_consec, cur)
+        else:
+            cur = 0
+
+    min_val = min(series)
+    ratio = min_val / min_spend if min_spend else None
+    severe = ratio is not None and ratio < ratio_thresh
+
+    trigger_duration = total_years >= total_thresh
+    trigger_consec = max_consec >= consec_thresh
+    trigger_severity = severe
+
+    fail = trigger_duration or trigger_consec or trigger_severity
+
+    return {
+        "fail": int(fail),
+        "total_years": total_years,
+        "max_consec": max_consec,
+        "severe": severe,
+        "min_val": min_val,
+        "min_spend": min_spend,
+        "ratio": ratio,
+        "total_thresh": total_thresh,
+        "consec_thresh": consec_thresh,
+        "ratio_thresh": ratio_thresh,
+        "trigger_duration": trigger_duration,
+        "trigger_consec": trigger_consec,
+        "trigger_severity": trigger_severity,
+    }
+
+
+register_metric(
+    MetricSpec(
+        key="soft_fail_total_years",
+        label="Soft Fail Years",
+        dtype=int,
+        aggregates=["mean", "p90"],
+        compute_fn=lambda r: (_soft_fail_details(r) or {}).get("total_years"),
+        description=(
+            "Total number of years spending falls below minimum_spending. "
+            "Computed per trial from spending_series vs minimum_spending. "
+            "Higher values indicate prolonged lifestyle shortfall."
+        ),
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="soft_fail_max_consec",
+        label="Soft Fail Consec",
+        dtype=int,
+        aggregates=["mean", "p90"],
+        compute_fn=lambda r: (_soft_fail_details(r) or {}).get("max_consec"),
+        description=(
+            "Maximum consecutive years spending remains below minimum_spending. "
+            "Captures sequence risk and sustained financial stress. "
+            "High values indicate long uninterrupted hardship periods."
+        ),
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="soft_fail_ratio",
+        label="Soft Fail Ratio",
+        dtype=float,
+        fmt="percent",
+        aggregates=["mean", "p10"],
+        compute_fn=lambda r: (_soft_fail_details(r) or {}).get("ratio"),
+        description=(
+            "Worst-case spending level as a fraction of minimum_spending "
+            "(min(spending_series) / minimum_spending). "
+            "Lower values indicate deeper shortfalls. "
+            "p10 highlights downside severity across trials."
+        ),
+    )
+)
+
+
+def _compute_soft_fail(r):
+    d = _soft_fail_details(r)
+    if d is None:
+        return None
+
+    # 🔥 store details for later explain
+    r["_soft_fail_details"] = d
+
+    return d["fail"]
+
+
+register_metric(
+    MetricSpec(
+        key="soft_fail",
+        label="Soft Fail",
+        dtype=int,
+        fmt=None,  # let aggregates control formatting
+        aggregates=["cnt_true", "pct"],
+        compute_fn=lambda r: (
+            (d := _soft_fail_details(r))["fail"]
+            if (d := _soft_fail_details(r)) is not None
+            else None
+        ),
+        description="Behavioral failure based on duration, frequency, or severity thresholds",
+        value_series_fn=wrap_value_fn(
+            lambda v, r: (
+                f"{format_value(r.get('soft_fail_cnt_true'), 'int')}/"
+                f"{format_value(r.get('soft_fail_cnt_true_n'), 'int')} failed | "
+                f"avg {format_value(r.get('soft_fail_total_years_mean'), 'int')} yrs, "
+                f"{format_value(r.get('soft_fail_max_consec_mean'), 'int')} consec, "
+                f"min {format_value(r.get('soft_fail_ratio_p10'), 'percent')} | "
+                f"trigger: "
+                f"{'duration ' if r.get('soft_fail_trigger_duration_cnt_true') else ''}"
+                f"{'consecutive ' if r.get('soft_fail_trigger_consec_cnt_true') else ''}"
+                f"{'severity' if r.get('soft_fail_trigger_severity_cnt_true') else ''}"
+            )
+            if r.get("soft_fail_cnt_true") is not None
+            else "-"
+        ),
+    )
+)
+
+
+register_metric(
+    MetricSpec(
+        key="soft_fail_trigger",
+        label="Soft Fail Trigger",
+        dtype=str,
+        aggregates=None,  # 🔥 IMPORTANT: no aggregation
+        compute_fn=lambda r: (
+            "+".join(
+                t
+                for t, flag in [
+                    ("duration", d["trigger_duration"]),
+                    ("consecutive", d["trigger_consec"]),
+                    ("severity", d["trigger_severity"]),
+                ]
+                if flag
+            )
+            if (d := _soft_fail_details(r)) and d["fail"]
+            else None
+        ),
+        description="Triggers for soft failure (trial-level only)",
+    )
+)
+
+
+register_metric(
+    MetricSpec(
+        key="soft_fail_trigger_duration",
+        label="Fail: Duration",
+        dtype=int,
+        aggregates=["cnt_true", "pct"],
+        compute_fn=lambda r: (1 if (d := _soft_fail_details(r)) and d["trigger_duration"] else 0)
+        if _soft_fail_details(r)
+        else None,
+        description=(
+            "Soft failure triggered by total years below minimum_spending "
+            "exceeding threshold (soft_fail_total_years_threshhold). "
+            "Indicates long-term underfunding."
+        ),
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="soft_fail_trigger_consec",
+        label="Fail: Consecutive",
+        dtype=int,
+        aggregates=["cnt_true", "pct"],
+        compute_fn=lambda r: (1 if (d := _soft_fail_details(r)) and d["trigger_consec"] else 0)
+        if _soft_fail_details(r)
+        else None,
+        description=(
+            "Soft failure triggered by consecutive years below minimum_spending "
+            "exceeding threshold (soft_fail_consecutive_years_threshhold). "
+            "Represents sustained financial stress."
+        ),
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="soft_fail_trigger_severity",
+        label="Fail: Severity",
+        dtype=int,
+        aggregates=["cnt_true", "pct"],
+        compute_fn=lambda r: (1 if (d := _soft_fail_details(r)) and d["trigger_severity"] else 0)
+        if _soft_fail_details(r)
+        else None,
+        description=(
+            "Soft failure triggered by spending dropping below a critical ratio "
+            "of minimum_spending (soft_fail_min_spending_ratio). "
+            "Captures extreme lifestyle degradation."
+        ),
+    )
+)
+
+
+register_metric(
+    MetricSpec(
+        key="total_fail",
+        label="Total Fail",
+        dtype=int,
+        fmt=None,
+        aggregates=["cnt_true", "pct"],
+        compute_fn=lambda r: (
+            1
+            if (
+                r.get("hard_fail") == 1
+                or ((d := _soft_fail_details(r)) is not None and d["fail"] == 1)
+            )
+            else 0
+        )
+        if r.get("hard_fail") is not None
+        else None,
+        description="Total failures: hard (insolvency) or soft (lifestyle breach)",
+        value_series_fn=wrap_value_fn(
+            lambda v, r: (
+                f"{format_value(r.get('total_fail_cnt_true'), 'int')}/"
+                f"{format_value(r.get('total_fail_cnt_true_n'), 'int')} failed "
+                f"({format_value(r.get('total_fail_pct'), 'percent')})"
+            )
+            if r.get("total_fail_cnt_true") is not None
+            else "-"
+        ),
     )
 )

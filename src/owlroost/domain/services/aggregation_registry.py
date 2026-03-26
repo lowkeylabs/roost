@@ -4,6 +4,19 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+AGG_DEFAULT_FMT = {
+    "cnt": "int",
+    "cnt_true": "int",
+    "pct": "percent",
+    "mean": None,
+    "median": None,
+    "sum": None,
+    "min": None,
+    "max": None,
+    "p10": None,
+    "p90": None,
+}
+
 
 @dataclass(slots=True)
 class AggContext:
@@ -56,6 +69,10 @@ def percentile(values, p):
 
 def len_(values):
     return len(values) if values else 0
+
+
+def cnt_true(values):
+    return sum(values) if values else 0
 
 
 # =========================================================
@@ -113,6 +130,16 @@ register_aggregation(
         f"{ctx.n_valid}/{ctx.n_total} observations"
         if ctx.n_total is not None
         else "Count of observations"
+    ),
+)
+
+register_aggregation(
+    "cnt_true",
+    cnt_true,
+    explain=lambda ctx: (
+        f"{sum(ctx.agg_values)}/{ctx.n_total} true observations"
+        if ctx.n_total is not None
+        else "Count of true values"
     ),
 )
 
