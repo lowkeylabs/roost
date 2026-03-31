@@ -306,13 +306,35 @@ def run_single_case(
     if hfp_file:
         plan.readHFP(str(hfp_modified))
 
-    solve_and_save(plan, output_file)
+    status = "unknown"
 
-    status_file = Path(trial_path) / plan.caseStatus.upper()
+    try:
+        solve_and_save(plan, output_file)
+        status = (plan.caseStatus or "unknown").lower()
+
+    except Exception:
+        logger.exception("Trial failed with exception")
+        status = "failed"
+
+        # 🔥 CRITICAL: still write metrics for failed trials
+        try:
+            metrics_path = (
+                Path(output_file)
+                .with_suffix("")
+                .with_name(Path(output_file).stem + "_metrics.json")
+            )
+            write_metrics_json(plan, metrics_path, timing={"elapsed_seconds": None})
+        except Exception:
+            logger.exception("Failed to write fallback metrics")
+
+    # --------------------------------------------------
+    # ALWAYS write status file
+    # --------------------------------------------------
+    status_file = Path(trial_path) / status.upper()
     status_file.touch(exist_ok=True)
 
-    if plan.caseStatus != "solved":
-        return PlanRunResult(status=plan.caseStatus)
+    if status != "solved":
+        return PlanRunResult(status=status)
 
     return PlanRunResult(
         status="solved",

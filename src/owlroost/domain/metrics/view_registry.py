@@ -98,7 +98,7 @@ def register_view(
             if key not in METRIC_REGISTRY:
                 raise ValueError(f"Unknown metric '{key}' in view '{level}:{name}'")
 
-            spec = METRIC_REGISTRY[key]
+            # spec = METRIC_REGISTRY[key]
 
             # --- aggregation validation ---
             if agg:
@@ -356,10 +356,8 @@ def resolve_default_view(display_level: str, display_mode: str, row: dict | None
             return "default"
 
         if display_mode == "detail":
-            status = (row or {}).get("status")
-            if status == "failed":
-                return "failures"
-            return "fragility"
+            # status = (row or {}).get("status")
+            return "default"
 
     return "default"
 

@@ -20,8 +20,22 @@ def aggregate_rows(rows: list[dict]) -> dict:
         if not spec.aggregates:
             continue
 
-        # Only valid (non-null) values
-        values = [v for r in rows if (v := r.get(key)) is not None and isinstance(v, (int | float))]
+        values = []
+
+        for r in rows:
+            v = r.get(key)
+
+            # -------------------------------------------------
+            # FALLBACK TO compute_fn IF VALUE MISSING
+            # -------------------------------------------------
+            if v is None and spec.compute_fn:
+                try:
+                    v = spec.compute_fn(r)
+                except Exception:
+                    v = None
+
+            if v is not None and isinstance(v, (int | float)):
+                values.append(v)
 
         for agg_name, fmt in _normalize_aggregates(spec.aggregates, spec.fmt):
             if agg_name not in AGG_FUNCS:
@@ -30,7 +44,7 @@ def aggregate_rows(rows: list[dict]) -> dict:
             n = len(values)
 
             # -----------------------------------------
-            # Record sample size for this aggregation
+            # Record sample size
             # -----------------------------------------
             summary[f"{key}_{agg_name}_n"] = n
 
@@ -48,23 +62,45 @@ def aggregate_rows(rows: list[dict]) -> dict:
                 ) from e
 
     # =====================================================
-    # INVARIANT PROPAGATION (explicit)
+    # INVARIANT PROPAGATION
     # =====================================================
 
     for key, spec in METRIC_REGISTRY.items():
         if not getattr(spec, "is_invariant", False):
             continue
 
-        values = {v for r in rows if (v := r.get(key)) is not None and _is_hashable(v)}
+        values = [r.get(key) for r in rows if r.get(key) is not None]
 
         if not values:
             summary[key] = None
             continue
 
-        if len(values) > 1:
-            raise ValueError(f"Invariant metric '{key}' has multiple values: {values}")
+        first = values[0]
 
-        summary[key] = next(iter(values))
+        # -------------------------------------------------
+        # HANDLE DICTS (e.g., overrides)
+        # -------------------------------------------------
+        if isinstance(first, dict):
+            if all(v == first for v in values):
+                summary[key] = first
+            else:
+                # Should not happen, but safe fallback
+                summary[key] = first
+            continue
+
+        # -------------------------------------------------
+        # HANDLE HASHABLE VALUES (existing behavior)
+        # -------------------------------------------------
+        hashable_values = {v for v in values if _is_hashable(v)}
+
+        if not hashable_values:
+            summary[key] = None
+            continue
+
+        if len(hashable_values) > 1:
+            raise ValueError(f"Invariant metric '{key}' has multiple values: {hashable_values}")
+
+        summary[key] = next(iter(hashable_values))
 
     # =====================================================
     # CONTEXT PROPAGATION (auto-detect invariants)

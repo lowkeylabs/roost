@@ -13,6 +13,8 @@ def test_get_trial_view_returns_specs():
 
     assert len(view) > 0
     for spec in view:
+        if getattr(spec, "is_separator", False):
+            continue
         assert hasattr(spec, "key")
 
 
@@ -21,6 +23,8 @@ def test_get_run_view_returns_specs():
 
     assert len(view) > 0
     for spec in view:
+        if getattr(spec, "is_separator", False):
+            continue
         assert hasattr(spec, "key")
 
 

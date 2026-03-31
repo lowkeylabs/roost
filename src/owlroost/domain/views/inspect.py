@@ -52,14 +52,15 @@ def render_table(console, rows, view, layout="table", explain: set[str] | None =
     filtered_view = []
 
     for rm in view:
-        # Metric-level show_if (existing behavior)
+        # Skip non-metric entries (separators, etc.)
+        if getattr(rm, "spec", None) is None:
+            filtered_view.append(rm)  # still keep for pivot rendering
+            continue
 
         if rm.view_show_if and not view_allows(rm.view_show_if, layout):
             continue
 
         filtered_view.append(rm)
-
-    # filtered_view = [rm for rm in view if (rm.spec.show_if is None or rm.spec.show_if(ctx))]
 
     # ----------------------------------------
     # Deduplicate aggregates for single-row (NEW)
@@ -69,7 +70,12 @@ def render_table(console, rows, view, layout="table", explain: set[str] | None =
         deduped = []
 
         for rm in filtered_view:
-            key = rm.key  # ignore aggregation
+            # Skip non-metric entries
+            if getattr(rm, "spec", None) is None:
+                deduped.append(rm)
+                continue
+
+            key = rm.key
 
             if key in seen:
                 continue
@@ -128,6 +134,8 @@ def render_standard_table(console, rows, view, explain: set[str] | None = None):
     table.add_column("ID", justify="right")
 
     for rm in view:
+        if getattr(rm, "spec", None) is None:
+            continue
         label = rm.spec.label or rm.spec.key
         table.add_column(label, justify=rm.spec.align or "right")
 
@@ -138,6 +146,8 @@ def render_standard_table(console, rows, view, explain: set[str] | None = None):
         values = [str(i)]
 
         for rm in view:
+            if getattr(rm, "spec", None) is None:
+                continue
             formatted = get_value(row, rm)
             values.append(formatted)
 
@@ -150,6 +160,8 @@ def render_standard_table(console, rows, view, explain: set[str] | None = None):
         explanation_row = [""]  # for ID column
 
         for rm in view:
+            if getattr(rm, "spec", None) is None:
+                continue
             explanation = explain_metric_series(rm, rows, explain)
             explanation_row.append(explanation)
 

@@ -41,7 +41,7 @@ def build_context(exp, run, trial) -> dict:
     run_common = _filter_overrides(getattr(run, "common_overrides", {}) or {})
     run_specific = getattr(run, "run_overrides", {}) or {}
 
-    run_ctx["run_common_overrides"] = run_common
+    run_ctx["common_overrides"] = run_common
     run_ctx["run_specific_overrides"] = run_specific
 
     # Flatten run-specific overrides (most useful for comparison)

@@ -41,7 +41,6 @@ def test_extract_metrics_end_to_end():
 def test_view_and_registry_integration():
     view, _layout, _explain = get_view("trial", "default")
 
-    keys = [spec.key for spec in view]
-
+    keys = [spec.key for spec in view if not getattr(spec, "is_separator", False)]
     assert "status" in keys
     assert "bequest" in keys

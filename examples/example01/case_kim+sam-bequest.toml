@@ -79,11 +79,11 @@ master_seed = 231478834
 trials = 1
 
 [risk_analysis]
-minimum_spending=120000
+minimum_spending = 120000
+baseline_years = 3
 soft_fail_consecutive_years_threshhold = 5
 soft_fail_total_years_threshhold = 5
-soft_fail_min_spending_ratio = 0.80
-
+soft_fail_min_spending_ratio = 0.8
 
 [cache]
 generated_at = "2026-03-15T19:51:06.957108"

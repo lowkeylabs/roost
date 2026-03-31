@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from owlroost.hydra.trial_worker import run_trial
@@ -22,8 +23,8 @@ life_expectancy = [65]
     base_overrides = {}
     run_dir = tmp_path
 
-    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
-        mock_run.return_value.status = "solved"
+    with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
+        mock_run.return_value = SimpleNamespace(status="solved")
 
         result = run_trial(
             job_id=job_id,
@@ -54,8 +55,8 @@ def test_rates_seed_injected(tmp_path):
 life_expectancy = [65]
 """)
 
-    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
-        mock_run.return_value.status = "solved"
+    with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
+        mock_run.return_value = SimpleNamespace(status="solved")
 
         run_trial(
             job_id="job",
@@ -68,7 +69,8 @@ life_expectancy = [65]
             master_seed=123,
         )
 
-        overrides = mock_run.call_args.kwargs["overrides"]
+        args = mock_run.call_args.args[0]
+        overrides = args["overrides"]
 
         assert overrides["rates_selection"]["rate_seed"] == 1234
         assert overrides["rates_selection"]["reproducible_rates"] is True
@@ -95,8 +97,8 @@ smoker = [false]
 partnered = false
 """)
 
-    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
-        mock_run.return_value.status = "solved"
+    with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
+        mock_run.return_value = SimpleNamespace(status="solved")
 
         result = run_trial(
             job_id="job",
@@ -110,7 +112,8 @@ partnered = false
             longevity_cfg={"apply_to_plan": True},
         )
 
-        overrides = mock_run.call_args.kwargs["overrides"]
+        args = mock_run.call_args.args[0]
+        overrides = args["overrides"]
 
         assert result["status"] == "solved"
         assert overrides["basic_info"]["life_expectancy"] == [90]
@@ -126,8 +129,8 @@ def test_longevity_defaults_used_when_section_missing(mock_sample, tmp_path):
 life_expectancy = [65]
 """)
 
-    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
-        mock_run.return_value.status = "solved"
+    with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
+        mock_run.return_value = SimpleNamespace(status="solved")
 
         run_trial(
             job_id="job",
@@ -141,7 +144,8 @@ life_expectancy = [65]
             longevity_cfg={"apply_to_plan": True},
         )
 
-        overrides = mock_run.call_args.kwargs["overrides"]
+        args = mock_run.call_args.args[0]
+        overrides = args["overrides"]
 
         assert overrides["basic_info"]["life_expectancy"] == [95]
 
@@ -162,8 +166,8 @@ def test_longevity_defaults_two_individuals(mock_sample, tmp_path):
 life_expectancy = [65, 60]
 """)
 
-    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
-        mock_run.return_value.status = "solved"
+    with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
+        mock_run.return_value = SimpleNamespace(status="solved")
 
         run_trial(
             job_id="job",
@@ -177,7 +181,8 @@ life_expectancy = [65, 60]
             longevity_cfg={"apply_to_plan": True},
         )
 
-        overrides = mock_run.call_args.kwargs["overrides"]
+        args = mock_run.call_args.args[0]
+        overrides = args["overrides"]
 
         assert overrides["basic_info"]["life_expectancy"] == [88, 92]
         assert mock_sample.call_count == 2
@@ -203,8 +208,8 @@ def test_longevity_not_run_when_not_enabled(mock_sample, tmp_path):
 life_expectancy = [65]
 """)
 
-    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
-        mock_run.return_value.status = "solved"
+    with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
+        mock_run.return_value = SimpleNamespace(status="solved")
 
         run_trial(
             job_id="job",
@@ -219,7 +224,9 @@ life_expectancy = [65]
 
         mock_sample.assert_not_called()
 
-        overrides = mock_run.call_args.kwargs["overrides"]
+        args = mock_run.call_args.args[0]
+        overrides = args["overrides"]
+
         assert "basic_info" not in overrides or "life_expectancy" not in overrides.get(
             "basic_info", {}
         )
@@ -240,8 +247,8 @@ life_expectancy = [65]
 method = "historical average"
 """)
 
-    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
-        mock_run.return_value.status = "solved"
+    with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
+        mock_run.return_value = SimpleNamespace(status="solved")
 
         run_trial(
             job_id="job",
@@ -254,7 +261,112 @@ method = "historical average"
             master_seed=123,
         )
 
-        overrides = mock_run.call_args.kwargs["overrides"]
+        args = mock_run.call_args.args[0]
+        overrides = args["overrides"]
 
         assert overrides["rates_selection"]["rate_seed"] == 12345
         assert overrides["rates_selection"]["reproducible_rates"] is True
+
+
+# ============================================================
+# Subprocess Behavior
+# ============================================================
+
+
+def test_run_trial_subprocess_success(tmp_path, monkeypatch):
+    """run_trial should propagate success from subprocess wrapper"""
+
+    def mock_subprocess(args):
+        return SimpleNamespace(status="solved", output_file="dummy.xlsx")
+
+    monkeypatch.setattr(
+        "owlroost.hydra.trial_worker.run_single_case_subprocess",
+        mock_subprocess,
+    )
+
+    case_file = tmp_path / "case.toml"
+    case_file.write_text("""
+[basic_info]
+life_expectancy = [65]
+""")
+
+    result = run_trial(
+        job_id="job",
+        trial_id=0,
+        rates_seed=None,
+        longevity_seed=None,
+        case_file=case_file,
+        base_overrides={},
+        run_dir=tmp_path,
+        master_seed=123,
+    )
+
+    assert result["status"] == "solved"
+
+
+def test_run_trial_subprocess_crash(tmp_path, monkeypatch):
+    """run_trial should convert subprocess crash into status='crashed'"""
+
+    def mock_subprocess(args):
+        return SimpleNamespace(status="crashed")
+
+    monkeypatch.setattr(
+        "owlroost.hydra.trial_worker.run_single_case_subprocess",
+        mock_subprocess,
+    )
+
+    case_file = tmp_path / "case.toml"
+    case_file.write_text("""
+[basic_info]
+life_expectancy = [65]
+""")
+
+    result = run_trial(
+        job_id="job",
+        trial_id=1,
+        rates_seed=None,
+        longevity_seed=None,
+        case_file=case_file,
+        base_overrides={},
+        run_dir=tmp_path,
+        master_seed=123,
+    )
+
+    assert result["status"] == "crashed"
+    assert result["output"] is None
+
+
+def test_subprocess_args_structure(tmp_path, monkeypatch):
+    """Ensure run_trial sends correct args into subprocess"""
+
+    captured = {}
+
+    def mock_subprocess(args):
+        captured.update(args)
+        return SimpleNamespace(status="solved")
+
+    monkeypatch.setattr(
+        "owlroost.hydra.trial_worker.run_single_case_subprocess",
+        mock_subprocess,
+    )
+
+    case_file = tmp_path / "case.toml"
+    case_file.write_text("""
+[basic_info]
+life_expectancy = [65]
+""")
+
+    run_trial(
+        job_id="job",
+        trial_id=3,
+        rates_seed=42,
+        longevity_seed=99,
+        case_file=case_file,
+        base_overrides={},
+        run_dir=tmp_path,
+        master_seed=123,
+    )
+
+    assert captured["case_file"] == str(case_file)
+    assert "overrides" in captured
+    assert "roost_runtime" in captured

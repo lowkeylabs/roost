@@ -1,20 +1,62 @@
 # src/owlroost/hydra/trial_worker.py
 
+import json
+import subprocess
+import sys
 import tomllib
 from copy import deepcopy
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 from loguru import logger
 
 from owlroost.core.longevity import sample_individual_lifetime
-from owlroost.core.owl_runner import run_single_case
 
 
 def run_trial_star(args):
     from owlroost.hydra.trial_worker import run_trial
 
     return run_trial(*args)
+
+
+def run_single_case_subprocess(args: dict):
+    result = subprocess.run(
+        [sys.executable, "-m", "owlroost.entrypoints.run_case"],
+        input=json.dumps(args),
+        text=True,
+        capture_output=True,
+    )
+
+    # --------------------------------------------------
+    # Hard crash (non-zero exit)
+    # --------------------------------------------------
+    if result.returncode != 0:
+        return SimpleNamespace(
+            status="crashed",
+            stderr=result.stderr,
+        )
+
+    # --------------------------------------------------
+    # Empty output (very common failure mode)
+    # --------------------------------------------------
+    if not result.stdout.strip():
+        return SimpleNamespace(
+            status="crashed",
+            stderr="empty stdout",
+        )
+
+    # --------------------------------------------------
+    # JSON parse failure
+    # --------------------------------------------------
+    try:
+        data = json.loads(result.stdout)
+        return SimpleNamespace(**data)
+    except Exception as e:
+        return SimpleNamespace(
+            status="crashed",
+            stderr=f"invalid json: {e}",
+        )
 
 
 def run_trial(
@@ -156,13 +198,123 @@ def run_trial(
     #    if CURRENT_LOG_LEVEL not in {"TRACE", "DEBUG"}:
     #        logger.info("Job: {:5} | Trial {:04d}", job_id, trial_id)
 
-    result = run_single_case(
-        case_file=str(case_file),
-        overrides=overrides,
-        output_file=str(output_file),
-        roost_runtime=roost_runtime,
-        longevity_runtime=longevity_runtime,
-    )
+    args = {
+        "case_file": str(case_file),
+        "overrides": overrides,
+        "output_file": str(output_file),
+        "roost_runtime": roost_runtime,
+        "longevity_runtime": longevity_runtime,
+    }
+
+    # print( f"Before run_single_case_subprocess: {args}" )
+    result = run_single_case_subprocess(args)
+    # print( f"after run_single_case_subprocess: {result}" )
+
+    if result.status == "crashed":
+        logger.debug(f"Trial {trial_id} crashed")
+
+        # --------------------------------------------------
+        # Failure classification
+        # --------------------------------------------------
+        failure_detail = getattr(result, "stderr", "") or "unknown"
+
+        if "empty stdout" in failure_detail:
+            failure_category = "empty_output"
+        elif "invalid json" in failure_detail:
+            failure_category = "invalid_output"
+        else:
+            failure_category = "worker_crash"
+
+        # --------------------------------------------------
+        # Write FAILED marker
+        # --------------------------------------------------
+        (trial_dir / "FAILED").touch()
+
+        # --------------------------------------------------
+        # Write robust fallback metrics.json
+        # --------------------------------------------------
+        metrics_path = trial_dir / f"{case_file.stem}_metrics.json"
+
+        minimal_metrics = {
+            "schema": "roost.metrics.v2",
+            # ----------------------------------------------
+            # Identity
+            # ----------------------------------------------
+            "identity": {
+                "plan_name": case_file.stem,
+            },
+            # ----------------------------------------------
+            # Run status (CRITICAL)
+            # ----------------------------------------------
+            "run_status": {
+                "status": "failed",
+                "failure_category": failure_category,
+                "failure_detail": failure_detail,
+            },
+            # ----------------------------------------------
+            # Timing
+            # ----------------------------------------------
+            "timing": {
+                "elapsed_seconds": None,
+            },
+            # ----------------------------------------------
+            # Solver
+            # ----------------------------------------------
+            "solver": "unknown",
+            # ----------------------------------------------
+            # Financial (safe minimal structure)
+            # ----------------------------------------------
+            "financial": {
+                "valid": False,
+                "baseline": {
+                    "annual_spending": None,
+                },
+                "timeseries": {
+                    "spending": {
+                        "ratio": {
+                            "min": 0.0,
+                            "mean": 0.0,
+                            "median": 0.0,
+                        }
+                    }
+                },
+            },
+            # ----------------------------------------------
+            # Risk (safe minimal structure)
+            # ----------------------------------------------
+            "risk": {
+                "scenario": {
+                    "valid": False,
+                },
+                "outcome": {
+                    "valid": False,
+                },
+            },
+            # ----------------------------------------------
+            # Complexity
+            # ----------------------------------------------
+            "complexity": {
+                "valid": False,
+            },
+            # ----------------------------------------------
+            # Score (optional but safe)
+            # ----------------------------------------------
+            "score": None,
+        }
+
+        try:
+            with open(metrics_path, "w") as f:
+                json.dump(minimal_metrics, f, indent=2)
+        except Exception:
+            logger.exception("Failed to write crash fallback metrics")
+
+        return {
+            "trial_id": trial_id,
+            "rates_seed": rates_seed,
+            "longevity_seed": longevity_seed,
+            "status": "crashed",
+            "output": None,
+        }
 
     return {
         "trial_id": trial_id,
