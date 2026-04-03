@@ -15,6 +15,7 @@ def build_context(exp, run, trial) -> dict:
     exp_ctx = {
         "experiment_name": f"{exp.date}_{exp.time}",
         "experiment": exp.id,
+        "case": getattr(exp, "case_id", None),
         "case_name": exp.case,
         "experiment_date": exp.date,
         "experiment_time": exp.time,

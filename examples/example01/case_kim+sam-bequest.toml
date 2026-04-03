@@ -80,10 +80,10 @@ trials = 1
 
 [risk_analysis]
 minimum_spending = 120000
+acceptable_spending = 140000
 baseline_years = 3
-soft_fail_consecutive_years_threshhold = 5
-soft_fail_total_years_threshhold = 5
-soft_fail_min_spending_ratio = 0.8
+max_years_below_acceptable = 5
+max_consecutive_years_below_acceptable = 5
 
 [cache]
 generated_at = "2026-03-15T19:51:06.957108"

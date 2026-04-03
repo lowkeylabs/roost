@@ -241,6 +241,7 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
                 "median_ratio_to_acceptable": 0.0,
                 "years_below_acceptable": horizon,
                 "consecutive_years_below_acceptable": horizon,
+                "consecutive_years_below_minimum": horizon,
                 # DERIVED
                 "years_between_min_and_target": 0,
                 # FLAGS
@@ -321,7 +322,9 @@ def financials_from_plan(plan, N=None) -> dict:
         actual_future = plan.g_n[:N]
         actual_today = actual_future / gamma
 
-        risk_cfg = getattr(plan, "risk_analysis", {}) or {}
+        risk_cfg = getattr(plan, "_config_extra", {}) or {}
+        risk_cfg = risk_cfg.get("risk_analysis", {}) or {}
+
         k = risk_cfg.get("baseline_years", 3)
         k = max(1, min(k, N))  # safe bounds
 
@@ -541,6 +544,10 @@ def financials_from_plan(plan, N=None) -> dict:
                 max_consecutive_below(clean_acc, 1.0) if len(clean_acc) else None
             )
 
+            consecutive_below_minimum = (
+                max_consecutive_below(clean_min, 1.0) if len(clean_min) else None
+            )
+
             spending_summary = {
                 # ---------------------------------------
                 # EXISTING (UNCHANGED)
@@ -560,6 +567,7 @@ def financials_from_plan(plan, N=None) -> dict:
                 "mean_ratio_to_minimum": float(np.mean(clean_min)) if len(clean_min) else None,
                 "median_ratio_to_minimum": float(np.median(clean_min)) if len(clean_min) else None,
                 "years_below_minimum": years_below_minimum,
+                "consecutive_years_below_minimum": consecutive_below_minimum,
                 "floor_breach": int(np.any(clean_min < 1.0)) if len(clean_min) else 0,
                 # ---------------------------------------
                 # ACCEPTABLE (behavioral)
@@ -599,7 +607,7 @@ def financials_from_plan(plan, N=None) -> dict:
                 "mean_ratio_to_minimum": None,
                 "median_ratio_to_minimum": None,
                 "years_below_minimum": None,
-                "floor_breach": None,
+                "consecutive_years_below_minimum": None,
                 "min_ratio_to_acceptable": None,
                 "mean_ratio_to_acceptable": None,
                 "median_ratio_to_acceptable": None,

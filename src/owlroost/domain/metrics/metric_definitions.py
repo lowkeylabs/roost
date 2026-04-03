@@ -29,7 +29,7 @@ register_metric(
     MetricSpec(
         key="spending_annual",
         path="financial.spending.year0.today",
-        label="Annual Spending",
+        label="Annual\nSpending",
         fmt="currency",
         aggregates=["median"],
         description="Annual spending in today's dollars at the start of retirement (year 0).",
@@ -40,12 +40,24 @@ register_metric(
     MetricSpec(
         key="spending_total",
         path="financial.spending.total.today",
-        label="Total Spending",
+        label="Total\nSpending",
         fmt="currency",
         aggregates=["median"],
         description="Total lifetime spending in today's dollars across the full planning horizon.",
     )
 )
+
+register_metric(
+    MetricSpec(
+        key="taxes_total",
+        path="financial.taxes.total.today",
+        label="Total\nTaxes",
+        fmt="currency",
+        aggregates=["median"],
+        description="Total lifetime taxes in today's dollars across the full planning horizon.",
+    )
+)
+
 
 register_metric(
     MetricSpec(
@@ -132,10 +144,20 @@ register_metric(
 register_metric(
     MetricSpec(
         key="case_name",
-        label="Case",
+        label="Case name",
         dtype=str,
+        align="left",
         is_invariant=True,
         description="Name of the planning case or scenario.",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="case",
+        label="Case",
+        aggregates=["cnt"],
+        description="Case identifier for grouping experiments..",
     )
 )
 
@@ -157,10 +179,33 @@ register_metric(
     )
 )
 
+
+def _format_run_id(r):
+    case = r.get("case")
+    exp = r.get("experiment")
+    run = r.get("run")
+
+    if case is None or exp is None or run is None:
+        return None
+
+    return f"{case}/{exp}/{run}"
+
+
+register_metric(
+    MetricSpec(
+        key="run_id_compact",
+        label="Case\n/Exp/\nRun",
+        dtype=str,
+        align="center",
+        compute_fn=lambda r: _format_run_id(r),
+        description="Compact identifier: case/experiment/run",
+    )
+)
+
 register_metric(
     MetricSpec(
         key="trial",
-        label="Trial",
+        label="Trials",
         aggregates=["cnt"],
         description="Number of simulation trials in the run.",
     )
@@ -262,6 +307,7 @@ register_metric(
 # RISK
 # =========================================================
 
+
 register_metric(
     MetricSpec(
         key="min_cushion",
@@ -328,6 +374,31 @@ register_metric(
 # =========================================================
 # SPENDING STRESS (PRECOMPUTED)
 # =========================================================
+
+register_metric(
+    MetricSpec(
+        key="minimum_spending",
+        path="financial.risk_analysis.minimum_spending",
+        label="Minimum\nspending",
+        fmt="currency",
+        dtype=float,
+        is_invariant=True,
+        description="Minimum required spending level (safety).",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="acceptable_spending",
+        path="financial.risk_analysis.acceptable_spending",
+        label="Acceptable\nspending",
+        fmt="currency",
+        dtype=float,
+        is_invariant=True,
+        description="Acceptable lifestyle spending level (comfort).",
+    )
+)
+
 
 register_metric(
     MetricSpec(
@@ -451,15 +522,15 @@ register_metric(
     MetricSpec(
         key="spending_ratio_to_minimum_min",
         path="financial.spending_summary.min_ratio_to_minimum",
-        label="Worst\nvs Floor",
+        label="Worst /\nMinimum",
         fmt="percent2",
         aggregates=["mean", "p10"],
-        description="Lowest spending relative to minimum required spending.",
+        description="Lowest spending relative to minimum spending (safety).",
         value_series_fn=wrap_value_fn(
             lambda v, _: (
                 "Falls below minimum spending"
                 if v < 1
-                else f"Always above floor (min {format_value(v, 'percent2')})"
+                else f"Always above minimum spending (min {format_value(v, 'percent2')})"
             )
         ),
     )
@@ -469,7 +540,7 @@ register_metric(
     MetricSpec(
         key="spending_ratio_to_minimum_mean",
         path="financial.spending_summary.mean_ratio_to_minimum",
-        label="Avg\nvs Floor",
+        label="Avg /\nMinimum",
         fmt="percent2",
         aggregates=["mean"],
         description="Average spending relative to minimum spending.",
@@ -480,7 +551,7 @@ register_metric(
     MetricSpec(
         key="spending_ratio_to_minimum_median",
         path="financial.spending_summary.median_ratio_to_minimum",
-        label="Median\nvs Floor",
+        label="Median /\nMinimum",
         fmt="percent2",
         aggregates=["mean"],
         description="Median spending relative to minimum spending.",
@@ -491,7 +562,7 @@ register_metric(
     MetricSpec(
         key="years_below_minimum",
         path="financial.spending_summary.years_below_minimum",
-        label="Years\n< Floor",
+        label="Years\n< Minimum",
         fmt="int",
         aggregates=["mean", "p90"],
         description="Number of years spending falls below minimum spending level.",
@@ -501,14 +572,29 @@ register_metric(
 
 register_metric(
     MetricSpec(
+        key="consecutive_years_below_minimum",
+        path="financial.spending_summary.consecutive_years_below_minimum",
+        label="Consec <\nMinimum",
+        fmt="int",
+        aggregates=["mean", "p90"],
+        description="Maximum consecutive years spending falls below minimum spending level.",
+        value_series_fn=wrap_value_fn(
+            lambda v, _: f"{int(v)} consecutive years below minimum spending"
+        ),
+    )
+)
+
+register_metric(
+    MetricSpec(
         key="floor_breach",
         path="financial.spending_summary.floor_breach",
-        label="Floor\nBreach",
+        label="Minimum\nBreach",
         dtype=int,
-        aggregates=[("cnt_true", "int"), ("pct", "percent")],
-        description="Indicates whether spending ever falls below minimum level.",
+        fmt="count_ratio",
+        aggregates=[("ratio", "count_ratio")],
+        description="Number of trials where spending falls below minimum spending at any year of trial.",
         value_series_fn=wrap_value_fn(
-            lambda v, _: _bool_value(v == 1, "Floor breached", "Floor never breached")
+            lambda v, _: _bool_value(v == 1, "Minimum breached", "Minimum never breached")
         ),
     )
 )
@@ -521,7 +607,7 @@ register_metric(
     MetricSpec(
         key="spending_ratio_to_acceptable_min",
         path="financial.spending_summary.min_ratio_to_acceptable",
-        label="Worst\nvs Acceptable",
+        label="Worst /\nAcceptable",
         fmt="percent2",
         aggregates=["mean", "p10"],
         description="Lowest spending relative to acceptable lifestyle level.",
@@ -539,7 +625,7 @@ register_metric(
     MetricSpec(
         key="spending_ratio_to_acceptable_mean",
         path="financial.spending_summary.mean_ratio_to_acceptable",
-        label="Avg\nvs Acceptable",
+        label="Average /\nAcceptable",
         fmt="percent2",
         aggregates=["mean"],
         description="Average spending relative to acceptable level.",
@@ -550,7 +636,7 @@ register_metric(
     MetricSpec(
         key="spending_ratio_to_acceptable_median",
         path="financial.spending_summary.median_ratio_to_acceptable",
-        label="Median\nvs Acceptable",
+        label="Median /\nAcceptable",
         fmt="percent2",
         aggregates=["mean"],
         description="Median spending relative to acceptable level.",
@@ -561,7 +647,7 @@ register_metric(
     MetricSpec(
         key="years_below_acceptable",
         path="financial.spending_summary.years_below_acceptable",
-        label="Years\n< Acceptable",
+        label="Years <\nAcceptable",
         fmt="int",
         aggregates=["mean", "p90"],
         description="Number of years spending falls below acceptable level.",
@@ -573,7 +659,7 @@ register_metric(
     MetricSpec(
         key="consecutive_years_below_acceptable",
         path="financial.spending_summary.consecutive_years_below_acceptable",
-        label="Consec\n< Acceptable",
+        label="Consec <\nAcceptable",
         fmt="int",
         aggregates=["mean", "p90"],
         description="Maximum consecutive years below acceptable spending.",
@@ -585,10 +671,11 @@ register_metric(
     MetricSpec(
         key="spending_stress_flag",
         path="financial.spending_summary.spending_stress_flag",
-        label="Stress",
+        label="Acceptable\nBreach",
         dtype=int,
-        aggregates=[("cnt_true", "int"), ("pct", "percent")],
-        description="Indicates whether spending falls below acceptable level at any point.",
+        fmt="count_ratio",
+        aggregates=[("ratio", "count_ratio")],
+        description="Number of trials where spending falls below acceptable level at any year in trial.",
         value_series_fn=wrap_value_fn(
             lambda v, _: _bool_value(v == 1, "Stress triggered", "No stress")
         ),
@@ -608,5 +695,205 @@ register_metric(
         aggregates=["mean"],
         description="Years where spending is below target but above minimum (adaptive zone).",
         value_series_fn=wrap_value_fn(lambda v, _: f"{int(v)} years in adaptive zone"),
+    )
+)
+
+# =========================================================
+# RUN PROFILING / DASHBOARD FLAGS
+# =========================================================
+
+
+def _has_override(r, key_fragment: str) -> bool:
+    overrides = r.get("run_specific_overrides") or {}
+    return any(key_fragment in k for k in overrides)
+
+
+def _run_profile(r):
+    flags = []
+
+    overrides = r.get("run_specific_overrides") or {}
+
+    if "social_security_ages" in overrides:
+        flags.append("SS")
+
+    if "solver_options.spendingSlack" in overrides:
+        flags.append("Slack")
+
+    if r.get("rates_method") == "bootstrap_sor":
+        flags.append("SoR")
+
+    if any("roth" in k for k in overrides):
+        flags.append("Roth")
+
+    return ", ".join(flags) if flags else "Base"
+
+
+# ---------------------------------------------------------
+# PROFILE LABEL (compact descriptor)
+# ---------------------------------------------------------
+
+register_metric(
+    MetricSpec(
+        key="run_profile",
+        label="Profile",
+        dtype=str,
+        compute_fn=_run_profile,
+        is_invariant=True,
+        description="High-level classification of the experiment intent",
+    )
+)
+
+
+# ---------------------------------------------------------
+# INDIVIDUAL FLAGS (yes / -)
+# ---------------------------------------------------------
+
+register_metric(
+    MetricSpec(
+        key="is_ss_experiment",
+        label="SS",
+        dtype=int,
+        compute_fn=lambda r: 1 if _has_override(r, "social_security_ages") else 0,
+        value_series_fn=wrap_value_fn(lambda v, _: "yes" if v == 1 else "-"),
+        description="Run varies Social Security claiming strategy",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="is_spending_slack",
+        label="Slack",
+        dtype=int,
+        compute_fn=lambda r: 1 if _has_override(r, "spendingSlack") else 0,
+        value_series_fn=wrap_value_fn(lambda v, _: "yes" if v == 1 else "-"),
+        description="Run explores spending flexibility",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="is_sor_experiment",
+        label="SoR",
+        dtype=int,
+        compute_fn=lambda r: 1 if r.get("rates_method") == "bootstrap_sor" else 0,
+        value_series_fn=wrap_value_fn(lambda v, _: "yes" if v == 1 else "-"),
+        description="Run explores sequence-of-returns risk",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="is_roth_strategy",
+        label="Roth",
+        dtype=int,
+        compute_fn=lambda r: 1 if _has_override(r, "roth") else 0,
+        value_series_fn=wrap_value_fn(lambda v, _: "yes" if v == 1 else "-"),
+        description="Run explores Roth conversion or tax strategy",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="has_overrides",
+        label="Varies",
+        dtype=int,
+        compute_fn=lambda r: 1 if (r.get("run_specific_overrides") or {}) else 0,
+        value_series_fn=wrap_value_fn(lambda v, _: "yes" if v == 1 else "-"),
+        description="Run varies one or more key inputs",
+    )
+)
+
+
+# ---------------------------------------------------------
+# ATTENTION / QUALITY FLAGS
+# ---------------------------------------------------------
+
+
+def _needs_attention(r):
+    """
+    Conservative flag:
+    highlight anything that deserves a closer look.
+    """
+    if r.get("solver_fail"):
+        return 1
+
+    if r.get("floor_breach"):
+        return 1
+
+    ratio = r.get("spending_ratio_min")
+    if ratio is not None and ratio < 0.85:
+        return 1
+
+    return 0
+
+
+def _bad_run(r):
+    """
+    Strong failure flag:
+    clearly unacceptable plans.
+    """
+    if r.get("solver_fail"):
+        return 1
+
+    if r.get("floor_breach"):
+        return 1
+
+    ratio = r.get("spending_ratio_min")
+    if ratio is not None and ratio < 0.70:
+        return 1
+
+    return 0
+
+
+register_metric(
+    MetricSpec(
+        key="needs_attention",
+        label="Review",
+        dtype=int,
+        compute_fn=_needs_attention,
+        aggregates=[("cnt_true", "int"), ("pct", "percent")],
+        description="Run shows warning signs and should be reviewed",
+        value_series_fn=wrap_value_fn(lambda v, _: "⚠️ yes" if v == 1 else "-"),
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="bad_run_flag",
+        label="Bad",
+        dtype=int,
+        compute_fn=_bad_run,
+        aggregates=[("cnt_true", "int"), ("pct", "percent")],
+        description="Run is clearly unacceptable (failure or severe spending collapse)",
+        value_series_fn=wrap_value_fn(lambda v, _: "❌ yes" if v == 1 else "-"),
+    )
+)
+
+
+def _run_status(r):
+    if r.get("solver_fail"):
+        return "Fail"
+
+    if r.get("floor_breach"):
+        return "Below minimum"
+
+    ratio = r.get("spending_ratio_min")
+
+    if ratio is not None:
+        if ratio < 0.70:
+            return "Collapse"
+        if ratio < 0.85:
+            return "Stress"
+
+    return "✓ OK"
+
+
+register_metric(
+    MetricSpec(
+        key="run_status_summary",
+        label="Status",
+        dtype=str,
+        compute_fn=_run_status,
+        description="Overall run quality classification (fail, stress, ok)",
     )
 )

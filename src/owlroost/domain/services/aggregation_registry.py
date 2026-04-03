@@ -8,6 +8,7 @@ AGG_DEFAULT_FMT = {
     "cnt": "int",
     "cnt_true": "int",
     "pct": "percent",
+    "ratio": "count_ratio",
     "mean": None,
     "median": None,
     "sum": None,
@@ -73,6 +74,12 @@ def len_(values):
 
 def cnt_true(values):
     return sum(values) if values else 0
+
+
+def ratio(values):
+    if not values:
+        return (0, 0)
+    return (sum(values), len(values))
 
 
 # =========================================================
@@ -193,5 +200,15 @@ register_aggregation(
     explain=lambda ctx: (
         "90th percentile (upside outcome)"
         + (f" based on {ctx.n_valid}/{ctx.n_total} observations" if ctx.n_total else "")
+    ),
+)
+
+register_aggregation(
+    "ratio",
+    ratio,
+    explain=lambda ctx: (
+        f"{sum(ctx.agg_values)}/{ctx.n_total} true observations"
+        if ctx.n_total is not None
+        else "Ratio of true values"
     ),
 )

@@ -1,3 +1,10 @@
+PREFERRED_ORDER = {
+    "method": 0,
+    "from": 1,
+    "to": 2,
+}
+
+
 def format_value(value, fmt: str | None):
     if value is None:
         return "."
@@ -5,6 +12,17 @@ def format_value(value, fmt: str | None):
     # -------------------------------------------------
     # SPECIAL FORMATTERS (must come before list logic)
     # -------------------------------------------------
+
+    if fmt == "boolean_flag":
+        if value is None:
+            return "-"
+        return "Yes" if value else "-"
+
+    if fmt == "count_ratio":
+        if not value:
+            return "-"
+        count, total = value
+        return f"{int(count)}/{int(total)}"
 
     if fmt == "allocation":
         if not value:
@@ -26,24 +44,43 @@ def format_value(value, fmt: str | None):
         if not value:
             return "-"
 
-        # Expecting a dict
         if isinstance(value, dict):
-            lines = []
+            PREFERRED_ORDER = {
+                "method": 0,
+                "from": 1,
+                "to": 2,
+            }
 
-            for k, v in sorted(value.items()):
-                # Apply aliasing
+            ALIASES = {
+                "rsmethod": "method",
+                "rsfrom": "from",
+                "rsto": "to",
+            }
+
+            def normalize_key(k):
                 if isinstance(k, str):
                     k = k.replace("fixed_income.social_security_ages", "ss_ages")
                     k = k.replace("solver_options.spendingSlack", "spendSlack")
+                    k = k.replace("rates_selection.", "")
+                return k
 
-                # Format value recursively (important!)
+            def sort_key(item):
+                k, _ = item
+                k_clean = normalize_key(k)
+                return (PREFERRED_ORDER.get(k_clean, 99), k_clean)
+
+            lines = []
+
+            for k, v in sorted(value.items(), key=sort_key):
+                k_clean = normalize_key(k)
+                k_display = ALIASES.get(k_clean, k_clean)
+
                 v_str = format_value(v, None)
 
-                lines.append(f"{k}\n{v_str}")
+                lines.append(f"{k_display}\n{v_str}")
 
             return "\n".join(lines)
 
-        # Fallback if unexpected type
         return str(value)
 
     # -------------------------------------------------

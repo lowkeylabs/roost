@@ -15,7 +15,18 @@ def discover_experiments(results_dir) -> list[Experiment]:
     experiments: list[Experiment] = []
     exp_id = 0
 
+    case_id_map: dict[str, int] = {}
+    next_case_id = 0
+
     for case_dir in sorted(p for p in results_dir.iterdir() if p.is_dir()):
+        case_name = case_dir.name
+
+        if case_name not in case_id_map:
+            case_id_map[case_name] = next_case_id
+            next_case_id += 1
+
+        case_id = case_id_map[case_name]
+
         for date_dir in sorted(p for p in case_dir.iterdir() if p.is_dir()):
             for time_dir in sorted(p for p in date_dir.iterdir() if p.is_dir()):
                 runs: list[Run] = []
@@ -84,6 +95,7 @@ def discover_experiments(results_dir) -> list[Experiment]:
                     Experiment(
                         id=exp_id,
                         case=case_dir.name,
+                        case_id=case_id,
                         date=date_dir.name,
                         time=time_dir.name,
                         path=time_dir,

@@ -119,6 +119,8 @@ def parse_explain(explain_opts, view_explain):
 
 @click.command(name="inspect")
 @click.argument("args", nargs=-1)
+@click.option("--case", "case_override", type=int)
+@click.option("--experiment", "--exp", "exp_override", type=int)
 @click.option("--run", "run_override", type=int)
 @click.option("--view", "view_name", default=None)
 @click.option("--sort", "sort_key", type=str)
@@ -137,7 +139,17 @@ def parse_explain(explain_opts, view_explain):
     ),
 )
 def cmd_inspect(
-    args, run_override, view_name, sort_key, top_n, filters, list_views_flag, pivot, explain_opts
+    args,
+    case_override,
+    exp_override,
+    run_override,
+    view_name,
+    sort_key,
+    top_n,
+    filters,
+    list_views_flag,
+    pivot,
+    explain_opts,
 ):
     console = Console()
 
@@ -159,8 +171,19 @@ def cmd_inspect(
 
     experiments = discover_experiments(RESULTS_DIR)
 
+    # ---------------------------------------------------------
+    # Apply case / experiment filters (NEW)
+    # ---------------------------------------------------------
+    if case_override is not None:
+        experiments = [e for e in experiments if getattr(e, "case_id", None) == case_override]
+
+    if exp_override is not None:
+        experiments = [e for e in experiments if getattr(e, "id", None) == exp_override]
+
     if not experiments:
-        console.print("[yellow]No experiments found[/yellow]")
+        console.print(
+            f"[red]No experiments found for case={case_override}, experiment={exp_override}[/red]"
+        )
         return
 
     run_rows = build_run_rows(experiments)
@@ -177,7 +200,19 @@ def cmd_inspect(
         display_level = "run"
         working_rows = run_rows
 
-        header = ["[bold]Runs (all experiments)[/bold]"]
+        if case_override is not None and exp_override is not None:
+            case_name = experiments[0].case
+            header = [f"[bold]Runs (case {case_override}: {case_name}, exp {exp_override})[/bold]"]
+
+        elif case_override is not None:
+            case_name = experiments[0].case
+            header = [f"[bold]Runs (case {case_override}: {case_name})[/bold]"]
+
+        elif exp_override is not None:
+            header = [f"[bold]Runs (experiment {exp_override})[/bold]"]
+
+        else:
+            header = ["[bold]Runs (all experiments)[/bold]"]
 
     else:
         if run_id is None:

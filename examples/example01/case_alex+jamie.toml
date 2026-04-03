@@ -74,6 +74,13 @@ sex = [ "female", "female",]
 health = [ "average", "average",]
 smoker = [ false, false,]
 
+[risk_analysis]
+minimum_spending = 120000
+acceptable_spending = 140000
+baseline_years = 3
+max_years_below_acceptable = 5
+max_consecutive_years_below_acceptable = 5
+
 [roost]
 master_seed = 2998135032
 trials = 1

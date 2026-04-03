@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Union
 
+from .group_registry import METRIC_GROUP_REGISTRY, expand_items_with_groups
 from .metric_registry import METRIC_REGISTRY, get_metric
 from .metric_spec import MetricSpec
 
@@ -84,15 +85,28 @@ def register_view(
                 continue
 
             # Handle ("metric", "agg") or ("metric", {...})
+            # ----------------------------------------
+            # Normalize key + agg
+            # ----------------------------------------
+            key = None
+            agg = None
+
             if isinstance(m, tuple):
                 key = m[0]
-                agg = None
+
+                # GROUP — skip validation
+                if key == "group":
+                    group_name = m[1]
+                    if group_name not in METRIC_GROUP_REGISTRY:
+                        raise ValueError(f"Unknown group '{group_name}' in view '{level}:{name}'")
+
+                    continue
 
                 if len(m) > 1 and isinstance(m[1], str):
                     agg = m[1]
+
             else:
                 key = m
-                agg = None
 
             # --- metric existence ---
             if key not in METRIC_REGISTRY:
@@ -145,7 +159,7 @@ def resolve_metric(key):
 
 def get_view(level: str, name: str):
     view_def = METRIC_VIEW_REGISTRY[level][name]
-    keys = view_def["metrics"]
+    keys = expand_items_with_groups(view_def["metrics"])
     layout = view_def.get("layout", "table")
     explain = view_def.get("explain", False)
 

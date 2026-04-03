@@ -37,6 +37,7 @@ class Run:
 class Experiment:
     id: int
     case: str
+    case_id: int
     date: str
     time: str
     path: Path
