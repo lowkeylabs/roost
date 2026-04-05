@@ -41,11 +41,15 @@ register_view(
         # -------------------------------------------------
         {"separator": "section", "label": "PROFILE"},
         ("group", "overrides"),
+        ("group", "run_structure"),
         # -------------------------------------------------
         # OUTCOMES (what do I get?)
         # -------------------------------------------------
         {"separator": "section", "label": "OUTCOMES"},
         ("group", "outcomes"),
+        # SPENDING PROFILE
+        {"separator": "section", "label": "SPENDING PROFILE"},
+        ("group", "spending_profile"),
         # -------------------------------------------------
         # LIFESTYLE (comfort)
         # -------------------------------------------------

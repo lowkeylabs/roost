@@ -223,6 +223,17 @@ register_metric(
 
 register_metric(
     MetricSpec(
+        key="rates_values",
+        path="_inputs.rates_selection.values",
+        label="Rates values",
+        dtype=str,
+        description="Values associated with selected method.",
+    )
+)
+
+
+register_metric(
+    MetricSpec(
         key="objective",
         path="_inputs.optimization_parameters.objective",
         label="Objective",
@@ -302,6 +313,65 @@ register_metric(
         value_series_fn=_override_value_series_fn,
     )
 )
+
+
+# SPENDING PROFILE
+
+register_metric(
+    MetricSpec(
+        key="spending_now",
+        path="financial.spending_profile.year0",
+        label="Spending\n(Now)",
+        fmt="currency",
+        aggregates=["median"],
+        description="Spending in today's dollars at the start of retirement.",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="spending_early",
+        path="financial.spending_profile.early_avg",
+        label="Spending\n(Early)",
+        fmt="currency",
+        aggregates=["median"],
+        description="Average spending over the early retirement period (first ~5 years).",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="spending_late",
+        path="financial.spending_profile.late_avg",
+        label="Spending\n(Late)",
+        fmt="currency",
+        aggregates=["median"],
+        description="Average spending in later years (typically survivor phase).",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="spending_survivor_ratio",
+        path="financial.spending_profile.survivor_ratio",
+        label="Survivor\nRatio",
+        fmt="percent",
+        aggregates=["mean"],
+        description="Ratio of late-life spending to early-life spending.",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="spending_final",
+        path="financial.spending_profile.yearN",
+        label="Final\nSpending",
+        fmt="currency",
+        aggregates=["median"],
+        description="Spending in the final year of the plan.",
+    )
+)
+
 
 # =========================================================
 # RISK
@@ -383,7 +453,7 @@ register_metric(
         fmt="currency",
         dtype=float,
         is_invariant=True,
-        description="Minimum required spending level (safety).",
+        description="Minimum lifestyle spending level (safety, user-input).",
     )
 )
 
@@ -395,7 +465,7 @@ register_metric(
         fmt="currency",
         dtype=float,
         is_invariant=True,
-        description="Acceptable lifestyle spending level (comfort).",
+        description="Base acceptable spending level (scaled by household profile over time).",
     )
 )
 
@@ -522,7 +592,7 @@ register_metric(
     MetricSpec(
         key="spending_ratio_to_minimum_min",
         path="financial.spending_summary.min_ratio_to_minimum",
-        label="Worst /\nMinimum",
+        label="Worst Year/\nMinimum",
         fmt="percent2",
         aggregates=["mean", "p10"],
         description="Lowest spending relative to minimum spending (safety).",
@@ -540,7 +610,7 @@ register_metric(
     MetricSpec(
         key="spending_ratio_to_minimum_mean",
         path="financial.spending_summary.mean_ratio_to_minimum",
-        label="Avg /\nMinimum",
+        label="Avg Year/\nMinimum",
         fmt="percent2",
         aggregates=["mean"],
         description="Average spending relative to minimum spending.",
@@ -551,7 +621,7 @@ register_metric(
     MetricSpec(
         key="spending_ratio_to_minimum_median",
         path="financial.spending_summary.median_ratio_to_minimum",
-        label="Median /\nMinimum",
+        label="Median Year/\nMinimum",
         fmt="percent2",
         aggregates=["mean"],
         description="Median spending relative to minimum spending.",
@@ -607,10 +677,10 @@ register_metric(
     MetricSpec(
         key="spending_ratio_to_acceptable_min",
         path="financial.spending_summary.min_ratio_to_acceptable",
-        label="Worst /\nAcceptable",
+        label="Worst Year/\nAcceptable",
         fmt="percent2",
         aggregates=["mean", "p10"],
-        description="Lowest spending relative to acceptable lifestyle level.",
+        description="Lowest spending relative to acceptable lifestyle (adjusted for household size via xi_n).",
         value_series_fn=wrap_value_fn(
             lambda v, _: (
                 "Below acceptable lifestyle"
@@ -625,7 +695,7 @@ register_metric(
     MetricSpec(
         key="spending_ratio_to_acceptable_mean",
         path="financial.spending_summary.mean_ratio_to_acceptable",
-        label="Average /\nAcceptable",
+        label="Avg Year/\nAcceptable",
         fmt="percent2",
         aggregates=["mean"],
         description="Average spending relative to acceptable level.",
@@ -636,7 +706,7 @@ register_metric(
     MetricSpec(
         key="spending_ratio_to_acceptable_median",
         path="financial.spending_summary.median_ratio_to_acceptable",
-        label="Median /\nAcceptable",
+        label="Median Year/\nAcceptable",
         fmt="percent2",
         aggregates=["mean"],
         description="Median spending relative to acceptable level.",
@@ -678,6 +748,47 @@ register_metric(
         description="Number of trials where spending falls below acceptable level at any year in trial.",
         value_series_fn=wrap_value_fn(
             lambda v, _: _bool_value(v == 1, "Stress triggered", "No stress")
+        ),
+    )
+)
+
+# =========================================================
+# SPENDING - worst spending avlue
+# =========================================================
+
+
+def _compute_spending_worst(r):
+    series = (
+        r.get("financial", {})
+        .get("timeseries", {})
+        .get("spending", {})
+        .get("actual", {})
+        .get("today_by_year", [])
+    )
+
+    if not series:
+        return None
+
+    clean = [v for v in series if v is not None]
+    if not clean:
+        return None
+
+    return min(clean)
+
+
+register_metric(
+    MetricSpec(
+        key="spending_worst",
+        label="Worst\nSpending",
+        fmt="currency",  # ✅ now works
+        aggregates=["mean", "median", "p90"],  # safe even for 1 trial
+        compute_fn=_compute_spending_worst,
+        description=(
+            "Lowest annual spending observed across the plan horizon, "
+            "measured in today's dollars."
+        ),
+        value_series_fn=wrap_value_fn(
+            lambda v, _: f"Worst spending falls to {format_value(v, 'currency')}"
         ),
     )
 )

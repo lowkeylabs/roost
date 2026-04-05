@@ -25,6 +25,20 @@ register_group(
 )
 
 register_group(
+    "spending_profile",
+    [
+        ("spending_now", "median"),
+        ("spending_early", "median", {"show_if": "is_table"}),
+        ("spending_late", "median"),
+        ("spending_survivor_ratio", "mean"),
+        ("spending_final", "median"),
+    ],
+    description="Spending levels across lifecycle phases (early vs late / survivor)",
+    default_opts={"show_if": "is_pivot"},
+)
+
+
+register_group(
     "outcomes",
     [
         ("spending_total", "median"),
@@ -45,7 +59,7 @@ register_group(
         ("consecutive_years_below_acceptable", "p90"),
         ("spending_stress_flag", "ratio"),
     ],
-    description="Lifestyle quality relative to user-input value of acceptable spending",
+    description="Lifestyle quality relative to acceptable spending (adjusted for household size via xi_n)",
     default_opts={"show_if": "is_pivot"},
 )
 
@@ -203,8 +217,11 @@ register_group(
     "run_structure",
     [
         "rates_method",
+        "rates_values",
         "objective",
     ],
+    description="Key solver parameters",
+    default_opts={"show_if": "is_pivot"},
 )
 
 register_group(

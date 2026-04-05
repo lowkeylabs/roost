@@ -249,6 +249,14 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
             }
         )
     else:
+        profile = fin.setdefault("spending_profile", {})
+
+        profile.setdefault("year0", None)
+        profile.setdefault("early_avg", None)
+        profile.setdefault("late_avg", None)
+        profile.setdefault("yearN", None)
+        profile.setdefault("survivor_ratio", None)
+
         summary.setdefault("min_ratio", None)
         summary.setdefault("mean_ratio", None)
         summary.setdefault("median_ratio", None)
@@ -321,6 +329,28 @@ def financials_from_plan(plan, N=None) -> dict:
 
         actual_future = plan.g_n[:N]
         actual_today = actual_future / gamma
+        xi = plan.xi_n[:N]
+
+        k = min(5, N // 2 if N >= 2 else 1)
+
+        early_avg = float(np.mean(actual_today[:k]))
+        late_avg = float(np.mean(actual_today[-k:]))
+
+        year0 = float(actual_today[0])
+        yearN = float(actual_today[-1])
+
+        survivor_ratio = None
+        if early_avg > 0:
+            survivor_ratio = late_avg / early_avg
+            survivor_ratio = float(min(max(survivor_ratio, 0.0), 2.0))
+
+        spending_profile = {
+            "year0": year0,
+            "early_avg": early_avg,
+            "late_avg": late_avg,
+            "yearN": yearN,
+            "survivor_ratio": survivor_ratio,
+        }
 
         risk_cfg = getattr(plan, "_config_extra", {}) or {}
         risk_cfg = risk_cfg.get("risk_analysis", {}) or {}
@@ -365,9 +395,14 @@ def financials_from_plan(plan, N=None) -> dict:
             ratio_to_minimum = np.full_like(actual_today, np.nan)
 
         if acceptable_spending and acceptable_spending > 0:
+            acceptable_future = xi * acceptable_spending
+            acceptable_today = acceptable_future / gamma
+
             with np.errstate(divide="ignore", invalid="ignore"):
-                ratio_to_acceptable = actual_today / acceptable_spending
+                ratio_to_acceptable = actual_today / acceptable_today
         else:
+            acceptable_future = np.full_like(actual_future, np.nan)
+            acceptable_today = np.full_like(actual_today, np.nan)
             ratio_to_acceptable = np.full_like(actual_today, np.nan)
 
         # Clamp for stability (same convention as existing ratios)
@@ -462,6 +497,10 @@ def financials_from_plan(plan, N=None) -> dict:
                 "actual": {
                     "future_by_year": actual_future.tolist(),
                     "today_by_year": actual_today.tolist(),
+                },
+                "acceptable": {
+                    "future_by_year": acceptable_future.tolist(),
+                    "today_by_year": acceptable_today.tolist(),
                 },
                 "shortfall": {
                     "future_by_year": shortfall_future.tolist(),
@@ -627,6 +666,7 @@ def financials_from_plan(plan, N=None) -> dict:
         "horizon": horizon,
         "inflation": inflation,
         "spending": spending,  # actual (unchanged behavior)
+        "spending_profile": spending_profile,
         "roth": roth,
         "taxes": taxes,
         "bequest": bequest,
