@@ -1603,7 +1603,7 @@ requires-dist = [
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "mosek", specifier = ">=11.1.9" },
-    { name = "owlplanner", git = "https://github.com/mdlacasse/Owl.git?rev=531a78ec42c074ed9e02c16eeb4f72776fba2895" },
+    { name = "owlplanner", git = "https://github.com/mdlacasse/Owl.git?rev=bbd7bd6635dc85ad539d3e15e1bea5b65541318c" },
     { name = "plotly", specifier = ">=6.5.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.7.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.2" },
@@ -1617,13 +1617,11 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "owlplanner"
-version = "2026.3.12"
-source = { git = "https://github.com/mdlacasse/Owl.git?rev=531a78ec42c074ed9e02c16eeb4f72776fba2895#531a78ec42c074ed9e02c16eeb4f72776fba2895" }
+version = "2026.4.7"
+source = { git = "https://github.com/mdlacasse/Owl.git?rev=bbd7bd6635dc85ad539d3e15e1bea5b65541318c#bbd7bd6635dc85ad539d3e15e1bea5b65541318c" }
 dependencies = [
-    { name = "altair" },
     { name = "click" },
     { name = "highspy" },
-    { name = "jupyter" },
     { name = "loguru" },
     { name = "matplotlib" },
     { name = "numpy" },
@@ -1632,7 +1630,6 @@ dependencies = [
     { name = "pandas" },
     { name = "plotly" },
     { name = "pydantic" },
-    { name = "pyyaml" },
     { name = "scipy" },
     { name = "seaborn" },
     { name = "streamlit" },

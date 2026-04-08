@@ -138,6 +138,24 @@ def format_value(value, fmt: str | None):
         except Exception:
             return str(value)
 
+    if fmt == "currency_short":
+        try:
+            v = float(value)
+
+            if v == 0:
+                return "$0"
+
+            if abs(v) >= 1_000_000:
+                return f"${v/1_000_000:.1f}M".rstrip("0").rstrip(".")
+
+            if abs(v) >= 1_000:
+                return f"${v/1_000:.0f}K"
+
+            return f"${int(v)}"
+
+        except Exception:
+            return str(value)
+
     if fmt == "percent":
         try:
             return f"{value:,.0%}"

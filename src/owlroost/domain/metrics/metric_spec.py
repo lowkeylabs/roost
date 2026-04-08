@@ -86,7 +86,7 @@ class MetricSpec:
     # Semantics
     # -----------------------------------------------------
     description: str | None = None
-    display_fn: Callable[[Any], Any] | None = None
+    display_row_fn: Callable[[Any, dict | None, dict | None], Any] | None = None
 
     # Unified meaning layer (series-based only)
     value_series_fn: Callable[[list[Any], list[Any], list[dict]], str] | None = None
@@ -179,6 +179,23 @@ class MetricSpec:
 
         return hints
 
+    def render_value(self, value, row=None, ctx=None, fmt_override=None):
+        fmt = fmt_override or self.fmt
+
+        try:
+            if self.display_row_fn:
+                result = self.display_row_fn(value, row, ctx)
+
+                if isinstance(result, str):
+                    return result
+
+                value = result
+
+            return format_value(value, fmt)
+
+        except Exception:
+            return format_value(value, fmt)
+
 
 # =========================================================
 # Helpers
@@ -270,7 +287,7 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
                     n_valid = rows[0].get(f"{rm.key}_{agg}_n")
 
                 if n_valid is not None and n_valid <= 1:
-                    parts.append("Raw value from metrics")
+                    parts.append("Raw metric value (from plan output)")
 
                 elif explain_fn:
                     ctx = AggContext(
@@ -289,7 +306,7 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
                 parts.append(f"Aggregated using '{agg}'")
 
         else:
-            parts.append("Raw value from metrics")
+            parts.append("Raw metric value (from plan output)")
 
     # ----------------------------------------
     # DEBUG / FALLBACK

@@ -14,6 +14,15 @@ register_group(
 )
 
 register_group(
+    "goal",
+    [
+        "goal",
+    ],
+    description="Optimization goals",
+)
+
+
+register_group(
     "core_outcomes_run",
     [
         ("spending_total", "median"),
@@ -41,9 +50,9 @@ register_group(
 register_group(
     "outcomes",
     [
+        ("spending_now", "median"),
         ("spending_total", "median"),
-        ("taxes_total", "median", {"show_if": "is_pivot"}),
-        ("bequest", "median", {"show_if": "is_pivot"}),
+        ("bequest", "median"),
     ],
     description="Core financial outcomes (primary decision signals)",
 )
@@ -75,6 +84,20 @@ register_group(
         ("floor_breach", "ratio"),
     ],
     description="Safety relative to users-input value of minimum spending.",
+    default_opts={"show_if": "is_pivot"},
+)
+
+register_group(
+    "risk_summary",
+    [
+        "overall_risk",
+        ("scenario_severity", "mean"),
+        ("depleted", "ratio"),
+        ("risk_flag_count", "mean"),
+        "risk_flags",
+        "risk_reconciliation",
+    ],
+    description="High-level risk summary combining scenario and outcome signals",
     default_opts={"show_if": "is_pivot"},
 )
 
@@ -163,6 +186,7 @@ register_group(
 register_group(
     "portfolio_risk",
     [
+        "outcome_risk",
         ("min_cushion", "mean"),
         ("worst_drawdown", "mean"),
         ("terminal_ratio", "mean"),
@@ -216,6 +240,7 @@ register_group(
 register_group(
     "run_structure",
     [
+        ("rates", {"show_if": "is_table"}),
         "rates_method",
         "rates_values",
         "objective",
@@ -293,9 +318,14 @@ register_group(
 register_group(
     "run_risk_pivot",
     [
+        "overall_risk",
+        "outcome_risk",
+        ("depleted", "ratio"),
         ("floor_breach", "ratio"),
+        ("scenario_severity", "mean"),
         ("min_cushion", "mean"),
         ("terminal_ratio", "mean"),
     ],
-    description="Risk and edge-of-failure indicators for deeper analysis",
+    description="Risk summary and edge-of-failure indicators",
+    default_opts={"show_if": "is_pivot"},
 )

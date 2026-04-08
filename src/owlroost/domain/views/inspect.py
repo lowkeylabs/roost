@@ -1,7 +1,6 @@
 from rich import box
 from rich.table import Table
 
-from owlroost.domain.formatting import format_value
 from owlroost.domain.metrics.metric_spec import (
     build_visibility_context,
     explain_metric_series,
@@ -12,16 +11,10 @@ from owlroost.domain.metrics.metric_spec import (
 # =========================================================
 # Shared value resolver
 # =========================================================
-def get_value(row, rm):
+def get_value(row, rm, ctx=None):
     val, fmt_override = resolve_metric_value(row, rm.key, getattr(rm, "aggregate", None))
 
-    # Apply display transform BEFORE formatting
-    if rm.spec.display_fn:
-        val = rm.spec.display_fn(val)
-
-    fmt = fmt_override or rm.spec.fmt
-
-    return format_value(val, fmt)
+    return rm.spec.render_value(val, row=row, ctx=ctx, fmt_override=fmt_override)
 
 
 # =========================================================
@@ -90,9 +83,9 @@ def render_table(console, rows, view, layout="table", explain: set[str] | None =
     # ----------------------------------------
 
     if layout == "pivot":
-        return render_pivot_table(console, rows, filtered_view, explain=explain)
+        return render_pivot_table(console, rows, filtered_view, ctx=ctx, explain=explain)
     else:
-        return render_standard_table(console, rows, filtered_view, explain=explain)
+        return render_standard_table(console, rows, filtered_view, ctx=ctx, explain=explain)
 
 
 # =========================================================
@@ -111,7 +104,7 @@ def make_table():
 # =========================================================
 # Standard table (row-wise)
 # =========================================================
-def render_standard_table(console, rows, view, explain: set[str] | None = None):
+def render_standard_table(console, rows, view, ctx, explain: set[str] | None = None):
     if rows is None:
         console.print("[yellow]No data[/yellow]")
         return
@@ -148,7 +141,7 @@ def render_standard_table(console, rows, view, explain: set[str] | None = None):
         for rm in view:
             if getattr(rm, "spec", None) is None:
                 continue
-            formatted = get_value(row, rm)
+            formatted = get_value(row, rm, ctx)
             values.append(formatted)
 
         table.add_row(*values)
@@ -173,7 +166,7 @@ def render_standard_table(console, rows, view, explain: set[str] | None = None):
 # =========================================================
 # Pivot table (metrics as rows)
 # =========================================================
-def render_pivot_table(console, rows, view, explain: set[str] | None = None):
+def render_pivot_table(console, rows, view, ctx, explain: set[str] | None = None):
     if rows is None:
         console.print("[yellow]No data[/yellow]")
         return
@@ -187,7 +180,6 @@ def render_pivot_table(console, rows, view, explain: set[str] | None = None):
         return
 
     explain = explain or set()
-    ctx = build_visibility_context(rows)
 
     # ----------------------------------------
     # Build table
@@ -246,7 +238,7 @@ def render_pivot_table(console, rows, view, explain: set[str] | None = None):
 
         # Values
         for r in rows:
-            formatted = get_value(r, rm)
+            formatted = get_value(r, rm, ctx)
             row_cells.append(formatted)
 
         # Explanation (series-aware)

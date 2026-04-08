@@ -50,6 +50,8 @@ def load_effective(trial_path: Path) -> dict:
 def extract_row(data: dict, specs: list[MetricSpec], base_row: dict | None = None) -> dict:
     row = base_row.copy() if base_row else {}
 
+    row["_inputs"] = data.get("_inputs", {})
+
     for spec in specs:
         try:
             # ----------------------------------------

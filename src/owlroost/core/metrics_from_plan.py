@@ -117,6 +117,17 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
     metrics.setdefault("risk", {})
     metrics.setdefault("run_status", {})
 
+    risk = metrics.setdefault("risk", {})
+    risk_summary = risk.setdefault("summary", {})
+
+    risk_summary.setdefault("overall_risk", None)
+    risk_summary.setdefault("scenario_severity", None)
+    risk_summary.setdefault("depleted", None)
+    risk_summary.setdefault("worst_drawdown", None)
+    risk_summary.setdefault("terminal_ratio", None)
+    risk_summary.setdefault("flag_count", None)
+    risk_summary.setdefault("flags", [])
+
     # --------------------------------------------------
     # Financial structure
     # --------------------------------------------------
@@ -215,10 +226,10 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
     # --------------------------------------------------
     fin.setdefault("spending_summary", {})
 
-    summary = fin["spending_summary"]
+    spending_summary = fin["spending_summary"]
 
     if status != "solved":
-        summary.update(
+        spending_summary.update(
             {
                 # EXISTING
                 "min_ratio": 0.0,
@@ -257,29 +268,29 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
         profile.setdefault("yearN", None)
         profile.setdefault("survivor_ratio", None)
 
-        summary.setdefault("min_ratio", None)
-        summary.setdefault("mean_ratio", None)
-        summary.setdefault("median_ratio", None)
-        summary.setdefault("p10_ratio", None)
-        summary.setdefault("std_ratio", None)
-        summary.setdefault("years_under_target", None)
-        summary.setdefault("shortfall", None)
-        summary.setdefault("required_slack", None)
+        spending_summary.setdefault("min_ratio", None)
+        spending_summary.setdefault("mean_ratio", None)
+        spending_summary.setdefault("median_ratio", None)
+        spending_summary.setdefault("p10_ratio", None)
+        spending_summary.setdefault("std_ratio", None)
+        spending_summary.setdefault("years_under_target", None)
+        spending_summary.setdefault("shortfall", None)
+        spending_summary.setdefault("required_slack", None)
 
-        summary.setdefault("min_ratio_to_minimum", None)
-        summary.setdefault("mean_ratio_to_minimum", None)
-        summary.setdefault("median_ratio_to_minimum", None)
-        summary.setdefault("years_below_minimum", None)
-        summary.setdefault("floor_breach", None)
+        spending_summary.setdefault("min_ratio_to_minimum", None)
+        spending_summary.setdefault("mean_ratio_to_minimum", None)
+        spending_summary.setdefault("median_ratio_to_minimum", None)
+        spending_summary.setdefault("years_below_minimum", None)
+        spending_summary.setdefault("floor_breach", None)
 
-        summary.setdefault("min_ratio_to_acceptable", None)
-        summary.setdefault("mean_ratio_to_acceptable", None)
-        summary.setdefault("median_ratio_to_acceptable", None)
-        summary.setdefault("years_below_acceptable", None)
-        summary.setdefault("consecutive_years_below_acceptable", None)
+        spending_summary.setdefault("min_ratio_to_acceptable", None)
+        spending_summary.setdefault("mean_ratio_to_acceptable", None)
+        spending_summary.setdefault("median_ratio_to_acceptable", None)
+        spending_summary.setdefault("years_below_acceptable", None)
+        spending_summary.setdefault("consecutive_years_below_acceptable", None)
 
-        summary.setdefault("years_between_min_and_target", None)
-        summary.setdefault("spending_stress_flag", None)
+        spending_summary.setdefault("years_between_min_and_target", None)
+        spending_summary.setdefault("spending_stress_flag", None)
 
     return metrics
 
@@ -967,6 +978,61 @@ def outcome_risk_from_plan(plan) -> dict:
     }
 
 
+def summarize_risk(scenario: dict, outcome: dict) -> dict:
+    if not scenario.get("valid") or not outcome.get("valid"):
+        return {"valid": False}
+
+    severity = scenario.get("severity_score")
+    if isinstance(severity, (int, float)):
+        severity = float(min(max(severity, 0.0), 1.0))
+
+    risk_level = outcome.get("classification", {}).get("risk_level")
+
+    depletion = outcome.get("depletion", {}).get("depleted", False)
+    worst_dd = outcome.get("drawdown", {}).get("worst_drawdown_factor")
+    terminal_ratio = outcome.get("terminal", {}).get("spending_to_assets_ratio")
+
+    flags = set(scenario.get("flags", [])) | set(outcome.get("flags", []))
+
+    # --------------------------------------------------
+    # Harmonized (consumption-first) risk classification
+    # --------------------------------------------------
+
+    # Priority 1: depletion (true failure)
+    if depletion:
+        overall = "failure"
+
+    # Priority 2: spending-driven stress (from outcome flags)
+    elif "high_spending_pressure" in flags:
+        overall = "high"
+
+    # Priority 3: scenario severity (bad environment)
+    elif severity is not None and severity > 0.6:
+        overall = "high"
+
+    # Priority 4: drawdown (secondary signal, softened)
+    elif worst_dd is not None and worst_dd < 0.3:
+        overall = "moderate"
+
+    # Priority 5: fallback to outcome classification
+    elif risk_level in ("high", "moderate"):
+        overall = risk_level
+
+    else:
+        overall = "low"
+
+    return {
+        "valid": True,
+        "overall_risk": overall,
+        "scenario_severity": severity,
+        "depleted": depletion,
+        "worst_drawdown": worst_dd,
+        "terminal_ratio": terminal_ratio,
+        "flag_count": len(flags),
+        "flags": sorted(flags),
+    }
+
+
 # =========================================================
 # RISK WRAPPER
 # =========================================================
@@ -989,7 +1055,30 @@ def risk_from_plan(plan) -> dict:
     else:
         outcome = {"valid": False, "reason": "plan_not_solved"}
 
-    return {"scenario": scenario, "outcome": outcome}
+    overall_risk = "failure" if not outcome.get("valid") else "unknown"
+
+    sev = scenario.get("severity_score")
+    if isinstance(sev, (int, float)):
+        sev = float(min(max(sev, 0.0), 1.0))
+
+    summary = summarize_risk(scenario, outcome)
+    if not summary.get("valid"):
+        summary = {
+            "valid": False,
+            "overall_risk": overall_risk,
+            "scenario_severity": sev,
+            "depleted": None,
+            "worst_drawdown": None,
+            "terminal_ratio": None,
+            "flag_count": None,
+            "flags": [],
+        }
+
+    return {
+        "scenario": scenario,
+        "outcome": outcome,
+        "summary": summary,
+    }
 
 
 # =========================================================

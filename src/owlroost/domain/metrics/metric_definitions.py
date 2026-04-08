@@ -30,7 +30,7 @@ register_metric(
         key="spending_annual",
         path="financial.spending.year0.today",
         label="Annual\nSpending",
-        fmt="currency",
+        fmt="currency_short",
         aggregates=["median"],
         description="Annual spending in today's dollars at the start of retirement (year 0).",
     )
@@ -41,7 +41,7 @@ register_metric(
         key="spending_total",
         path="financial.spending.total.today",
         label="Total\nSpending",
-        fmt="currency",
+        fmt="currency_short",
         aggregates=["median"],
         description="Total lifetime spending in today's dollars across the full planning horizon.",
     )
@@ -52,7 +52,7 @@ register_metric(
         key="taxes_total",
         path="financial.taxes.total.today",
         label="Total\nTaxes",
-        fmt="currency",
+        fmt="currency_short",
         aggregates=["median"],
         description="Total lifetime taxes in today's dollars across the full planning horizon.",
     )
@@ -64,7 +64,7 @@ register_metric(
         key="bequest",
         path="financial.bequest.total.today",
         label="Bequest",
-        fmt="currency",
+        fmt="currency_short",
         aggregates=["median", "mean"],
         description="Remaining estate value at the end of the plan after all spending and taxes.",
     )
@@ -75,7 +75,7 @@ register_metric(
         key="ending_assets",
         path="risk.outcome.assets.final_today",
         label="Ending Assets",
-        fmt="currency",
+        fmt="currency_short",
         aggregates=["median"],
         description="Total assets remaining at the end of the plan in today's dollars.",
     )
@@ -194,7 +194,7 @@ def _format_run_id(r):
 register_metric(
     MetricSpec(
         key="run_id_compact",
-        label="Case\n/Exp/\nRun",
+        label="Case/\n Exp/\nRun",
         dtype=str,
         align="center",
         compute_fn=lambda r: _format_run_id(r),
@@ -205,7 +205,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="trial",
-        label="Trials",
+        label="Trls",
         aggregates=["cnt"],
         description="Number of simulation trials in the run.",
     )
@@ -241,6 +241,144 @@ register_metric(
         description="Optimization objective used in the plan (e.g., maximize spending or bequest).",
     )
 )
+
+
+def _compute_goal_from_inputs(r):
+    obj = r.get("objective")
+
+    inputs = r.get("_inputs", {})
+    solver = inputs.get("solver_options", {})
+
+    # ----------------------------------------
+    # 1. Get raw value
+    # ----------------------------------------
+    if obj == "maxSpending":
+        raw = solver.get("bequest")
+
+    elif obj == "maxBequest":
+        raw = solver.get("netSpending")
+
+    else:
+        return None
+
+    if raw is None:
+        return None
+
+    # ----------------------------------------
+    # 2. Normalize units → dollars
+    # ----------------------------------------
+    units = solver.get("units", "k")  # default dollars
+
+    try:
+        v = float(raw)
+    except Exception:
+        return None
+
+    if units == "k":
+        return v * 1_000
+    elif units == "M":
+        return v * 1_000_000
+    else:  # "1"
+        return v
+
+
+def _format_goal(value, row):
+    if value is None:
+        return "-"
+
+    obj = row.get("objective")
+
+    def short_currency(v):
+        if v >= 1_000_000:
+            return f"${v/1_000_000:.1f}M"
+        if v >= 1_000:
+            return f"${int(v/1000)}K"
+        return f"${int(v)}"
+
+    val = short_currency(value)
+
+    if obj == "maxSpending":
+        return f"MaxSpnd·Beq={val}"
+
+    if obj == "maxBequest":
+        return f"MaxBeq·Spnd={val}"
+
+    return val
+
+
+register_metric(
+    MetricSpec(
+        key="goal",
+        label="Goal",
+        align="left",
+        compute_fn=_compute_goal_from_inputs,
+        is_invariant=True,  # 🔥 important: comes from inputs, not trials
+        description="User-defined optimization goal (constraint target).",
+        display_row_fn=lambda v, row, ctx: _format_goal(v, row),
+        value_series_fn=lambda values, rows, *_: (
+            _format_goal(values[0], rows[0]) if values and rows else "-"
+        ),
+    )
+)
+
+
+def _format_number(v):
+    try:
+        f = float(v)
+    except Exception:
+        return str(v)
+
+    # remove trailing .0 if integer
+    if f.is_integer():
+        return str(int(f))
+
+    return str(f)
+
+
+def _format_rates(r):
+    inputs = r.get("_inputs", {})
+    rates = inputs.get("rates_selection", {})
+
+    method = rates.get("method")
+
+    # ----------------------------------------
+    # Historical bootstrap (SoR)
+    # ----------------------------------------
+    if method == "bootstrap_sor":
+        start = rates.get("from")
+        end = rates.get("to")
+
+        if start and end:
+            return f"Hist ({start}–{end})"
+        return "Hist"
+
+    # ----------------------------------------
+    # User-defined rates
+    # ----------------------------------------
+    if method == "user":
+        vals = rates.get("values") or []
+        if vals:
+            vals_str = "/".join(_format_number(v) for v in vals)
+            return f"User ({vals_str})"
+        return "User"
+
+    # ----------------------------------------
+    # Fallback
+    # ----------------------------------------
+    return method or "-"
+
+
+register_metric(
+    MetricSpec(
+        key="rates",
+        label="Rates",
+        align="left",
+        compute_fn=_format_rates,
+        is_invariant=True,
+        description="Compact description of return scenario generation method.",
+    )
+)
+
 
 # Overrides
 
@@ -322,7 +460,7 @@ register_metric(
         key="spending_now",
         path="financial.spending_profile.year0",
         label="Spending\n(Now)",
-        fmt="currency",
+        fmt="currency_short",
         aggregates=["median"],
         description="Spending in today's dollars at the start of retirement.",
     )
@@ -333,7 +471,7 @@ register_metric(
         key="spending_early",
         path="financial.spending_profile.early_avg",
         label="Spending\n(Early)",
-        fmt="currency",
+        fmt="currency_short",
         aggregates=["median"],
         description="Average spending over the early retirement period (first ~5 years).",
     )
@@ -344,7 +482,7 @@ register_metric(
         key="spending_late",
         path="financial.spending_profile.late_avg",
         label="Spending\n(Late)",
-        fmt="currency",
+        fmt="currency_short",
         aggregates=["median"],
         description="Average spending in later years (typically survivor phase).",
     )
@@ -366,7 +504,7 @@ register_metric(
         key="spending_final",
         path="financial.spending_profile.yearN",
         label="Final\nSpending",
-        fmt="currency",
+        fmt="currency_short",
         aggregates=["median"],
         description="Spending in the final year of the plan.",
     )
@@ -432,11 +570,126 @@ register_metric(
 
 register_metric(
     MetricSpec(
-        key="risk",
+        key="outcome_risk",
         path="risk.outcome.classification.risk_level",
-        label="Risk",
+        label="Outcome\nRisk",
         dtype=str,
-        description="Overall risk classification (low, moderate, high, failure).",
+        description="Risk classification based on plan outcomes only (ignores scenario severity).",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="overall_risk",
+        path="risk.summary.overall_risk",
+        label="Overall\nRisk",
+        dtype=str,
+        description=(
+            "Composite risk classification based on asset drawdown, depletion pressure, "
+            "and spending intensity.\n"
+            "In single-trial runs, this reflects structural fragility—not probability of failure."
+        ),
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="scenario_severity",
+        path="risk.summary.scenario_severity",
+        label="Scenario\nSeverity",
+        fmt="percent2",
+        aggregates=["mean"],
+        description="Normalized severity of the return environment.",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="depleted",
+        path="risk.summary.depleted",
+        label="Depleted",
+        dtype=int,
+        fmt="count_ratio",
+        aggregates=[("ratio", "count_ratio")],
+        description="Indicates whether assets are depleted during the plan.",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="risk_flag_count",
+        path="risk.summary.flag_count",
+        label="Risk\nFlags",
+        fmt="int",
+        aggregates=["mean"],
+        description="Number of risk signals triggered in scenario and outcome.",
+    )
+)
+
+FLAG_EXPLANATIONS = {
+    "ending_asset_erosion": (
+        "Financial assets decline significantly late in life. This may reflect "
+        "planned use or conversion of assets (e.g., home sale), not necessarily risk."
+    ),
+    "high_spending_pressure": (
+        "Spending uses a large portion of financial assets. This may be acceptable "
+        "if supported by other assets or planned drawdown."
+    ),
+    "severe_asset_drawdown": (
+        "Financial assets experience large declines. In some plans, this reflects "
+        "intentional drawdown or asset conversion rather than adverse outcomes."
+    ),
+}
+
+register_metric(
+    MetricSpec(
+        key="risk_flags",
+        path="risk.summary.flags",
+        label="Risk\nSignals",
+        dtype=str,
+        aggregates=[],
+        description=(
+            "Indicators of plan fragility (asset drawdown, depletion pressure, etc.). "
+            "These do not imply spending failure."
+        ),
+        value_series_fn=lambda values, *_: "\n\n".join(
+            f"{f.replace('_', ' ').capitalize()}:\n{FLAG_EXPLANATIONS.get(f, '')}"
+            for f in sorted(set(f for v in values if isinstance(v, list) for f in v))
+        ),
+        display_row_fn=lambda v, row, ctx: (
+            "\n".join(f.replace("_", " ").capitalize() for f in v)
+            if isinstance(v, list) and v
+            else "-"
+        ),
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="risk_reconciliation",
+        label="Risk\nInterpretation",
+        dtype=str,
+        aggregates=[],
+        display_row_fn=lambda v, row, ctx: (
+            "see explain=values"
+            if isinstance(row, dict)
+            and row.get("overall_risk") == "high"
+            and row.get("years_below_acceptable", 0) == 0
+            else "-"
+        ),
+        value_series_fn=lambda values, rows, *_: (
+            "Spending remains strong across all years. Asset-based signals reflect "
+            "drawdown of financial assets, which may include planned liquidation of "
+            "non-financial assets (e.g., home sale), not necessarily risk to lifestyle."
+            if rows
+            and any(
+                isinstance(r, dict)
+                and r.get("overall_risk") == "high"
+                and r.get("years_below_acceptable", 0) == 0
+                for r in rows
+            )
+            else ""
+        ),
     )
 )
 
@@ -847,6 +1100,7 @@ register_metric(
     MetricSpec(
         key="run_profile",
         label="Profile",
+        align="left",
         dtype=str,
         compute_fn=_run_profile,
         is_invariant=True,

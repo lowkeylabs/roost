@@ -11,7 +11,7 @@ dependencies = [
     "matplotlib>=3.10.8",
     "plotly>=6.5.0",
     # OWL is under active development; pin to commit for reproducibility
-    "owlplanner @ git+https://github.com/mdlacasse/Owl.git@531a78ec42c074ed9e02c16eeb4f72776fba2895",  # 2026-02-19
+    "owlplanner @ git+https://github.com/mdlacasse/Owl.git@bbd7bd6635dc85ad539d3e15e1bea5b65541318c",  # 2026-02-19
     #"owlplanner", #used with uv.sources below.
     "python-dotenv>=1.2.1",
     "hydra-joblib-launcher>=1.2.0",
