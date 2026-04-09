@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from loguru import logger
 from owlplanner.config.toml_io import load_toml
 
 from owlroost.domain.metrics.metric_registry import METRIC_REGISTRY
@@ -22,6 +23,7 @@ def load_metrics(trial_path: Path) -> dict | None:
 
 def load_effective(trial_path: Path) -> dict:
     file = next(trial_path.glob("*_effective.toml"), None)
+    logger.debug(f"effective_toml: {str(file)}")
 
     if not file:
         return {}

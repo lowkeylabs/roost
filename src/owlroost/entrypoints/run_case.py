@@ -8,7 +8,6 @@ def main():
     args = json.loads(sys.stdin.read())
 
     result = run_single_case(**args)
-
     print(
         json.dumps(
             {

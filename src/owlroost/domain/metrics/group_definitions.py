@@ -37,7 +37,7 @@ register_group(
     "spending_profile",
     [
         ("spending_now", "median"),
-        ("spending_early", "median", {"show_if": "is_table"}),
+        ("spending_early", "median"),
         ("spending_late", "median"),
         ("spending_survivor_ratio", "mean"),
         ("spending_final", "median"),
@@ -61,7 +61,7 @@ register_group(
     "lifestyle",
     [
         "acceptable_spending",
-        ("spending_ratio_to_acceptable_min", "mean", {"show_if": ["is_table", "is_pivot"]}),
+        ("spending_ratio_to_acceptable_min", "mean"),
         ("years_below_acceptable", "mean"),
         ("consecutive_years_below_acceptable", "mean"),
         ("years_below_acceptable", "p90"),
@@ -76,7 +76,7 @@ register_group(
     "safety",
     [
         "minimum_spending",
-        ("spending_ratio_to_minimum_min", "mean", {"show_if": ["is_table", "is_pivot"]}),
+        ("spending_ratio_to_minimum_min", "mean"),
         ("years_below_minimum", "mean"),
         ("consecutive_years_below_minimum", "mean"),
         ("years_below_minimum", "p90"),

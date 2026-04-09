@@ -17,6 +17,7 @@ import toml
 from loguru import logger
 
 from owlroost.core.metrics_from_plan import write_metrics_json
+from owlroost.domain.models.case import Case
 
 # ---------------------------------------------------------------------
 # Result object
@@ -302,6 +303,8 @@ def run_single_case(
         logstreams="loguru",
         loadHFP=False,
     )
+    case = Case(Path(case_file))
+    plan._case = case
 
     if hfp_file:
         plan.readHFP(str(hfp_modified))

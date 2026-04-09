@@ -14,6 +14,170 @@ from pydantic import BaseModel, Field, field_validator
 
 from owlroost.core.longevity import deterministic_individual_lifetime
 
+# helpers
+
+
+def _resolve_spending_value(value, baseline):
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+        value = value.strip()
+
+        if value.endswith("%"):
+            try:
+                pct = float(value[:-1]) / 100.0
+                return pct * baseline  # already dollars
+            except Exception:
+                return None
+
+    try:
+        return float(value)  # still in user units
+    except Exception:
+        return None
+
+
+def _apply_units(value, case):
+    if value is None:
+        return None
+
+    solver = getattr(case.config, "solver_options", None)
+
+    if isinstance(solver, dict):
+        units = solver.get("units", "k")
+    else:
+        units = getattr(solver, "units", "k")
+
+    if units == "k":
+        return value * 1_000
+    if units == "M":
+        return value * 1_000_000
+
+    return value  # assume already dollars
+
+
+def _get_input_baseline(case):
+    """
+    Resolve baseline spending from inputs ONLY.
+    Works without running the solver.
+    """
+
+    obj = case.objective
+    solver = getattr(case.config, "solver_options", None)
+
+    if solver is None:
+        return 0.0
+
+    # Handle both object and dict
+    if isinstance(solver, dict):
+        get = solver.get
+    else:
+        get = lambda k, default=None: getattr(solver, k, default)
+
+    if obj == "maxBequest":
+        val = get("netSpending")
+    elif obj == "maxSpending":
+        return None
+    else:
+        val = None
+
+    if val is None:
+        return 0.0
+
+    # Handle units
+    units = get("units", "k")
+
+    v = float(val)
+
+    if units == "k":
+        return v * 1_000
+    if units == "M":
+        return v * 1_000_000
+
+    return v
+
+
+def get_effective_spending_policy(case):
+    # ----------------------------------------
+    # Safety: no case
+    # ----------------------------------------
+    if case is None:
+        return {
+            "minimum_spending": 0,
+            "acceptable_spending": 0,
+            "baseline_years": 3,
+            "max_years_below_acceptable": 5,
+            "max_consecutive_years_below_acceptable": 5,
+        }
+
+    policy = case.spending_policy
+
+    # ----------------------------------------
+    # Baseline from inputs
+    # ----------------------------------------
+    try:
+        baseline = _get_input_baseline(case)
+    except Exception:
+        baseline = 0
+
+    # ----------------------------------------
+    # No policy → defaults
+    # ----------------------------------------
+    if not policy:
+        if not isinstance(baseline, (int, float)):
+            return {
+                "minimum_spending": None,
+                "acceptable_spending": None,
+                "baseline_years": 3,
+                "max_years_below_acceptable": 5,
+                "max_consecutive_years_below_acceptable": 5,
+            }
+
+        return {
+            "minimum_spending": 0.7 * baseline,
+            "acceptable_spending": 1.0 * baseline,
+            "baseline_years": 3,
+            "max_years_below_acceptable": 5,
+            "max_consecutive_years_below_acceptable": 5,
+        }
+
+    # ----------------------------------------
+    # Resolve values
+    # ----------------------------------------
+
+    minimum = _resolve_spending_value(policy.minimum_spending, baseline)
+    acceptable = _resolve_spending_value(policy.acceptable_spending, baseline)
+
+    # ----------------------------------------
+    # Apply units normalization
+    # ----------------------------------------
+    minimum = _apply_units(minimum, case)
+    acceptable = _apply_units(acceptable, case)
+
+    # ----------------------------------------
+    # Fallback if parsing failed
+    # ----------------------------------------
+    if minimum is None:
+        minimum = 0.7 * baseline
+
+    if acceptable is None:
+        acceptable = 1.0 * baseline
+
+    # ----------------------------------------
+    # Validation
+    # ----------------------------------------
+    if acceptable < minimum:
+        raise ValueError("acceptable_spending must be >= minimum_spending")
+
+    return {
+        "minimum_spending": minimum,
+        "acceptable_spending": acceptable,
+        "baseline_years": policy.baseline_years,
+        "max_years_below_acceptable": policy.max_years_below_acceptable,
+        "max_consecutive_years_below_acceptable": policy.max_consecutive_years_below_acceptable,
+    }
+
+
 # =========================================================
 # ROOST Extension Schemas
 # =========================================================
@@ -102,6 +266,14 @@ class RoostConfig(BaseModel):
     experiment: str | None = None
 
 
+class SpendingPolicyConfig(BaseModel):
+    minimum_spending: float | str = "70%"
+    acceptable_spending: float | str = "100%"
+    baseline_years: int = 3
+    max_years_below_acceptable: int = 5
+    max_consecutive_years_below_acceptable: int = 5
+
+
 class CacheConfig(BaseModel):
     generated_at: str  # ISO timestamp
 
@@ -111,6 +283,7 @@ class CacheConfig(BaseModel):
 
 
 EXTRA_SECTION_REGISTRY: dict[str, type[BaseModel]] = {
+    "spending_policy": SpendingPolicyConfig,
     "longevity": LongevityConfig,
     "roost": RoostConfig,
     "cache": CacheConfig,
@@ -428,6 +601,10 @@ class Case:
     # =========================================================
     # Extension Accessors
     # =========================================================
+
+    @property
+    def spending_policy(self) -> SpendingPolicyConfig | None:
+        return self.extensions.get("spending_policy")
 
     @property
     def longevity(self):

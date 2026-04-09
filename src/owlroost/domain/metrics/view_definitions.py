@@ -49,23 +49,23 @@ register_view(
         {"separator": "section", "label": "OUTCOMES"},
         ("group", "outcomes"),
         # SPENDING PROFILE
-        # {"separator": "section", "label": "SPENDING PROFILE"},
-        # ("group", "spending_profile"),
+        {"separator": "section", "label": "SPENDING PROFILE"},
+        ("group", "spending_profile"),
         # -------------------------------------------------
         # LIFESTYLE (comfort)
         # -------------------------------------------------
-        # {"separator": "section", "label": "LIFESTYLE"},
-        # ("group", "lifestyle"),
+        {"separator": "section", "label": "LIFESTYLE"},
+        ("group", "lifestyle"),
         # -------------------------------------------------
         # SAFETY (hard constraint)
         # -------------------------------------------------
-        # {"separator": "section", "label": "SAFETY"},
-        # ("group", "safety"),
+        {"separator": "section", "label": "SAFETY"},
+        ("group", "safety"),
         # -------------------------------------------------
         # RISK
         # -------------------------------------------------
-        # {"separator": "section", "label": "RISK SUMMARY"},
-        # ("group", "risk_summary"),
+        {"separator": "section", "label": "RISK SUMMARY"},
+        ("group", "risk_summary"),
     ],
     description="Decision-oriented run comparison: outcomes, lifestyle, and safety",
 )

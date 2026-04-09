@@ -3,6 +3,9 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
+from loguru import logger
+
+from owlroost.domain.models.case import get_effective_spending_policy
 
 
 def _mosek_available():
@@ -102,12 +105,10 @@ def classify_run_status_from_plan(plan) -> dict:
 
 def ensure_complete_metrics(metrics: dict, status: str) -> dict:
     """
-    Ensures all required metric structure exists across:
-    - SOLVED
-    - UNSUCCESSFUL
-    - FAILED
-
-    Guarantees aggregation-safe structure.
+    Non-destructive normalization:
+    - Preserves computed values
+    - Only fills missing keys
+    - Forces defaults only for non-solved runs
     """
 
     # --------------------------------------------------
@@ -120,13 +121,19 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
     risk = metrics.setdefault("risk", {})
     risk_summary = risk.setdefault("summary", {})
 
-    risk_summary.setdefault("overall_risk", None)
-    risk_summary.setdefault("scenario_severity", None)
-    risk_summary.setdefault("depleted", None)
-    risk_summary.setdefault("worst_drawdown", None)
-    risk_summary.setdefault("terminal_ratio", None)
-    risk_summary.setdefault("flag_count", None)
-    risk_summary.setdefault("flags", [])
+    for k in [
+        "overall_risk",
+        "scenario_severity",
+        "depleted",
+        "worst_drawdown",
+        "terminal_ratio",
+        "flag_count",
+    ]:
+        if k not in risk_summary:
+            risk_summary[k] = None
+
+    if "flags" not in risk_summary:
+        risk_summary["flags"] = []
 
     # --------------------------------------------------
     # Financial structure
@@ -134,14 +141,15 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
     fin = metrics["financial"]
 
     fin.setdefault("baseline", {})
-    fin["baseline"].setdefault("annual_spending", None)
+    if "annual_spending" not in fin["baseline"]:
+        fin["baseline"]["annual_spending"] = None
 
     ts = fin.setdefault("timeseries", {})
     spending = ts.setdefault("spending", {})
     ratio = spending.setdefault("ratio", {})
 
     # --------------------------------------------------
-    # Determine horizon (needed for by_year)
+    # Horizon detection
     # --------------------------------------------------
     horizon = (
         metrics.get("financial", {}).get("horizon", {}).get("years")
@@ -157,58 +165,46 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
         horizon = 30
 
     # --------------------------------------------------
-    # CRITICAL: ensure ratio.by_year exists
+    # Ensure ratio.by_year
     # --------------------------------------------------
     if "by_year" not in ratio or not isinstance(ratio["by_year"], list):
-        if status != "solved":
-            # worst-case fallback
-            ratio["by_year"] = [0.0] * horizon
-        else:
-            # unknown but valid structure
-            ratio["by_year"] = [None] * horizon
+        ratio["by_year"] = [0.0] * horizon if status != "solved" else [None] * horizon
 
     # --------------------------------------------------
-    # CRITICAL: normalize aggregate ratio values
+    # Ratio aggregates (NON-DESTRUCTIVE)
     # --------------------------------------------------
     if status != "solved":
         ratio["min"] = 0.0
         ratio["mean"] = 0.0
         ratio["median"] = 0.0
     else:
-        # derive if missing
         values = [v for v in ratio["by_year"] if isinstance(v, (int, float))]
-
         if values:
-            ratio.setdefault("min", min(values))
-            ratio.setdefault("mean", sum(values) / len(values))
-            ratio.setdefault(
-                "median",
-                sorted(values)[len(values) // 2],
-            )
+            if "min" not in ratio:
+                ratio["min"] = min(values)
+            if "mean" not in ratio:
+                ratio["mean"] = sum(values) / len(values)
+            if "median" not in ratio:
+                ratio["median"] = sorted(values)[len(values) // 2]
         else:
-            ratio.setdefault("min", None)
-            ratio.setdefault("mean", None)
-            ratio.setdefault("median", None)
+            for k in ["min", "mean", "median"]:
+                if k not in ratio:
+                    ratio[k] = None
 
     # --------------------------------------------------
-    # Optional: clamp ratios for stability
+    # Clamp ratios (safe)
     # --------------------------------------------------
     if isinstance(ratio.get("by_year"), list):
         ratio["by_year"] = [
             min(max(v, 0.0), 2.0) if isinstance(v, (int, float)) else v for v in ratio["by_year"]
         ]
 
-    if isinstance(ratio.get("min"), (int, float)):
-        ratio["min"] = min(max(ratio["min"], 0.0), 2.0)
-
-    if isinstance(ratio.get("mean"), (int, float)):
-        ratio["mean"] = min(max(ratio["mean"], 0.0), 2.0)
-
-    if isinstance(ratio.get("median"), (int, float)):
-        ratio["median"] = min(max(ratio["median"], 0.0), 2.0)
+    for k in ["min", "mean", "median"]:
+        if isinstance(ratio.get(k), (int, float)):
+            ratio[k] = min(max(ratio[k], 0.0), 2.0)
 
     # --------------------------------------------------
-    # Baseline fallback (important for display)
+    # Baseline fallback
     # --------------------------------------------------
     if fin["baseline"].get("annual_spending") is None:
         try:
@@ -217,21 +213,20 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
             pass
 
     # --------------------------------------------------
-    # Mark validity
+    # Valid flag
     # --------------------------------------------------
     fin["valid"] = status == "solved"
 
     # --------------------------------------------------
-    # Ensure spending_summary exists
+    # Spending summary (NON-DESTRUCTIVE)
     # --------------------------------------------------
     fin.setdefault("spending_summary", {})
-
     spending_summary = fin["spending_summary"]
 
     if status != "solved":
+        # overwrite is OK here (failed runs)
         spending_summary.update(
             {
-                # EXISTING
                 "min_ratio": 0.0,
                 "mean_ratio": 0.0,
                 "median_ratio": 0.0,
@@ -240,57 +235,50 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
                 "years_under_target": horizon,
                 "shortfall": 1.0,
                 "required_slack": 1.0,
-                # MINIMUM
                 "min_ratio_to_minimum": 0.0,
                 "mean_ratio_to_minimum": 0.0,
                 "median_ratio_to_minimum": 0.0,
                 "years_below_minimum": horizon,
                 "floor_breach": 1,
-                # ACCEPTABLE
                 "min_ratio_to_acceptable": 0.0,
                 "mean_ratio_to_acceptable": 0.0,
                 "median_ratio_to_acceptable": 0.0,
                 "years_below_acceptable": horizon,
                 "consecutive_years_below_acceptable": horizon,
                 "consecutive_years_below_minimum": horizon,
-                # DERIVED
                 "years_between_min_and_target": 0,
-                # FLAGS
                 "spending_stress_flag": 1,
             }
         )
     else:
-        profile = fin.setdefault("spending_profile", {})
+        # ONLY fill missing keys (CRITICAL FIX)
+        defaults = {
+            "min_ratio": None,
+            "mean_ratio": None,
+            "median_ratio": None,
+            "p10_ratio": None,
+            "std_ratio": None,
+            "years_under_target": None,
+            "shortfall": None,
+            "required_slack": None,
+            "min_ratio_to_minimum": None,
+            "mean_ratio_to_minimum": None,
+            "median_ratio_to_minimum": None,
+            "years_below_minimum": None,
+            "floor_breach": None,
+            "min_ratio_to_acceptable": None,
+            "mean_ratio_to_acceptable": None,
+            "median_ratio_to_acceptable": None,
+            "years_below_acceptable": None,
+            "consecutive_years_below_acceptable": None,
+            "consecutive_years_below_minimum": None,
+            "years_between_min_and_target": None,
+            "spending_stress_flag": None,
+        }
 
-        profile.setdefault("year0", None)
-        profile.setdefault("early_avg", None)
-        profile.setdefault("late_avg", None)
-        profile.setdefault("yearN", None)
-        profile.setdefault("survivor_ratio", None)
-
-        spending_summary.setdefault("min_ratio", None)
-        spending_summary.setdefault("mean_ratio", None)
-        spending_summary.setdefault("median_ratio", None)
-        spending_summary.setdefault("p10_ratio", None)
-        spending_summary.setdefault("std_ratio", None)
-        spending_summary.setdefault("years_under_target", None)
-        spending_summary.setdefault("shortfall", None)
-        spending_summary.setdefault("required_slack", None)
-
-        spending_summary.setdefault("min_ratio_to_minimum", None)
-        spending_summary.setdefault("mean_ratio_to_minimum", None)
-        spending_summary.setdefault("median_ratio_to_minimum", None)
-        spending_summary.setdefault("years_below_minimum", None)
-        spending_summary.setdefault("floor_breach", None)
-
-        spending_summary.setdefault("min_ratio_to_acceptable", None)
-        spending_summary.setdefault("mean_ratio_to_acceptable", None)
-        spending_summary.setdefault("median_ratio_to_acceptable", None)
-        spending_summary.setdefault("years_below_acceptable", None)
-        spending_summary.setdefault("consecutive_years_below_acceptable", None)
-
-        spending_summary.setdefault("years_between_min_and_target", None)
-        spending_summary.setdefault("spending_stress_flag", None)
+        for k, v in defaults.items():
+            if k not in spending_summary:
+                spending_summary[k] = v
 
     return metrics
 
@@ -309,6 +297,275 @@ def identity_from_plan(plan) -> dict:
 # =========================================================
 # METRICS
 # =========================================================
+
+
+def financial_core_from_plan(plan, N):
+    gamma = plan.gamma_n[:N]
+
+    actual_future = plan.g_n[:N]
+    actual_today = actual_future / gamma
+
+    k = min(5, N // 2 if N >= 2 else 1)
+
+    early_avg = float(np.mean(actual_today[:k]))
+    late_avg = float(np.mean(actual_today[-k:]))
+
+    year0 = float(actual_today[0])
+    yearN = float(actual_today[-1])
+
+    survivor_ratio = None
+    if early_avg > 0:
+        survivor_ratio = late_avg / early_avg
+        survivor_ratio = float(min(max(survivor_ratio, 0.0), 2.0))
+
+    spending_profile = {
+        "year0": year0,
+        "early_avg": early_avg,
+        "late_avg": late_avg,
+        "yearN": yearN,
+        "survivor_ratio": survivor_ratio,
+    }
+
+    spending = {
+        "year0": {
+            "future": float(actual_future[0]),
+            "today": float(actual_today[0]),
+        },
+        "total": {
+            "future": float(np.sum(actual_future)),
+            "today": float(np.sum(actual_today)),
+        },
+    }
+
+    taxes = {
+        "total": {
+            "future": float(np.sum(plan.T_n[:N])),
+            "today": float(np.sum(plan.T_n[:N] / gamma)),
+        }
+    }
+
+    roth = {
+        "total": {
+            "future": float(np.sum(plan.x_in[:, :N])),
+            "today": float(np.sum(np.sum(plan.x_in[:, :N], axis=0) / gamma)),
+        }
+    }
+
+    # ---- bequest ----
+    estate = np.sum(plan.b_ijn[:, :, plan.N_n], axis=0).copy()
+    estate[1] *= 1 - plan.nu
+    estate[3] *= 1 - plan.nu
+
+    savings_estate = np.sum(estate)
+    debts = plan.remaining_debt_balance
+
+    bequest_future = savings_estate - debts + plan.fixed_assets_bequest_value
+    bequest_today = bequest_future / plan.gamma_n[-1]
+
+    bequest = {
+        "total": {
+            "future": float(bequest_future),
+            "today": float(bequest_today),
+        }
+    }
+
+    return {
+        "spending": spending,
+        "spending_profile": spending_profile,
+        "taxes": taxes,
+        "roth": roth,
+        "bequest": bequest,
+    }
+
+
+def spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma):
+    tracer = "starting"
+    try:
+        # -------------------------------------------------
+        # Inputs
+        # -------------------------------------------------
+        tracer = "1"
+        xi = getattr(plan, "xi_n", None)
+        if xi is None:
+            xi = np.ones_like(actual_future)
+        else:
+            xi = xi[:N]
+
+        tracer = 11
+        case = getattr(plan, "_case", None)
+        tracer = 12
+        policy = get_effective_spending_policy(case)
+
+        tracer = 2
+        # -------------------------------------------------
+        # Baseline (solution-derived, guaranteed)
+        # -------------------------------------------------
+        k = policy.get("baseline_years", 3)
+        k = max(1, min(k, N))
+
+        if len(actual_future):
+            baseline = float(np.mean(actual_future[:k]))
+        else:
+            baseline = None
+
+        if not isinstance(baseline, (int, float)) or not np.isfinite(baseline) or baseline <= 0:
+            baseline = float(actual_today[0])
+
+        baseline_valid = (
+            isinstance(baseline, (int, float)) and np.isfinite(baseline) and baseline > 0
+        )
+
+        tracer = 3
+
+        assert isinstance(baseline, float) and np.isfinite(baseline)
+
+        # -------------------------------------------------
+        # Policy (force resolution)
+        # -------------------------------------------------
+        minimum_spending = policy.get("minimum_spending")
+        acceptable_spending = policy.get("acceptable_spending")
+
+        if not isinstance(minimum_spending, (int, float)) or not np.isfinite(minimum_spending):
+            minimum_spending = 0.7 * baseline
+
+        if not isinstance(acceptable_spending, (int, float)) or not np.isfinite(
+            acceptable_spending
+        ):
+            acceptable_spending = 1.0 * baseline
+
+        if acceptable_spending < minimum_spending:
+            acceptable_spending = minimum_spending
+
+        tracer = 4
+        # -------------------------------------------------
+        # Clean xi (critical fix)
+        # -------------------------------------------------
+        xi = np.array(xi, dtype=float)
+        xi = np.nan_to_num(xi, nan=1.0, posinf=1.0, neginf=1.0)
+
+        # -------------------------------------------------
+        # Expected spending
+        # -------------------------------------------------
+        expected_future = xi * baseline
+
+        acceptable_future = xi * acceptable_spending
+        minimum_future = xi * minimum_spending
+
+        tracer = 5
+        # -------------------------------------------------
+        # Ratios
+        # -------------------------------------------------
+        with np.errstate(divide="ignore", invalid="ignore"):
+            ratio = np.divide(
+                actual_future,
+                expected_future,
+                out=np.zeros_like(actual_future),
+                where=expected_future > 0,
+            )
+
+            ratio_acc = np.divide(
+                actual_future,
+                acceptable_future,
+                out=np.zeros_like(actual_future),
+                where=acceptable_future > 0,
+            )
+
+            ratio_min = np.divide(
+                actual_future,
+                minimum_future,
+                out=np.zeros_like(actual_future),
+                where=minimum_future > 0,
+            )
+
+        tracer = 6
+        # Clip for stability
+        ratio = np.clip(ratio, 0.0, 2.0)
+        ratio_acc = np.clip(ratio_acc, 0.0, 2.0)
+        ratio_min = np.clip(ratio_min, 0.0, 2.0)
+
+        clean = ratio[np.isfinite(ratio)]
+        clean_acc = ratio_acc[np.isfinite(ratio_acc)]
+        clean_min = ratio_min[np.isfinite(ratio_min)]
+
+        tracer = 7
+
+        # -------------------------------------------------
+        # Helpers
+        # -------------------------------------------------
+        def safe_stats(arr):
+            if len(arr):
+                return float(np.min(arr)), float(np.mean(arr)), float(np.median(arr))
+            return None, None, None
+
+        def max_consecutive_below(arr):
+            max_run = run = 0
+            for v in arr:
+                if v < 1.0:
+                    run += 1
+                    max_run = max(max_run, run)
+                else:
+                    run = 0
+            return max_run
+
+        # -------------------------------------------------
+        # Summary metrics
+        # -------------------------------------------------
+        min_ratio, mean_ratio, median_ratio = safe_stats(clean)
+
+        min_acc, mean_acc, median_acc = safe_stats(clean_acc)
+        min_min, mean_min, median_min = safe_stats(clean_min)
+
+        years_under_target = int(np.sum(clean < 1.0)) if len(clean) else None
+        years_below_acceptable = int(np.sum(clean_acc < 1.0)) if len(clean_acc) else None
+        years_below_minimum = int(np.sum(clean_min < 1.0)) if len(clean_min) else None
+
+        consecutive_below_acceptable = max_consecutive_below(clean_acc) if len(clean_acc) else None
+        consecutive_below_minimum = max_consecutive_below(clean_min) if len(clean_min) else None
+
+        tracer = 8
+
+        # -------------------------------------------------
+        # Flags
+        # -------------------------------------------------
+        spending_stress_flag = 1 if years_below_acceptable and years_below_acceptable > 0 else 0
+        floor_breach = 1 if years_below_minimum and years_below_minimum > 0 else 0
+
+        tracer = 9
+        # -------------------------------------------------
+        # Return
+        # -------------------------------------------------
+        return {
+            "baseline_valid": True,
+            "baseline": {"annual_spending": float(baseline)},
+            "spending_summary": {
+                "min_ratio": min_ratio,
+                "mean_ratio": mean_ratio,
+                "median_ratio": median_ratio,
+                "years_under_target": years_under_target,
+                "min_ratio_to_acceptable": min_acc,
+                "mean_ratio_to_acceptable": mean_acc,
+                "median_ratio_to_acceptable": median_acc,
+                "min_ratio_to_minimum": min_min,
+                "mean_ratio_to_minimum": mean_min,
+                "median_ratio_to_minimum": median_min,
+                "years_below_acceptable": years_below_acceptable,
+                "years_below_minimum": years_below_minimum,
+                "consecutive_years_below_acceptable": consecutive_below_acceptable,
+                "consecutive_years_below_minimum": consecutive_below_minimum,
+                "spending_stress_flag": spending_stress_flag,
+                "floor_breach": floor_breach,
+            },
+            "spending_policy": {
+                "minimum_spending": float(minimum_spending),
+                "acceptable_spending": float(acceptable_spending),
+            },
+        }
+
+    except Exception as e:
+        logger.exception("spending_metrics_from_plan failed")
+        return {"baseline_valid": False, "tracer": tracer, "spending_error": str(e)}
+
+
 def financials_from_plan(plan, N=None) -> dict:
     try:
         if not hasattr(plan, "g_n") or not hasattr(plan, "gamma_n"):
@@ -316,379 +573,26 @@ def financials_from_plan(plan, N=None) -> dict:
 
         if N is None:
             N = plan.N_n
-        if not (0 < N <= plan.N_n):
-            raise ValueError(f"Value N={N} is out of range")
 
         gamma = plan.gamma_n[:N]
-
-        start_year = int(plan.year_n[0])
-        final_year = int(plan.year_n[-1])
-
-        horizon = {
-            "start_year": int(start_year),
-            "final_year": int(final_year),
-            "years": int(len(plan.g_n[:N])),
-        }
-
-        inflation = {
-            "final_factor": float(plan.gamma_n[-1]),
-        }
-
-        # =========================================================
-        # SPENDING (ACTUAL = g_n, EXPECTED = xi_n)
-        # =========================================================
-
         actual_future = plan.g_n[:N]
         actual_today = actual_future / gamma
-        xi = plan.xi_n[:N]
 
-        k = min(5, N // 2 if N >= 2 else 1)
+        # ---- core (never fails) ----
+        core = financial_core_from_plan(plan, N)
 
-        early_avg = float(np.mean(actual_today[:k]))
-        late_avg = float(np.mean(actual_today[-k:]))
+        # ---- spending metrics (may fail) ----
+        spending = spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma)
 
-        year0 = float(actual_today[0])
-        yearN = float(actual_today[-1])
-
-        survivor_ratio = None
-        if early_avg > 0:
-            survivor_ratio = late_avg / early_avg
-            survivor_ratio = float(min(max(survivor_ratio, 0.0), 2.0))
-
-        spending_profile = {
-            "year0": year0,
-            "early_avg": early_avg,
-            "late_avg": late_avg,
-            "yearN": yearN,
-            "survivor_ratio": survivor_ratio,
+        return {
+            "valid": True,
+            **core,
+            **spending,
         }
-
-        risk_cfg = getattr(plan, "_config_extra", {}) or {}
-        risk_cfg = risk_cfg.get("risk_analysis", {}) or {}
-
-        k = risk_cfg.get("baseline_years", 3)
-        k = max(1, min(k, N))  # safe bounds
-
-        baseline = float(np.mean(actual_future[:k])) if len(actual_future) else None
-
-        if baseline is None or baseline == 0:
-            return {"valid": False, "reason": "invalid_baseline"}
-
-        # --------------------------------------------------
-        # Risk thresholds (from Plan config — no hardcoding)
-        # --------------------------------------------------
-
-        minimum_spending = risk_cfg.get("minimum_spending")
-        acceptable_spending = risk_cfg.get("acceptable_spending")
-        acceptable_ratio = risk_cfg.get("acceptable_spending_ratio_to_minimum")
-
-        # Derive acceptable if needed
-        if acceptable_spending is None and acceptable_ratio and minimum_spending:
-            acceptable_spending = minimum_spending * acceptable_ratio
-
-        if acceptable_spending is not None and minimum_spending is not None:
-            if acceptable_spending < minimum_spending:
-                acceptable_spending = minimum_spending
-
-        expected_future = plan.xi_n[:N] * baseline
-        expected_today = expected_future / gamma
-
-        shortfall_future = expected_future - actual_future
-        shortfall_today = shortfall_future / gamma
-
-        # --------------------------------------------------
-        # Ratios relative to minimum and acceptable spending
-        # --------------------------------------------------
-        if minimum_spending and minimum_spending > 0:
-            with np.errstate(divide="ignore", invalid="ignore"):
-                ratio_to_minimum = actual_today / minimum_spending
-        else:
-            ratio_to_minimum = np.full_like(actual_today, np.nan)
-
-        if acceptable_spending and acceptable_spending > 0:
-            acceptable_future = xi * acceptable_spending
-            acceptable_today = acceptable_future / gamma
-
-            with np.errstate(divide="ignore", invalid="ignore"):
-                ratio_to_acceptable = actual_today / acceptable_today
-        else:
-            acceptable_future = np.full_like(actual_future, np.nan)
-            acceptable_today = np.full_like(actual_today, np.nan)
-            ratio_to_acceptable = np.full_like(actual_today, np.nan)
-
-        # Clamp for stability (same convention as existing ratios)
-        ratio_to_minimum = np.clip(ratio_to_minimum, 0.0, 2.0)
-        ratio_to_acceptable = np.clip(ratio_to_acceptable, 0.0, 2.0)
-
-        if (plan.caseStatus or "").lower() != "solved":
-            ratio = np.zeros(N)
-            shortfall_future = expected_future.copy()
-            shortfall_today = expected_today.copy()
-            ratio_to_minimum = np.zeros_like(actual_today)
-            ratio_to_acceptable = np.zeros_like(actual_today)
-        else:
-            with np.errstate(divide="ignore", invalid="ignore"):
-                ratio = np.divide(
-                    actual_future,
-                    expected_future,
-                    out=np.zeros_like(actual_future),
-                    where=expected_future > 0,
-                )
-                ratio = np.clip(ratio, 0.0, 2.0)
-
-        # Summary (keep backward compatibility: "spending" = actual)
-        spending = {
-            "year0": {
-                "future": float(actual_future[0]),
-                "today": float(actual_today[0]),
-            },
-            "baseline": {
-                "annual_spending": float(baseline),
-            },
-            "total": {
-                "future": float(np.sum(actual_future)),
-                "today": float(np.sum(actual_today)),
-            },
-        }
-
-        # =========================================================
-        # OTHER FINANCIALS (unchanged)
-        # =========================================================
-
-        roth = {
-            "total": {
-                "future": float(np.sum(plan.x_in[:, :N])),
-                "today": float(np.sum(np.sum(plan.x_in[:, :N], axis=0) / gamma)),
-            }
-        }
-
-        taxes = {
-            "total": {
-                "future": float(np.sum(plan.T_n[:N])),
-                "today": float(np.sum(plan.T_n[:N] / gamma)),
-            }
-        }
-
-        estate = np.sum(plan.b_ijn[:, :, plan.N_n], axis=0).copy()
-        estate[1] *= 1 - plan.nu
-        estate[3] *= 1 - plan.nu
-
-        savings_estate = np.sum(estate)
-        debts = plan.remaining_debt_balance
-
-        bequest_future = savings_estate - debts + plan.fixed_assets_bequest_value
-        bequest_today = bequest_future / plan.gamma_n[-1]
-
-        bequest = {
-            "total": {
-                "future": float(bequest_future),
-                "today": float(bequest_today),
-            }
-        }
-
-        tax_future = plan.T_n[:N]
-        tax_today = tax_future / gamma
-
-        roth_future = np.sum(plan.x_in[:, :N], axis=0)
-        roth_today = roth_future / gamma
-
-        assets_future = np.sum(plan.b_ijn[:, :, :N], axis=(0, 1))
-        assets_today = assets_future / gamma
-
-        # =========================================================
-        # TIMESERIES (ENHANCED)
-        # =========================================================
-
-        timeseries = {
-            "spending": {
-                "expected": {
-                    "future_by_year": expected_future.tolist(),
-                    "today_by_year": expected_today.tolist(),
-                },
-                "actual": {
-                    "future_by_year": actual_future.tolist(),
-                    "today_by_year": actual_today.tolist(),
-                },
-                "acceptable": {
-                    "future_by_year": acceptable_future.tolist(),
-                    "today_by_year": acceptable_today.tolist(),
-                },
-                "shortfall": {
-                    "future_by_year": shortfall_future.tolist(),
-                    "today_by_year": shortfall_today.tolist(),
-                },
-                # NOTE:
-                # ratio (target-based) uses future values (OWL-native)
-                # ratio_to_minimum / acceptable use today values (behavioral interpretation)
-                "ratio": {
-                    "by_year": ratio.tolist(),
-                    "min": float(np.nanmin(ratio)) if np.isfinite(ratio).any() else None,
-                    "mean": float(np.nanmean(ratio)) if np.isfinite(ratio).any() else None,
-                    "median": float(np.nanmedian(ratio)) if np.isfinite(ratio).any() else None,
-                },
-                "ratio_to_minimum": {
-                    "by_year": ratio_to_minimum.tolist(),
-                    "min": float(np.nanmin(ratio_to_minimum))
-                    if np.isfinite(ratio_to_minimum).any()
-                    else None,
-                    "mean": float(np.nanmean(ratio_to_minimum))
-                    if np.isfinite(ratio_to_minimum).any()
-                    else None,
-                    "median": float(np.nanmedian(ratio_to_minimum))
-                    if np.isfinite(ratio_to_minimum).any()
-                    else None,
-                },
-                "ratio_to_acceptable": {
-                    "by_year": ratio_to_acceptable.tolist(),
-                    "min": float(np.nanmin(ratio_to_acceptable))
-                    if np.isfinite(ratio_to_acceptable).any()
-                    else None,
-                    "mean": float(np.nanmean(ratio_to_acceptable))
-                    if np.isfinite(ratio_to_acceptable).any()
-                    else None,
-                    "median": float(np.nanmedian(ratio_to_acceptable))
-                    if np.isfinite(ratio_to_acceptable).any()
-                    else None,
-                },
-            },
-            "taxes": {
-                "future_by_year": tax_future.tolist(),
-                "today_by_year": tax_today.tolist(),
-            },
-            "roth": {
-                "future_by_year": roth_future.tolist(),
-                "today_by_year": roth_today.tolist(),
-            },
-            "assets": {
-                "future_by_year": assets_future.tolist(),
-                "today_by_year": assets_today.tolist(),
-            },
-            "inflation": {
-                "factor_by_year": gamma.tolist(),
-            },
-        }
-        # =========================================================
-        # SPENDING SUMMARY
-        # =========================================================
-
-        clean = ratio[np.isfinite(ratio)]
-        clean_min = ratio_to_minimum[np.isfinite(ratio_to_minimum)]
-        clean_acc = ratio_to_acceptable[np.isfinite(ratio_to_acceptable)]
-
-        if len(clean):
-            years_below_target = int(np.sum(clean < 1.0))
-            years_below_minimum = int(np.sum(clean_min < 1.0)) if len(clean_min) else None
-            years_below_acceptable = int(np.sum(clean_acc < 1.0)) if len(clean_acc) else None
-
-            def max_consecutive_below(arr, threshold):
-                max_run = run = 0
-                for v in arr:
-                    if v < threshold:
-                        run += 1
-                        max_run = max(max_run, run)
-                    else:
-                        run = 0
-                return max_run
-
-            consecutive_below_acceptable = (
-                max_consecutive_below(clean_acc, 1.0) if len(clean_acc) else None
-            )
-
-            consecutive_below_minimum = (
-                max_consecutive_below(clean_min, 1.0) if len(clean_min) else None
-            )
-
-            spending_summary = {
-                # ---------------------------------------
-                # EXISTING (UNCHANGED)
-                # ---------------------------------------
-                "min_ratio": float(np.min(clean)),
-                "mean_ratio": float(np.mean(clean)),
-                "median_ratio": float(np.median(clean)),
-                "p10_ratio": float(np.percentile(clean, 10)),
-                "std_ratio": float(np.std(clean)),
-                "years_under_target": years_below_target,
-                "shortfall": float(1.0 - np.min(clean)),
-                "required_slack": float(1.0 - np.min(clean)),
-                # ---------------------------------------
-                # MINIMUM (floor)
-                # ---------------------------------------
-                "min_ratio_to_minimum": float(np.min(clean_min)) if len(clean_min) else None,
-                "mean_ratio_to_minimum": float(np.mean(clean_min)) if len(clean_min) else None,
-                "median_ratio_to_minimum": float(np.median(clean_min)) if len(clean_min) else None,
-                "years_below_minimum": years_below_minimum,
-                "consecutive_years_below_minimum": consecutive_below_minimum,
-                "floor_breach": int(np.any(clean_min < 1.0)) if len(clean_min) else 0,
-                # ---------------------------------------
-                # ACCEPTABLE (behavioral)
-                # ---------------------------------------
-                "min_ratio_to_acceptable": float(np.min(clean_acc)) if len(clean_acc) else None,
-                "mean_ratio_to_acceptable": float(np.mean(clean_acc)) if len(clean_acc) else None,
-                "median_ratio_to_acceptable": float(np.median(clean_acc))
-                if len(clean_acc)
-                else None,
-                "years_below_acceptable": years_below_acceptable,
-                "consecutive_years_below_acceptable": consecutive_below_acceptable,
-                # ---------------------------------------
-                # DERIVED RELATIONSHIP
-                # ---------------------------------------
-                "years_between_min_and_target": (
-                    max(0, years_below_target - years_below_minimum)
-                    if years_below_target is not None and years_below_minimum is not None
-                    else None
-                ),
-                # ---------------------------------------
-                # STRESS FLAG (neutral naming)
-                # ---------------------------------------
-                "spending_stress_flag": int(np.any(clean_acc < 1.0)) if len(clean_acc) else 0,
-            }
-
-        else:
-            spending_summary = {
-                "min_ratio": None,
-                "mean_ratio": None,
-                "median_ratio": None,
-                "p10_ratio": None,
-                "std_ratio": None,
-                "years_under_target": None,
-                "shortfall": None,
-                "required_slack": None,
-                "min_ratio_to_minimum": None,
-                "mean_ratio_to_minimum": None,
-                "median_ratio_to_minimum": None,
-                "years_below_minimum": None,
-                "consecutive_years_below_minimum": None,
-                "min_ratio_to_acceptable": None,
-                "mean_ratio_to_acceptable": None,
-                "median_ratio_to_acceptable": None,
-                "years_below_acceptable": None,
-                "consecutive_years_below_acceptable": None,
-                "years_between_min_and_target": None,
-                "spending_stress_flag": None,
-            }
 
     except Exception as e:
-        return {
-            "valid": False,
-            "reason": f"financials_error: {str(e)}",
-        }
-
-    return {
-        "horizon": horizon,
-        "inflation": inflation,
-        "spending": spending,  # actual (unchanged behavior)
-        "spending_profile": spending_profile,
-        "roth": roth,
-        "taxes": taxes,
-        "bequest": bequest,
-        "timeseries": timeseries,
-        "spending_summary": spending_summary,
-        "risk_analysis": {
-            "minimum_spending": float(minimum_spending) if minimum_spending else None,
-            "acceptable_spending": float(acceptable_spending) if acceptable_spending else None,
-            "acceptable_spending_ratio_to_minimum": acceptable_ratio,
-        },
-    }
+        logger.exception("financials_from_plan failed")
+        return {"valid": False, "reason": str(e)}
 
 
 # =========================================================

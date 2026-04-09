@@ -41,3 +41,11 @@ adjust_cases:
 	cd example01 && uv run roost cases case_jack+jill.toml --set 'longevity.sex=["male","female"]' --apply
 	cd example01 && uv run roost cases case_john+sally.toml --set 'longevity.sex=["male","female"]' --apply
 	cd example01 && uv run roost cases case_jon+jane.toml --set 'longevity.sex=["male","female"]' --apply
+
+x:
+	[risk_analysis]
+	minimum_spending = 85000
+	acceptable_spending = 130000
+	baseline_years = 3
+	max_years_below_acceptable = 5
+	max_consecutive_years_below_acceptable = 5

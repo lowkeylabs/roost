@@ -286,6 +286,9 @@ def _format_goal(value, row):
     if value is None:
         return "-"
 
+    if not isinstance(row, dict):
+        return "-"  # or just return formatted value
+
     obj = row.get("objective")
 
     def short_currency(v):
@@ -316,7 +319,9 @@ register_metric(
         description="User-defined optimization goal (constraint target).",
         display_row_fn=lambda v, row, ctx: _format_goal(v, row),
         value_series_fn=lambda values, rows, *_: (
-            _format_goal(values[0], rows[0]) if values and rows else "-"
+            _format_goal(values[0], next((r for r in rows if isinstance(r, dict)), {}))
+            if values
+            else "-"
         ),
     )
 )
@@ -349,7 +354,7 @@ def _format_rates(r):
         end = rates.get("to")
 
         if start and end:
-            return f"Hist ({start}–{end})"
+            return f"bSOR ({start}–{end})"
         return "Hist"
 
     # ----------------------------------------
@@ -701,7 +706,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="minimum_spending",
-        path="financial.risk_analysis.minimum_spending",
+        path="financial.spending_policy.minimum_spending",
         label="Minimum\nspending",
         fmt="currency",
         dtype=float,
@@ -713,7 +718,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="acceptable_spending",
-        path="financial.risk_analysis.acceptable_spending",
+        path="financial.spending_policy.acceptable_spending",
         label="Acceptable\nspending",
         fmt="currency",
         dtype=float,

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from owlroost.domain.models.case import Case, LongevityConfig, RoostConfig
+from owlroost.domain.models.case import Case, LongevityConfig, RoostConfig, SpendingPolicyConfig
 
 # =========================================================
 # Public API
@@ -34,6 +34,7 @@ def case_upgrade(
     """
 
     actions: dict[str, Any] = {
+        "spending_policy_added": False,
         "longevity_added": False,
         "roost_added": False,
         "longevity_fixed_alignment": False,
@@ -88,12 +89,23 @@ def case_upgrade(
             print("Added default [roost] section.")
 
     # ---------------------------------------------------------
+    # Spending policy section
+    # ---------------------------------------------------------
+
+    if case.spending_policy is None:
+        _add_default_spending_policy(case)
+        actions["spending_policy_added"] = True
+        if verbose:
+            print("Added default [spending_policy] section.")
+
+    # ---------------------------------------------------------
     # Persist if needed
     # ---------------------------------------------------------
 
     if write and any(
         actions[k]
         for k in (
+            "spending_policy_added",
             "longevity_added",
             "roost_added",
             "longevity_fixed_alignment",
@@ -131,6 +143,14 @@ def _add_default_roost(case: Case) -> None:
     case.extensions["roost"] = model
     case.extra["roost"] = model.model_dump(exclude_none=True, by_alias=True)
     case._raw_dict["roost"] = model.model_dump(exclude_none=True, by_alias=True)
+
+
+def _add_default_spending_policy(case: Case) -> None:
+    model = SpendingPolicyConfig()
+
+    case.extensions["spending_policy"] = model
+    case.extra["spending_policy"] = model.model_dump(exclude_none=True, by_alias=True)
+    case._raw_dict["spending_policy"] = model.model_dump(exclude_none=True, by_alias=True)
 
 
 def _align_longevity(case: Case) -> bool:

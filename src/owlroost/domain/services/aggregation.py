@@ -8,7 +8,7 @@ def aggregate_rows(rows: list[dict]) -> dict:
     if not rows:
         return {}
 
-    logger.debug(rows)
+    logger.trace(f"rows: {rows}")
 
     summary = {}
 
