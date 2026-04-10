@@ -27,7 +27,7 @@ def run_single_case_subprocess(args: dict):
         text=True,
         capture_output=True,
     )
-
+    logger.trace(f"\n----Full result from subprocess---\n{result}")
     # --------------------------------------------------
     # Hard crash (non-zero exit)
     # --------------------------------------------------

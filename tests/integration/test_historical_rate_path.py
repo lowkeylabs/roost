@@ -42,6 +42,9 @@ pension_indexed = [false, false]
 social_security_pia_amounts = [2000, 2000]
 social_security_ages = [67.0, 67.0]
 
+[household_financial_profile]
+HFP_file_name = ""
+
 [rates_selection]
 heirs_rate_on_tax_deferred_estate = 30.0
 dividend_rate = 1.72
@@ -110,6 +113,9 @@ def test_rates_file_is_created_and_loadable(tmp_path, monkeypatch):
         [str(case_file), "--trial-jobs=1", "--run-jobs=1"],
     )
 
+    print(result.output)
+    print(result.stderr)
+    print(result.stdout)
     assert result.exit_code == 0
 
     df = load_rates_df(tmp_path)

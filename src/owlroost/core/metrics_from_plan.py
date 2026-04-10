@@ -173,7 +173,6 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
     if "factor_by_year" not in ts["inflation"]:
         ts["inflation"]["factor_by_year"] = [1.0] * horizon
 
-
     assets = ts.setdefault("assets", {})
 
     if "today_by_year" not in assets:
@@ -181,7 +180,6 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
 
     if "future_by_year" not in assets:
         assets["future_by_year"] = [0.0] * horizon
-        
 
     spending_ts = ts.setdefault("spending", {})
 
@@ -189,8 +187,8 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
         spending_ts["today_by_year"] = [0.0] * horizon
 
     if "future_by_year" not in spending_ts:
-        spending_ts["future_by_year"] = [0.0] * horizon        
-        
+        spending_ts["future_by_year"] = [0.0] * horizon
+
     # --------------------------------------------------
     # Ensure ratio.by_year
     # --------------------------------------------------
@@ -609,20 +607,15 @@ def financials_from_plan(plan, N=None) -> dict:
         actual_today = actual_future / gamma
 
         assets_future = np.array(
-            [float(np.sum(plan.b_ijn[:, :, n])) for n in range(N)],
-            dtype=float
+            [float(np.sum(plan.b_ijn[:, :, n])) for n in range(N)], dtype=float
         )
 
         assets_today = assets_future / gamma
 
         # --- inflation ---
-        inflation = {
-            "final_factor": float(gamma[-1]) if len(gamma) else 1.0
-        }
+        inflation = {"final_factor": float(gamma[-1]) if len(gamma) else 1.0}
 
-        inflation_ts = {
-            "factor_by_year": [float(x) for x in gamma]
-        }
+        inflation_ts = {"factor_by_year": [float(x) for x in gamma]}
 
         # ---- core (never fails) ----
         core = financial_core_from_plan(plan, N)
