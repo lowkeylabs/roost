@@ -72,7 +72,9 @@ def _get_input_baseline(case):
     if isinstance(solver, dict):
         get = solver.get
     else:
-        get = lambda k, default=None: getattr(solver, k, default)
+
+        def get(k, default=None):
+            return getattr(solver, k, default)
 
     if obj == "maxBequest":
         val = get("netSpending")

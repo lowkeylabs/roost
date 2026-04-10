@@ -1,0 +1,7 @@
+minimum_spending: "70%"
+acceptable_spending: "100%"
+baseline_years: 3
+
+# include any other model defaults if present:
+max_years_below_acceptable: 5
+max_consecutive_years_below_acceptable: 5

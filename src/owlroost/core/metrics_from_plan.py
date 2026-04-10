@@ -164,6 +164,33 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
     except Exception:
         horizon = 30
 
+    fin.setdefault("inflation", {})
+    if "final_factor" not in fin["inflation"]:
+        fin["inflation"]["final_factor"] = 1.0
+
+    ts = fin.setdefault("timeseries", {})
+    ts.setdefault("inflation", {})
+    if "factor_by_year" not in ts["inflation"]:
+        ts["inflation"]["factor_by_year"] = [1.0] * horizon
+
+
+    assets = ts.setdefault("assets", {})
+
+    if "today_by_year" not in assets:
+        assets["today_by_year"] = [0.0] * horizon
+
+    if "future_by_year" not in assets:
+        assets["future_by_year"] = [0.0] * horizon
+        
+
+    spending_ts = ts.setdefault("spending", {})
+
+    if "today_by_year" not in spending_ts:
+        spending_ts["today_by_year"] = [0.0] * horizon
+
+    if "future_by_year" not in spending_ts:
+        spending_ts["future_by_year"] = [0.0] * horizon        
+        
     # --------------------------------------------------
     # Ensure ratio.by_year
     # --------------------------------------------------
@@ -415,6 +442,9 @@ def spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma):
             isinstance(baseline, (int, float)) and np.isfinite(baseline) and baseline > 0
         )
 
+        if not baseline_valid:
+            pass
+
         tracer = 3
 
         assert isinstance(baseline, float) and np.isfinite(baseline)
@@ -578,17 +608,49 @@ def financials_from_plan(plan, N=None) -> dict:
         actual_future = plan.g_n[:N]
         actual_today = actual_future / gamma
 
+        assets_future = np.array(
+            [float(np.sum(plan.b_ijn[:, :, n])) for n in range(N)],
+            dtype=float
+        )
+
+        assets_today = assets_future / gamma
+
+        # --- inflation ---
+        inflation = {
+            "final_factor": float(gamma[-1]) if len(gamma) else 1.0
+        }
+
+        inflation_ts = {
+            "factor_by_year": [float(x) for x in gamma]
+        }
+
         # ---- core (never fails) ----
         core = financial_core_from_plan(plan, N)
 
         # ---- spending metrics (may fail) ----
         spending = spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma)
 
-        return {
+        result = {
             "valid": True,
+            "inflation": inflation,
             **core,
             **spending,
         }
+
+        # --- merge timeseries safely ---
+        result.setdefault("timeseries", {})
+        result["timeseries"]["inflation"] = inflation_ts
+
+        result["timeseries"]["assets"] = {
+            "future_by_year": [float(x) for x in assets_future],
+            "today_by_year": [float(x) for x in assets_today],
+        }
+        result["timeseries"]["spending"] = {
+            "future_by_year": [float(x) for x in actual_future],
+            "today_by_year": [float(x) for x in actual_today],
+        }
+
+        return result
 
     except Exception as e:
         logger.exception("financials_from_plan failed")
