@@ -48,7 +48,7 @@ register_group(
 
 
 register_group(
-    "outcomes",
+    "outcomes-remove",
     [
         ("spending_now", "median"),
         ("spending_total", "median"),
@@ -58,7 +58,7 @@ register_group(
 )
 
 register_group(
-    "lifestyle",
+    "lifestyle-remove",
     [
         "acceptable_spending",
         ("spending_ratio_to_acceptable_min", "mean"),
@@ -73,7 +73,7 @@ register_group(
 )
 
 register_group(
-    "safety",
+    "safety-remove",
     [
         "minimum_spending",
         ("spending_ratio_to_minimum_min", "mean"),
@@ -84,6 +84,41 @@ register_group(
         ("floor_breach", "ratio"),
     ],
     description="Safety relative to users-input value of minimum spending.",
+    default_opts={"show_if": "is_pivot"},
+)
+
+register_group(
+    "lifestyle_risk",
+    [
+        "acceptable_spending",
+        ("spending_ratio_to_acceptable_min", "mean"),
+        ("spending_ratio_to_acceptable_min", "p10"),
+        ("years_below_acceptable", "mean"),
+        ("years_below_acceptable", "p90"),
+        ("consecutive_years_below_acceptable", "mean"),
+        ("consecutive_years_below_acceptable", "p90"),
+        ("spending_stress_flag", "ratio"),
+    ],
+    description="Risk of failing to maintain acceptable lifestyle spending.",
+    default_opts={"show_if": "is_pivot"},
+)
+
+register_group(
+    "survival_risk",
+    [
+        "minimum_spending",
+        ("spending_ratio_to_minimum_min", "mean"),
+        ("spending_ratio_to_minimum_min", "p10"),
+        ("years_below_minimum", "mean"),
+        ("years_below_minimum", "p90"),
+        ("consecutive_years_below_minimum", "mean"),
+        ("consecutive_years_below_minimum", "p90"),
+        ("floor_breach", "ratio"),
+        ("depleted", "ratio"),
+        ("min_cushion", "mean"),
+        ("terminal_ratio", "mean"),
+    ],
+    description="Risk of financial depletion or falling below minimum spending.",
     default_opts={"show_if": "is_pivot"},
 )
 
@@ -149,7 +184,7 @@ register_group(
 # =========================================================
 
 register_group(
-    "minimum_safety",
+    "minimum_safety-remove",
     [
         ("spending_ratio_to_minimum_min", "mean", {"show_if": ["is_table", "is_pivot"]}),
         ("years_below_minimum", "mean"),
@@ -243,7 +278,6 @@ register_group(
         ("rates", {"show_if": "is_table"}),
         "rates_method",
         "rates_values",
-        "objective",
     ],
     description="Key solver parameters",
     default_opts={"show_if": "is_pivot"},

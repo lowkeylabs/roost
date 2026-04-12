@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from statistics import median
-from typing import Any
+from typing import Any, Literal
 
 from ..formatting import format_value
 from ..services.aggregation_registry import AggContext, get_aggregation_explain
@@ -81,6 +81,7 @@ class MetricSpec:
     # Derived metric
     # -----------------------------------------------------
     compute_fn: Callable[[dict], Any] | None = None
+    compute_level: Literal["trial", "run"] = "trial"
 
     # -----------------------------------------------------
     # Semantics
@@ -130,7 +131,7 @@ class MetricSpec:
             3. None
         """
         # Derived metric
-        if self.compute_fn:
+        if self.compute_fn and self.compute_level == "trial":
             try:
                 return self.compute_fn(data)
             except Exception:

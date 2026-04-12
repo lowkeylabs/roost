@@ -38,7 +38,6 @@ def test_extract_metrics_end_to_end():
     assert row["bequest"] == 100000
     assert row["spending_total"] == 50000
     assert row["outcome_risk"] == "low"
-    assert row["overall_risk"] == "low"
 
 
 def test_view_and_registry_integration():

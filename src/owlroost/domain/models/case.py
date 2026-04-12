@@ -99,7 +99,7 @@ def _get_input_baseline(case):
     return v
 
 
-def get_effective_spending_policy(case):
+def get_effective_spending_policy(case, baseline=None):
     # ----------------------------------------
     # Safety: no case
     # ----------------------------------------
@@ -115,18 +115,24 @@ def get_effective_spending_policy(case):
     policy = case.spending_policy
 
     # ----------------------------------------
-    # Baseline from inputs
+    # Baseline resolution (CRITICAL FIX)
     # ----------------------------------------
-    try:
-        baseline = _get_input_baseline(case)
-    except Exception:
-        baseline = 0
+    # Use provided baseline FIRST (solution-derived)
+    if not isinstance(baseline, (int, float)) or not (baseline and baseline > 0):
+        try:
+            baseline = _get_input_baseline(case)
+        except Exception:
+            baseline = None
+
+    # Normalize invalid baseline → None
+    if not isinstance(baseline, (int, float)) or not (baseline and baseline > 0):
+        baseline = None
 
     # ----------------------------------------
     # No policy → defaults
     # ----------------------------------------
     if not policy:
-        if not isinstance(baseline, (int, float)):
+        if baseline is None:
             return {
                 "minimum_spending": None,
                 "acceptable_spending": None,
@@ -144,36 +150,69 @@ def get_effective_spending_policy(case):
         }
 
     # ----------------------------------------
-    # Resolve values
+    # Resolve values (SAFE)
     # ----------------------------------------
+    def safe_resolve(value):
+        if isinstance(value, str) and value.strip().endswith("%"):
+            if baseline is None:
+                return None
+            try:
+                pct = float(value.strip()[:-1]) / 100.0
+                return pct * baseline
+            except Exception:
+                return None
 
-    minimum = _resolve_spending_value(policy.minimum_spending, baseline)
-    acceptable = _resolve_spending_value(policy.acceptable_spending, baseline)
+        try:
+            return float(value)
+        except Exception:
+            return None
+
+    minimum = safe_resolve(policy.minimum_spending)
+    acceptable = safe_resolve(policy.acceptable_spending)
 
     # ----------------------------------------
     # Apply units normalization
     # ----------------------------------------
-    minimum = _apply_units(minimum, case)
-    acceptable = _apply_units(acceptable, case)
+
+    # Only apply units if value came from numeric input (not %)
+    def maybe_apply_units(raw_value, resolved_value):
+        if isinstance(raw_value, str) and raw_value.strip().endswith("%"):
+            return resolved_value  # already dollars
+        return _apply_units(resolved_value, case)
+
+    minimum = maybe_apply_units(policy.minimum_spending, minimum)
+    acceptable = maybe_apply_units(policy.acceptable_spending, acceptable)
 
     # ----------------------------------------
     # Fallback if parsing failed
     # ----------------------------------------
-    if minimum is None:
-        minimum = 0.7 * baseline
+    if baseline is not None:
+        if minimum is None:
+            minimum = 0.7 * baseline
+        if acceptable is None:
+            acceptable = 1.0 * baseline
 
-    if acceptable is None:
-        acceptable = 1.0 * baseline
+    # ----------------------------------------
+    # Final safety (prevent None propagation)
+    # ----------------------------------------
+    if minimum is None or acceptable is None:
+        return {
+            "minimum_spending": None,
+            "acceptable_spending": None,
+            "baseline_years": policy.baseline_years,
+            "max_years_below_acceptable": policy.max_years_below_acceptable,
+            "max_consecutive_years_below_acceptable": policy.max_consecutive_years_below_acceptable,
+        }
 
     # ----------------------------------------
     # Validation
     # ----------------------------------------
     if acceptable < minimum:
-        raise ValueError("acceptable_spending must be >= minimum_spending")
+        acceptable = minimum  # soften instead of raising
 
     return {
-        "minimum_spending": minimum,
-        "acceptable_spending": acceptable,
+        "minimum_spending": float(minimum),
+        "acceptable_spending": float(acceptable),
         "baseline_years": policy.baseline_years,
         "max_years_below_acceptable": policy.max_years_below_acceptable,
         "max_consecutive_years_below_acceptable": policy.max_consecutive_years_below_acceptable,

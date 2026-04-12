@@ -28,7 +28,7 @@ def aggregate_rows(rows: list[dict]) -> dict:
             # -------------------------------------------------
             # FALLBACK TO compute_fn IF VALUE MISSING
             # -------------------------------------------------
-            if v is None and spec.compute_fn:
+            if v is None and spec.compute_fn and spec.compute_level == "trial":
                 try:
                     v = spec.compute_fn(r)
                 except Exception:

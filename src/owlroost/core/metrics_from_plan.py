@@ -416,16 +416,17 @@ def spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma):
         else:
             xi = xi[:N]
 
-        tracer = 11
-        case = getattr(plan, "_case", None)
-        tracer = 12
-        policy = get_effective_spending_policy(case)
-
+        # -------------------------------------------------
+        # Baseline (solution-derived, single source of truth)
+        # -------------------------------------------------
         tracer = 2
-        # -------------------------------------------------
-        # Baseline (solution-derived, guaranteed)
-        # -------------------------------------------------
-        k = policy.get("baseline_years", 3)
+        case = getattr(plan, "_case", None)
+
+        # Get baseline window from policy config (not resolved policy)
+        k = 3
+        if case and case.spending_policy:
+            k = case.spending_policy.baseline_years
+
         k = max(1, min(k, N))
 
         if len(actual_future):
@@ -434,18 +435,20 @@ def spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma):
             baseline = None
 
         if not isinstance(baseline, (int, float)) or not np.isfinite(baseline) or baseline <= 0:
-            baseline = float(actual_today[0])
+            fallback = float(actual_today[0]) if len(actual_today) else 0.0
 
-        baseline_valid = (
-            isinstance(baseline, (int, float)) and np.isfinite(baseline) and baseline > 0
-        )
+            if not np.isfinite(fallback) or fallback <= 0:
+                fallback = 1.0  # absolute last-resort guard
 
-        if not baseline_valid:
-            pass
-
-        tracer = 3
+            baseline = fallback
 
         assert isinstance(baseline, float) and np.isfinite(baseline)
+
+        # -------------------------------------------------
+        # Policy (uses SAME baseline)
+        # -------------------------------------------------
+        tracer = 12
+        policy = get_effective_spending_policy(case, baseline=baseline)
 
         # -------------------------------------------------
         # Policy (force resolution)
@@ -591,7 +594,7 @@ def spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma):
 
     except Exception as e:
         logger.exception("spending_metrics_from_plan failed")
-        return {"baseline_valid": False, "tracer": tracer, "spending_error": str(e)}
+        return {"baseline_valid": False, "spending_error_tracer": tracer, "spending_error": str(e)}
 
 
 def financials_from_plan(plan, N=None) -> dict:

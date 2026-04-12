@@ -59,7 +59,7 @@ def extract_row(data: dict, specs: list[MetricSpec], base_row: dict | None = Non
             # ----------------------------------------
             # 1. compute_fn (explicit override)
             # ----------------------------------------
-            if spec.compute_fn:
+            if spec.compute_fn and spec.compute_level == "trial":
                 row[spec.key] = spec.compute_fn(row)
 
             # ----------------------------------------
@@ -71,7 +71,7 @@ def extract_row(data: dict, specs: list[MetricSpec], base_row: dict | None = Non
             # ----------------------------------------
             # 3. path-based extraction
             # ----------------------------------------
-            elif spec.path:
+            elif spec.path and not spec.compute_fn:
                 row[spec.key] = spec.extract(data)
 
             # ----------------------------------------
@@ -92,7 +92,6 @@ def build_trial_row(
     base_row: dict | None = None,
 ) -> dict | None:
     #
-    data = load_metrics(trial_path)
     metrics_data = load_metrics(trial_path)
     if not metrics_data:
         return None

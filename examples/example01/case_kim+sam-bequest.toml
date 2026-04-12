@@ -62,3 +62,31 @@ withMedicare = "loop"
 
 [results]
 default_plots = "today"
+
+[longevity]
+apply_to_plan = false
+use_stochastic_model = false
+life_expectancy_seed = 1234567890
+model_name = "default"
+partnered = true
+lifetime_percentile = [ 0.8, 0.8,]
+sex = [ "female", "female",]
+health = [ "average", "average",]
+smoker = [ false, false,]
+
+[roost]
+master_seed = 457849215
+trials = 1
+
+[spending_policy]
+minimum_spending = "70%"
+acceptable_spending = "100%"
+baseline_years = 3
+max_years_below_acceptable = 5
+max_consecutive_years_below_acceptable = 5
+
+[cache]
+generated_at = "2026-04-12T14:20:30.822541"
+retirement_horizon = 0
+max_spending = 189121.07
+first_year_total_withdrawals = 218009.7

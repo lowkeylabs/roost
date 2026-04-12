@@ -211,26 +211,6 @@ register_metric(
     )
 )
 
-register_metric(
-    MetricSpec(
-        key="rates_method",
-        path="_inputs.rates_selection.method",
-        label="Rates Method",
-        dtype=str,
-        description="Method used to generate return and inflation scenarios.",
-    )
-)
-
-register_metric(
-    MetricSpec(
-        key="rates_values",
-        path="_inputs.rates_selection.values",
-        label="Rates values",
-        dtype=str,
-        description="Values associated with selected method.",
-    )
-)
-
 
 register_metric(
     MetricSpec(
@@ -385,7 +365,53 @@ register_metric(
 )
 
 
-# Overrides
+def _compute_rates_method(r):
+    rs = r.get("_inputs", {}).get("rates_selection", {})
+    return rs.get("method") or "-"
+
+
+register_metric(
+    MetricSpec(
+        key="rates_method",
+        label="Rates Method",
+        dtype=str,
+        compute_fn=_compute_rates_method,
+        is_invariant=True,
+        description="Method used to generate return and inflation scenarios.",
+    )
+)
+
+
+def _compute_rates_values(r):
+    rs = r.get("_inputs", {}).get("rates_selection", {})
+
+    method = rs.get("method")
+    values = rs.get("values")
+    from_ = rs.get("from")
+    to_ = rs.get("to")
+
+    # --- User-defined rates ---
+    if method == "user" and values:
+        return ", ".join(str(v) for v in values)
+
+    # --- Historical / bootstrap / ranged methods ---
+    if from_ is not None and to_ is not None:
+        return f"{from_}–{to_}"
+
+    # --- Fallback ---
+    return method or "-"
+
+
+register_metric(
+    MetricSpec(
+        key="rates_values",
+        label="Rates values",
+        dtype=str,
+        compute_fn=_compute_rates_values,
+        is_invariant=True,
+        description="Rates configuration (values for user, or year range for historical methods).",
+    )
+)
 
 # =========================================================
 # OVERRIDES (CONTEXT-BASED — CORRECT IMPLEMENTATION)
@@ -563,6 +589,7 @@ register_metric(
         label="Terminal A/S",
         fmt="float2",
         aggregates=["mean"],
+        compute_level="run",
         compute_fn=lambda r: (
             1 / r.get("terminal_ratio") if r.get("terminal_ratio") not in (None, 0) else None
         ),
@@ -583,19 +610,6 @@ register_metric(
     )
 )
 
-register_metric(
-    MetricSpec(
-        key="overall_risk",
-        path="risk.summary.overall_risk",
-        label="Overall\nRisk",
-        dtype=str,
-        description=(
-            "Composite risk classification based on asset drawdown, depletion pressure, "
-            "and spending intensity.\n"
-            "In single-trial runs, this reflects structural fragility—not probability of failure."
-        ),
-    )
-)
 
 register_metric(
     MetricSpec(
@@ -698,6 +712,120 @@ register_metric(
     )
 )
 
+
+def _lifestyle_level(r):
+    p10 = r.get("spending_ratio_to_acceptable_min_p10")
+
+    if p10 is not None:
+        if p10 < 0.5:
+            return "high"  # severe lifestyle collapse
+        if p10 < 1.0:
+            return "moderate"  # some degradation
+
+    # fallback to existing logic
+    breach = r.get("spending_stress_flag")
+    years = r.get("years_below_acceptable")
+
+    if breach:
+        return "high"
+    if years and years > 0:
+        return "moderate"
+
+    return "low"
+
+
+def _survival_level(r):
+    p10 = r.get("spending_ratio_to_minimum_min_p10")
+
+    if p10 is not None:
+        if p10 < 0.5:
+            return "high"  # true failure scenarios
+        if p10 < 1.0:
+            return "moderate"
+
+    depleted = r.get("depleted")
+    floor = r.get("floor_breach")
+
+    if depleted:
+        return "high"
+    if floor:
+        return "moderate"
+
+    return "low"
+
+
+def _compute_risk_summary(r):
+    def _parse_percent(v):
+        if isinstance(v, str) and v.endswith("%"):
+            try:
+                return float(v.strip("%")) / 100.0
+            except Exception:
+                return None
+        return v
+
+    p10_acc = _parse_percent(r.get("spending_ratio_to_acceptable_min_p10"))
+    p10_min = _parse_percent(r.get("spending_ratio_to_minimum_min_p10"))
+
+    def _parse_ratio(v):
+        # tuple form: (num, den)
+        if isinstance(v, tuple) and len(v) == 2:
+            num, den = v
+            try:
+                return float(num) / float(den) if den else None
+            except Exception:
+                return None
+
+        # string form: "num/den"
+        if isinstance(v, str) and "/" in v:
+            try:
+                num, den = v.split("/")
+                return float(num) / float(den)
+            except Exception:
+                return None
+
+        # already numeric
+        if isinstance(v, (int, float)):
+            return float(v)
+
+        return None
+
+    breach_ratio = _parse_ratio(r.get("spending_stress_flag_ratio"))
+
+    if breach_ratio is not None and breach_ratio > 0.9:
+        return "Severely constrained"
+
+    # --- Survival dominates ---
+    if p10_min is not None:
+        if p10_min < 0.5:
+            return "At risk of depletion"
+        if p10_min < 1.0:
+            return "At risk"
+
+    # --- Lifestyle ---
+    if p10_acc is not None:
+        if p10_acc < 0.5:
+            return "Severely constrained"
+        if p10_acc < 1.0:
+            return "Safe but constrained"
+
+    return "Comfortable and safe"
+
+
+register_metric(
+    MetricSpec(
+        key="overall_risk",
+        label="Overall\nRisk",
+        dtype=str,
+        compute_fn=_compute_risk_summary,
+        compute_level="run",
+        is_invariant=True,
+        description=(
+            "Composite risk classification based on downside (p10) spending outcomes and "
+            "frequency of spending shortfalls relative to acceptable and minimum levels. "
+            "Captures both survival risk (failure scenarios) and lifestyle risk (reduced spending)."
+        ),
+    )
+)
 
 # =========================================================
 # SPENDING STRESS (PRECOMPUTED)
@@ -1107,6 +1235,7 @@ register_metric(
         label="Profile",
         align="left",
         dtype=str,
+        compute_level="run",
         compute_fn=_run_profile,
         is_invariant=True,
         description="High-level classification of the experiment intent",
@@ -1123,6 +1252,7 @@ register_metric(
         key="is_ss_experiment",
         label="SS",
         dtype=int,
+        compute_level="run",
         compute_fn=lambda r: 1 if _has_override(r, "social_security_ages") else 0,
         value_series_fn=wrap_value_fn(lambda v, _: "yes" if v == 1 else "-"),
         description="Run varies Social Security claiming strategy",
@@ -1134,6 +1264,7 @@ register_metric(
         key="is_spending_slack",
         label="Slack",
         dtype=int,
+        compute_level="run",
         compute_fn=lambda r: 1 if _has_override(r, "spendingSlack") else 0,
         value_series_fn=wrap_value_fn(lambda v, _: "yes" if v == 1 else "-"),
         description="Run explores spending flexibility",
@@ -1145,6 +1276,7 @@ register_metric(
         key="is_sor_experiment",
         label="SoR",
         dtype=int,
+        compute_level="run",
         compute_fn=lambda r: 1 if r.get("rates_method") == "bootstrap_sor" else 0,
         value_series_fn=wrap_value_fn(lambda v, _: "yes" if v == 1 else "-"),
         description="Run explores sequence-of-returns risk",
@@ -1156,6 +1288,7 @@ register_metric(
         key="is_roth_strategy",
         label="Roth",
         dtype=int,
+        compute_level="run",
         compute_fn=lambda r: 1 if _has_override(r, "roth") else 0,
         value_series_fn=wrap_value_fn(lambda v, _: "yes" if v == 1 else "-"),
         description="Run explores Roth conversion or tax strategy",
@@ -1167,6 +1300,7 @@ register_metric(
         key="has_overrides",
         label="Varies",
         dtype=int,
+        compute_level="run",
         compute_fn=lambda r: 1 if (r.get("run_specific_overrides") or {}) else 0,
         value_series_fn=wrap_value_fn(lambda v, _: "yes" if v == 1 else "-"),
         description="Run varies one or more key inputs",
@@ -1221,6 +1355,7 @@ register_metric(
         label="Review",
         dtype=int,
         compute_fn=_needs_attention,
+        compute_level="run",
         aggregates=[("cnt_true", "int"), ("pct", "percent")],
         description="Run shows warning signs and should be reviewed",
         value_series_fn=wrap_value_fn(lambda v, _: "⚠️ yes" if v == 1 else "-"),
@@ -1233,6 +1368,7 @@ register_metric(
         label="Bad",
         dtype=int,
         compute_fn=_bad_run,
+        compute_level="run",
         aggregates=[("cnt_true", "int"), ("pct", "percent")],
         description="Run is clearly unacceptable (failure or severe spending collapse)",
         value_series_fn=wrap_value_fn(lambda v, _: "❌ yes" if v == 1 else "-"),
@@ -1264,6 +1400,7 @@ register_metric(
         label="Status",
         dtype=str,
         compute_fn=_run_status,
+        compute_level="run",
         description="Overall run quality classification (fail, stress, ok)",
     )
 )

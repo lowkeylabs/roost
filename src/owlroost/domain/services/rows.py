@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from owlroost.domain.metrics.metric_registry import METRIC_REGISTRY
 from owlroost.domain.services.aggregation import aggregate_rows
 from owlroost.domain.services.context import enrich_row
 from owlroost.domain.services.metrics import build_trial_row
@@ -43,6 +44,22 @@ def build_run_rows(experiments):
                 first = vals[0]
                 if all(v == first for v in vals):
                     summary[k] = first
+
+            # ==================================================
+            # RUN-LEVEL DERIVED METRICS
+            # ==================================================
+
+            for key, spec in METRIC_REGISTRY.items():
+                if not spec.compute_fn:
+                    continue
+
+                if spec.compute_level != "run":
+                    continue
+
+                try:
+                    summary[key] = spec.compute_fn(summary)
+                except Exception:
+                    summary[key] = None
 
             summary["_ref"] = {
                 "exp_index": exp_index,
