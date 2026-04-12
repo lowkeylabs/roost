@@ -17,4 +17,3 @@ jobs:
       - run: uv sync --extra dev
       - run: uv run pre-commit run --all-files
       - run: uv run pytest
-    
