@@ -6,6 +6,16 @@ from .metric_spec import MetricSpec
 # Helpers
 # =========================================================
 
+RATES_METHOD_ABBR = {
+    "historical": "Hist",
+    "historical average": "HAvg",
+    "histogaussian": "HGauss",
+    "histolognormal": "HLog",
+    "bootstrap_sor": "bSor",
+    "var": "VaR",
+    "garch_dcc": "Gdcc",
+}
+
 
 def _bool_value(value: bool, true_msg: str, false_msg: str) -> str:
     return true_msg if value else false_msg
@@ -19,6 +29,33 @@ def wrap_value_fn(fn):
         return fn(clean[0], rows[0] if rows else None)
 
     return series_fn
+
+
+def _as_float(v):
+    if v is None:
+        return None
+
+    # already numeric
+    if isinstance(v, (int, float)):
+        return float(v)
+
+    # percent string
+    if isinstance(v, str):
+        if v.endswith("%"):
+            return float(v.strip("%")) / 100.0
+        if "/" in v:
+            num, den = v.split("/")
+            return float(num) / float(den)
+
+    # 🔥 CRITICAL: handle tuple (count_ratio)
+    if isinstance(v, tuple) and len(v) == 2:
+        num, den = v
+        try:
+            return float(num) / float(den) if den else None
+        except Exception:
+            return None
+
+    return None
 
 
 # =========================================================
@@ -247,7 +284,7 @@ def _compute_goal_from_inputs(r):
     # ----------------------------------------
     # 2. Normalize units → dollars
     # ----------------------------------------
-    units = solver.get("units", "k")  # default dollars
+    units = solver.get("units", "k")  # default k-dollars
 
     try:
         v = float(raw)
@@ -262,7 +299,7 @@ def _compute_goal_from_inputs(r):
         return v
 
 
-def _format_goal(value, row):
+def _format_goal_and_target(value, row):
     if value is None:
         return "-"
 
@@ -286,8 +323,43 @@ def _format_goal(value, row):
     if obj == "maxBequest":
         return f"MaxBeq·Spnd={val}"
 
-    return val
+    return obj or "-"
 
+
+def _format_goal(value, row):
+    if value is None:
+        return "-"
+
+    if not isinstance(row, dict):
+        return "-"  # or just return formatted value
+
+    obj = row.get("objective")
+
+    if obj == "maxSpending":
+        return "MaxSpnd"
+
+    if obj == "maxBequest":
+        return "MaxBeq"
+
+    return obj or "-"
+
+
+register_metric(
+    MetricSpec(
+        key="goal_and_target",
+        label="Goal·\nTarget",
+        align="left",
+        compute_fn=_compute_goal_from_inputs,
+        is_invariant=True,
+        description="User-defined optimization goal (constraint target).",
+        display_row_fn=lambda v, row, ctx: _format_goal_and_target(v, row),
+        value_series_fn=lambda values, rows, *_: (
+            _format_goal(values[0], next((r for r in rows if isinstance(r, dict)), {}))
+            if values
+            else "-"
+        ),
+    )
+)
 
 register_metric(
     MetricSpec(
@@ -295,7 +367,7 @@ register_metric(
         label="Goal",
         align="left",
         compute_fn=_compute_goal_from_inputs,
-        is_invariant=True,  # 🔥 important: comes from inputs, not trials
+        is_invariant=True,
         description="User-defined optimization goal (constraint target).",
         display_row_fn=lambda v, row, ctx: _format_goal(v, row),
         value_series_fn=lambda values, rows, *_: (
@@ -329,23 +401,31 @@ def _format_rates(r):
     # ----------------------------------------
     # Historical bootstrap (SoR)
     # ----------------------------------------
-    if method == "bootstrap_sor":
+    if method in [
+        "historical",
+        "historical average",
+        "histogaussian",
+        "histolognormal",
+        "bootstrap_sor",
+        "var",
+        "garch_dcc",
+    ]:
         start = rates.get("from")
         end = rates.get("to")
-
+        short_method = RATES_METHOD_ABBR.get(method, method)
         if start and end:
-            return f"bSOR ({start}–{end})"
-        return "Hist"
+            return f"{short_method} ({start}–{end})"
+        return short_method
 
     # ----------------------------------------
     # User-defined rates
     # ----------------------------------------
-    if method == "user":
+    if method in ["user", "gaussian", "lognormal"]:
         vals = rates.get("values") or []
         if vals:
             vals_str = "/".join(_format_number(v) for v in vals)
-            return f"User ({vals_str})"
-        return "User"
+            return f"{method} ({vals_str})"
+        return f"{method}"
 
     # ----------------------------------------
     # Fallback
@@ -418,36 +498,94 @@ register_metric(
 # =========================================================
 
 
-def _format_override_dict(d: dict | None) -> str:
-    """
-    Format override dict into readable multi-line string.
-    """
+def _flatten_dict(d, prefix=""):
+    out = {}
+    for k, v in (d or {}).items():
+        key = f"{prefix}.{k}" if prefix else k
+
+        if isinstance(v, dict):
+            out.update(_flatten_dict(v, key))
+        else:
+            out[key] = v
+
+    return out
+
+
+def _format_override_dict(d: dict | None, row: dict | None = None) -> str:
     if not d:
         return "-"
 
-    return "\n".join(f"{k} = {v}" for k, v in sorted(d.items()))
+    flat = _flatten_dict(d)
+
+    lines = []
+    used_rates = False
+    used_range = False
+
+    # ----------------------------------------
+    # Detect if overrides include rates fields
+    # ----------------------------------------
+    has_rate_override = any(k.startswith("rates_selection.") for k in flat)
+
+    # ----------------------------------------
+    # Use precomputed rates ONLY if overridden
+    # ----------------------------------------
+    if has_rate_override and row:
+        rates = row.get("rates_method")
+        if rates:
+            lines.append(f"method = {rates}")
+            used_rates = True
+        values = row.get("rates_values")
+        if values:
+            lines.append(f"values = {values}")
+            used_rates = True
+
+    # ----------------------------------------
+    # Fallback: combine from/to if no rates string
+    # ----------------------------------------
+    if has_rate_override and not used_rates:
+        from_key = next((k for k in flat if k.endswith(".from")), None)
+        to_key = next((k for k in flat if k.endswith(".to")), None)
+
+        if from_key and to_key:
+            lines.append(f"from-to = {flat[from_key]}-{flat[to_key]}")
+            used_range = True
+
+    # ----------------------------------------
+    # Main loop
+    # ----------------------------------------
+    for k, v in sorted(flat.items()):
+        # Skip rate fields if already rendered
+        if used_rates and k.startswith("rates_selection."):
+            continue
+
+        # Skip from/to if combined
+        if used_range and k.endswith((".from", ".to")):
+            continue
+
+        # Clean labels
+        clean_key = k.replace("solver_options.", "")
+        clean_key = clean_key.replace("optimization_parameters.", "")
+        clean_key = clean_key.replace("rates_selection.", "")
+
+        lines.append(f"{clean_key} = {v}")
+
+    return "\n".join(lines) if lines else "-"
 
 
 def _override_value_series_fn(values, raw, rows):
-    """
-    Handles invariant override dictionaries for display and explain.
-
-    values → aggregated values (ignored for dicts)
-    raw    → per-row values (what we want)
-    rows   → full rows (not needed here)
-    """
     clean = [v for v in raw if isinstance(v, dict) and v]
 
     if not clean:
         return "-"
 
-    # If all identical → display clean dict
     first = clean[0]
-    if all(v == first for v in clean):
-        return _format_override_dict(first)
+    row = rows[0] if rows else {}
 
-    # Fallback (should not happen with invariant=True, but safe)
-    return "\n".join(_format_override_dict(v) for v in clean[:3])
+    if all(v == first for v in clean):
+        return _format_override_dict(first, row=row)
+
+    # fallback (rare)
+    return "\n".join(_format_override_dict(v, row=row) for v in clean[:3])
 
 
 register_metric(
@@ -457,11 +595,12 @@ register_metric(
         dtype=dict,
         fmt="overrides",
         is_invariant=True,
-        compute_fn=lambda d: d.get("run_specific_overrides"),
+        compute_fn=lambda r: r.get("run_specific_overrides"),
         description=(
             "Overrides that vary across runs (e.g., parameter sweeps such as "
             "solver_options.spendingSlack)."
         ),
+        display_row_fn=lambda v, row, ctx: _format_override_dict(v, row),
         value_series_fn=_override_value_series_fn,
     )
 )
@@ -474,17 +613,19 @@ register_metric(
         dtype=dict,
         fmt="overrides",
         is_invariant=True,
-        compute_fn=lambda d: d.get("common_overrides"),
+        compute_fn=lambda r: r.get("common_overrides"),
         description=(
             "Overrides shared across all runs in the experiment "
             "(e.g., rates_selection.method, date ranges)."
         ),
+        display_row_fn=lambda v, row, ctx: _format_override_dict(v, row),
         value_series_fn=_override_value_series_fn,
     )
 )
 
-
+# =========================================================
 # SPENDING PROFILE
+# =========================================================
 
 register_metric(
     MetricSpec(
@@ -645,6 +786,135 @@ register_metric(
     )
 )
 
+
+def _compute_distribution_risk_flags(r):
+    flags = 0
+
+    p10_min = _as_float(r.get("spending_ratio_to_minimum_min_p10"))
+    p10_acc = _as_float(r.get("spending_ratio_to_acceptable_min_p10"))
+    breach = _as_float(r.get("spending_stress_flag_ratio"))
+
+    if p10_min is not None and p10_min < 1.0:
+        flags += 1
+
+    if p10_min is not None and p10_min < 0.5:
+        flags += 1
+
+    if p10_acc is not None and p10_acc < 1.0:
+        flags += 1
+
+    if breach is not None and breach > 0.1:
+        flags += 1
+
+    return flags
+
+
+def _compute_path_risk_signals(r):
+    flags = r.get("risk.summary.flags")
+    return flags if isinstance(flags, list) else []
+
+
+def _compute_distribution_risk_signals(r):
+    signals = []
+
+    p10_min = _as_float(r.get("spending_ratio_to_minimum_min_p10"))
+    p10_acc = _as_float(r.get("spending_ratio_to_acceptable_min_p10"))
+    breach = _as_float(r.get("spending_stress_flag_ratio"))
+
+    years_min = r.get("years_below_minimum_mean")
+    years_acc = r.get("years_below_acceptable_mean")
+
+    # --- PRIORITY ORDER ---
+
+    # 1. Severe survival risk (dominates everything)
+    if p10_min is not None and p10_min < 0.5:
+        return ["Severe depletion risk"]
+
+    # 2. Survival risk
+    if p10_min is not None and p10_min < 1.0:
+        signals.append("Below minimum in tail scenarios")
+
+    # 3. Persistent survival failure
+    if years_min is not None and years_min > 0:
+        signals.append("Persistent minimum shortfall")
+
+    # 4. Persistent lifestyle failure
+    if years_acc is not None and years_acc > 0:
+        signals.append("Sustained lifestyle shortfall")
+
+    # 5. Lifestyle degradation
+    if p10_acc is not None and p10_acc < 1.0:
+        signals.append("Lifestyle degradation risk")
+
+    # 6. Frequency (only if nothing stronger dominates)
+    if breach is not None:
+        if breach > 0.9:
+            signals.append("Frequent shortfalls")
+        elif breach > 0.1:
+            signals.append("Occasional shortfalls")
+
+    # --- LIMIT to top 2–3 signals ---
+    return signals[:3]
+
+
+def _compute_risk_signals_run(r):
+    trial_count = r.get("trial") or r.get("trial_cnt") or r.get("trial_count") or 1
+
+    if trial_count == 1:
+        signals = _compute_path_risk_signals(r)
+    else:
+        signals = _compute_distribution_risk_signals(r)
+
+    return signals if signals else None
+
+
+def _compute_risk_flags_run(r):
+    signals = _compute_risk_signals_run(r)
+    return len(signals) if signals else 0
+
+
+def _compute_risk_interpretation(r):
+    signals = r.get("risk_signals") or []
+
+    if not signals:
+        return None
+
+    primary = signals[0]
+
+    mapping = {
+        "Severe depletion risk": "Plan fails in worst-case scenarios; survival risk dominates.",
+        "Below minimum in tail scenarios": "Plan is vulnerable in adverse scenarios but generally stable.",
+        "Persistent minimum shortfall": "Spending falls below minimum for extended periods.",
+        "Sustained lifestyle shortfall": "Lifestyle goals are not consistently maintained.",
+        "Lifestyle degradation risk": "Spending occasionally falls below target levels.",
+        "Frequent shortfalls": "Shortfalls occur across most scenarios.",
+        "Occasional shortfalls": "Shortfalls occur in a minority of scenarios.",
+    }
+
+    return mapping.get(primary, "Mixed risk signals present.")
+
+
+def _compute_overall_risk(r):
+    survival = _survival_level(r)
+    lifestyle = _lifestyle_level(r)
+
+    # --- survival dominates ---
+    if survival == "high":
+        return "At risk of depletion"
+
+    if survival == "moderate":
+        return "At risk"
+
+    # --- lifestyle ---
+    if lifestyle == "high":
+        return "Severely constrained"
+
+    if lifestyle == "moderate":
+        return "Safe but constrained"
+
+    return "Comfortable and safe"
+
+
 FLAG_EXPLANATIONS = {
     "ending_asset_erosion": (
         "Financial assets decline significantly late in life. This may reflect "
@@ -663,154 +933,141 @@ FLAG_EXPLANATIONS = {
 register_metric(
     MetricSpec(
         key="risk_flags",
-        path="risk.summary.flags",
-        label="Risk\nSignals",
-        dtype=str,
-        aggregates=[],
-        description=(
-            "Indicators of plan fragility (asset drawdown, depletion pressure, etc.). "
-            "These do not imply spending failure."
-        ),
-        value_series_fn=lambda values, *_: "\n\n".join(
-            f"{f.replace('_', ' ').capitalize()}:\n{FLAG_EXPLANATIONS.get(f, '')}"
-            for f in sorted(set(f for v in values if isinstance(v, list) for f in v))
-        ),
-        display_row_fn=lambda v, row, ctx: (
-            "\n".join(f.replace("_", " ").capitalize() for f in v)
-            if isinstance(v, list) and v
-            else "-"
-        ),
+        label="Risk\nFlags",
+        dtype=int,
+        compute_fn=_compute_risk_flags_run,
+        compute_level="run",
+        is_invariant=True,
     )
 )
 
 register_metric(
     MetricSpec(
-        key="risk_reconciliation",
-        label="Risk\nInterpretation",
+        key="risk_signals",
+        label="Risk\nSignals",
         dtype=str,
-        aggregates=[],
-        display_row_fn=lambda v, row, ctx: (
-            "see explain=values"
-            if isinstance(row, dict)
-            and row.get("overall_risk") == "high"
-            and row.get("years_below_acceptable", 0) == 0
-            else "-"
-        ),
-        value_series_fn=lambda values, rows, *_: (
-            "Spending remains strong across all years. Asset-based signals reflect "
-            "drawdown of financial assets, which may include planned liquidation of "
-            "non-financial assets (e.g., home sale), not necessarily risk to lifestyle."
-            if rows
-            and any(
-                isinstance(r, dict)
-                and r.get("overall_risk") == "high"
-                and r.get("years_below_acceptable", 0) == 0
-                for r in rows
-            )
-            else ""
+        compute_fn=_compute_risk_signals_run,
+        compute_level="run",
+        is_invariant=True,
+        display_row_fn=lambda v, *_: "\n".join(v) if isinstance(v, list) else "-",
+        value_series_fn=lambda values, *_: (
+            "\n".join(values[0]) if values and isinstance(values[0], list) else "-"
         ),
     )
 )
 
 
+register_metric(
+    MetricSpec(
+        key="risk_interpretation",
+        label="Risk\nInterpretation",
+        dtype=str,
+        compute_fn=_compute_risk_interpretation,
+        compute_level="run",
+        is_invariant=True,
+        display_row_fn=lambda v, row, ctx: (
+            "see explain=values" if isinstance(row, dict) and row.get("risk_flags", 0) > 0 else "-"
+        ),
+        value_series_fn=lambda values, *_: values[0] if values and values[0] else "-",
+    )
+)
+
+
 def _lifestyle_level(r):
-    p10 = r.get("spending_ratio_to_acceptable_min_p10")
+    p10 = _as_float(r.get("spending_ratio_to_acceptable_min_p10"))
+    years = r.get("years_below_acceptable_mean")
 
     if p10 is not None:
         if p10 < 0.5:
-            return "high"  # severe lifestyle collapse
+            return "high"
         if p10 < 1.0:
-            return "moderate"  # some degradation
+            return "moderate"
 
-    # fallback to existing logic
-    breach = r.get("spending_stress_flag")
-    years = r.get("years_below_acceptable")
-
-    if breach:
-        return "high"
-    if years and years > 0:
+    if years is not None and years > 0:
         return "moderate"
 
     return "low"
 
 
 def _survival_level(r):
-    p10 = r.get("spending_ratio_to_minimum_min_p10")
+    p10 = _as_float(r.get("spending_ratio_to_minimum_min_p10"))
+    years = r.get("years_below_minimum_mean")
 
     if p10 is not None:
         if p10 < 0.5:
-            return "high"  # true failure scenarios
+            return "high"
         if p10 < 1.0:
             return "moderate"
 
-    depleted = r.get("depleted")
-    floor = r.get("floor_breach")
-
-    if depleted:
-        return "high"
-    if floor:
+    if years is not None and years > 0:
         return "moderate"
 
     return "low"
 
 
 def _compute_risk_summary(r):
-    def _parse_percent(v):
-        if isinstance(v, str) and v.endswith("%"):
-            try:
-                return float(v.strip("%")) / 100.0
-            except Exception:
-                return None
-        return v
+    survival = _survival_level(r)
+    lifestyle = _lifestyle_level(r)
 
-    p10_acc = _parse_percent(r.get("spending_ratio_to_acceptable_min_p10"))
-    p10_min = _parse_percent(r.get("spending_ratio_to_minimum_min_p10"))
+    # --- Defensive fallback ---
+    if survival is None and lifestyle is None:
+        return "Comfortable and safe"
 
-    def _parse_ratio(v):
-        # tuple form: (num, den)
-        if isinstance(v, tuple) and len(v) == 2:
-            num, den = v
-            try:
-                return float(num) / float(den) if den else None
-            except Exception:
-                return None
+    # --- Survival dominates everything ---
+    if survival == "high":
+        return "At risk of depletion"
 
-        # string form: "num/den"
-        if isinstance(v, str) and "/" in v:
-            try:
-                num, den = v.split("/")
-                return float(num) / float(den)
-            except Exception:
-                return None
+    # --- Moderate survival ---
+    if survival == "moderate":
+        # upgrade if lifestyle also stressed
+        if lifestyle in ("moderate", "high"):
+            return "At risk"
+        return "At risk"
 
-        # already numeric
-        if isinstance(v, (int, float)):
-            return float(v)
-
-        return None
-
-    breach_ratio = _parse_ratio(r.get("spending_stress_flag_ratio"))
-
-    if breach_ratio is not None and breach_ratio > 0.9:
+    # --- No survival risk → lifestyle determines outcome ---
+    if lifestyle == "high":
         return "Severely constrained"
 
-    # --- Survival dominates ---
-    if p10_min is not None:
-        if p10_min < 0.5:
-            return "At risk of depletion"
-        if p10_min < 1.0:
-            return "At risk"
+    if lifestyle == "moderate":
+        return "Safe but constrained"
 
-    # --- Lifestyle ---
-    if p10_acc is not None:
-        if p10_acc < 0.5:
-            return "Severely constrained"
-        if p10_acc < 1.0:
-            return "Safe but constrained"
-
+    # --- Fully safe ---
     return "Comfortable and safe"
 
 
+register_metric(
+    MetricSpec(
+        key="survival_risk",
+        label="Survival\nRisk",
+        dtype=str,
+        compute_level="run",
+        compute_fn=_survival_level,
+        is_invariant=True,
+        description=(
+            "Risk of failing to sustain minimum required spending (safety floor). "
+            "Based on downside (p10) outcomes and frequency of years below minimum spending. "
+            "Represents fundamental survival risk — whether essential expenses can be met."
+        ),
+        value_series_fn=lambda values, *_: values[0] if values and values[0] else "-",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="lifestyle_risk",
+        label="Lifestyle\nRisk",
+        dtype=str,
+        compute_level="run",
+        compute_fn=_lifestyle_level,
+        is_invariant=True,
+        description=(
+            "Risk of failing to sustain acceptable lifestyle spending. "
+            "Based on downside (p10) outcomes and frequency of years below acceptable spending. "
+            "Represents quality-of-life risk — whether desired spending levels are maintained."
+        ),
+        value_series_fn=lambda values, *_: values[0] if values and values[0] else "-",
+    )
+)
 register_metric(
     MetricSpec(
         key="overall_risk",
@@ -1205,6 +1462,65 @@ def _has_override(r, key_fragment: str) -> bool:
     return any(key_fragment in k for k in overrides)
 
 
+def _run_variation_profile(r):
+    flags = []
+
+    overrides = r.get("run_specific_overrides") or {}
+
+    if any("social_security_ages" in k for k in overrides):
+        flags.append("SS")
+
+    if any("spendingSlack" in k for k in overrides):
+        flags.append("Slack")
+
+    if any("roth" in k.lower() for k in overrides):
+        flags.append("Roth")
+
+    return ", ".join(flags) if flags else "Base"
+
+
+def _run_scenario_profile(r):
+    method = r.get("rates_method")
+
+    if method == "bootstrap_sor":
+        return "SoR"
+
+    if method == "user":
+        return "UserRates"
+
+    if method:
+        return method
+
+    return "-"
+
+
+register_metric(
+    MetricSpec(
+        key="run_variation_profile",
+        label="Design",
+        align="left",
+        dtype=str,
+        compute_level="run",
+        compute_fn=_run_variation_profile,
+        is_invariant=True,
+        description="Parameters varied across runs (experiment design)",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="run_scenario_profile",
+        label="Scenario",
+        align="left",
+        dtype=str,
+        compute_level="run",
+        compute_fn=_run_scenario_profile,
+        is_invariant=True,
+        description="Scenario model used for evaluation (e.g., SoR, user-defined)",
+    )
+)
+
+
 def _run_profile(r):
     flags = []
 
@@ -1224,10 +1540,6 @@ def _run_profile(r):
 
     return ", ".join(flags) if flags else "Base"
 
-
-# ---------------------------------------------------------
-# PROFILE LABEL (compact descriptor)
-# ---------------------------------------------------------
 
 register_metric(
     MetricSpec(

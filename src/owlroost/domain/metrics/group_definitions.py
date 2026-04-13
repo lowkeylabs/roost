@@ -25,9 +25,11 @@ register_group(
 register_group(
     "core_outcomes_run",
     [
+        ("spending_now", "median"),
         ("spending_total", "median"),
-        ("taxes_total", "median", {"show_if": "is_pivot"}),
-        ("bequest", "median", {"show_if": "is_pivot"}),
+        ("bequest", "median"),
+        # ("taxes_total", "median", {"show_if": "is_pivot"}),
+        # ("bequest", "median", {"show_if": "is_pivot"}),
         # ("ending_assets", "median",{"showif","is_pivot"}),
     ],
     description="Core financial outcomes aggregated at the run level",
@@ -91,6 +93,7 @@ register_group(
     "lifestyle_risk",
     [
         "acceptable_spending",
+        "lifestyle_risk",
         ("spending_ratio_to_acceptable_min", "mean"),
         ("spending_ratio_to_acceptable_min", "p10"),
         ("years_below_acceptable", "mean"),
@@ -107,6 +110,7 @@ register_group(
     "survival_risk",
     [
         "minimum_spending",
+        "survival_risk",
         ("spending_ratio_to_minimum_min", "mean"),
         ("spending_ratio_to_minimum_min", "p10"),
         ("years_below_minimum", "mean"),
@@ -128,9 +132,9 @@ register_group(
         "overall_risk",
         ("scenario_severity", "mean"),
         ("depleted", "ratio"),
-        ("risk_flag_count", "mean"),
         "risk_flags",
-        "risk_reconciliation",
+        "risk_signals",
+        "risk_interpretation",
     ],
     description="High-level risk summary combining scenario and outcome signals",
     default_opts={"show_if": "is_pivot"},
@@ -286,7 +290,9 @@ register_group(
 register_group(
     "overrides",
     [
-        ("run_profile", {"show_if": ["is_pivot", "is_table"]}),
+        # ("run_profile", {"show_if": ["is_pivot", "is_table"]}),
+        ("run_variation_profile", {"show_if": ["is_pivot", "is_table"]}),
+        # ("run_scenario_profile", {"show_if": ["is_pivot", "is_table"]}),
         "run_specific_overrides",
         "common_overrides",
     ],

@@ -1,4 +1,4 @@
-minimum_spending: "70%"
+minimum_spending: 80.0
 acceptable_spending: "100%"
 baseline_years: 3
 

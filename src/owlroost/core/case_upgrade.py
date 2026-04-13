@@ -23,6 +23,14 @@ from owlroost.domain.models.case import Case, LongevityConfig, RoostConfig, Spen
 # =========================================================
 
 
+def _default_minimum_spending(case: Case) -> float:
+    """
+    Compute a reasonable default minimum spending based on household size.
+    """
+    n = len(case.household_names)
+    return 50 + 30 * (n - 1)
+
+
 def case_upgrade(
     case: Case,
     *,
@@ -35,6 +43,7 @@ def case_upgrade(
 
     actions: dict[str, Any] = {
         "spending_policy_added": False,
+        "spending_policy_updated": False,
         "longevity_added": False,
         "roost_added": False,
         "longevity_fixed_alignment": False,
@@ -97,6 +106,28 @@ def case_upgrade(
         actions["spending_policy_added"] = True
         if verbose:
             print("Added default [spending_policy] section.")
+    else:
+        policy = case.spending_policy
+
+        if isinstance(policy.minimum_spending, str):
+            raise ValueError("minimum_spending must be a fixed numeric value, not a percentage")
+
+        if policy.minimum_spending is None:
+            default_val = _default_minimum_spending(case)
+            policy.minimum_spending = default_val
+
+            if "spending_policy" not in case.extra:
+                case.extra["spending_policy"] = {}
+
+            case.extra["spending_policy"]["minimum_spending"] = default_val
+            case._raw_dict["spending_policy"]["minimum_spending"] = default_val
+
+            actions["spending_policy_updated"] = True
+
+            if verbose:
+                print(
+                    f"Injected default minimum_spending = ${default_val:,.0f} (household size = {len(case.household_names)})"
+                )
 
     # ---------------------------------------------------------
     # Persist if needed
@@ -106,6 +137,7 @@ def case_upgrade(
         actions[k]
         for k in (
             "spending_policy_added",
+            "spending_policy_updated",
             "longevity_added",
             "roost_added",
             "longevity_fixed_alignment",
@@ -147,6 +179,9 @@ def _add_default_roost(case: Case) -> None:
 
 def _add_default_spending_policy(case: Case) -> None:
     model = SpendingPolicyConfig()
+
+    if model.minimum_spending is None:
+        model.minimum_spending = _default_minimum_spending(case)
 
     case.extensions["spending_policy"] = model
     case.extra["spending_policy"] = model.model_dump(exclude_none=True, by_alias=True)

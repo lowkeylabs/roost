@@ -72,18 +72,18 @@ health = [ "average",]
 smoker = [ false,]
 
 [roost]
-master_seed = 3935157067
+master_seed = 1488635127
 trials = 1
 
 [spending_policy]
-minimum_spending = "70%"
+minimum_spending = 50
 acceptable_spending = "100%"
 baseline_years = 3
 max_years_below_acceptable = 5
 max_consecutive_years_below_acceptable = 5
 
 [cache]
-generated_at = "2026-04-12T14:20:32.775505"
+generated_at = "2026-04-12T16:34:47.502085"
 retirement_horizon = 0
 max_spending = 45298.7
 first_year_total_withdrawals = 53680.34

@@ -308,8 +308,8 @@ class RoostConfig(BaseModel):
 
 
 class SpendingPolicyConfig(BaseModel):
-    minimum_spending: float | str = "70%"
-    acceptable_spending: float | str = "100%"
+    minimum_spending: float | int | None = 80.0
+    acceptable_spending: float | int | str = "100%"
     baseline_years: int = 3
     max_years_below_acceptable: int = 5
     max_consecutive_years_below_acceptable: int = 5

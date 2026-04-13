@@ -210,14 +210,23 @@ def run_trial(
     result = run_single_case_subprocess(args)
     # print( f"after run_single_case_subprocess: {result}" )
 
+    raw_stderr = getattr(result, "stderr", "") or "unknown"
+
+    lines = [line.strip() for line in raw_stderr.strip().splitlines() if line.strip()]
+
+    failure_detail = "unknown error"
+
+    for line in reversed(lines):
+        if ":" in line:  # catches "ValueError: ..." etc.
+            failure_detail = line
+            break
+
     if result.status == "crashed":
         logger.debug(f"Trial {trial_id} crashed")
 
         # --------------------------------------------------
         # Failure classification
         # --------------------------------------------------
-        failure_detail = getattr(result, "stderr", "") or "unknown"
-
         if "empty stdout" in failure_detail:
             failure_category = "empty_output"
         elif "invalid json" in failure_detail:
@@ -314,6 +323,7 @@ def run_trial(
             "longevity_seed": longevity_seed,
             "status": "crashed",
             "output": None,
+            "error": failure_detail,
         }
 
     return {
@@ -322,4 +332,5 @@ def run_trial(
         "longevity_seed": longevity_seed,
         "status": result.status,
         "output": str(output_file) if result.status == "solved" else None,
+        "error": failure_detail if result.status != "solved" else None,
     }

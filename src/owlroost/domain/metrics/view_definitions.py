@@ -36,12 +36,12 @@ register_view(
         # IDENTITY
         # -------------------------------------------------
         ("group", "run_identity"),
+        ("group", "overrides"),
         # -------------------------------------------------
         # PROFILE / SETUP
         # -------------------------------------------------
         {"separator": "section", "label": "PROFILE"},
         ("group", "goal"),
-        ("group", "overrides"),
         {"separator": "section", "label": "STRUCTURE"},
         ("group", "run_structure"),
         # -------------------------------------------------

@@ -118,6 +118,7 @@ def orchestrate_trials(
         )
 
     n_trials = len(trial_args)
+    is_single_trial = len(trial_ids) == 1
     results = []
 
     HEARTBEAT_SEC = 1
@@ -231,6 +232,11 @@ def orchestrate_trials(
             job_id,
             [r["trial_id"] for r in sorted(failed, key=lambda x: x["trial_id"])],
         )
+
+        if is_single_trial:
+            err = failed[0].get("error")
+            if err:
+                logger.error("\n--- Trial Failure Detail ---\n{}\n", err)
 
     return results
 
