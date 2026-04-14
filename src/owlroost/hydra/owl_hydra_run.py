@@ -1,7 +1,6 @@
 # src/owlroost/hydra/owl_hydra_run.py
 
-import time
-from multiprocessing import Pool
+import multiprocessing as mp
 from pathlib import Path
 
 import hydra
@@ -68,6 +67,45 @@ def spawn_trial_seeds(master_seed: int, trial_ids: list[int]) -> dict[int, tuple
     return seed_map
 
 
+def _safe_run_trial(payload):
+    """
+    payload = (worker_fn, args)
+    """
+    worker_fn, args = payload
+
+    (
+        job_id,
+        tid,
+        rates_seed,
+        longevity_seed,
+        case_file,
+        overrides,
+        run_dir,
+        master_seed,
+        longevity_cfg,
+    ) = args
+
+    try:
+        return worker_fn(*args)
+
+    except Exception as e:
+        logger.exception(
+            "{} - Trial {:04d} crashed: {}",
+            job_id,
+            tid,
+            e,
+        )
+
+        return {
+            "trial_id": tid,
+            "rates_seed": rates_seed,
+            "longevity_seed": longevity_seed,
+            "status": "error",
+            "output": None,
+            "error": str(e),
+        }
+
+
 # ---------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------
@@ -83,12 +121,16 @@ def orchestrate_trials(
     run_dir: Path,
     longevity_cfg: dict,
     progress_file: Path | None = None,
+    worker_fn=None,
 ):
     """
     Pure orchestration layer.
     Robust against worker crashes.
     Fully testable.
     """
+
+    if worker_fn is None:
+        worker_fn = run_trial
 
     if use_trial_seeds:
         seed_map = spawn_trial_seeds(master_seed, trial_ids)
@@ -129,73 +171,27 @@ def orchestrate_trials(
     # -----------------------------------------------------
     if n_jobs == 1:
         for args in trial_args:
-            try:
-                r = run_trial(*args)
-                results.append(r)
-                tid = args[1]
-                if progress_file is not None:
-                    record_progress(progress_file, job_id, tid, r["status"])
+            r = _safe_run_trial((worker_fn, args))
+            results.append(r)
 
-            except Exception as e:
-                tid = args[1]
-                logger.exception("{} - Trial {:04d} crashed", job_id, tid)
-
-                results.append(
-                    {
-                        "trial_id": tid,
-                        "rates_seed": args[2],
-                        "longevity_seed": args[3],
-                        "status": "error",
-                        "output": None,
-                        "error": str(e),
-                    }
-                )
-                if progress_file is not None:
-                    record_progress(progress_file, job_id, tid, "error")
+            tid = r.get("trial_id")
+            if progress_file is not None and tid is not None:
+                status = r.get("status", "unknown")
+                record_progress(progress_file, job_id, tid, status)
 
     # -----------------------------------------------------
     # Multiprocessing mode
     # -----------------------------------------------------
     else:
-        with Pool(processes=n_jobs) as pool:
-            pending = {
-                tid: pool.apply_async(run_trial, args)
-                for tid, args in zip(trial_ids, trial_args, strict=False)
-            }
-
-            completed = 0
-
-            while pending:
-                for tid, async_r in list(pending.items()):
-                    if async_r.ready():
-                        try:
-                            r = async_r.get(timeout=0)
-                        except Exception as e:
-                            logger.exception(
-                                "{} - Trial {:04d} crashed: {}",
-                                job_id,
-                                tid,
-                                e,
-                            )
-
-                            r = {
-                                "trial_id": tid,
-                                "rates_seed": None,
-                                "longevity_seed": None,
-                                "status": "error",
-                                "output": None,
-                                "error": str(e),
-                            }
-
-                        results.append(r)
-                        completed += 1
-
-                        if progress_file is not None:
-                            record_progress(progress_file, job_id, tid, r["status"])
-
-                        del pending[tid]
-
-                time.sleep(0.05)
+        ctx = mp.get_context("spawn")
+        with ctx.Pool(processes=n_jobs) as pool:
+            payloads = [(worker_fn, args) for args in trial_args]
+            for r in pool.imap_unordered(_safe_run_trial, payloads):
+                results.append(r)
+                tid = r.get("trial_id")
+                if progress_file is not None and tid is not None:
+                    status = r.get("status", "unknown")
+                    record_progress(progress_file, job_id, tid, status)
 
     solved = [r for r in results if r["status"] == "solved"]
     failed = [r for r in results if r["status"] != "solved"]
@@ -219,6 +215,8 @@ def orchestrate_trials(
             if err:
                 logger.error("\n--- Trial Failure Detail ---\n{}\n", err)
 
+    if results is not None:
+        results.sort(key=lambda r: r["trial_id"])
     return results
 
 
