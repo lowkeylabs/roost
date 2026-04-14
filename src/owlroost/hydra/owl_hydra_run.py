@@ -121,7 +121,6 @@ def orchestrate_trials(
             )
         )
 
-    n_trials = len(trial_args)
     is_single_trial = len(trial_ids) == 1
     results = []
 
@@ -159,21 +158,18 @@ def orchestrate_trials(
     # -----------------------------------------------------
     else:
         with Pool(processes=n_jobs) as pool:
-            async_results = [
-                (tid, pool.apply_async(run_trial, args))
+            pending = {
+                tid: pool.apply_async(run_trial, args)
                 for tid, args in zip(trial_ids, trial_args, strict=False)
-            ]
+            }
 
             completed = 0
 
-            while completed < n_trials:
-                for tid, async_r in async_results:
-                    if async_r is None:
-                        continue
-
+            while pending:
+                for tid, async_r in list(pending.items()):
                     if async_r.ready():
                         try:
-                            r = async_r.get()
+                            r = async_r.get(timeout=0)
                         except Exception as e:
                             logger.exception(
                                 "{} - Trial {:04d} crashed: {}",
@@ -197,11 +193,9 @@ def orchestrate_trials(
                         if progress_file is not None:
                             record_progress(progress_file, job_id, tid, r["status"])
 
-                        async_results = [
-                            (t, a) if t != tid else (t, None) for t, a in async_results
-                        ]
+                        del pending[tid]
 
-                time.sleep(0.2)
+                time.sleep(0.05)
 
     solved = [r for r in results if r["status"] == "solved"]
     failed = [r for r in results if r["status"] != "solved"]
