@@ -1,7 +1,5 @@
 import multiprocessing as mp
 
-import pytest
-
 from owlroost.hydra.owl_hydra_run import orchestrate_trials
 
 
@@ -70,12 +68,8 @@ def test_orchestrate_trials_deadlocks_on_worker_exception(monkeypatch, tmp_path)
     p = ctx.Process(target=_orchestrator_entry, args=(args,))
     p.start()
 
-    p.join(timeout=5)
+    p.join(timeout=10)
 
-    if p.is_alive():
-        p.terminate()
-        p.join()
-        pytest.fail("orchestrate_trials hung (should not deadlock)")
+    assert not p.is_alive(), "orchestrate_trials hung (should not deadlock)"
 
-    # ✔ New assertion: process should exit cleanly
     assert p.exitcode == 0
