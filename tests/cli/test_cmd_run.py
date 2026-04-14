@@ -10,6 +10,47 @@ from tests.utils import run_cli
 # ---------------------------------------------------------------------
 
 
+class FakeProcess:
+    def __init__(self, cmd, called):
+        called["cmd"] = cmd
+        self.returncode = 0
+
+    def wait(self):
+        return self.returncode
+
+
+def mock_popen(monkeypatch, called):
+    class FakeProcess:
+        def __init__(self, cmd):
+            called["cmd"] = cmd
+            self.returncode = 0
+
+        def wait(self):
+            return self.returncode
+
+    def fake_popen(cmd, *args, **kwargs):
+        return FakeProcess(cmd)
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+
+def mock_monitor(monkeypatch):
+    def fake_monitor(run_root, total_trials):
+        class DummyThread:
+            def join(self):
+                pass
+
+        return DummyThread(), Path("dummy.log")
+
+    monkeypatch.setattr("owlroost.cli.cmd_run.start_progress_monitor", fake_monitor)
+
+    # 🔥 THIS IS THE CRITICAL FIX
+    monkeypatch.setattr(
+        "owlroost.cli.cmd_run.read_progress",
+        lambda _: 10**9,  # always "complete"
+    )
+
+
 def write_case(tmp_path: Path, method: str) -> Path:
     case_file = tmp_path / "Case_test.toml"
     case_file.write_text(
@@ -31,12 +72,8 @@ def test_historical_single_run_ok(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     called = {}
-
-    def fake_run(cmd, check):
-        called["cmd"] = cmd
-        return subprocess.CompletedProcess(cmd, 0)
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    mock_popen(monkeypatch, called)
+    mock_monitor(monkeypatch)
 
     runner = CliRunner()
     result = run_cli(runner, case_file)
@@ -55,12 +92,8 @@ def test_historical_multiple_trials_ok(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     called = {}
-
-    def fake_run(cmd, check):
-        called["cmd"] = cmd
-        return subprocess.CompletedProcess(cmd, 0)
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    mock_popen(monkeypatch, called)
+    mock_monitor(monkeypatch)
 
     runner = CliRunner()
     result = run_cli(runner, case_file, "-t", "10")
@@ -79,12 +112,8 @@ def test_stochastic_multiple_trials_ok(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     called = {}
-
-    def fake_run(cmd, check):
-        called["cmd"] = cmd
-        return subprocess.CompletedProcess(cmd, 0)
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    mock_popen(monkeypatch, called)
+    mock_monitor(monkeypatch)
 
     runner = CliRunner()
     result = run_cli(runner, case_file, "-t", "10")
@@ -103,12 +132,8 @@ def test_hydra_override_passthrough(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     called = {}
-
-    def fake_run(cmd, check):
-        called["cmd"] = cmd
-        return subprocess.CompletedProcess(cmd, 0)
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    mock_popen(monkeypatch, called)
+    mock_monitor(monkeypatch)
 
     runner = CliRunner()
 
@@ -117,14 +142,14 @@ def test_hydra_override_passthrough(tmp_path, monkeypatch):
         case_file,
         "-t",
         "5",
-        "optimization.objective=maxBequest",
+        "optimization_parameters.objective=maxBequest",
         "solver_options.maxRothConversion=50",
     )
 
     assert result.exit_code == 0
 
     cmd_str = " ".join(called["cmd"])
-    assert "optimization.objective=maxBequest" in cmd_str
+    assert "optimization_parameters.objective=maxBequest" in cmd_str
     assert "solver_options.maxRothConversion=50" in cmd_str
 
 
@@ -138,12 +163,12 @@ def test_trial_id_injection(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     called = {}
+    mock_popen(monkeypatch, called)
+    mock_monitor(monkeypatch)
 
-    def fake_run(cmd, check):
-        called["cmd"] = cmd
-        return subprocess.CompletedProcess(cmd, 0)
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        "owlroost.hydra.owl_hydra_run.orchestrate_trials", lambda *args, **kwargs: []
+    )
 
     runner = CliRunner()
 

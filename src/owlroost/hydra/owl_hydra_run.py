@@ -9,11 +9,14 @@ import numpy as np
 from hydra.core.hydra_config import HydraConfig
 from loguru import logger
 from omegaconf import DictConfig
-from tqdm import tqdm
 
 from owlroost.cli.utils import normalize_case_file_overrides
 from owlroost.core.configure_logging import configure_logging
 from owlroost.core.override_parser import hydra_overrides_to_dict
+from owlroost.core.progress import (
+    init_progress,
+    record_progress,
+)
 from owlroost.hydra.helpers import (
     PROJECT_ROOT,
     bootstrap_logging,
@@ -79,6 +82,7 @@ def orchestrate_trials(
     overrides: dict,
     run_dir: Path,
     longevity_cfg: dict,
+    progress_file: Path | None = None,
 ):
     """
     Pure orchestration layer.
@@ -121,16 +125,18 @@ def orchestrate_trials(
     is_single_trial = len(trial_ids) == 1
     results = []
 
-    HEARTBEAT_SEC = 1
-    last_update = time.monotonic()
-
     # -----------------------------------------------------
     # Single-process mode
     # -----------------------------------------------------
     if n_jobs == 1:
         for args in trial_args:
             try:
-                results.append(run_trial(*args))
+                r = run_trial(*args)
+                results.append(r)
+                tid = args[1]
+                if progress_file is not None:
+                    record_progress(progress_file, job_id, tid, r["status"])
+
             except Exception as e:
                 tid = args[1]
                 logger.exception("{} - Trial {:04d} crashed", job_id, tid)
@@ -145,6 +151,8 @@ def orchestrate_trials(
                         "error": str(e),
                     }
                 )
+                if progress_file is not None:
+                    record_progress(progress_file, job_id, tid, "error")
 
     # -----------------------------------------------------
     # Multiprocessing mode
@@ -158,68 +166,47 @@ def orchestrate_trials(
 
             completed = 0
 
-            with tqdm(
-                total=n_trials,
-                desc=f"{job_id}",
-                unit="trial",
-                dynamic_ncols=True,
-                bar_format="{desc}: {percentage:.1f}% |{bar}| {postfix}",
-            ) as pbar:
-                while completed < n_trials:
-                    for tid, async_r in async_results:
-                        if async_r is None:
-                            continue
+            while completed < n_trials:
+                for tid, async_r in async_results:
+                    if async_r is None:
+                        continue
 
-                        if async_r.ready():
-                            try:
-                                r = async_r.get()
+                    if async_r.ready():
+                        try:
+                            r = async_r.get()
+                        except Exception as e:
+                            logger.exception(
+                                "{} - Trial {:04d} crashed: {}",
+                                job_id,
+                                tid,
+                                e,
+                            )
 
-                            except Exception as e:
-                                logger.exception(
-                                    "{} - Trial {:04d} crashed: {}",
-                                    job_id,
-                                    tid,
-                                    e,
-                                )
+                            r = {
+                                "trial_id": tid,
+                                "rates_seed": None,
+                                "longevity_seed": None,
+                                "status": "error",
+                                "output": None,
+                                "error": str(e),
+                            }
 
-                                r = {
-                                    "trial_id": tid,
-                                    "rates_seed": None,
-                                    "longevity_seed": None,
-                                    "status": "error",
-                                    "output": None,
-                                    "error": str(e),
-                                }
+                        results.append(r)
+                        completed += 1
 
-                            results.append(r)
+                        if progress_file is not None:
+                            record_progress(progress_file, job_id, tid, r["status"])
 
-                            completed += 1
-                            pbar.update(1)
+                        async_results = [
+                            (t, a) if t != tid else (t, None) for t, a in async_results
+                        ]
 
-                            async_results = [
-                                (t, a) if t != tid else (t, None) for t, a in async_results
-                            ]
-
-                    now = time.monotonic()
-                    if now - last_update >= HEARTBEAT_SEC:
-                        elapsed = pbar.format_dict["elapsed"] or 0.0
-                        spt = elapsed / max(completed, 1)
-
-                        pbar.set_postfix_str(
-                            f"elapsed={elapsed:.1f}s, "
-                            f"running={completed}/{n_trials}, "
-                            f"s_per_trial={spt:.1f}s"
-                        )
-
-                        pbar.refresh()
-                        last_update = now
-
-                    time.sleep(0.2)
+                time.sleep(0.2)
 
     solved = [r for r in results if r["status"] == "solved"]
     failed = [r for r in results if r["status"] != "solved"]
 
-    logger.info(
+    logger.debug(
         "{} - Trials complete: {} solved, {} failed",
         job_id,
         len(solved),
@@ -227,7 +214,7 @@ def orchestrate_trials(
     )
 
     if failed:
-        logger.warning(
+        logger.debug(
             "{} - Failed trial IDs: {}",
             job_id,
             [r["trial_id"] for r in sorted(failed, key=lambda x: x["trial_id"])],
@@ -257,13 +244,13 @@ def get_master_seed(cfg: DictConfig, job_id: str) -> int | None:
 
     else:
         # No seed defined → deterministic mode
-        logger.info("{} - No master_seed defined (deterministic mode)", job_id)
+        logger.debug("{} - No master_seed defined (deterministic mode)", job_id)
         return None
 
     if not fits_uint32(master_seed):
         raise ValueError(f"Invalid master_seed (must fit uint32): {master_seed}")
 
-    logger.info("{} - Using master_seed={} (source={})", job_id, master_seed, source)
+    logger.debug("{} - Using master_seed={} (source={})", job_id, master_seed, source)
     return master_seed
 
 
@@ -301,6 +288,9 @@ def run_hydra_job(cfg: DictConfig):
     run_dir = get_run_dir()
     logger.debug("{} - Run directory: {}", job_id, run_dir.relative_to(PROJECT_ROOT))
 
+    progress_file = run_dir.parent / "progress.log"
+    init_progress(progress_file)
+
     master_seed = get_master_seed(cfg, job_id)
 
     save_hydra_metadata(
@@ -336,6 +326,7 @@ def run_hydra_job(cfg: DictConfig):
         overrides=overrides,
         run_dir=run_dir,
         longevity_cfg=dict(cfg.longevity),
+        progress_file=progress_file,
     )
 
 

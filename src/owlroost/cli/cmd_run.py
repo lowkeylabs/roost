@@ -6,7 +6,9 @@ import subprocess
 import sys
 import time
 import tomllib
+from datetime import datetime
 from pathlib import Path
+from threading import Thread
 
 import click
 from loguru import logger
@@ -20,6 +22,7 @@ from owlroost.cli.utils import (
     print_case_list,
     resolve_case_selector,
 )
+from owlroost.core.progress import get_total_runs_from_overrides, monitor_progress, read_progress
 
 CONF_DIR = Path(__file__).parents[1] / "conf"
 
@@ -184,6 +187,60 @@ def validate_rate_method_for_trials(
         )
 
 
+def start_progress_monitor(run_root: Path, total_trials: int):
+    # --------------------------------------------------
+    # Wait for Hydra to create experiment folder
+    # --------------------------------------------------
+    run_root.parent.mkdir(parents=True, exist_ok=True)
+
+    deadline = time.time() + 15
+    while not run_root.exists():
+        if time.time() > deadline:
+            raise RuntimeError(f"Timeout waiting for {run_root}")
+        time.sleep(0.1)
+
+    progress_file = run_root / "progress.log"
+
+    # --------------------------------------------------
+    # Wait for multirun.yaml
+    # --------------------------------------------------
+    deadline = time.time() + 10
+    while not (run_root / "multirun.yaml").exists():
+        if time.time() > deadline:
+            raise RuntimeError("Timeout waiting for multirun.yaml")
+        time.sleep(0.1)
+
+    logger.debug("Multirun yaml detected: {}", run_root / "multirun.yaml")
+
+    # --------------------------------------------------
+    # Wait for progress.log
+    # --------------------------------------------------
+    deadline = time.time() + 10
+    while not progress_file.exists():
+        if time.time() > deadline:
+            raise RuntimeError("Timeout waiting for progress.log")
+        time.sleep(0.1)
+
+    # --------------------------------------------------
+    # Reset progress file (critical)
+    # --------------------------------------------------
+    progress_file.write_text("")
+
+    logger.debug("Total trials: {}", total_trials)
+
+    # --------------------------------------------------
+    # Start monitor
+    # --------------------------------------------------
+    monitor_thread = Thread(
+        target=monitor_progress,
+        args=(progress_file, total_trials, None),
+        daemon=False,
+    )
+    monitor_thread.start()
+
+    return monitor_thread, progress_file
+
+
 # ---------------------------------------------------------------------
 # Hydra command builder
 # ---------------------------------------------------------------------
@@ -313,7 +370,31 @@ def cmd_run(
         raise click.BadParameter(f"No case matching '{case}'")
 
     rate_method = get_rate_selection_method(case_file)
+
+    now = datetime.now()
+    date_str = now.strftime("%Y-%m-%d")
+    time_str = now.strftime("%H-%M-%S")
+    results_root = Path.cwd() / "results"
+
+    # extract case name (you already have case_file)
+    case_name = case_file.stem.replace("case_", "")
+
+    run_root = results_root / case_name / date_str / time_str
+
     hydra_overrides = list(ctx.args)
+    hydra_overrides = [
+        f"hydra.sweep.dir={results_root}/{case_name}/{date_str}/{time_str}",
+        *hydra_overrides,
+    ]
+
+    num_runs = get_total_runs_from_overrides(hydra_overrides)
+    trial_count = trials or 1
+    total_trials = num_runs * trial_count
+
+    if run_jobs is None:
+        parallel_jobs = num_runs
+    else:
+        parallel_jobs = min(run_jobs, num_runs)
 
     # ------------------------------------------------------------
     # Auto-activate longevity=default if longevity.* override used
@@ -326,6 +407,13 @@ def cmd_run(
 
     logger.debug("Resolved case file: {}", case_file)
     logger.debug("Hydra overrides: {}", hydra_overrides)
+
+    logger.info(
+        "Trials: {} | Runs: {} | Parallel jobs: {}",
+        trial_count,
+        num_runs,
+        parallel_jobs,
+    )
 
     # ------------------------------------------------------------
     # Experiment: augmented_sampling
@@ -426,7 +514,13 @@ def cmd_run(
 
         start_time = time.perf_counter()
 
-        subprocess.run(cmd, check=True)
+        proc = subprocess.Popen(cmd)
+        monitor_thread, progress_file = start_progress_monitor(run_root, total_trials)
+        proc.wait()
+
+        while read_progress(progress_file) < total_trials:
+            time.sleep(0.1)
+        monitor_thread.join()
 
         elapsed = time.perf_counter() - start_time
 
@@ -457,8 +551,18 @@ def cmd_run(
 
     start = time.perf_counter()
 
+    results_root = Path.cwd() / "results"
+    # Start monitor BEFORE Hydra runs
     try:
-        subprocess.run(cmd, check=True)
+        proc = subprocess.Popen(cmd)
+        monitor_thread, progress_file = start_progress_monitor(run_root, total_trials)
+        proc.wait()
+        # Wait until progress completes
+        while read_progress(progress_file) < total_trials:
+            time.sleep(0.1)
+
+        monitor_thread.join()
+
     except subprocess.CalledProcessError as e:
         elapsed = time.perf_counter() - start
         logger.info("Hydra failed after {}", format_elapsed(elapsed))
