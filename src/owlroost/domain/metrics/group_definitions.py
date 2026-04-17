@@ -369,3 +369,50 @@ register_group(
     description="Risk summary and edge-of-failure indicators",
     default_opts={"show_if": "is_pivot"},
 )
+
+
+register_group(
+    "social_security",
+    [
+        # --- input (invariant) ---
+        ("ss_input_p1"),
+        ("ss_input_p2"),
+        # --- whether optimized ---
+        ("is_ss_experiment"),
+        # --- optimized outcomes (distribution) ---
+        ("ss_age_p1", "median"),
+        ("ss_age_p1", "p10"),
+        ("ss_age_p1", "p90"),
+        ("ss_age_p2", "median"),
+        ("ss_age_p2", "p10"),
+        ("ss_age_p2", "p90"),
+    ],
+    description=(
+        "Social Security claiming strategy. "
+        "Includes input ages (fixed per run), whether optimization is enabled, "
+        "and the distribution of optimized claiming ages across trials."
+    ),
+    default_opts={"show_if": "is_pivot"},
+)
+
+register_group(
+    "audit",
+    [
+        # --- Counts (core signal) ---
+        "solved_cnt",
+        "error_total",
+        "error_cnt",
+        "timeout_cnt",
+        # --- Rates ---
+        "error_rate",
+        "timeout_rate",
+        # --- Diagnostics ---
+        "trial_completeness",
+        ("failure_breakdown", {"show_if": "is_pivot"}),
+        ("worker_timeout", {"show_if": "is_pivot"}),
+        ("audit_flags", {"show_if": "is_pivot"}),
+        # Optional (debugging)
+        # "bad_trials",
+    ],
+    description="Infrastructure audit metrics: outcomes, rates, and failure diagnostics.",
+)

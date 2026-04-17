@@ -8,6 +8,20 @@ from owlroost.hydra.trial_worker import run_trial
 # ============================================================
 
 
+def create_metrics_file(trial_dir, case_stem):
+    metrics_path = trial_dir / f"{case_stem}_metrics.json"
+    metrics_path.write_text(
+        """
+{
+  "schema": "roost.metrics.v2",
+  "run_status": {
+    "status": "solved"
+  }
+}
+"""
+    )
+
+
 def test_run_trial_creates_directory(tmp_path):
     job_id = "job"
     trial_id = 3
@@ -25,6 +39,11 @@ life_expectancy = [65]
 
     with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
         mock_run.return_value = SimpleNamespace(status="solved")
+
+        trial_dir = tmp_path / "trials" / "0003"
+        trial_dir.mkdir(parents=True, exist_ok=True)
+
+        create_metrics_file(trial_dir, case_file.stem)
 
         result = run_trial(
             job_id=job_id,
@@ -99,6 +118,11 @@ partnered = false
 
     with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
         mock_run.return_value = SimpleNamespace(status="solved")
+
+        trial_dir = tmp_path / "trials" / "0000"
+        trial_dir.mkdir(parents=True, exist_ok=True)
+
+        create_metrics_file(trial_dir, case_file.stem)
 
         result = run_trial(
             job_id="job",
@@ -276,7 +300,7 @@ method = "historical average"
 def test_run_trial_subprocess_success(tmp_path, monkeypatch):
     """run_trial should propagate success from subprocess wrapper"""
 
-    def mock_subprocess(args):
+    def mock_subprocess(*args, **kwargs):
         return SimpleNamespace(status="solved", output_file="dummy.xlsx")
 
     monkeypatch.setattr(
@@ -289,6 +313,11 @@ def test_run_trial_subprocess_success(tmp_path, monkeypatch):
 [basic_info]
 life_expectancy = [65]
 """)
+
+    trial_dir = tmp_path / "trials" / "0000"
+    trial_dir.mkdir(parents=True, exist_ok=True)
+
+    create_metrics_file(trial_dir, case_file.stem)
 
     result = run_trial(
         job_id="job",
@@ -307,8 +336,8 @@ life_expectancy = [65]
 def test_run_trial_subprocess_crash(tmp_path, monkeypatch):
     """run_trial should convert subprocess crash into status='crashed'"""
 
-    def mock_subprocess(args):
-        return SimpleNamespace(status="crashed")
+    def mock_subprocess(*args, **kwargs):
+        return SimpleNamespace(status="failed")
 
     monkeypatch.setattr(
         "owlroost.hydra.trial_worker.run_single_case_subprocess",
@@ -321,6 +350,11 @@ def test_run_trial_subprocess_crash(tmp_path, monkeypatch):
 life_expectancy = [65]
 """)
 
+    trial_dir = tmp_path / "trials" / "0000"
+    trial_dir.mkdir(parents=True, exist_ok=True)
+
+    create_metrics_file(trial_dir, case_file.stem)
+
     result = run_trial(
         job_id="job",
         trial_id=1,
@@ -332,7 +366,7 @@ life_expectancy = [65]
         master_seed=123,
     )
 
-    assert result["status"] == "crashed"
+    assert result["status"] == "failed"
     assert result["output"] is None
 
 
@@ -341,8 +375,8 @@ def test_subprocess_args_structure(tmp_path, monkeypatch):
 
     captured = {}
 
-    def mock_subprocess(args):
-        captured.update(args)
+    def mock_subprocess(*args, **kwargs):
+        captured.update(args[0])
         return SimpleNamespace(status="solved")
 
     monkeypatch.setattr(

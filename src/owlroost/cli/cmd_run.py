@@ -246,6 +246,65 @@ def start_progress_monitor(run_root: Path, total_trials: int):
 # ---------------------------------------------------------------------
 
 
+def load_roost_defaults(conf_dir: Path) -> dict:
+    path = conf_dir / "roost" / "default.yaml"
+    try:
+        import yaml
+
+        return yaml.safe_load(path.read_text()) or {}
+    except Exception:
+        return {}
+
+
+def resolve_parallelism(
+    *,
+    num_runs: int,
+    trial_count: int,
+    trial_jobs: int | None,
+    run_jobs: int | None,
+    cfg: dict,
+):
+    # --------------------------------------------------
+    # Config
+    # --------------------------------------------------
+    max_trial_jobs = cfg.get("max_trial_jobs", 28)
+    max_run_jobs = cfg.get("max_run_jobs", 8)
+    cpu_reserve = cfg.get("cpu_reserve", 2)
+    oversubscribe = cfg.get("oversubscribe_factor", 1.0)
+
+    cpu_count = os.cpu_count() or 1
+    base_cpu = max(1, cpu_count - cpu_reserve)
+    usable_cpu = max(1, int(base_cpu * oversubscribe))
+
+    # --------------------------------------------------
+    # Explicit overrides (handled FIRST)
+    # --------------------------------------------------
+    if trial_jobs is not None or run_jobs is not None:
+        t = trial_jobs if trial_jobs is not None else 1
+        r = run_jobs if run_jobs is not None else 1
+        return t, r
+
+    # --------------------------------------------------
+    # Policy
+    # --------------------------------------------------
+    if trial_count > 1:
+        # parallelize trials
+        t = min(max_trial_jobs, trial_count, usable_cpu)
+        r = 1
+        return t, r
+
+    if num_runs > 1:
+        # parallelize runs
+        t = 1
+        r = min(max_run_jobs, num_runs, usable_cpu)
+        return t, r
+
+    # --------------------------------------------------
+    # Default (single run, single trial)
+    # --------------------------------------------------
+    return 1, 1
+
+
 def build_hydra_command(
     case_file: Path | None,
     overrides: list[str],
@@ -391,10 +450,44 @@ def cmd_run(
     trial_count = trials or 1
     total_trials = num_runs * trial_count
 
-    if run_jobs is None:
-        parallel_jobs = num_runs
-    else:
-        parallel_jobs = min(run_jobs, num_runs)
+    # ------------------------------------------------------------
+    # Auto parallelism policy
+    # ------------------------------------------------------------
+
+    cfg = load_roost_defaults(CONF_DIR)
+
+    trial_jobs, run_jobs = resolve_parallelism(
+        num_runs=num_runs,
+        trial_count=trial_count,
+        trial_jobs=trial_jobs,
+        run_jobs=run_jobs,
+        cfg=cfg,
+    )
+
+    # ------------------------------------------------------------
+    # Normalize (CRITICAL FIX)
+    # ------------------------------------------------------------
+    trial_jobs = trial_jobs or 1
+    run_jobs = run_jobs or 1
+
+    parallel_jobs = min(run_jobs, num_runs)
+
+    # ------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------
+    if cfg.get("enforce_single_axis", True):
+        if trial_jobs > 1 and run_jobs > 1:
+            raise click.ClickException(
+                "Cannot use both trial parallelism and run parallelism simultaneously."
+            )
+
+    logger.info(
+        "Runs: {} | Parallel runs: {} | Trials: {} | Parallel trials: {}",
+        num_runs,
+        parallel_jobs,
+        total_trials,
+        trial_jobs,
+    )
 
     # ------------------------------------------------------------
     # Auto-activate longevity=default if longevity.* override used
@@ -407,13 +500,6 @@ def cmd_run(
 
     logger.debug("Resolved case file: {}", case_file)
     logger.debug("Hydra overrides: {}", hydra_overrides)
-
-    logger.info(
-        "Trials: {} | Runs: {} | Parallel jobs: {}",
-        trial_count,
-        num_runs,
-        parallel_jobs,
-    )
 
     # ------------------------------------------------------------
     # Experiment: augmented_sampling

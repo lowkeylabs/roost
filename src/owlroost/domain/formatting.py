@@ -223,6 +223,24 @@ def format_value(value, fmt: str | None):
         except Exception:
             return str(value)
 
+    if fmt == "age_ym":
+        try:
+            if value is None:
+                return "-"
+
+            v = float(value)
+            years = int(v)
+            months = int(round((v - years) * 12))
+
+            # handle rounding edge case
+            if months == 12:
+                years += 1
+                months = 0
+
+            return f"{years}y {months}m"
+        except Exception:
+            return str(value)
+
     # -------------------------------------------------
     # FALLBACK
     # -------------------------------------------------

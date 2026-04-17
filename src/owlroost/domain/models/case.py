@@ -323,6 +323,15 @@ class CacheConfig(BaseModel):
     first_year_total_withdrawals: float | None = None
 
 
+class RuntimeConfig(BaseModel):
+    worker_timeout: int = 20
+    max_trial_jobs: int = 28
+    max_run_jobs: int = 8
+    cpu_reserve: int = 2
+    oversubscribe_factor: float = 1.0
+    enforce_single_axis: bool = True
+
+
 EXTRA_SECTION_REGISTRY: dict[str, type[BaseModel]] = {
     "spending_policy": SpendingPolicyConfig,
     "longevity": LongevityConfig,

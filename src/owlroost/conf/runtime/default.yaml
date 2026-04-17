@@ -1,0 +1,17 @@
+# --------------------------------------------------
+# Worker behavior
+# --------------------------------------------------
+worker_timeout: 20   # seconds
+
+# --------------------------------------------------
+# Parallelism limits (hardware-dependent)
+# --------------------------------------------------
+max_trial_jobs: 28
+max_run_jobs: 8
+
+# --------------------------------------------------
+# System tuning
+# --------------------------------------------------
+cpu_reserve: 2        # leave cores free (UI, OS, etc.)
+oversubscribe_factor: 1.5
+enforce_single_axis: true

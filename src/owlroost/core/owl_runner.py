@@ -31,6 +31,11 @@ class PlanRunResult:
     summary: dict | None = None
     adjusted_toml: str | None = None
 
+    # 🔥 NEW
+    failure_category: str | None = None
+    failure_subtype: str | None = None
+    failure_detail: str | None = None
+
 
 # ---------------------------------------------------------------------
 # TOML override helpers
@@ -298,37 +303,45 @@ def run_single_case(
 
     save_early_files(output_file, modified_toml, original_toml)
 
-    plan = owl.readConfig(
-        toml_buf,
-        logstreams="loguru",
-        loadHFP=False,
-    )
-    case = Case(Path(case_file))
-    plan._case = case
+    try:
+        plan = owl.readConfig(
+            toml_buf,
+            logstreams="loguru",
+            loadHFP=False,
+        )
+        case = Case(Path(case_file))
+        plan._case = case
 
-    if hfp_file:
-        plan.readHFP(str(hfp_modified))
+    except Exception as e:
+        return PlanRunResult(
+            status="failed",
+            failure_category="input_error",
+            failure_subtype="config_load",
+            failure_detail=str(e),
+        )
 
-    status = "unknown"
+    try:
+        if hfp_file:
+            plan.readHFP(str(hfp_modified))
+    except Exception as e:
+        return PlanRunResult(
+            status="failed",
+            failure_category="input_error",
+            failure_subtype="hfp_load",
+            failure_detail=str(e),
+        )
 
     try:
         solve_and_save(plan, output_file)
         status = (plan.caseStatus or "unknown").lower()
 
-    except Exception:
-        logger.exception("Trial failed with exception")
-        status = "failed"
-
-        # 🔥 CRITICAL: still write metrics for failed trials
-        try:
-            metrics_path = (
-                Path(output_file)
-                .with_suffix("")
-                .with_name(Path(output_file).stem + "_metrics.json")
-            )
-            write_metrics_json(plan, metrics_path, timing={"elapsed_seconds": None})
-        except Exception:
-            logger.exception("Failed to write fallback metrics")
+    except Exception as e:
+        return PlanRunResult(
+            status="failed",
+            failure_category="runtime_error",
+            failure_subtype="solve_exception",
+            failure_detail=str(e),
+        )
 
     # --------------------------------------------------
     # ALWAYS write status file
@@ -337,11 +350,19 @@ def run_single_case(
     status_file.touch(exist_ok=True)
 
     if status != "solved":
-        return PlanRunResult(status=status)
+        return PlanRunResult(
+            status="failed",
+            failure_category="solver_result",
+            failure_subtype=status,
+            failure_detail=status,
+        )
 
     return PlanRunResult(
         status="solved",
         output_file=output_file,
         summary=plan.summaryDic(),
         adjusted_toml=modified_toml,
+        failure_category=None,
+        failure_subtype=None,
+        failure_detail=None,
     )

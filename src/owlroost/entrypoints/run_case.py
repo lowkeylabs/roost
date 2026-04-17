@@ -14,6 +14,9 @@ def main():
                 "status": result.status,
                 "output_file": result.output_file,
                 "summary": result.summary,
+                "failure_category": result.failure_category,
+                "failure_subtype": result.failure_subtype,
+                "failure_detail": result.failure_detail,
             }
         )
     )

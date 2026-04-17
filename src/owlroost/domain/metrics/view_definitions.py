@@ -51,6 +51,8 @@ register_view(
         ("group", "core_outcomes_run"),
         {"separator": "section", "label": "SPENDING PROFILE"},
         ("group", "spending_profile"),
+        {"separator": "section", "label": "SOCIAL SECURITY"},
+        ("group", "social_security"),
         # -------------------------------------------------
         # RISK (NEW CLEAN STRUCTURE)
         # -------------------------------------------------
@@ -62,4 +64,40 @@ register_view(
         ("group", "risk_summary"),
     ],
     description="Decision-oriented run comparison using risk decomposition and outcomes",
+)
+
+
+# =========================================================
+# RUN VIEW — AUDIT
+# =========================================================
+
+register_view(
+    "run",
+    "audit",
+    [
+        # -------------------------------------------------
+        # IDENTITY
+        # -------------------------------------------------
+        ("group", "run_identity"),
+        #        ("group", "overrides"),
+        # -------------------------------------------------
+        # PROFILE / SETUP
+        # -------------------------------------------------
+        #        {"separator": "section", "label": "PROFILE"},
+        #        ("group", "goal"),
+        #        {"separator": "section", "label": "STRUCTURE"},
+        #        ("group", "run_structure"),
+        # -------------------------------------------------
+        # AUDIT
+        # -------------------------------------------------
+        {"separator": "section", "label": "AUDIT"},
+        ("group", "audit"),
+        # -------------------------------------------------
+        # OPTIONAL CONTEXT (light outcomes for reference)
+        # -------------------------------------------------
+        #        {"separator": "section", "label": "OUTCOMES (REFERENCE)"},
+        #        ("group", "core_outcomes_run"),
+    ],
+    description="Audit view focused on infrastructure performance, completeness, and failure diagnostics.",
+    tags=["audit"],
 )

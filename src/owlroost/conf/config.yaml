@@ -11,6 +11,7 @@ defaults:
   - solver_options: default
   - trial: default
   - roost: default
+  - runtime: default
   - hydra/sweep: basic
   - override hydra/sweep: flat     # run directory is set here
   - override hydra/hydra_logging: disabled

@@ -50,15 +50,36 @@ def load_effective(trial_path: Path) -> dict:
 
 
 def extract_row(data: dict, specs: list[MetricSpec], base_row: dict | None = None) -> dict:
-    row = base_row.copy() if base_row else {}
+    #    row = {
+    #        **(base_row or {}),
+    #        **data,
+    #    }
 
-    row["_inputs"] = data.get("_inputs", {})
+    row = dict(base_row) if base_row is not None else {}
+    if data:
+        row.update(data)
+
+    run_status = data.get("run_status", {}) if data else {}
+
+    if run_status:
+        row["status"] = run_status.get("status")
+        row["failure_category"] = run_status.get("failure_category")
+        row["failure_detail"] = run_status.get("failure_detail")
+
+    status = (row.get("status") or "").lower()
+    row["status"] = status
+
+    failure_category = row.get("failure_category")
+
+    if status == "failed" and not failure_category:
+        row["failure_category"] = "unknown_failure"
 
     for spec in specs:
         try:
             # ----------------------------------------
             # 1. compute_fn (explicit override)
             # ----------------------------------------
+
             if spec.compute_fn and spec.compute_level == "trial":
                 row[spec.key] = spec.compute_fn(row)
 

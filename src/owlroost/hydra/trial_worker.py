@@ -20,13 +20,21 @@ def run_trial_star(args):
     return run_trial(*args)
 
 
-def run_single_case_subprocess(args: dict):
-    result = subprocess.run(
-        [sys.executable, "-m", "owlroost.entrypoints.run_case"],
-        input=json.dumps(args),
-        text=True,
-        capture_output=True,
-    )
+def run_single_case_subprocess(args: dict, timeout: int = 20):
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "owlroost.entrypoints.run_case"],
+            input=json.dumps(args),
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return SimpleNamespace(
+            status="timeout",
+            stderr="timeout",
+        )
+
     logger.trace(f"\n----Full result from subprocess---\n{result}")
     # --------------------------------------------------
     # Hard crash (non-zero exit)
@@ -207,32 +215,113 @@ def run_trial(
     }
 
     # print( f"Before run_single_case_subprocess: {args}" )
-    result = run_single_case_subprocess(args)
-    # print( f"after run_single_case_subprocess: {result}" )
 
-    raw_stderr = getattr(result, "stderr", "") or "unknown"
+    roost_cfg = overrides.get("roost", {})
+    timeout = roost_cfg.get("worker_timeout", 20)
 
+    # --------------------------------------------------
+    # PRIMARY WRAPPER AROUND OWL. designed to catch hard fails
+    # and solver crashes that prevent _metrics.json from being written.
+    # This file is the source of truth for trial status.
+    # --------------------------------------------------
+
+    result = run_single_case_subprocess(args, timeout=timeout)
+
+    # --------------------------------------------------
+    # Check for metrics.json existence (SOURCE OF TRUTH)
+    # --------------------------------------------------
+    metrics_path = trial_dir / f"{case_file.stem}_metrics.json"
+    metrics_exists = metrics_path.exists()
+
+    # --------------------------------------------------
+    # Extract structured subprocess result (NEW CONTRACT)
+    # --------------------------------------------------
+    result_status = getattr(result, "status", None)
+    result_failure_category = getattr(result, "failure_category", None)
+    result_failure_subtype = getattr(result, "failure_subtype", None)
+    result_failure_detail = getattr(result, "failure_detail", None)
+
+    raw_stderr = getattr(result, "stderr", "") or ""
     lines = [line.strip() for line in raw_stderr.strip().splitlines() if line.strip()]
 
-    failure_detail = "unknown error"
+    # --------------------------------------------------
+    # Determine failure_detail (prefer subprocess)
+    # --------------------------------------------------
+    failure_detail = result_failure_detail
 
-    for line in reversed(lines):
-        if ":" in line:  # catches "ValueError: ..." etc.
-            failure_detail = line
-            break
+    if not failure_detail:
+        failure_detail = "unknown error"
+        if lines:
+            for line in reversed(lines):
+                if any(k in line for k in ["Error", "Exception", "Traceback"]):
+                    failure_detail = line
+                    break
+            else:
+                failure_detail = lines[-1]
 
-    if result.status == "crashed":
-        logger.debug(f"Trial {trial_id} crashed")
+    # --------------------------------------------------
+    # Detect input/config errors
+    # --------------------------------------------------
+    input_error_keywords = [
+        "TOMLDecodeError",
+        "KeyError",
+        "ValueError",
+        "TypeError",
+        "Invalid",
+        "missing",
+        "unexpected",
+    ]
+
+    is_input_error = result_failure_category == "input_error" or any(
+        k in raw_stderr for k in input_error_keywords
+    )
+
+    # --------------------------------------------------
+    # Determine if fallback metrics are required
+    # --------------------------------------------------
+    needs_fallback = False
+
+    if result_status in ("crashed", "timeout"):
+        needs_fallback = True
+    elif not metrics_exists:
+        needs_fallback = True
+
+    # --------------------------------------------------
+    # Handle failure cases
+    # --------------------------------------------------
+    if needs_fallback:
+        logger.debug(f"Trial {trial_id} failed or missing metrics.json")
 
         # --------------------------------------------------
-        # Failure classification
+        # Failure classification (NEW CONTRACT)
         # --------------------------------------------------
-        if "empty stdout" in failure_detail:
+        if result_failure_category:
+            failure_category = result_failure_category
+            failure_subtype = result_failure_subtype
+
+        elif result_status == "timeout":
+            failure_category = "timeout"
+            failure_subtype = "subprocess_timeout"
+
+        elif is_input_error:
+            failure_category = "input_error"
+            failure_subtype = "stderr_detected"
+
+        elif "empty stdout" in failure_detail:
             failure_category = "empty_output"
+            failure_subtype = None
+
         elif "invalid json" in failure_detail:
             failure_category = "invalid_output"
+            failure_subtype = None
+
+        elif not metrics_exists:
+            failure_category = "hard_crash"
+            failure_subtype = "no_metrics"
+
         else:
             failure_category = "worker_crash"
+            failure_subtype = None
 
         # --------------------------------------------------
         # Write FAILED marker
@@ -240,97 +329,79 @@ def run_trial(
         (trial_dir / "FAILED").touch()
 
         # --------------------------------------------------
-        # Write robust fallback metrics.json
+        # Persist stderr for debugging (optional but useful)
         # --------------------------------------------------
-        metrics_path = trial_dir / f"{case_file.stem}_metrics.json"
-
-        minimal_metrics = {
-            "schema": "roost.metrics.v2",
-            # ----------------------------------------------
-            # Identity
-            # ----------------------------------------------
-            "identity": {
-                "plan_name": case_file.stem,
-            },
-            # ----------------------------------------------
-            # Run status (CRITICAL)
-            # ----------------------------------------------
-            "run_status": {
-                "status": "failed",
-                "failure_category": failure_category,
-                "failure_detail": failure_detail,
-            },
-            # ----------------------------------------------
-            # Timing
-            # ----------------------------------------------
-            "timing": {
-                "elapsed_seconds": None,
-            },
-            # ----------------------------------------------
-            # Solver
-            # ----------------------------------------------
-            "solver": "unknown",
-            # ----------------------------------------------
-            # Financial (safe minimal structure)
-            # ----------------------------------------------
-            "financial": {
-                "valid": False,
-                "baseline": {
-                    "annual_spending": None,
-                },
-                "timeseries": {
-                    "spending": {
-                        "ratio": {
-                            "min": 0.0,
-                            "mean": 0.0,
-                            "median": 0.0,
-                        }
-                    }
-                },
-            },
-            # ----------------------------------------------
-            # Risk (safe minimal structure)
-            # ----------------------------------------------
-            "risk": {
-                "scenario": {
-                    "valid": False,
-                },
-                "outcome": {
-                    "valid": False,
-                },
-            },
-            # ----------------------------------------------
-            # Complexity
-            # ----------------------------------------------
-            "complexity": {
-                "valid": False,
-            },
-            # ----------------------------------------------
-            # Score (optional but safe)
-            # ----------------------------------------------
-            "score": None,
-        }
-
         try:
-            with open(metrics_path, "w") as f:
-                json.dump(minimal_metrics, f, indent=2)
+            (trial_dir / "stderr.txt").write_text(raw_stderr)
         except Exception:
-            logger.exception("Failed to write crash fallback metrics")
+            pass
+
+        # --------------------------------------------------
+        # Write fallback metrics ONLY if missing
+        # --------------------------------------------------
+        if not metrics_exists:
+            minimal_metrics = {
+                "schema": "roost.metrics.v2",
+                "identity": {
+                    "plan_name": case_file.stem,
+                },
+                "run_status": {
+                    "status": "failed",
+                    "failure_category": failure_category,
+                    "failure_subtype": failure_subtype,
+                    "failure_detail": failure_detail,
+                    "failure_stderr": raw_stderr[:2000],
+                },
+                "timing": {
+                    "elapsed_seconds": None,
+                },
+                "solver": "unknown",
+                "financial": {
+                    "valid": False,
+                    "baseline": {
+                        "annual_spending": None,
+                    },
+                    "timeseries": {
+                        "spending": {
+                            "ratio": {
+                                "min": 0.0,
+                                "mean": 0.0,
+                                "median": 0.0,
+                            }
+                        }
+                    },
+                },
+                "risk": {
+                    "scenario": {"valid": False},
+                    "outcome": {"valid": False},
+                },
+                "complexity": {"valid": False},
+                "score": None,
+            }
+
+            try:
+                with open(metrics_path, "w") as f:
+                    json.dump(minimal_metrics, f, indent=2)
+            except Exception:
+                logger.exception("Failed to write crash fallback metrics")
 
         return {
             "trial_id": trial_id,
             "rates_seed": rates_seed,
             "longevity_seed": longevity_seed,
-            "status": "crashed",
+            "status": "failed",
             "output": None,
             "error": failure_detail,
         }
 
+    # --------------------------------------------------
+    # Success path
+    # --------------------------------------------------
     return {
         "trial_id": trial_id,
         "rates_seed": rates_seed,
         "longevity_seed": longevity_seed,
-        "status": result.status,
-        "output": str(output_file) if result.status == "solved" else None,
-        "error": failure_detail if result.status != "solved" else None,
+        "status": result_status or "solved",
+        "output": str(output_file),
+        "error": None,
     }

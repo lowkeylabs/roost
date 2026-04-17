@@ -7,5 +7,11 @@ Call `load_metrics()` explicitly when needed.
 
 
 def load_metrics():
-    # Local imports to avoid circular dependency
-    from . import group_definitions, metric_definitions, view_definitions
+    from . import (
+        group_definitions,
+        metric_definitions,  # keep for now (rest of metrics)
+        view_definitions,
+    )
+    from .definitions import load as load_defs
+
+    load_defs()

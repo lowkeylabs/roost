@@ -58,6 +58,20 @@ def _as_float(v):
     return None
 
 
+def _format_age_ym(age):
+    if age is None:
+        return "-"
+    try:
+        years = int(age)
+        months = int(round((age - years) * 12))
+        if months == 12:
+            years += 1
+            months = 0
+        return f"{years}y {months}m"
+    except Exception:
+        return "-"
+
+
 # =========================================================
 # CORE OUTCOMES
 # =========================================================
@@ -1558,18 +1572,6 @@ register_metric(
 # ---------------------------------------------------------
 # INDIVIDUAL FLAGS (yes / -)
 # ---------------------------------------------------------
-
-register_metric(
-    MetricSpec(
-        key="is_ss_experiment",
-        label="SS",
-        dtype=int,
-        compute_level="run",
-        compute_fn=lambda r: 1 if _has_override(r, "social_security_ages") else 0,
-        value_series_fn=wrap_value_fn(lambda v, _: "yes" if v == 1 else "-"),
-        description="Run varies Social Security claiming strategy",
-    )
-)
 
 register_metric(
     MetricSpec(

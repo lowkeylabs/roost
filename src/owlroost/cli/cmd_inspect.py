@@ -112,6 +112,21 @@ def parse_explain(explain_opts, view_explain):
     return set(parts)
 
 
+def runrow_to_dict(r):
+    # Case 1: already a dict → return as-is
+    if isinstance(r, dict):
+        return r
+
+    # Case 2: dataclass → convert
+    d = vars(r).copy()
+
+    # Preserve _ref if present
+    if hasattr(r, "_ref"):
+        d["_ref"] = r._ref
+
+    return d
+
+
 # =========================================================
 # CLI
 # =========================================================
@@ -200,6 +215,9 @@ def cmd_inspect(
         display_level = "run"
         working_rows = run_rows
 
+        # working_rows = [vars(r) for r in run_rows]
+        working_rows = [runrow_to_dict(r) for r in run_rows]
+
         if case_override is not None and exp_override is not None:
             case_name = experiments[0].case
             header = [f"[bold]Runs (case {case_override}: {case_name}, exp {exp_override})[/bold]"]
@@ -228,13 +246,16 @@ def cmd_inspect(
         exp = experiments[ref["exp_index"]]
         run = exp.runs[ref["run_index"]]
 
-        trial_rows = build_trial_rows(exp, run)
+        trial_rows = build_trial_rows([exp])
+        trial_rows = [r for r in trial_rows if r.get("run") == run.name]
 
         # TRIAL LIST
         if trial_id is None:
             display_level = "run"
             display_mode = "summary"
-            working_rows = [selected]  # <-- key change
+            working_rows = [selected]
+
+            working_rows = [runrow_to_dict(selected)]
 
             header = [
                 "[bold cyan]RUN[/bold cyan]",

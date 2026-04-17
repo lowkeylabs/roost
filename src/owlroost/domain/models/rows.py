@@ -50,6 +50,10 @@ class RunRow:
     ncons: float | None
     nnz: float | None
     int_ratio: float | None
+    trial_summaries: list[dict] | None = None
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
 
 
 @dataclass

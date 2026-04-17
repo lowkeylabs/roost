@@ -1,6 +1,6 @@
 # src/owlroost/hydra/owl_hydra_run.py
 
-import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import hydra
@@ -26,6 +26,7 @@ from owlroost.hydra.helpers import (
     save_hydra_metadata,
 )
 from owlroost.hydra.trial_worker import run_trial
+from owlroost.hydra.worker_pool import safe_run_trial
 
 # ---------------------------------------------------------------------
 # Bootstrap (must run before Hydra initializes)
@@ -65,45 +66,6 @@ def spawn_trial_seeds(master_seed: int, trial_ids: list[int]) -> dict[int, tuple
         seed_map[tid] = (rates_seed, longevity_seed)
 
     return seed_map
-
-
-def _safe_run_trial(payload):
-    """
-    payload = (worker_fn, args)
-    """
-    worker_fn, args = payload
-
-    (
-        job_id,
-        tid,
-        rates_seed,
-        longevity_seed,
-        case_file,
-        overrides,
-        run_dir,
-        master_seed,
-        longevity_cfg,
-    ) = args
-
-    try:
-        return worker_fn(*args)
-
-    except Exception as e:
-        logger.exception(
-            "{} - Trial {:04d} crashed: {}",
-            job_id,
-            tid,
-            e,
-        )
-
-        return {
-            "trial_id": tid,
-            "rates_seed": rates_seed,
-            "longevity_seed": longevity_seed,
-            "status": "error",
-            "output": None,
-            "error": str(e),
-        }
 
 
 # ---------------------------------------------------------------------
@@ -171,7 +133,7 @@ def orchestrate_trials(
     # -----------------------------------------------------
     if n_jobs == 1:
         for args in trial_args:
-            r = _safe_run_trial((worker_fn, args))
+            r = safe_run_trial((worker_fn, args))
             results.append(r)
 
             tid = r.get("trial_id")
@@ -183,11 +145,21 @@ def orchestrate_trials(
     # Multiprocessing mode
     # -----------------------------------------------------
     else:
-        ctx = mp.get_context("spawn")
-        with ctx.Pool(processes=n_jobs) as pool:
-            payloads = [(worker_fn, args) for args in trial_args]
-            for r in pool.imap_unordered(_safe_run_trial, payloads):
+        with ProcessPoolExecutor(max_workers=n_jobs) as executor:
+            futures = [executor.submit(safe_run_trial, (worker_fn, args)) for args in trial_args]
+
+            for future in as_completed(futures):
+                try:
+                    r = future.result(timeout=300)
+                except Exception as e:
+                    r = {
+                        "trial_id": None,
+                        "status": "crashed",
+                        "error": str(e),
+                    }
+
                 results.append(r)
+
                 tid = r.get("trial_id")
                 if progress_file is not None and tid is not None:
                     status = r.get("status", "unknown")
@@ -216,7 +188,13 @@ def orchestrate_trials(
                 logger.error("\n--- Trial Failure Detail ---\n{}\n", err)
 
     if results is not None:
-        results.sort(key=lambda r: r["trial_id"])
+        expected = len(trial_ids)
+        actual = len(results)
+
+        if actual != expected:
+            logger.error("{} - Expected {} results, got {}", job_id, expected, actual)
+
+        results.sort(key=lambda r: (r.get("trial_id") is None, r.get("trial_id")))
     return results
 
 
@@ -273,6 +251,9 @@ def run_hydra_job(cfg: DictConfig):
         mode = "UNIT_TEST"
 
     overrides = hydra_overrides_to_dict(raw_overrides)
+    overrides.setdefault("runtime", {})
+    overrides["runtime"]["worker_timeout"] = int(cfg.runtime.worker_timeout)
+
     clean_overrides = normalize_case_file_overrides(raw_overrides)
 
     logger.debug("{} - overrides: {}", job_id, " ".join(clean_overrides))
@@ -294,7 +275,20 @@ def run_hydra_job(cfg: DictConfig):
     )
 
     trial_cfg = cfg.trial
-    n_jobs = int(trial_cfg.n_jobs)
+    trial_jobs = int(trial_cfg.n_jobs)
+
+    try:
+        hc = HydraConfig.get()
+        launcher_cfg = getattr(hc, "launcher", None)
+        run_jobs = int(getattr(launcher_cfg, "n_jobs", 1))
+    except Exception:
+        # --------------------------------------------------
+        # Fallback for tests / non-Hydra execution
+        # --------------------------------------------------
+        run_jobs = int(cfg.get("hydra", {}).get("launcher", {}).get("n_jobs", 1))
+
+    if trial_jobs > 1 and run_jobs > 1:
+        raise RuntimeError("Invalid configuration: cannot parallelize both trials and runs.")
 
     trial_id_override = _extract_trial_override(overrides, "id")
     trial_count_override = _extract_trial_override(overrides, "count", default=int(trial_cfg.count))
@@ -313,7 +307,7 @@ def run_hydra_job(cfg: DictConfig):
         master_seed=master_seed,
         trial_ids=trial_ids,
         use_trial_seeds=use_trial_seeds,
-        n_jobs=n_jobs,
+        n_jobs=trial_jobs,
         case_file=case_file,
         overrides=overrides,
         run_dir=run_dir,

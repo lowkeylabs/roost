@@ -29,6 +29,9 @@ def normalize_timestamp(ts) -> str:
 def normalize_failure(run_status: dict) -> dict:
     detail = (run_status.get("failure_detail") or "").lower()
 
+    # Ensure subtype exists
+    run_status.setdefault("failure_subtype", None)
+
     # --------------------------------------------------
     # Solver crash (native / memory)
     # --------------------------------------------------
@@ -41,14 +44,17 @@ def normalize_failure(run_status: dict) -> dict:
         }
 
     # --------------------------------------------------
-    # Worker crash (subprocess died)
+    # Pass-through for worker-level classifications
     # --------------------------------------------------
-    if run_status.get("failure_category") == "worker_crash":
-        return {
-            "status": "failed",
-            "failure_category": "worker_crash",
-            "failure_detail": "worker process crashed",
-        }
+    if run_status.get("failure_category") in {
+        "worker_crash",
+        "input_error",
+        "hard_crash",
+        "empty_output",
+        "invalid_output",
+        "timeout",
+    }:
+        return run_status
 
     return run_status
 
@@ -57,7 +63,8 @@ def normalize_failure(run_status: dict) -> dict:
 # RUN STATUS
 # =========================================================
 def classify_run_status_from_plan(plan) -> dict:
-    case_status = (plan.caseStatus or "").lower()
+    case_status_raw = plan.caseStatus or ""
+    case_status = case_status_raw.lower().strip()
 
     # --------------------------------------------------
     # SOLVED
@@ -66,40 +73,45 @@ def classify_run_status_from_plan(plan) -> dict:
         return {
             "status": "solved",
             "failure_category": None,
+            "failure_subtype": None,
             "failure_detail": None,
         }
 
     # --------------------------------------------------
     # Known OWL statuses
     # --------------------------------------------------
-    if "no feasible" in case_status:
+
+    # No feasible / infeasible
+    if "no feasible" in case_status or "infeasible" in case_status:
         return {
             "status": "failed",
             "failure_category": "no_feasible_solution",
+            "failure_subtype": "infeasible",
             "failure_detail": "no feasible solution",
         }
 
-    if "infeasible" in case_status:
-        return {
-            "status": "failed",
-            "failure_category": "no_feasible_solution",
-            "failure_detail": "infeasible",
-        }
-
+    # Solver timeout
     if "timeout" in case_status:
         return {
             "status": "failed",
             "failure_category": "timeout",
+            "failure_subtype": "solver_timeout",
             "failure_detail": "solver timeout",
         }
 
     # --------------------------------------------------
-    # Fallback
+    # Unknown / fallback
     # --------------------------------------------------
+    # Preserve original text (not lowercased) for readability
+    detail = case_status_raw.strip()
+    if not detail:
+        detail = "unknown"
+
     return {
         "status": "failed",
         "failure_category": "unknown",
-        "failure_detail": case_status[:120],  # truncate noise
+        "failure_subtype": None,
+        "failure_detail": detail[:120],  # truncate noise
     }
 
 
@@ -1043,6 +1055,38 @@ def risk_from_plan(plan) -> dict:
     }
 
 
+def social_security_from_plan(plan) -> dict:
+    try:
+        # --------------------------------------------
+        # Mode (raw from plan)
+        # --------------------------------------------
+        optimized = plan._ssa_lp
+
+        # --------------------------------------------
+        # Optimized ages (actual result)
+        # --------------------------------------------
+        optimized_ages = None
+        if hasattr(plan, "ssecAges") and plan.ssecAges is not None:
+            try:
+                optimized_ages = [float(x) for x in plan.ssecAges]
+            except Exception:
+                optimized_ages = None
+
+        # --------------------------------------------
+        # Return
+        # --------------------------------------------
+        return {
+            "optimized": optimized,
+            "ages": optimized_ages,
+        }
+
+    except Exception:
+        return {
+            "optimized": None,
+            "ages": None,
+        }
+
+
 # =========================================================
 # SCORING
 # =========================================================
@@ -1085,7 +1129,7 @@ def score_trial(metrics: dict) -> dict:
 # =========================================================
 # WRITE JSON
 # =========================================================
-def write_metrics_json(plan, metrics_path: Path, timing: dict) -> Path:
+def write_metrics_json(plan, metrics_path: Path, timing: dict, failure_override=None) -> Path:
     def safe_call(fn, default):
         try:
             return fn(plan)
@@ -1103,14 +1147,20 @@ def write_metrics_json(plan, metrics_path: Path, timing: dict) -> Path:
         schema = "roost.metrics.v2"
 
         identity = identity_from_plan(plan)
-        raw_status = classify_run_status_from_plan(plan)
-        run_status = normalize_failure(raw_status)
+
+        if failure_override:
+            run_status = normalize_failure(failure_override)
+        else:
+            raw_status = classify_run_status_from_plan(plan)
+            run_status = normalize_failure(raw_status)
+
         if run_status.get("failure_detail"):
             run_status["failure_detail"] = run_status["failure_detail"].split("\n")[0][:120]
 
         financial = safe_call(financials_from_plan, {})
         risk = safe_call(risk_from_plan, {})
         complexity = safe_call(complexity_from_plan, {})
+        social_security = safe_call(social_security_from_plan, {})
 
         score = score_trial({"risk": risk, "financial": financial})
 
@@ -1123,6 +1173,7 @@ def write_metrics_json(plan, metrics_path: Path, timing: dict) -> Path:
             "financial": financial,
             "risk": risk,
             "complexity": complexity,
+            "social_security": social_security,
             "score": score,
         }
 
@@ -1143,9 +1194,12 @@ def write_metrics_json(plan, metrics_path: Path, timing: dict) -> Path:
     # --------------------------------------------------
     # 🔥 NORMALIZE STRUCTURE HERE (CRITICAL)
     # --------------------------------------------------
-    status = output_json.get("run_status", {}).get("status", "unknown")
+    run_status_obj = output_json.get("run_status", {})
+    status = run_status_obj.get("status", "unknown")
+
     output_json = ensure_complete_metrics(output_json, status)
-    if run_status["status"] != "solved":
+
+    if status != "solved":
         fin = output_json.setdefault("financial", {})
 
         fin["valid"] = False
