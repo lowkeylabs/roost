@@ -115,6 +115,15 @@ def aggregate_rows(rows: list[dict]) -> dict:
         if len(values) == 1:
             summary[key] = next(iter(values))
 
+    # =====================================================
+    # FORCE CONTEXT PROPAGATION (CRITICAL FIX)
+    # =====================================================
+
+    # Preserve _inputs and _ctx from first row (they are invariant by design)
+    for key in ["_inputs", "_ctx"]:
+        if key in rows[0]:
+            summary[key] = rows[0][key]
+
     return summary
 
 

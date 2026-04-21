@@ -13,6 +13,7 @@ from threading import Thread
 import click
 from loguru import logger
 from owlplanner.rate_models.loader import _collect_all_model_metadata
+from rich.console import Console
 
 from owlroost.cli.utils import (
     find_case_files,
@@ -23,6 +24,7 @@ from owlroost.cli.utils import (
     resolve_case_selector,
 )
 from owlroost.core.progress import get_total_runs_from_overrides, monitor_progress, read_progress
+from owlroost.core.progress_renderers import create_renderer
 
 CONF_DIR = Path(__file__).parents[1] / "conf"
 
@@ -231,10 +233,15 @@ def start_progress_monitor(run_root: Path, total_trials: int):
     # --------------------------------------------------
     # Start monitor
     # --------------------------------------------------
+
+    console = Console()
+
+    renderer = create_renderer("rich", console, "Running trials")
+
     monitor_thread = Thread(
         target=monitor_progress,
         args=(progress_file, total_trials, None),
-        daemon=False,
+        kwargs={"renderer": renderer},
     )
     monitor_thread.start()
 

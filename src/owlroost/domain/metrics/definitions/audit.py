@@ -9,13 +9,13 @@ from ..metric_spec import MetricSpec
 # ---------------------------------------------------------
 
 
-def _trials(row):
-    return row.get("trial_summaries") or []
+def _trials(r):
+    return (r.get("_ctx") or {}).get("trial_rows") or []
 
 
 def _trial_total(r):
-    # 🔥 unified source of truth for denominator
-    return r.get("trials") or r.get("trials_cnt") or len(_trials(r)) or 0
+    trials = _trials(r)
+    return len(trials)
 
 
 def _is_solved(t):
@@ -23,7 +23,7 @@ def _is_solved(t):
 
 
 def _is_failed(t):
-    return (t.get("status") or "").lower() == "failed"
+    return (t.get("status") or "").lower() in ("failed", "crashed", "timeout")
 
 
 def _cat(t):
@@ -75,7 +75,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="error_total",
-        label="Total Error",
+        label="Total\nErrors",
         dtype=int,
         compute_level="run",
         compute_fn=lambda r: sum(1 for t in _trials(r) if _is_failed(t)),
@@ -112,7 +112,9 @@ register_metric(
         dtype=float,
         compute_level="run",
         fmt="percent",
-        compute_fn=lambda r: (len(_trials(r)) / _trial_total(r) if _trial_total(r) else 0),
+        compute_fn=lambda r: (
+            sum(1 for t in _trials(r) if _is_solved(t)) / len(_trials(r)) if _trials(r) else 0
+        ),
         description="Fraction of expected trials that completed.",
         value_series_fn=wrap_value_fn(lambda v, _: f"{v:.0%} complete"),
     )
@@ -275,6 +277,58 @@ register_metric(
         value_series_fn=wrap_value_fn(lambda v, *_: f"{v}s" if isinstance(v, int) else (v or "-")),
         display_row_fn=lambda v, *_: (
             f"{v}s" if isinstance(v, int) else (v if isinstance(v, str) else "-")
+        ),
+    )
+)
+
+# ---------------------------------------------------------
+# ELAPSED TIME (SECONDS)
+# ---------------------------------------------------------
+
+register_metric(
+    MetricSpec(
+        key="elapsed_seconds",
+        path="timing.elapsed_seconds",
+        label="Time (s)",
+        fmt="float2",
+        dtype=float,
+        compute_level="trial",
+        aggregates=["median", "p10", "p90", "p99"],
+        description="Elapsed solve time per trial (seconds). Aggregated across trials.",
+    )
+)
+
+# ---------------------------------------------------------
+# MAX TIME (EXCLUDING TIMEOUTS)
+# ---------------------------------------------------------
+
+
+def _elapsed_non_timeout(r):
+    vals = []
+
+    for t in (r.get("_ctx") or {}).get("trial_rows") or []:
+        if (t.get("failure_category") or "") == "timeout":
+            continue
+
+        v = t.get("elapsed_seconds")
+
+        if isinstance(v, (int, float)):
+            vals.append(v)
+
+    return max(vals) if vals else None
+
+
+register_metric(
+    MetricSpec(
+        key="elapsed_max_nt",
+        label="Max Time NT (s)",
+        dtype=float,
+        compute_level="run",
+        fmt="float2",
+        compute_fn=_elapsed_non_timeout,
+        description="Maximum trial elapsed time excluding timeouts.",
+        value_series_fn=wrap_value_fn(
+            lambda v, _: f"{v:.1f}s" if isinstance(v, (int, float)) else "-"
         ),
     )
 )

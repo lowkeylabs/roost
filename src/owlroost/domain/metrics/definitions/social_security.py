@@ -112,6 +112,19 @@ register_metric(
     )
 )
 
+
+def compute_opt_ss(r):
+    trials = (r.get("_ctx") or {}).get("trial_rows") or []
+
+    for t in trials:
+        mode = t.get("_inputs", {}).get("solver_options", {}).get("withSSAges")
+
+        if mode not in (None, "fixed", "none", False):
+            return 1
+
+    return 0
+
+
 register_metric(
     MetricSpec(
         key="is_ss_experiment",
@@ -119,14 +132,7 @@ register_metric(
         dtype=int,
         compute_level="run",
         is_invariant=True,
-        compute_fn=lambda r: (
-            1
-            if (
-                (r.get("_inputs", {}).get("solver_options", {}).get("withSSAges"))
-                not in (None, "fixed", "none")
-            )
-            else 0
-        ),
+        compute_fn=lambda r: compute_opt_ss(r),
         display_row_fn=lambda v, *_: "Yes" if v == 1 else "-",
         description=(
             "Indicates whether Social Security claiming ages are being optimized "

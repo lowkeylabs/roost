@@ -4,7 +4,6 @@ import time
 from pathlib import Path
 
 from omegaconf import OmegaConf
-from tqdm import tqdm
 
 
 # --------------------------------------------------
@@ -58,68 +57,49 @@ def read_progress(progress_file: Path) -> int:
 # --------------------------------------------------
 # Monitor (tqdm)
 # --------------------------------------------------
+
+
 def monitor_progress(
     progress_file: Path,
     total: int,
     stop_event=None,
     poll_interval: float = 0.2,
+    renderer=None,
 ):
+    if renderer is None:
+        raise ValueError("monitor_progress requires a renderer")
+
     last_val = 0
 
     try:
-        with tqdm(
-            total=total,
-            desc="Total Progress",
-            unit="trial",
-            dynamic_ncols=True,
-            smoothing=0.1,
-        ) as pbar:
-            while True:
-                # -----------------------------------------
-                # Optional stop signal (safe if None)
-                # -----------------------------------------
-                if stop_event is not None and stop_event.is_set():
-                    break
+        renderer.start(total)
 
-                val = read_progress(progress_file)
+        while True:
+            if stop_event is not None and stop_event.is_set():
+                break
 
-                # -----------------------------------------
-                # Completion condition
-                # -----------------------------------------
-                if val >= total:
-                    pbar.update(val - pbar.n)
-                    break
+            val = read_progress(progress_file)
 
-                # -----------------------------------------
-                # Incremental update
-                # -----------------------------------------
-                delta = val - last_val
-                if delta > 0:
-                    pbar.update(delta)
-                    last_val = val
+            if val >= total:
+                renderer.advance(val - last_val, val, total)
+                break
 
-                # -----------------------------------------
-                # Throughput display
-                # -----------------------------------------
-                elapsed = pbar.format_dict.get("elapsed", 0) or 0
-                rate = val / elapsed if elapsed > 0 else 0
+            delta = val - last_val
+            if delta > 0:
+                renderer.advance(delta, val, total)
+                last_val = val
 
-                pbar.set_postfix_str(f"{val}/{total} | {rate:.1f} t/s")
+            time.sleep(poll_interval)
 
-                time.sleep(poll_interval)
-
-            # -----------------------------------------
-            # Final flush (guarantee 100%)
-            # -----------------------------------------
-            final_val = read_progress(progress_file)
-            if final_val > pbar.n:
-                pbar.update(final_val - pbar.n)
-
-            # Force clean final state display
-            pbar.set_postfix_str(f"{total}/{total} | complete")
+        # final flush
+        final_val = read_progress(progress_file)
+        if final_val > last_val:
+            renderer.advance(final_val - last_val, final_val, total)
 
     except KeyboardInterrupt:
         pass
+    finally:
+        renderer.finish()
 
 
 def get_total_runs_from_overrides(raw_overrides: list[str]) -> int:

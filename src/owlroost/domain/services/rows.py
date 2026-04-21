@@ -10,6 +10,11 @@ from owlroost.domain.services.metrics import build_trial_row
 # =========================================================
 
 
+def _trial_rows(row):
+    ctx = row.get("_ctx") or {}
+    return ctx.get("trial_rows") or []
+
+
 def _invariant_value(trial_rows, key_path):
     values = []
 
@@ -48,31 +53,30 @@ def build_run_rows(experiments):
             if not trial_rows:
                 continue
 
-            summary = aggregate_rows(trial_rows)
+            summary = {"_ctx": {"trial_rows": trial_rows}}
+            summary.update(aggregate_rows(trial_rows))
 
             summary["worker_timeout"] = _invariant_value(
                 trial_rows,
                 ["_inputs", "roost", "worker_timeout"],
             )
 
-            trial_summaries = [
-                {
-                    "trial_id": r.get("trial_id"),
-                    "status": r.get("status"),
-                    "failure_category": r.get("failure_category"),
-                    "failure_subtype": r.get("failure_subtype"),
-                    "_inputs": r.get("_inputs"),  # 🔥 REQUIRED
-                }
-                for r in trial_rows
-            ]
-
-            summary["trial_summaries"] = trial_summaries
-
             # -------------------------------------------------
             # Carry forward non-aggregated fields (robust)
             # -------------------------------------------------
             for k in trial_rows[0].keys():
                 if k in summary:
+                    continue
+
+                # 🔥 skip internal + metric namespace
+                if k.startswith("_"):
+                    continue
+
+                # 🔥 skip known computed metric keys
+                if k in METRIC_REGISTRY:
+                    continue
+
+                if isinstance(trial_rows[0].get(k), dict):
                     continue
 
                 vals = [r.get(k) for r in trial_rows if r.get(k) not in (None, {}, [])]
@@ -98,8 +102,11 @@ def build_run_rows(experiments):
 
                 try:
                     summary[key] = spec.compute_fn(summary)
-                except Exception:
-                    summary[key] = None
+                except Exception as e:
+                    print(f"ERROR in metric '{key}':", e)
+                    raise
+            #                except Exception:
+            #                    summary[key] = None
 
             summary["_ref"] = {
                 "exp_index": exp_index,

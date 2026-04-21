@@ -1,7 +1,7 @@
-minimum_spending: 80.0
-acceptable_spending: "100%"
+essential_spending: 0
+lifestyle_spending: 0
 baseline_years: 3
 
 # include any other model defaults if present:
-max_years_below_acceptable: 5
-max_consecutive_years_below_acceptable: 5
+max_years_below_threshhold: 5
+max_consecutive_years_below_threshhold: 5

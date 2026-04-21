@@ -1,3 +1,4 @@
+# src/owlroost/domain/models/case.py
 import ast
 import os
 import re
@@ -100,122 +101,60 @@ def _get_input_baseline(case):
 
 
 def get_effective_spending_policy(case, baseline=None):
-    # ----------------------------------------
-    # Safety: no case
-    # ----------------------------------------
-    if case is None:
+    if case is None or case.spending_policy is None:
         return {
-            "minimum_spending": 0,
-            "acceptable_spending": 0,
+            "essential_spending": None,
+            "lifestyle_spending": None,
             "baseline_years": 3,
-            "max_years_below_acceptable": 5,
-            "max_consecutive_years_below_acceptable": 5,
+            "max_years_below_threshhold": 5,
+            "max_consecutive_years_below_threshhold": 5,
         }
 
     policy = case.spending_policy
 
     # ----------------------------------------
-    # Baseline resolution (CRITICAL FIX)
+    # Normalize sentinel (THE KEY STEP)
     # ----------------------------------------
-    # Use provided baseline FIRST (solution-derived)
-    if not isinstance(baseline, (int, float)) or not (baseline and baseline > 0):
-        try:
-            baseline = _get_input_baseline(case)
-        except Exception:
-            baseline = None
 
-    # Normalize invalid baseline → None
-    if not isinstance(baseline, (int, float)) or not (baseline and baseline > 0):
-        baseline = None
-
-    # ----------------------------------------
-    # No policy → defaults
-    # ----------------------------------------
-    if not policy:
-        if baseline is None:
-            return {
-                "minimum_spending": None,
-                "acceptable_spending": None,
-                "baseline_years": 3,
-                "max_years_below_acceptable": 5,
-                "max_consecutive_years_below_acceptable": 5,
-            }
-
-        return {
-            "minimum_spending": 0.7 * baseline,
-            "acceptable_spending": 1.0 * baseline,
-            "baseline_years": 3,
-            "max_years_below_acceptable": 5,
-            "max_consecutive_years_below_acceptable": 5,
-        }
-
-    # ----------------------------------------
-    # Resolve values (SAFE)
-    # ----------------------------------------
-    def safe_resolve(value):
-        if isinstance(value, str) and value.strip().endswith("%"):
-            if baseline is None:
-                return None
-            try:
-                pct = float(value.strip()[:-1]) / 100.0
-                return pct * baseline
-            except Exception:
-                return None
-
-        try:
-            return float(value)
-        except Exception:
+    def normalize(v):
+        if v in (None, 0):
             return None
+        return v
 
-    minimum = safe_resolve(policy.minimum_spending)
-    acceptable = safe_resolve(policy.acceptable_spending)
-
-    # ----------------------------------------
-    # Apply units normalization
-    # ----------------------------------------
-
-    # Only apply units if value came from numeric input (not %)
-    def maybe_apply_units(raw_value, resolved_value):
-        if isinstance(raw_value, str) and raw_value.strip().endswith("%"):
-            return resolved_value  # already dollars
-        return _apply_units(resolved_value, case)
-
-    minimum = maybe_apply_units(policy.minimum_spending, minimum)
-    acceptable = maybe_apply_units(policy.acceptable_spending, acceptable)
+    essential_raw = normalize(policy.essential_spending)
+    lifestyle_raw = normalize(policy.lifestyle_spending)
 
     # ----------------------------------------
-    # Fallback if parsing failed
+    # Validate type (no % allowed)
     # ----------------------------------------
-    if baseline is not None:
-        if minimum is None:
-            minimum = 0.7 * baseline
-        if acceptable is None:
-            acceptable = 1.0 * baseline
+
+    if isinstance(essential_raw, str):
+        raise ValueError("essential_spending must be numeric (no percentages)")
+
+    if isinstance(lifestyle_raw, str):
+        raise ValueError("lifestyle_spending must be numeric (no percentages)")
 
     # ----------------------------------------
-    # Final safety (prevent None propagation)
+    # Apply units ONLY if real values
     # ----------------------------------------
-    if minimum is None or acceptable is None:
-        return {
-            "minimum_spending": None,
-            "acceptable_spending": None,
-            "baseline_years": policy.baseline_years,
-            "max_years_below_acceptable": policy.max_years_below_acceptable,
-            "max_consecutive_years_below_acceptable": policy.max_consecutive_years_below_acceptable,
-        }
+
+    essential = _apply_units(essential_raw, case) if essential_raw is not None else None
+    lifestyle = _apply_units(lifestyle_raw, case) if lifestyle_raw is not None else None
 
     # ----------------------------------------
-    # Validation
+    # Enforce constraint (only if active)
     # ----------------------------------------
-    if acceptable < minimum:
-        acceptable = minimum  # soften instead of raising
+
+    if essential is not None and lifestyle is not None:
+        if lifestyle < essential:
+            raise ValueError("lifestyle_spending must be >= essential_spending")
 
     return {
-        "minimum_spending": float(minimum),
-        "acceptable_spending": float(acceptable),
+        "essential_spending": essential,
+        "lifestyle_spending": lifestyle,
         "baseline_years": policy.baseline_years,
-        "max_years_below_acceptable": policy.max_years_below_acceptable,
-        "max_consecutive_years_below_acceptable": policy.max_consecutive_years_below_acceptable,
+        "max_years_below_threshhold": policy.max_years_below_threshhold,
+        "max_consecutive_years_below_threshhold": policy.max_consecutive_years_below_threshhold,
     }
 
 
@@ -308,11 +247,11 @@ class RoostConfig(BaseModel):
 
 
 class SpendingPolicyConfig(BaseModel):
-    minimum_spending: float | int | None = 80.0
-    acceptable_spending: float | int | str = "100%"
+    essential_spending: float | int | None = None
+    lifestyle_spending: float | int | None = None
     baseline_years: int = 3
-    max_years_below_acceptable: int = 5
-    max_consecutive_years_below_acceptable: int = 5
+    max_years_below_threshhold: int = 5
+    max_consecutive_years_below_threshhold: int = 5
 
 
 class CacheConfig(BaseModel):

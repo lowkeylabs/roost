@@ -16,6 +16,7 @@ AGG_DEFAULT_FMT = {
     "max": None,
     "p10": None,
     "p90": None,
+    "p99": None,
 }
 
 
@@ -202,6 +203,16 @@ register_aggregation(
         + (f" based on {ctx.n_valid}/{ctx.n_total} observations" if ctx.n_total else "")
     ),
 )
+
+register_aggregation(
+    "p99",
+    lambda v: percentile(v, 99),
+    explain=lambda ctx: (
+        "99th percentile (upside outcome)"
+        + (f" based on {ctx.n_valid}/{ctx.n_total} observations" if ctx.n_total else "")
+    ),
+)
+
 
 register_aggregation(
     "ratio",

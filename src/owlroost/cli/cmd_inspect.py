@@ -1,3 +1,5 @@
+# src/owlroost/cli/cmd_inspect.py
+
 from __future__ import annotations
 
 import sys

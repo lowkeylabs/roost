@@ -57,7 +57,14 @@ def extract_row(data: dict, specs: list[MetricSpec], base_row: dict | None = Non
 
     row = dict(base_row) if base_row is not None else {}
     if data:
-        row.update(data)
+        for k, v in data.items():
+            if k in row:
+                # prefer structured data over scalar
+                if isinstance(v, dict) and not isinstance(row[k], dict):
+                    row[k] = v
+                continue
+
+            row[k] = v
 
     run_status = data.get("run_status", {}) if data else {}
 
@@ -73,6 +80,9 @@ def extract_row(data: dict, specs: list[MetricSpec], base_row: dict | None = Non
 
     if status == "failed" and not failure_category:
         row["failure_category"] = "unknown_failure"
+
+    # ensure path-based metrics come before compute_fn
+    specs = sorted(specs, key=lambda s: bool(s.compute_fn))
 
     for spec in specs:
         try:

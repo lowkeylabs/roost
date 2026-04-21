@@ -21,16 +21,12 @@ register_group(
     description="Optimization goals",
 )
 
-
 register_group(
     "core_outcomes_run",
     [
         ("spending_now", "median"),
         ("spending_total", "median"),
         ("bequest", "median"),
-        # ("taxes_total", "median", {"show_if": "is_pivot"}),
-        # ("bequest", "median", {"show_if": "is_pivot"}),
-        # ("ending_assets", "median",{"showif","is_pivot"}),
     ],
     description="Core financial outcomes aggregated at the run level",
 )
@@ -44,85 +40,57 @@ register_group(
         ("spending_survivor_ratio", "mean"),
         ("spending_final", "median"),
     ],
-    description="Spending levels across lifecycle phases (early vs late / survivor)",
+    description="Spending levels across lifecycle phases",
     default_opts={"show_if": "is_pivot"},
 )
 
 
-register_group(
-    "outcomes-remove",
-    [
-        ("spending_now", "median"),
-        ("spending_total", "median"),
-        ("bequest", "median"),
-    ],
-    description="Core financial outcomes (primary decision signals)",
-)
+# =========================================================
+# RISK GROUPS
+# =========================================================
 
 register_group(
-    "lifestyle-remove",
+    "lifestyle_spending_risk",
     [
-        "acceptable_spending",
-        ("spending_ratio_to_acceptable_min", "mean"),
-        ("years_below_acceptable", "mean"),
-        ("consecutive_years_below_acceptable", "mean"),
-        ("years_below_acceptable", "p90"),
-        ("consecutive_years_below_acceptable", "p90"),
-        ("spending_stress_flag", "ratio"),
+        "lifestyle_spending",
+        "lifestyle_spending_risk",
+        ("spending_ratio_to_lifestyle_min", "mean"),
+        ("spending_ratio_to_lifestyle_min", "p10"),
+        ("years_below_lifestyle", "mean"),
+        ("years_below_lifestyle", "p90"),
+        ("consecutive_years_below_lifestyle", "mean"),
+        ("consecutive_years_below_lifestyle", "p90"),
+        ("lifestyle_stress_flag", "ratio"),
     ],
-    description="Lifestyle quality relative to acceptable spending (adjusted for household size via xi_n)",
+    description="Risk of failing to maintain lifestyle spending.",
     default_opts={"show_if": "is_pivot"},
 )
 
 register_group(
-    "safety-remove",
+    "essential_spending_risk",
     [
-        "minimum_spending",
-        ("spending_ratio_to_minimum_min", "mean"),
-        ("years_below_minimum", "mean"),
-        ("consecutive_years_below_minimum", "mean"),
-        ("years_below_minimum", "p90"),
-        ("consecutive_years_below_minimum", "p90"),
-        ("floor_breach", "ratio"),
+        "essential_spending",
+        "essential_spending_risk",
+        ("spending_ratio_to_essential_min", "mean"),
+        ("spending_ratio_to_essential_min", "p10"),
+        ("years_below_essential", "mean"),
+        ("years_below_essential", "p90"),
+        ("consecutive_years_below_essential", "mean"),
+        ("consecutive_years_below_essential", "p90"),
+        ("essential_spending_breach", "ratio"),
     ],
-    description="Safety relative to users-input value of minimum spending.",
+    description="Risk of failing to meet essential spending.",
     default_opts={"show_if": "is_pivot"},
 )
 
 register_group(
-    "lifestyle_risk",
+    "depletion_risk",
     [
-        "acceptable_spending",
-        "lifestyle_risk",
-        ("spending_ratio_to_acceptable_min", "mean"),
-        ("spending_ratio_to_acceptable_min", "p10"),
-        ("years_below_acceptable", "mean"),
-        ("years_below_acceptable", "p90"),
-        ("consecutive_years_below_acceptable", "mean"),
-        ("consecutive_years_below_acceptable", "p90"),
-        ("spending_stress_flag", "ratio"),
-    ],
-    description="Risk of failing to maintain acceptable lifestyle spending.",
-    default_opts={"show_if": "is_pivot"},
-)
-
-register_group(
-    "survival_risk",
-    [
-        "minimum_spending",
-        "survival_risk",
-        ("spending_ratio_to_minimum_min", "mean"),
-        ("spending_ratio_to_minimum_min", "p10"),
-        ("years_below_minimum", "mean"),
-        ("years_below_minimum", "p90"),
-        ("consecutive_years_below_minimum", "mean"),
-        ("consecutive_years_below_minimum", "p90"),
-        ("floor_breach", "ratio"),
         ("depleted", "ratio"),
         ("min_cushion", "mean"),
         ("terminal_ratio", "mean"),
     ],
-    description="Risk of financial depletion or falling below minimum spending.",
+    description="Risk of asset depletion and end-of-horizon resilience.",
     default_opts={"show_if": "is_pivot"},
 )
 
@@ -136,12 +104,13 @@ register_group(
         "risk_signals",
         "risk_interpretation",
     ],
-    description="High-level risk summary combining scenario and outcome signals",
+    description="High-level risk summary",
     default_opts={"show_if": "is_pivot"},
 )
 
+
 # =========================================================
-# SPENDING — TARGET (Goal Performance)
+# SPENDING — TARGET PERFORMANCE
 # =========================================================
 
 register_group(
@@ -159,46 +128,50 @@ register_group(
         ("required_slack", "mean"),
         ("required_slack", "p90"),
     ],
-    description="Performance relative to target spending",
-)
-
-# =========================================================
-# SPENDING — ACCEPTABLE (Lifestyle Tolerance)
-# =========================================================
-
-register_group(
-    "acceptable_lifestyle",
-    [
-        "minimum_spending",
-        "acceptable_spending",
-        ("spending_ratio_to_acceptable_min", "mean", {"show_if": ["is_table", "is_pivot"]}),
-        ("years_below_acceptable", "mean"),
-        ("consecutive_years_below_acceptable", "mean"),
-        ("years_below_acceptable", "p90"),
-        ("consecutive_years_below_acceptable", "p90"),
-        ("spending_stress_flag", "count_ratio"),
-        ("spending_stress_flag", "ratio"),
-    ],
-    description="Behavior relative to acceptable lifestyle spending",
+    description="Performance relative to baseline spending",
     default_opts={"show_if": "is_pivot"},
 )
 
+
 # =========================================================
-# SPENDING — MINIMUM (Floor Safety)
+# SPENDING — LIFESTYLE
 # =========================================================
 
 register_group(
-    "minimum_safety-remove",
+    "lifestyle_spending",
     [
-        ("spending_ratio_to_minimum_min", "mean", {"show_if": ["is_table", "is_pivot"]}),
-        ("years_below_minimum", "mean"),
-        ("years_below_minimum", "p90"),
-        ("floor_breach", "count_ratio"),
-        ("floor_breach", "ratio"),
+        "essential_spending",
+        "lifestyle_spending_input",
+        ("spending_ratio_to_lifestyle_min", "mean"),
+        ("years_below_lifestyle", "mean"),
+        ("consecutive_years_below_lifestyle", "mean"),
+        ("years_below_lifestyle", "p90"),
+        ("consecutive_years_below_lifestyle", "p90"),
+        ("lifestyle_stress_flag", "count_ratio"),
+        ("lifestyle_stress_flag", "ratio"),
     ],
-    description="Safety relative to minimum spending floor",
+    description="Behavior relative to lifestyle spending target",
     default_opts={"show_if": "is_pivot"},
 )
+
+
+# =========================================================
+# SPENDING — ESSENTIAL
+# =========================================================
+
+register_group(
+    "essential_spending",
+    [
+        ("spending_ratio_to_essential_min", "mean"),
+        ("years_below_essential", "mean"),
+        ("years_below_essential", "p90"),
+        ("essential_spending_breach", "count_ratio"),
+        ("essential_spending_breach", "ratio"),
+    ],
+    description="Safety relative to essential spending floor",
+    default_opts={"show_if": "is_pivot"},
+)
+
 
 # =========================================================
 # SPENDING — TRIAL DETAIL
@@ -208,15 +181,16 @@ register_group(
     "trial_spending_detail",
     [
         "spending_ratio_min",
-        "spending_ratio_to_acceptable_min",
-        "spending_ratio_to_minimum_min",
+        "spending_ratio_to_lifestyle_min",
+        "spending_ratio_to_essential_min",
         "years_under_target",
-        "years_below_acceptable",
-        "years_below_minimum",
-        "spending_stress_flag",
+        "years_below_lifestyle",
+        "years_below_essential",
+        "lifestyle_stress_flag",
     ],
     description="Detailed per-trial spending stress metrics",
 )
+
 
 # =========================================================
 # PORTFOLIO RISK
@@ -231,7 +205,8 @@ register_group(
         ("terminal_ratio", "mean"),
         ("terminal_assets_to_spending", "mean"),
     ],
-    description="Asset-based risk and sustainability metrics",
+    description="Asset-based risk metrics",
+    default_opts={"show_if": "is_pivot"},
 )
 
 register_group(
@@ -243,7 +218,9 @@ register_group(
         "terminal_assets_to_spending",
     ],
     description="Per-trial asset-based risk metrics",
+    default_opts={"show_if": "is_pivot"},
 )
+
 
 # =========================================================
 # FEASIBILITY
@@ -257,6 +234,7 @@ register_group(
     ],
     description="Solver feasibility and failure rates",
 )
+
 
 # =========================================================
 # STRUCTURE / CONTEXT
@@ -272,16 +250,16 @@ register_group(
         "run",
         ("trial", "cnt", {"show_if": ["is_table", "is_pivot"]}),
     ],
-    description="Run identify info",
+    description="Run identity info",
     default_opts={"show_if": "is_pivot"},
 )
 
 register_group(
     "run_structure",
     [
-        ("rates", {"show_if": "is_table"}),
-        "rates_method",
-        "rates_values",
+        ("input_rates", {"show_if": "is_table"}),
+        "input_rates_method",
+        "input_rates_values",
     ],
     description="Key solver parameters",
     default_opts={"show_if": "is_pivot"},
@@ -290,9 +268,7 @@ register_group(
 register_group(
     "overrides",
     [
-        # ("run_profile", {"show_if": ["is_pivot", "is_table"]}),
         ("run_variation_profile", {"show_if": ["is_pivot", "is_table"]}),
-        # ("run_scenario_profile", {"show_if": ["is_pivot", "is_table"]}),
         "run_specific_overrides",
         "common_overrides",
     ],
@@ -301,85 +277,15 @@ register_group(
 )
 
 # =========================================================
-# RUN DASHBOARD PROFILE
+# SOCIAL SECURITY
 # =========================================================
-
-# =========================================================
-# RUN DASHBOARD — PROFILE FLAGS (PIVOT)
-# =========================================================
-
-register_group(
-    "run_profile_flags",
-    [
-        "is_ss_experiment",
-        "is_spending_slack",
-        "is_sor_experiment",
-        "is_roth_strategy",
-        "has_overrides",
-    ],
-    description="Detailed run classification flags (pivot only)",
-)
-
-
-# =========================================================
-# RUN DASHBOARD — CORE (TABLE-FIRST SIGNALS)
-# =========================================================
-
-register_group(
-    "run_dashboard_core",
-    [
-        "run_profile",
-        "bad_run_flag",
-        "needs_attention",
-        ("solver_fail", "pct"),
-        ("spending_annual", "median"),
-        ("spending_ratio_min", "mean"),
-    ],
-    description="Minimal decision signals for run triage (table view)",
-)
-
-# =========================================================
-# RUN DASHBOARD — OUTCOMES (PIVOT)
-# =========================================================
-
-register_group(
-    "run_outcomes_pivot",
-    [
-        ("ending_assets", "median"),
-        ("bequest", "median"),
-    ],
-    description="Expanded financial outcomes for pivot comparison",
-)
-
-# =========================================================
-# RUN DASHBOARD — RISK (PIVOT)
-# =========================================================
-
-register_group(
-    "run_risk_pivot",
-    [
-        "overall_risk",
-        "outcome_risk",
-        ("depleted", "ratio"),
-        ("floor_breach", "ratio"),
-        ("scenario_severity", "mean"),
-        ("min_cushion", "mean"),
-        ("terminal_ratio", "mean"),
-    ],
-    description="Risk summary and edge-of-failure indicators",
-    default_opts={"show_if": "is_pivot"},
-)
-
 
 register_group(
     "social_security",
     [
-        # --- input (invariant) ---
-        ("ss_input_p1"),
-        ("ss_input_p2"),
-        # --- whether optimized ---
-        ("is_ss_experiment"),
-        # --- optimized outcomes (distribution) ---
+        "ss_input_p1",
+        "ss_input_p2",
+        "is_ss_experiment",
         ("ss_age_p1", "median"),
         ("ss_age_p1", "p10"),
         ("ss_age_p1", "p90"),
@@ -387,32 +293,131 @@ register_group(
         ("ss_age_p2", "p10"),
         ("ss_age_p2", "p90"),
     ],
-    description=(
-        "Social Security claiming strategy. "
-        "Includes input ages (fixed per run), whether optimization is enabled, "
-        "and the distribution of optimized claiming ages across trials."
-    ),
+    description="Social Security claiming strategy and optimization outcomes.",
+    default_opts={"show_if": "is_pivot"},
+)
+
+
+# =========================================================
+# RATE ENVIRONMENT (ALIGNED WITH rates.py)
+# =========================================================
+
+register_group(
+    "rates_characterization",
+    [
+        ("real_return", "median"),
+        ("real_return_std", "median"),
+        ("inflation_avg", "median"),
+    ],
+    description="Full-horizon real return, volatility, and inflation.",
     default_opts={"show_if": "is_pivot"},
 )
 
 register_group(
+    "rates_input",
+    [
+        "input_rates_method",
+        "input_rates_values",
+    ],
+    description="Rate generation method and inputs.",
+    default_opts={"show_if": "is_pivot"},
+)
+
+register_group(
+    "rates_early",
+    [
+        ("early_real_cagr", "median"),
+        ("early_real_cagr", "p10"),
+        ("early_real_mean", "median"),
+        ("early_min_year", "median"),
+    ],
+    description="Early sequence-of-returns characteristics.",
+    default_opts={"show_if": "is_pivot"},
+)
+
+register_group(
+    "rates_full",
+    [
+        ("real_return", "median"),
+        ("real_return", "p10"),
+        ("real_return_std", "median"),
+        ("inflation_avg", "median"),
+    ],
+    description="Full-horizon return characteristics.",
+    default_opts={"show_if": "is_pivot"},
+)
+
+register_group(
+    "rates_cross",
+    [
+        ("early_vs_full_real_gap", "median"),
+        ("early_vs_full_real_gap", "p10"),
+    ],
+    description="Comparison between early-period and full-horizon returns.",
+    default_opts={"show_if": "is_pivot"},
+)
+
+register_group(
+    "rates_regime_summary",
+    [
+        "dominant_rate_regime",
+    ],
+    description="Dominant economic regime classification.",
+    default_opts={"show_if": "is_pivot"},
+)
+
+register_group(
+    "rates_regime_distribution",
+    [
+        "regime_stagflation_pct",
+        "regime_deflation_pct",
+        "regime_moderate_pct",
+        "regime_goldilocks_pct",
+        "regime_inflation_boom_pct",
+    ],
+    description="Distribution of economic regimes across trials.",
+    default_opts={"show_if": "is_pivot"},
+)
+
+
+# =========================================================
+# AUDIT
+# =========================================================
+
+register_group(
     "audit",
     [
-        # --- Counts (core signal) ---
-        "solved_cnt",
-        "error_total",
-        "error_cnt",
-        "timeout_cnt",
-        # --- Rates ---
-        "error_rate",
-        "timeout_rate",
-        # --- Diagnostics ---
-        "trial_completeness",
-        ("failure_breakdown", {"show_if": "is_pivot"}),
-        ("worker_timeout", {"show_if": "is_pivot"}),
-        ("audit_flags", {"show_if": "is_pivot"}),
-        # Optional (debugging)
-        # "bad_trials",
+        ("trial", "cnt"),
+        ("solved_cnt", "sum"),
+        ("timeout_cnt", "sum"),
+        ("error_cnt", "sum"),
+        ("error_rate", "mean"),
+        ("timeout_rate", "mean"),
+        ("trial_completeness", "mean"),
+        ("elapsed_seconds", "median"),
+        ("elapsed_seconds", "p10"),
+        ("elapsed_seconds", "p90"),
     ],
-    description="Infrastructure audit metrics: outcomes, rates, and failure diagnostics.",
+    description="Execution audit including completeness, failures, and timing.",
+)
+
+# =========================================================
+# DECISION GUIDANCE
+# =========================================================
+
+register_group(
+    "decision_guidance",
+    [
+        "overall_risk",
+        "risk_signals",
+        "risk_interpretation",
+        ("essential_spending_risk", {}),
+        ("lifestyle_spending_risk", {}),
+        ("depleted", "ratio"),
+    ],
+    description=(
+        "High-level guidance combining risk classification, signals, and key outcomes "
+        "to support retirement planning decisions."
+    ),
+    default_opts={"show_if": "is_pivot"},
 )

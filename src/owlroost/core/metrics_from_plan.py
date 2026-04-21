@@ -129,6 +129,7 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
     metrics.setdefault("financial", {})
     metrics.setdefault("risk", {})
     metrics.setdefault("run_status", {})
+    metrics.setdefault("rates", {})
 
     risk = metrics.setdefault("risk", {})
     risk_summary = risk.setdefault("summary", {})
@@ -272,23 +273,22 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
                 "years_under_target": horizon,
                 "shortfall": 1.0,
                 "required_slack": 1.0,
-                "min_ratio_to_minimum": 0.0,
-                "mean_ratio_to_minimum": 0.0,
-                "median_ratio_to_minimum": 0.0,
-                "years_below_minimum": horizon,
-                "floor_breach": 1,
-                "min_ratio_to_acceptable": 0.0,
-                "mean_ratio_to_acceptable": 0.0,
-                "median_ratio_to_acceptable": 0.0,
-                "years_below_acceptable": horizon,
-                "consecutive_years_below_acceptable": horizon,
-                "consecutive_years_below_minimum": horizon,
-                "years_between_min_and_target": 0,
-                "spending_stress_flag": 1,
+                "min_ratio_to_essential": 0.0,
+                "mean_ratio_to_essential": 0.0,
+                "median_ratio_to_essential": 0.0,
+                "years_below_essential": horizon,
+                "essential_spending_breach": 1,
+                "min_ratio_to_lifestyle": 0.0,
+                "mean_ratio_to_lifestyle": 0.0,
+                "median_ratio_to_lifestyle": 0.0,
+                "years_below_lifestyle": horizon,
+                "consecutive_years_below_lifestyle": horizon,
+                "consecutive_years_below_essential": horizon,
+                "years_between_essential_and_target": 0,
+                "lifestyle_stress_flag": 1,
             }
         )
     else:
-        # ONLY fill missing keys (CRITICAL FIX)
         defaults = {
             "min_ratio": None,
             "mean_ratio": None,
@@ -298,19 +298,19 @@ def ensure_complete_metrics(metrics: dict, status: str) -> dict:
             "years_under_target": None,
             "shortfall": None,
             "required_slack": None,
-            "min_ratio_to_minimum": None,
-            "mean_ratio_to_minimum": None,
-            "median_ratio_to_minimum": None,
-            "years_below_minimum": None,
-            "floor_breach": None,
-            "min_ratio_to_acceptable": None,
-            "mean_ratio_to_acceptable": None,
-            "median_ratio_to_acceptable": None,
-            "years_below_acceptable": None,
-            "consecutive_years_below_acceptable": None,
-            "consecutive_years_below_minimum": None,
-            "years_between_min_and_target": None,
-            "spending_stress_flag": None,
+            "min_ratio_to_essential": None,
+            "mean_ratio_to_essential": None,
+            "median_ratio_to_essential": None,
+            "years_below_essential": None,
+            "essential_spending_breach": None,
+            "min_ratio_to_lifestyle": None,
+            "mean_ratio_to_lifestyle": None,
+            "median_ratio_to_lifestyle": None,
+            "years_below_lifestyle": None,
+            "consecutive_years_below_lifestyle": None,
+            "consecutive_years_below_essential": None,
+            "years_between_essential_and_target": None,
+            "lifestyle_stress_flag": None,
         }
 
         for k, v in defaults.items():
@@ -429,12 +429,11 @@ def spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma):
             xi = xi[:N]
 
         # -------------------------------------------------
-        # Baseline (solution-derived, single source of truth)
+        # Baseline (solution-derived, still used for target ratio)
         # -------------------------------------------------
-        tracer = 2
+        tracer = "2"
         case = getattr(plan, "_case", None)
 
-        # Get baseline window from policy config (not resolved policy)
         k = 3
         if case and case.spending_policy:
             k = case.spending_policy.baseline_years
@@ -447,57 +446,38 @@ def spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma):
             baseline = None
 
         if not isinstance(baseline, (int, float)) or not np.isfinite(baseline) or baseline <= 0:
-            fallback = float(actual_today[0]) if len(actual_today) else 0.0
-
-            if not np.isfinite(fallback) or fallback <= 0:
-                fallback = 1.0  # absolute last-resort guard
-
-            baseline = fallback
-
-        assert isinstance(baseline, float) and np.isfinite(baseline)
+            fallback = float(actual_today[0]) if len(actual_today) else 1.0
+            baseline = fallback if np.isfinite(fallback) and fallback > 0 else 1.0
 
         # -------------------------------------------------
-        # Policy (uses SAME baseline)
+        # Policy (NEW MODEL)
         # -------------------------------------------------
-        tracer = 12
-        policy = get_effective_spending_policy(case, baseline=baseline)
+        tracer = "3"
+        policy = get_effective_spending_policy(case)
+
+        essential_spending = policy.get("essential_spending")
+        lifestyle_spending = policy.get("lifestyle_spending")
 
         # -------------------------------------------------
-        # Policy (force resolution)
+        # Clean xi
         # -------------------------------------------------
-        minimum_spending = policy.get("minimum_spending")
-        acceptable_spending = policy.get("acceptable_spending")
-
-        if not isinstance(minimum_spending, (int, float)) or not np.isfinite(minimum_spending):
-            minimum_spending = 0.7 * baseline
-
-        if not isinstance(acceptable_spending, (int, float)) or not np.isfinite(
-            acceptable_spending
-        ):
-            acceptable_spending = 1.0 * baseline
-
-        if acceptable_spending < minimum_spending:
-            acceptable_spending = minimum_spending
-
-        tracer = 4
-        # -------------------------------------------------
-        # Clean xi (critical fix)
-        # -------------------------------------------------
+        tracer = "4"
         xi = np.array(xi, dtype=float)
         xi = np.nan_to_num(xi, nan=1.0, posinf=1.0, neginf=1.0)
 
         # -------------------------------------------------
         # Expected spending
         # -------------------------------------------------
+        tracer = "5"
         expected_future = xi * baseline
 
-        acceptable_future = xi * acceptable_spending
-        minimum_future = xi * minimum_spending
+        lifestyle_future = xi * lifestyle_spending if lifestyle_spending is not None else None
+        essential_future = xi * essential_spending if essential_spending is not None else None
 
-        tracer = 5
         # -------------------------------------------------
         # Ratios
         # -------------------------------------------------
+        tracer = "6"
         with np.errstate(divide="ignore", invalid="ignore"):
             ratio = np.divide(
                 actual_future,
@@ -506,35 +486,52 @@ def spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma):
                 where=expected_future > 0,
             )
 
-            ratio_acc = np.divide(
-                actual_future,
-                acceptable_future,
-                out=np.zeros_like(actual_future),
-                where=acceptable_future > 0,
+            ratio_lifestyle = (
+                np.divide(
+                    actual_future,
+                    lifestyle_future,
+                    out=np.zeros_like(actual_future),
+                    where=lifestyle_future > 0,
+                )
+                if lifestyle_future is not None
+                else None
             )
 
-            ratio_min = np.divide(
-                actual_future,
-                minimum_future,
-                out=np.zeros_like(actual_future),
-                where=minimum_future > 0,
+            ratio_essential = (
+                np.divide(
+                    actual_future,
+                    essential_future,
+                    out=np.zeros_like(actual_future),
+                    where=essential_future > 0,
+                )
+                if essential_future is not None
+                else None
             )
 
-        tracer = 6
         # Clip for stability
         ratio = np.clip(ratio, 0.0, 2.0)
-        ratio_acc = np.clip(ratio_acc, 0.0, 2.0)
-        ratio_min = np.clip(ratio_min, 0.0, 2.0)
+
+        if ratio_lifestyle is not None:
+            ratio_lifestyle = np.clip(ratio_lifestyle, 0.0, 2.0)
+
+        if ratio_essential is not None:
+            ratio_essential = np.clip(ratio_essential, 0.0, 2.0)
 
         clean = ratio[np.isfinite(ratio)]
-        clean_acc = ratio_acc[np.isfinite(ratio_acc)]
-        clean_min = ratio_min[np.isfinite(ratio_min)]
 
-        tracer = 7
+        clean_lifestyle = (
+            ratio_lifestyle[np.isfinite(ratio_lifestyle)] if ratio_lifestyle is not None else []
+        )
+
+        clean_essential = (
+            ratio_essential[np.isfinite(ratio_essential)] if ratio_essential is not None else []
+        )
 
         # -------------------------------------------------
         # Helpers
         # -------------------------------------------------
+        tracer = "7"
+
         def safe_stats(arr):
             if len(arr):
                 return float(np.min(arr)), float(np.mean(arr)), float(np.median(arr))
@@ -553,30 +550,51 @@ def spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma):
         # -------------------------------------------------
         # Summary metrics
         # -------------------------------------------------
+        tracer = "8"
+
         min_ratio, mean_ratio, median_ratio = safe_stats(clean)
 
-        min_acc, mean_acc, median_acc = safe_stats(clean_acc)
-        min_min, mean_min, median_min = safe_stats(clean_min)
+        min_life, mean_life, median_life = safe_stats(clean_lifestyle)
+        min_ess, mean_ess, median_ess = safe_stats(clean_essential)
 
         years_under_target = int(np.sum(clean < 1.0)) if len(clean) else None
-        years_below_acceptable = int(np.sum(clean_acc < 1.0)) if len(clean_acc) else None
-        years_below_minimum = int(np.sum(clean_min < 1.0)) if len(clean_min) else None
 
-        consecutive_below_acceptable = max_consecutive_below(clean_acc) if len(clean_acc) else None
-        consecutive_below_minimum = max_consecutive_below(clean_min) if len(clean_min) else None
+        years_below_lifestyle = int(np.sum(clean_lifestyle < 1.0)) if len(clean_lifestyle) else None
+        years_below_essential = int(np.sum(clean_essential < 1.0)) if len(clean_essential) else None
 
-        tracer = 8
+        consecutive_below_lifestyle = (
+            max_consecutive_below(clean_lifestyle) if len(clean_lifestyle) else None
+        )
+        consecutive_below_essential = (
+            max_consecutive_below(clean_essential) if len(clean_essential) else None
+        )
 
         # -------------------------------------------------
-        # Flags
+        # Flags (respect None)
         # -------------------------------------------------
-        spending_stress_flag = 1 if years_below_acceptable and years_below_acceptable > 0 else 0
-        floor_breach = 1 if years_below_minimum and years_below_minimum > 0 else 0
+        tracer = "9"
 
-        tracer = 9
+        lifestyle_stress_flag = (
+            1
+            if (years_below_lifestyle is not None and years_below_lifestyle > 0)
+            else 0
+            if lifestyle_spending is not None
+            else None
+        )
+
+        essential_spending_breach = (
+            1
+            if (years_below_essential is not None and years_below_essential > 0)
+            else 0
+            if essential_spending is not None
+            else None
+        )
+
         # -------------------------------------------------
         # Return
         # -------------------------------------------------
+        tracer = "10"
+
         return {
             "baseline_valid": True,
             "baseline": {"annual_spending": float(baseline)},
@@ -585,28 +603,36 @@ def spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma):
                 "mean_ratio": mean_ratio,
                 "median_ratio": median_ratio,
                 "years_under_target": years_under_target,
-                "min_ratio_to_acceptable": min_acc,
-                "mean_ratio_to_acceptable": mean_acc,
-                "median_ratio_to_acceptable": median_acc,
-                "min_ratio_to_minimum": min_min,
-                "mean_ratio_to_minimum": mean_min,
-                "median_ratio_to_minimum": median_min,
-                "years_below_acceptable": years_below_acceptable,
-                "years_below_minimum": years_below_minimum,
-                "consecutive_years_below_acceptable": consecutive_below_acceptable,
-                "consecutive_years_below_minimum": consecutive_below_minimum,
-                "spending_stress_flag": spending_stress_flag,
-                "floor_breach": floor_breach,
+                "min_ratio_to_lifestyle": min_life,
+                "mean_ratio_to_lifestyle": mean_life,
+                "median_ratio_to_lifestyle": median_life,
+                "min_ratio_to_essential": min_ess,
+                "mean_ratio_to_essential": mean_ess,
+                "median_ratio_to_essential": median_ess,
+                "years_below_lifestyle": years_below_lifestyle,
+                "years_below_essential": years_below_essential,
+                "consecutive_years_below_lifestyle": consecutive_below_lifestyle,
+                "consecutive_years_below_essential": consecutive_below_essential,
+                "lifestyle_stress_flag": lifestyle_stress_flag,
+                "essential_spending_breach": essential_spending_breach,
             },
             "spending_policy": {
-                "minimum_spending": float(minimum_spending),
-                "acceptable_spending": float(acceptable_spending),
+                "essential_spending": float(essential_spending)
+                if essential_spending is not None
+                else None,
+                "lifestyle_spending": float(lifestyle_spending)
+                if lifestyle_spending is not None
+                else None,
             },
         }
 
     except Exception as e:
         logger.exception("spending_metrics_from_plan failed")
-        return {"baseline_valid": False, "spending_error_tracer": tracer, "spending_error": str(e)}
+        return {
+            "baseline_valid": False,
+            "spending_error_tracer": tracer,
+            "spending_error": str(e),
+        }
 
 
 def financials_from_plan(plan, N=None) -> dict:
@@ -1127,6 +1153,77 @@ def score_trial(metrics: dict) -> dict:
 
 
 # =========================================================
+# RATES
+# =========================================================
+
+
+def rates_from_plan(plan) -> dict:
+    try:
+        tau = plan.tau_kn
+
+        stock = np.asarray(tau[0], dtype=float)
+        bonds = np.asarray(tau[2], dtype=float)
+        inflation = np.asarray(tau[3], dtype=float)
+
+        if stock.size == 0 or inflation.size == 0:
+            return {"valid": False, "reason": "empty rates"}
+
+        N = min(len(stock), len(inflation))
+        stock = stock[:N]
+        bonds = bonds[:N]
+        inflation = inflation[:N]
+
+        # --------------------------------------------------
+        # Real returns
+        # --------------------------------------------------
+        real = (1 + stock) / (1 + inflation) - 1
+
+        # --------------------------------------------------
+        # Helpers
+        # --------------------------------------------------
+        def stats(arr):
+            return {
+                "mean": float(np.mean(arr)),
+                "std": float(np.std(arr)),
+                "min": float(np.min(arr)),
+                "max": float(np.max(arr)),
+            }
+
+        def geom_mean(arr):
+            return float(np.prod(1 + arr) ** (1 / len(arr)) - 1)
+
+        # --------------------------------------------------
+        # Early regime (7-year default)
+        # --------------------------------------------------
+        k = min(7, N)
+
+        early_real = real[:k]
+
+        early = {
+            "years": int(k),
+            "real_mean": float(np.mean(early_real)),
+            "real_cagr": geom_mean(early_real),
+            "min_year": float(np.min(early_real)),
+        }
+
+        # --------------------------------------------------
+        # Return
+        # --------------------------------------------------
+        return {
+            "valid": True,
+            "returns": stats(stock),
+            "bonds": stats(bonds),
+            "inflation": stats(inflation),
+            "real": stats(real),
+            "early": early,
+        }
+
+    except Exception as e:
+        logger.exception("rates_from_plan failed")
+        return {"valid": False, "reason": str(e)}
+
+
+# =========================================================
 # WRITE JSON
 # =========================================================
 def write_metrics_json(plan, metrics_path: Path, timing: dict, failure_override=None) -> Path:
@@ -1163,6 +1260,7 @@ def write_metrics_json(plan, metrics_path: Path, timing: dict, failure_override=
         social_security = safe_call(social_security_from_plan, {})
 
         score = score_trial({"risk": risk, "financial": financial})
+        rates = safe_call(rates_from_plan, {})
 
         output_json = {
             "schema": schema,
@@ -1174,6 +1272,7 @@ def write_metrics_json(plan, metrics_path: Path, timing: dict, failure_override=
             "risk": risk,
             "complexity": complexity,
             "social_security": social_security,
+            "rates": rates,
             "score": score,
         }
 
@@ -1188,6 +1287,7 @@ def write_metrics_json(plan, metrics_path: Path, timing: dict, failure_override=
             "timing": timing,
             "financial": {},
             "risk": {},
+            "rates": {},
             "complexity": {},
         }
 

@@ -8,6 +8,7 @@ from owlroost.version import __version__
 
 from .cmd_cases import cmd_cases
 from .cmd_inspect import cmd_inspect
+from .cmd_rerun import cmd_rerun
 from .cmd_results import cmd_results
 from .cmd_run import cmd_run
 from .cmd_summarize import cmd_summarize
@@ -75,6 +76,7 @@ cli.add_command(cmd_run)
 cli.add_command(cmd_results)
 cli.add_command(cmd_summarize)
 cli.add_command(cmd_inspect)
+cli.add_command(cmd_rerun)
 
 
 @cli.command()

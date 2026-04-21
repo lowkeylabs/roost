@@ -13,8 +13,8 @@ register_view(
         {"separator": "section", "label": "OUTCOMES"},
         ("group", "core_outcomes_trial"),
         {"separator": "section", "label": "SPENDING"},
-        ("minimum_spending", {"show_if": "is_pivot"}),
-        ("acceptable_spending", {"show_if": "is_pivot"}),
+        ("essential_spending", {"show_if": "is_pivot"}),
+        ("lifestyle_spending", {"show_if": "is_pivot"}),
         ("group", "trial_spending_detail"),
         {"separator": "section", "label": "RISK"},
         ("group", "portfolio_risk_trial"),
@@ -54,12 +54,31 @@ register_view(
         {"separator": "section", "label": "SOCIAL SECURITY"},
         ("group", "social_security"),
         # -------------------------------------------------
-        # RISK (NEW CLEAN STRUCTURE)
+        # RATE ENVIRONMENT
+        # -------------------------------------------------
+        {"separator": "section", "label": "RATE ENVIRONMENT"},
+        ("group", "rates_characterization"),
+        {"separator": "section"},
+        ("group", "rates_input"),
+        {"separator": "section"},
+        ("group", "rates_early"),
+        {"separator": "section"},
+        ("group", "rates_full"),
+        {"separator": "section"},
+        ("group", "rates_cross"),
+        {"separator": "section"},
+        ("group", "rates_regime_summary"),
+        {"separator": "section"},
+        ("group", "rates_regime_distribution"),
+        # -------------------------------------------------
+        # RISK (UPDATED STRUCTURE)
         # -------------------------------------------------
         {"separator": "section", "label": "LIFESTYLE RISK"},
-        ("group", "lifestyle_risk"),
-        {"separator": "section", "label": "SURVIVAL RISK"},
-        ("group", "survival_risk"),
+        ("group", "lifestyle_spending_risk"),
+        {"separator": "section", "label": "ESSENTIAL RISK"},
+        ("group", "essential_spending_risk"),
+        {"separator": "section", "label": "DEPLETION RISK"},
+        ("group", "depletion_risk"),
         {"separator": "section", "label": "RISK SUMMARY"},
         ("group", "risk_summary"),
     ],
@@ -75,29 +94,34 @@ register_view(
     "run",
     "audit",
     [
-        # -------------------------------------------------
-        # IDENTITY
-        # -------------------------------------------------
         ("group", "run_identity"),
-        #        ("group", "overrides"),
-        # -------------------------------------------------
-        # PROFILE / SETUP
-        # -------------------------------------------------
-        #        {"separator": "section", "label": "PROFILE"},
-        #        ("group", "goal"),
-        #        {"separator": "section", "label": "STRUCTURE"},
-        #        ("group", "run_structure"),
-        # -------------------------------------------------
-        # AUDIT
-        # -------------------------------------------------
         {"separator": "section", "label": "AUDIT"},
         ("group", "audit"),
-        # -------------------------------------------------
-        # OPTIONAL CONTEXT (light outcomes for reference)
-        # -------------------------------------------------
-        #        {"separator": "section", "label": "OUTCOMES (REFERENCE)"},
-        #        ("group", "core_outcomes_run"),
     ],
     description="Audit view focused on infrastructure performance, completeness, and failure diagnostics.",
     tags=["audit"],
+)
+
+
+# =========================================================
+# RUN VIEW — DECISIONS (SS + RATES + GUIDANCE)
+# =========================================================
+
+register_view(
+    "run",
+    "decisions",
+    [
+        ("group", "run_identity"),
+        {"separator": "section", "label": "SOCIAL SECURITY"},
+        ("group", "social_security"),
+        {"separator": "section", "label": "RATE ENVIRONMENT"},
+        ("group", "rates_characterization"),
+        {"separator": "section", "label": "DECISION GUIDANCE"},
+        ("group", "decision_guidance"),
+    ],
+    description=(
+        "Focused view of Social Security decisions under different rate environments. "
+        "Combines decision outputs, market conditions, and interpretation signals."
+    ),
+    tags=["decisions", "ss", "rates"],
 )

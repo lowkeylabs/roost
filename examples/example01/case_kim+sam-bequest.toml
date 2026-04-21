@@ -4,6 +4,7 @@ description = "Kim and Sam want to maximize the after-tax estate they leave to t
 [basic_info]
 status = "married"
 names = [ "Kim", "Sam",]
+sexes = [ "F", "M",]
 date_of_birth = [ "1964-01-15", "1965-01-15",]
 life_expectancy = [ 89, 93,]
 start_date = "2026-01-01"
@@ -75,18 +76,18 @@ health = [ "average", "average",]
 smoker = [ false, false,]
 
 [roost]
-master_seed = 1580490093
+master_seed = 361264523
 trials = 1
 
 [spending_policy]
-minimum_spending = 80.0
-acceptable_spending = 120.0
+essential_spending = 0
+lifestyle_spending = 0
 baseline_years = 3
-max_years_below_acceptable = 5
-max_consecutive_years_below_acceptable = 5
+max_years_below_threshhold = 5
+max_consecutive_years_below_threshhold = 5
 
 [cache]
-generated_at = "2026-04-12T16:34:45.459870"
+generated_at = "2026-04-21T11:31:31.793130"
 retirement_horizon = 0
 max_spending = 189121.07
 first_year_total_withdrawals = 218009.7

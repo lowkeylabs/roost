@@ -4,6 +4,7 @@ description = "Kim and Sam are a high-net-worth couple in their late fifties, op
 [basic_info]
 status = "married"
 names = [ "Kim", "Sam",]
+sexes = [ "F", "M",]
 date_of_birth = [ "1964-01-15", "1965-01-15",]
 life_expectancy = [ 89, 93,]
 start_date = "2026-01-01"
@@ -75,18 +76,18 @@ health = [ "average", "average",]
 smoker = [ false, false,]
 
 [roost]
-master_seed = 2550426222
+master_seed = 986524328
 trials = 1
 
 [spending_policy]
-minimum_spending = 80
-acceptable_spending = "100%"
+essential_spending = 0
+lifestyle_spending = 0
 baseline_years = 3
-max_years_below_acceptable = 5
-max_consecutive_years_below_acceptable = 5
+max_years_below_threshhold = 5
+max_consecutive_years_below_threshhold = 5
 
 [cache]
-generated_at = "2026-04-12T16:34:46.290998"
+generated_at = "2026-04-21T11:31:32.504084"
 retirement_horizon = 0
 max_spending = 189121.07
 first_year_total_withdrawals = 218009.7

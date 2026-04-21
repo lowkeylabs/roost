@@ -4,6 +4,7 @@ description = "Morgan is a 54-year-old single professional who retired in early 
 [basic_info]
 status = "single"
 names = [ "Morgan",]
+sexes = [ "F",]
 date_of_birth = [ "1972-01-15",]
 life_expectancy = [ 92,]
 start_date = "2026-01-01"
@@ -74,18 +75,18 @@ health = [ "average",]
 smoker = [ false,]
 
 [roost]
-master_seed = 3229518326
+master_seed = 2168914255
 trials = 1
 
 [spending_policy]
-minimum_spending = 50
-acceptable_spending = "100%"
+essential_spending = 0
+lifestyle_spending = 0
 baseline_years = 3
-max_years_below_acceptable = 5
-max_consecutive_years_below_acceptable = 5
+max_years_below_threshhold = 5
+max_consecutive_years_below_threshhold = 5
 
 [cache]
-generated_at = "2026-04-12T16:34:46.883586"
+generated_at = "2026-04-21T11:31:33.142584"
 retirement_horizon = 0
-max_spending = 44912.94
-first_year_total_withdrawals = 66730.85
+max_spending = 44914.95
+first_year_total_withdrawals = 66732.8

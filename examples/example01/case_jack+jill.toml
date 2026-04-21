@@ -6,6 +6,7 @@ status = "married"
 names = [ "Jack", "Jill",]
 date_of_birth = [ "1963-01-15", "1966-01-15",]
 life_expectancy = [ 89, 92,]
+sexes = [ "M", "F",]
 start_date = "2026-01-01"
 
 [savings_assets]
@@ -30,6 +31,7 @@ social_security_trim_pct = 0
 
 [rates_selection]
 heirs_rate_on_tax_deferred_estate = 30.0
+effective_tax_rate = 20.0
 dividend_rate = 1.7
 obbba_expiration_year = 2032
 method = "historical"
@@ -82,18 +84,18 @@ health = [ "average", "average",]
 smoker = [ false, false,]
 
 [roost]
-master_seed = 3100576351
+master_seed = 4278092647
 trials = 1
 
 [spending_policy]
-minimum_spending = 80
-acceptable_spending = "100%"
+essential_spending = 0
+lifestyle_spending = 0
 baseline_years = 3
-max_years_below_acceptable = 5
-max_consecutive_years_below_acceptable = 5
+max_years_below_threshhold = 5
+max_consecutive_years_below_threshhold = 5
 
 [cache]
-generated_at = "2026-04-12T16:34:43.074661"
+generated_at = "2026-04-21T11:31:29.578300"
 retirement_horizon = 3
 max_spending = 106277.43
 first_year_total_withdrawals = 0.0

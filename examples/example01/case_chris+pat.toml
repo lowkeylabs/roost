@@ -1,5 +1,5 @@
 case_name = "chris+pat"
-description = "Chris and Pat are a married couple in their early sixties, a few years from retirement.\nChris, the older of the two, wraps up a career in engineering at the end of 2026 at age 63,\nwhile Pat, a marketing professional, continues working through 2028, retiring at 62.\nThey own their home outright and plan to leave it to their heirs.\n\nTheir nest egg is spread across taxable, traditional IRA, and Roth accounts, with the bulk\nin Chris's traditional IRA—a reflection of decades of 401(k) contributions. Owl will\noptimize Roth conversions in the early retirement years, before Social Security and RMDs\nbegin, to reduce long-term tax exposure. Chris claims Social Security at 70 to maximize\nthe household's survivor benefit; Pat claims early at 62 to provide near-term income while\nthe portfolio seasons.\n\nThis case is used to illustrate the spending/shortfall efficient frontier concept: the\ntrade-off between committed first-year real spending and the expected shortfall when that\ncommitment proves too ambitious in some historical scenarios.\n"
+description = "Chris and Pat are a married couple in their early sixties, a few years from retirement. Chris, the older of the two, wraps up a full-time career in engineering at the end of 2027 at age 64, just as Medicare eligibility begins. Pat, a marketing professional, continues working through 2028, retiring at 62. They own their home outright and plan to leave it to their heirs.\n\nTheir nest egg is spread across taxable, traditional IRA, and Roth accounts, with the bulk in Chris's traditional IRA—a reflection of decades of 401(k) contributions. Owl will optimize Roth conversions in the early retirement years, before Social Security and RMDs begin, to reduce long-term tax exposure. Chris claims Social Security at 70 to maximize the household's survivor benefit; Pat claims early at 62 to provide near-term income while the portfolio seasons. These claiming ages were selected using Owl's SS age optimizer in a preliminary run.\n\nThis case is used to illustrate the spending/shortfall efficient frontier concept: the trade-off between committed first-year real spending and the expected shortfall when that commitment proves too ambitious in some historical scenarios.\n"
 
 [basic_info]
 status = "married"
@@ -20,27 +20,31 @@ spousal_surplus_deposit_fraction = 0.5
 HFP_file_name = "HFP_chris+pat.xlsx"
 
 [fixed_income]
-pension_monthly_amounts = [ 0.0, 0.0,]
+pension_monthly_amounts = [ 0, 0,]
 pension_ages = [ 65.0, 65.0,]
 pension_indexed = [ false, false,]
 pension_survivor_fraction = [ 0.0, 0.0,]
 social_security_pia_amounts = [ 2000, 1400,]
-social_security_ages = [ 70.0, 62.0,]
+social_security_ages = [ 70.0, 62.083333,]
 
 [rates_selection]
 heirs_rate_on_tax_deferred_estate = 30.0
 dividend_rate = 1.7
 obbba_expiration_year = 2032
-method = "historical"
-from = 1969
-to = 2001
+method = "histolognormal"
+rate_seed = 2026
+reproducible_rates = true
+to = 2025
+from = 1928
+reverse_sequence = false
+roll_sequence = 0
 
 [asset_allocation]
 interpolation_method = "s-curve"
+type = "individual"
 interpolation_center = 15.0
 interpolation_width = 5.0
-type = "individual"
-generic = [ [ [ 60, 40, 0, 0,], [ 60, 40, 0, 0,],], [ [ 60, 40, 0, 0,], [ 60, 40, 0, 0,],],]
+generic = [ [ [ 60.0, 40.0, 0.0, 0.0,], [ 60.0, 40.0, 0.0, 0.0,],], [ [ 60.0, 40.0, 0.0, 0.0,], [ 60.0, 40.0, 0.0, 0.0,],],]
 
 [optimization_parameters]
 spending_profile = "flat"
@@ -51,14 +55,23 @@ objective = "maxSpending"
 maxRothConversion = 100
 noRothConversions = "none"
 startRothConversions = 2026
-withSCLoop = true
-withMedicare = "loop"
 bequest = 400
 solver = "default"
 spendingSlack = 0
+withSCLoop = true
+withMedicare = "loop"
+withACA = "loop"
+withLTCG = "loop"
+withNIIT = "loop"
+withDecomposition = "none"
+withSSTaxability = "loop"
+withSSAges = "fixed"
 
 [results]
 default_plots = "today"
+worksheet_show_ages = false
+worksheet_hide_zero_columns = false
+worksheet_real_dollars = false
 
 [longevity]
 apply_to_plan = false
@@ -72,18 +85,18 @@ health = [ "average", "average",]
 smoker = [ false, false,]
 
 [roost]
-master_seed = 3391940037
+master_seed = 437044769
 trials = 1
 
 [spending_policy]
-minimum_spending = 80
-acceptable_spending = "100%"
+essential_spending = 0
+lifestyle_spending = 0
 baseline_years = 3
-max_years_below_acceptable = 5
-max_consecutive_years_below_acceptable = 5
+max_years_below_threshhold = 5
+max_consecutive_years_below_threshhold = 5
 
 [cache]
-generated_at = "2026-04-12T16:34:40.459448"
+generated_at = "2026-04-21T11:31:27.086991"
 retirement_horizon = 3
-max_spending = 87125.99
+max_spending = 132435.17
 first_year_total_withdrawals = 0.0

@@ -1,34 +1,17 @@
-"""
-Case upgrade workflow for ROOST.
-
-Responsible for:
-
-- Ensuring required ROOST extension sections exist
-- Injecting default [longevity] and [roost] sections when missing
-- Validating structural alignment with household size
-- Applying deterministic longevity to plan (if requested)
-- Writing back to disk if requested
-
-Defaults are defined in schema models.
-"""
-
 from __future__ import annotations
 
 from typing import Any
 
-from owlroost.domain.models.case import Case, LongevityConfig, RoostConfig, SpendingPolicyConfig
+from owlroost.domain.models.case import (
+    Case,
+    LongevityConfig,
+    RoostConfig,
+    SpendingPolicyConfig,
+)
 
 # =========================================================
 # Public API
 # =========================================================
-
-
-def _default_minimum_spending(case: Case) -> float:
-    """
-    Compute a reasonable default minimum spending based on household size.
-    """
-    n = len(case.household_names)
-    return 50 + 30 * (n - 1)
 
 
 def case_upgrade(
@@ -37,10 +20,6 @@ def case_upgrade(
     write: bool = False,
     verbose: bool = False,
 ) -> dict[str, Any]:
-    """
-    Upgrade a Case to ensure ROOST compatibility.
-    """
-
     actions: dict[str, Any] = {
         "spending_policy_added": False,
         "spending_policy_updated": False,
@@ -52,7 +31,7 @@ def case_upgrade(
     }
 
     # ---------------------------------------------------------
-    # Longevity Section
+    # Longevity
     # ---------------------------------------------------------
 
     if case.longevity is None:
@@ -67,14 +46,13 @@ def case_upgrade(
                 print("Aligned longevity section with household.")
 
     # ---------------------------------------------------------
-    # Apply Longevity to Plan (if requested)
+    # Apply Longevity
     # ---------------------------------------------------------
 
     if case.longevity and case.longevity.apply_to_plan:
         deterministic = case.deterministic_life_ages
 
         if deterministic:
-            # Round to nearest integer age
             rounded = [int(round(age)) for age in deterministic]
 
             current = case.config.basic_info.life_expectancy
@@ -88,7 +66,7 @@ def case_upgrade(
                     print("Applied deterministic longevity to plan.")
 
     # ---------------------------------------------------------
-    # Roost Section
+    # Roost
     # ---------------------------------------------------------
 
     if case.roost is None:
@@ -98,7 +76,7 @@ def case_upgrade(
             print("Added default [roost] section.")
 
     # ---------------------------------------------------------
-    # Spending policy section
+    # Spending Policy (STRICT NEW SCHEMA)
     # ---------------------------------------------------------
 
     if case.spending_policy is None:
@@ -108,29 +86,68 @@ def case_upgrade(
             print("Added default [spending_policy] section.")
     else:
         policy = case.spending_policy
+        updated = False
 
-        if isinstance(policy.minimum_spending, str):
-            raise ValueError("minimum_spending must be a fixed numeric value, not a percentage")
+        # -----------------------------------------------------
+        # Validate required fields
+        # -----------------------------------------------------
 
-        if policy.minimum_spending is None:
-            default_val = _default_minimum_spending(case)
-            policy.minimum_spending = default_val
+        if policy.essential_spending is None:
+            raise ValueError("essential_spending must be provided in [spending_policy]")
 
-            if "spending_policy" not in case.extra:
-                case.extra["spending_policy"] = {}
+        if policy.lifestyle_spending is None:
+            raise ValueError("lifestyle_spending must be provided in [spending_policy]")
 
-            case.extra["spending_policy"]["minimum_spending"] = default_val
-            case._raw_dict["spending_policy"]["minimum_spending"] = default_val
+        # -----------------------------------------------------
+        # Validate numeric
+        # -----------------------------------------------------
 
-            actions["spending_policy_updated"] = True
+        if isinstance(policy.essential_spending, str):
+            raise ValueError("essential_spending must be numeric")
+
+        if isinstance(policy.lifestyle_spending, str):
+            raise ValueError("lifestyle_spending must be numeric")
+
+        # -----------------------------------------------------
+        # Enforce constraint
+        # -----------------------------------------------------
+
+        if policy.lifestyle_spending < policy.essential_spending:
+            policy.lifestyle_spending = policy.essential_spending
+            updated = True
 
             if verbose:
-                print(
-                    f"Injected default minimum_spending = ${default_val:,.0f} (household size = {len(case.household_names)})"
-                )
+                print("Adjusted lifestyle_spending to match essential_spending")
+
+        # -----------------------------------------------------
+        # Persist canonical structure
+        # -----------------------------------------------------
+
+        sp = case.extra.setdefault("spending_policy", {})
+        raw_sp = case._raw_dict.setdefault("spending_policy", {})
+
+        sp["essential_spending"] = policy.essential_spending
+        sp["lifestyle_spending"] = policy.lifestyle_spending
+
+        raw_sp["essential_spending"] = policy.essential_spending
+        raw_sp["lifestyle_spending"] = policy.lifestyle_spending
+
+        # Preserve additional fields
+        for k in (
+            "baseline_years",
+            "max_years_below_threshhold",
+            "max_consecutive_years_below_threshhold",
+        ):
+            v = getattr(policy, k, None)
+            if v is not None:
+                sp[k] = v
+                raw_sp[k] = v
+
+        if updated:
+            actions["spending_policy_updated"] = True
 
     # ---------------------------------------------------------
-    # Persist if needed
+    # Persist
     # ---------------------------------------------------------
 
     if write and any(
@@ -153,15 +170,11 @@ def case_upgrade(
 
 
 # =========================================================
-# Internal Helpers
+# Helpers
 # =========================================================
 
 
 def _add_default_longevity(case: Case) -> None:
-    """
-    Inject default longevity section using schema defaults,
-    then resize via LongevityConfig.resized().
-    """
     model = LongevityConfig(partnered=(len(case.household_names) == 2))
     model = model.resized(len(case.household_names))
 
@@ -178,10 +191,10 @@ def _add_default_roost(case: Case) -> None:
 
 
 def _add_default_spending_policy(case: Case) -> None:
-    model = SpendingPolicyConfig()
-
-    if model.minimum_spending is None:
-        model.minimum_spending = _default_minimum_spending(case)
+    model = SpendingPolicyConfig(
+        essential_spending=0,
+        lifestyle_spending=0,
+    )
 
     case.extensions["spending_policy"] = model
     case.extra["spending_policy"] = model.model_dump(exclude_none=True, by_alias=True)
@@ -189,19 +202,11 @@ def _add_default_spending_policy(case: Case) -> None:
 
 
 def _align_longevity(case: Case) -> bool:
-    """
-    Re-align longevity lists to household size using
-    LongevityConfig.resized().
-
-    Returns True if modification occurred.
-    """
-
     lon = case.longevity
     if lon is None:
         return False
 
     n = len(case.household_names)
-
     aligned = lon.resized(n)
 
     if aligned != lon:
