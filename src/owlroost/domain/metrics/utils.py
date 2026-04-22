@@ -1,9 +1,5 @@
 # src/owlroost/domain/metrics/definitions/utils.py
 
-from ..formatting import format_value
-from .metric_registry import register_metric
-from .metric_spec import MetricSpec
-
 
 RATES_METHOD_ABBR = {
     "historical": "Hist",
@@ -15,6 +11,19 @@ RATES_METHOD_ABBR = {
     "garch_dcc": "Gdcc",
 }
 
+# ---------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------
+
+
+def _debug_row(r):
+    import json
+
+    # if os.getenv("ROOST_DEBUG_ELAPSED") == "1":
+    print("\n\n[DEBUG] row keys:", list(r.keys()))
+    print("\n\n[DEBUG] row:", json.dumps(r, indent=2, default=str))
+
+    return None
 
 
 def _bool_value(value: bool, true_msg: str, false_msg: str) -> str:
@@ -70,4 +79,3 @@ def _format_age_ym(age):
         return f"{years}y {months}m"
     except Exception:
         return "-"
-

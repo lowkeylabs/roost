@@ -255,6 +255,21 @@ register_group(
 )
 
 register_group(
+    "run_identity_trial",
+    [
+        ("case_name", {"show_if": "is_pivot"}),
+        ("run_id_compact", {"show_if": "is_table"}),
+        "case",
+        "experiment",
+        "run",
+        ("trial", "cnt", {"show_if": ["is_table", "is_pivot"]}),
+    ],
+    description="Run identity info",
+    default_opts={"show_if": "is_pivot"},
+)
+
+
+register_group(
     "run_structure",
     [
         ("input_rates", {"show_if": "is_table"}),
@@ -387,18 +402,56 @@ register_group(
 register_group(
     "audit",
     [
-        ("trial", "cnt"),
-        ("solved_cnt", "sum"),
-        ("timeout_cnt", "sum"),
-        ("error_cnt", "sum"),
-        ("error_rate", "mean"),
-        ("timeout_rate", "mean"),
-        ("trial_completeness", "mean"),
-        ("elapsed_seconds", "median"),
-        ("elapsed_seconds", "p10"),
-        ("elapsed_seconds", "p90"),
+        # -------------------------------------------------
+        # Outcome counts (primary)
+        # -------------------------------------------------
+        ("trial_completeness"),
+        ("solved", "sum"),
+        ("timeout", "sum"),
+        ("error", "sum"),
+        # Ratios (cleaner than separate rate metrics)
+        ("solved", "pct", {"show_if": "is_pivot"}),
+        ("timeout", "pct", {"show_if": "is_pivot"}),
+        ("error", "pct", {"show_if": "is_pivot"}),
+        # -------------------------------------------------
+        # Execution configuration
+        # -------------------------------------------------
+        ("solver"),
+        ("trial_jobs"),
+        ("worker_timeout"),
+        # -------------------------------------------------
+        # Timing (per-trial distribution)
+        # -------------------------------------------------
+        ("elapsed_seconds", "median", {"show_if": "is_pivot"}),
+        ("elapsed_seconds", "p10", {"show_if": "is_pivot"}),
+        ("elapsed_seconds", "p90", {"show_if": "is_pivot"}),
+        # -------------------------------------------------
+        # Run-level performance
+        # -------------------------------------------------
+        ("run_wall_time"),
+        ("throughput", {"show_if": "is_pivot"}),
+        ("efficiency", {"show_if": "is_pivot"}),
     ],
-    description="Execution audit including completeness, failures, and timing.",
+    description="Execution audit including outcomes, completeness, and performance.",
+)
+
+
+register_group(
+    "audit_trial",
+    [
+        # Outcome
+        "status",
+        "failure_category",
+        "failure_detail",
+        # Timing
+        "elapsed_seconds",
+        # lifecycle timing (very useful)
+        "started_at",
+        "finished_at",
+        # Config
+        "worker_timeout",
+    ],
+    description="Per-trial audit details including timing and failure diagnostics.",
 )
 
 # =========================================================

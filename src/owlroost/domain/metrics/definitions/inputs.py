@@ -1,10 +1,8 @@
 # src/owlroost/domain/metrics/definitions/inputs.py
 
-from ...formatting import format_value
 from ..metric_registry import register_metric
 from ..metric_spec import MetricSpec
-from ..utils import wrap_value_fn, _as_float, _bool_value, RATES_METHOD_ABBR
-
+from ..utils import RATES_METHOD_ABBR
 
 # =========================================================
 # INPUT CONTEXT
@@ -454,5 +452,3 @@ register_metric(
         value_series_fn=_override_value_series_fn,
     )
 )
-
-

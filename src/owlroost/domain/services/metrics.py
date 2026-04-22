@@ -49,6 +49,61 @@ def load_effective(trial_path: Path) -> dict:
         return {}
 
 
+_progress_cache: dict[Path, dict[int, dict]] = {}
+
+
+def _load_progress_file(progress_file: Path) -> dict[int, dict]:
+    result = {}
+
+    try:
+        with open(progress_file) as f:
+            for line in f:
+                parts = line.strip().split(",")
+
+                if len(parts) < 6:
+                    continue
+
+                finished_at, job_id, tid, status, elapsed, started_at = parts
+
+                try:
+                    tid_int = int(tid)
+                except Exception:
+                    continue
+
+                result[tid_int] = {
+                    "elapsed_seconds": float(elapsed),
+                    "started_at": float(started_at),
+                    "finished_at": float(finished_at),
+                }
+
+    except Exception:
+        return {}
+
+    return result
+
+
+def load_progress(trial_path: Path) -> dict:
+    try:
+        progress_file = trial_path.parents[2] / "progress.log"
+
+        if not progress_file.exists():
+            return {}
+
+        if progress_file not in _progress_cache:
+            _progress_cache[progress_file] = _load_progress_file(progress_file)
+
+        # 🔥 normalize trial id
+        try:
+            trial_id_int = int(trial_path.name)
+        except Exception:
+            return {}
+
+        return _progress_cache[progress_file].get(trial_id_int, {})
+
+    except Exception:
+        return {}
+
+
 def extract_row(data: dict, specs: list[MetricSpec], base_row: dict | None = None) -> dict:
     #    row = {
     #        **(base_row or {}),
@@ -128,6 +183,7 @@ def build_trial_row(
         return None
 
     effective_data = load_effective(trial_path)
+    progress_data = load_progress(trial_path)
 
     # ----------------------------------------
     # Unified data payload (NEW)
@@ -135,7 +191,11 @@ def build_trial_row(
     data = {
         **metrics_data,
         "_inputs": effective_data,  # namespaced input layer
+        "_progress": progress_data,
     }
+
+    if progress_data:
+        data.update(progress_data)
 
     if specs is None:
         specs = list(METRIC_REGISTRY.values())

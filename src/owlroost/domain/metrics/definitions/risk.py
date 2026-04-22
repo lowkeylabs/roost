@@ -7,8 +7,7 @@
 from ...formatting import format_value
 from ..metric_registry import register_metric
 from ..metric_spec import MetricSpec
-from ..utils import wrap_value_fn, _as_float
-
+from ..utils import _as_float, wrap_value_fn
 
 # =========================================================
 # CORE OUTCOME METRICS
@@ -116,6 +115,7 @@ register_metric(
 # DISTRIBUTION RISK SIGNALS
 # =========================================================
 
+
 def _compute_distribution_risk_flags(r):
     flags = 0
 
@@ -219,6 +219,7 @@ def _compute_risk_interpretation(r):
 # =========================================================
 # RISK LEVEL CLASSIFICATION
 # =========================================================
+
 
 def _lifestyle_level(r):
     p10 = _as_float(r.get("spending_ratio_to_lifestyle_min_p10"))

@@ -3,6 +3,7 @@
 import json
 import subprocess
 import sys
+import time
 import tomllib
 from copy import deepcopy
 from pathlib import Path
@@ -21,6 +22,7 @@ def run_trial_star(args):
 
 
 def run_single_case_subprocess(args: dict, timeout: int = 20):
+    start = time.time()
     try:
         result = subprocess.run(
             [sys.executable, "-m", "owlroost.entrypoints.run_case"],
@@ -29,10 +31,17 @@ def run_single_case_subprocess(args: dict, timeout: int = 20):
             capture_output=True,
             timeout=timeout,
         )
+        finished = time.time()
+        elapsed = finished - start
     except subprocess.TimeoutExpired:
+        finished = time.time()
+        elapsed = finished - start
         return SimpleNamespace(
             status="timeout",
             stderr="timeout",
+            elapsed_seconds=elapsed,
+            started_at=start,
+            finished_at=finished,
         )
 
     logger.trace(f"\n----Full result from subprocess---\n{result}")
@@ -43,6 +52,9 @@ def run_single_case_subprocess(args: dict, timeout: int = 20):
         return SimpleNamespace(
             status="crashed",
             stderr=result.stderr,
+            elapsed_seconds=elapsed,
+            started_at=start,
+            finished_at=finished,
         )
 
     # --------------------------------------------------
@@ -52,6 +64,9 @@ def run_single_case_subprocess(args: dict, timeout: int = 20):
         return SimpleNamespace(
             status="crashed",
             stderr="empty stdout",
+            elapsed_seconds=elapsed,
+            started_at=start,
+            finished_at=finished,
         )
 
     # --------------------------------------------------
@@ -59,11 +74,19 @@ def run_single_case_subprocess(args: dict, timeout: int = 20):
     # --------------------------------------------------
     try:
         data = json.loads(result.stdout)
-        return SimpleNamespace(**data)
+        return SimpleNamespace(
+            **data,
+            elapsed_seconds=elapsed,
+            started_at=start,
+            finished_at=finished,
+        )
     except Exception as e:
         return SimpleNamespace(
             status="crashed",
             stderr=f"invalid json: {e}",
+            elapsed_seconds=elapsed,
+            started_at=start,
+            finished_at=finished,
         )
 
 
@@ -216,8 +239,8 @@ def run_trial(
 
     # print( f"Before run_single_case_subprocess: {args}" )
 
-    roost_cfg = overrides.get("roost", {})
-    timeout = roost_cfg.get("worker_timeout", 20)
+    runtime_cfg = overrides.get("runtime", {})
+    timeout = runtime_cfg.get("worker_timeout", 20)
 
     # --------------------------------------------------
     # PRIMARY WRAPPER AROUND OWL. designed to catch hard fails
@@ -240,6 +263,9 @@ def run_trial(
     result_failure_category = getattr(result, "failure_category", None)
     result_failure_subtype = getattr(result, "failure_subtype", None)
     result_failure_detail = getattr(result, "failure_detail", None)
+    result_elapsed_seconds = getattr(result, "elapsed_seconds", None)
+    result_started_at = getattr(result, "started_at", None)
+    result_finished_at = getattr(result, "finished_at", None)
 
     raw_stderr = getattr(result, "stderr", "") or ""
     lines = [line.strip() for line in raw_stderr.strip().splitlines() if line.strip()]
@@ -353,7 +379,7 @@ def run_trial(
                     "failure_stderr": raw_stderr[:2000],
                 },
                 "timing": {
-                    "elapsed_seconds": None,
+                    "elapsed_seconds": result_elapsed_seconds,
                 },
                 "solver": "unknown",
                 "financial": {
@@ -392,6 +418,9 @@ def run_trial(
             "status": "failed",
             "output": None,
             "error": failure_detail,
+            "elapsed_seconds": result_elapsed_seconds,
+            "started_at": result_started_at,
+            "finished_at": result_finished_at,
         }
 
     # --------------------------------------------------
@@ -404,4 +433,7 @@ def run_trial(
         "status": result_status or "solved",
         "output": str(output_file),
         "error": None,
+        "elapsed_seconds": result_elapsed_seconds,
+        "started_at": result_started_at,
+        "finished_at": result_finished_at,
     }

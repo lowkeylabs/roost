@@ -3,7 +3,7 @@
 from ...formatting import format_value
 from ..metric_registry import register_metric
 from ..metric_spec import MetricSpec
-from ..utils import wrap_value_fn, _as_float, _bool_value
+from ..utils import _bool_value, wrap_value_fn
 
 # =========================================================
 # CORE OUTCOMES
@@ -120,4 +120,3 @@ register_metric(
         value_series_fn=wrap_value_fn(lambda v, _: f"{format_value(v, 'float2')} seconds"),
     )
 )
-

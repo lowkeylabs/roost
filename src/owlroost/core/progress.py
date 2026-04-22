@@ -1,5 +1,4 @@
 # src/owlroost/core/progress.py
-import os
 import time
 from pathlib import Path
 
@@ -28,16 +27,42 @@ def record_progress(
     job_id: str,
     trial_id: int,
     status: str,
-    duration: float | None = None,
+    elapsed: float | None = None,
+    started_at: float | None = None,
+    finished_at: float | None = None,
 ):
-    ts = time.time()
+    """
+    Append a progress record.
 
-    line = f"{ts},{job_id},{trial_id},{status},{duration or 0:.3f}\n"
+    Format:
+    finished_at,job_id,trial_id,status,elapsed,started_at
 
+    Notes:
+    - finished_at is the primary timestamp (used for ordering)
+    - elapsed is wall-clock duration of the trial
+    - started_at enables queue-delay and concurrency analysis
+    """
+
+    # Prefer true finish time from worker; fallback to now
+    ts = finished_at if finished_at is not None else time.time()
+
+    # Normalize values
+    elapsed_val = float(elapsed) if elapsed is not None else 0.0
+    started_val = float(started_at) if started_at is not None else 0.0
+
+    line = (
+        f"{ts:.6f},"
+        f"{job_id},"
+        f"{trial_id},"
+        f"{status},"
+        f"{elapsed_val:.6f},"
+        f"{started_val:.6f}\n"
+    )
+
+    # Append safely
     with open(progress_file, "a") as f:
         f.write(line)
         f.flush()
-        os.fsync(f.fileno())
 
 
 # --------------------------------------------------
@@ -69,36 +94,63 @@ def monitor_progress(
     if renderer is None:
         raise ValueError("monitor_progress requires a renderer")
 
-    last_val = 0
+    seen_completed = set()
+    file_pos = 0
+    file_handle = None
 
     try:
         renderer.start(total)
+        renderer._last = 0  # initialize renderer state
 
         while True:
             if stop_event is not None and stop_event.is_set():
                 break
 
-            val = read_progress(progress_file)
+            # -----------------------------------------
+            # Open file once (tail pattern)
+            # -----------------------------------------
+            if progress_file.exists():
+                if file_handle is None:
+                    file_handle = open(progress_file)
 
-            if val >= total:
-                renderer.advance(val - last_val, val, total)
+                file_handle.seek(file_pos)
+
+                for line in file_handle:
+                    parts = line.strip().split(",")
+
+                    if len(parts) < 4:
+                        continue
+
+                    _, job_id, trial_id, status, *_ = parts
+
+                    if status in ("completed", "failed", "timeout"):
+                        seen_completed.add((job_id, trial_id))
+
+                file_pos = file_handle.tell()
+
+            # -----------------------------------------
+            # Compute progress safely
+            # -----------------------------------------
+            current = min(len(seen_completed), total)
+            delta = current - renderer._last
+
+            if delta > 0:
+                renderer.advance(delta, current, total)
+                renderer._last = current
+
+            # -----------------------------------------
+            # Completion condition
+            # -----------------------------------------
+            if current >= total:
                 break
 
-            delta = val - last_val
-            if delta > 0:
-                renderer.advance(delta, val, total)
-                last_val = val
-
             time.sleep(poll_interval)
-
-        # final flush
-        final_val = read_progress(progress_file)
-        if final_val > last_val:
-            renderer.advance(final_val - last_val, final_val, total)
 
     except KeyboardInterrupt:
         pass
     finally:
+        if file_handle:
+            file_handle.close()
         renderer.finish()
 
 

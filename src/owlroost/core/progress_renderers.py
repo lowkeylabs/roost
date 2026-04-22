@@ -1,9 +1,9 @@
 # src/owlroost/core/progress_renderers.py
 
 from rich.progress import (
+    BarColumn,
     Progress,
     SpinnerColumn,
-    BarColumn,
     TextColumn,
     TimeElapsedColumn,
 )
@@ -19,6 +19,7 @@ class BaseProgressRenderer:
     def finish(self):
         raise NotImplementedError
 
+
 class NullProgressRenderer(BaseProgressRenderer):
     def start(self, total: int):
         pass
@@ -33,6 +34,7 @@ class NullProgressRenderer(BaseProgressRenderer):
 class DotProgressRenderer(BaseProgressRenderer):
     def __init__(self, stream=None):
         import sys
+
         self.stream = stream or sys.stdout
         self.count = 0
 
@@ -47,9 +49,11 @@ class DotProgressRenderer(BaseProgressRenderer):
         self.stream.write("\n")
         self.stream.flush()
 
+
 class Dot2ProgressRenderer(BaseProgressRenderer):
     def __init__(self, stream=None):
         import sys
+
         self.stream = stream or sys.stdout
         self.count = 0
 
@@ -66,7 +70,6 @@ class Dot2ProgressRenderer(BaseProgressRenderer):
     def finish(self):
         self.stream.write("\n")
         self.stream.flush()
-
 
 
 class RichProgressRenderer(BaseProgressRenderer):
@@ -87,7 +90,7 @@ class RichProgressRenderer(BaseProgressRenderer):
         self.task = self.progress.add_task(
             "task",
             total=total,
-            speed="",   # 🔥 FIX: initialize field
+            speed="",  # 🔥 FIX: initialize field
         )
 
     def advance(self, delta, current, total):
@@ -104,7 +107,7 @@ class RichProgressRenderer(BaseProgressRenderer):
 
     def finish(self):
         self.progress.stop()
-    
+
 
 def create_renderer(kind: str, console=None, desc="Working"):
     kind = (kind or "rich").lower()

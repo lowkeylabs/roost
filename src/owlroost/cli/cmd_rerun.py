@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tomllib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -35,6 +36,23 @@ def trial_id_str(t) -> str:
         return Path(t.path).name
     except Exception:
         return "????"
+
+
+def get_trial_timeout(trial) -> int | None:
+    trial_path = Path(trial.path)
+
+    toml_files = list(trial_path.glob("*_effective.toml"))
+    if not toml_files:
+        return None
+
+    try:
+        with open(toml_files[0], "rb") as f:
+            data = tomllib.load(f)
+
+        return data.get("runtime", {}).get("worker_timeout")
+
+    except Exception:
+        return None
 
 
 def get_failure_category(t):
@@ -260,8 +278,11 @@ def cmd_rerun(
     for t in trials:
         trial_id = Path(t.path).name
         failure = get_failure_category(t)
+        timeout_val = get_trial_timeout(t)
 
-        console.print(f"  Trial {trial_id} | {failure or '-'}")
+        timeout_str = f"timeout={timeout_val}" if timeout_val is not None else "timeout=?"
+
+        console.print(f"  Trial {trial_id} | {failure or '-'} | [dim]{timeout_str}[/dim]")
 
     console.print()
 

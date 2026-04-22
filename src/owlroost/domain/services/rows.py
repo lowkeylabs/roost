@@ -56,10 +56,31 @@ def build_run_rows(experiments):
             summary = {"_ctx": {"trial_rows": trial_rows}}
             summary.update(aggregate_rows(trial_rows))
 
+            # -------------------------------------------------
+            # Invariant values
+            # -------------------------------------------------
             summary["worker_timeout"] = _invariant_value(
                 trial_rows,
                 ["_inputs", "roost", "worker_timeout"],
             )
+
+            # -------------------------------------------------
+            # 🔥 NEW: Run-level timing (from progress.log data)
+            # -------------------------------------------------
+            starts = [r.get("started_at") for r in trial_rows if r.get("started_at")]
+            ends = [r.get("finished_at") for r in trial_rows if r.get("finished_at")]
+
+            if starts and ends:
+                run_wall_time = max(ends) - min(starts)
+                summary["run_wall_time"] = run_wall_time
+
+                if run_wall_time > 0:
+                    summary["throughput"] = len(trial_rows) / run_wall_time
+                else:
+                    summary["throughput"] = None
+            else:
+                summary["run_wall_time"] = None
+                summary["throughput"] = None
 
             # -------------------------------------------------
             # Carry forward non-aggregated fields (robust)
@@ -68,11 +89,10 @@ def build_run_rows(experiments):
                 if k in summary:
                     continue
 
-                # 🔥 skip internal + metric namespace
+                # skip internal + metric namespace
                 if k.startswith("_"):
                     continue
 
-                # 🔥 skip known computed metric keys
                 if k in METRIC_REGISTRY:
                     continue
 
@@ -84,15 +104,13 @@ def build_run_rows(experiments):
                 if not vals:
                     continue
 
-                # If all meaningful values are identical → keep it
                 first = vals[0]
                 if all(v == first for v in vals):
                     summary[k] = first
 
-            # ==================================================
+            # -------------------------------------------------
             # RUN-LEVEL DERIVED METRICS
-            # ==================================================
-
+            # -------------------------------------------------
             for key, spec in METRIC_REGISTRY.items():
                 if not spec.compute_fn:
                     continue
@@ -105,8 +123,6 @@ def build_run_rows(experiments):
                 except Exception as e:
                     print(f"ERROR in metric '{key}':", e)
                     raise
-            #                except Exception:
-            #                    summary[key] = None
 
             summary["_ref"] = {
                 "exp_index": exp_index,

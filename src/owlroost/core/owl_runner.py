@@ -284,6 +284,8 @@ def run_single_case(
     # Handle HFP relocation
     hfp_section = toml_dict.get("household_financial_profile", {})
     hfp_file = hfp_section.get("HFP_file_name")
+    if str(hfp_file) in ("", "None"):
+        hfp_file = None
 
     trial_path = Path(output_file).parent
 

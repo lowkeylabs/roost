@@ -155,6 +155,12 @@ def runrow_to_dict(r):
         "Explanation facets (repeatable or comma-separated): " f"{', '.join(sorted(EXPLAIN_ALL))}"
     ),
 )
+@click.option(
+    "--trials",
+    "trials_flag",
+    is_flag=True,
+    help="Show trial-level rows instead of run-level rows",
+)
 def cmd_inspect(
     args,
     case_override,
@@ -167,6 +173,7 @@ def cmd_inspect(
     list_views_flag,
     pivot,
     explain_opts,
+    trials_flag,
 ):
     console = Console()
 
@@ -178,6 +185,11 @@ def cmd_inspect(
     except ValueError as e:
         console.print(f"[red]{e}[/red]")
         return
+
+    if trials_flag:
+        level = "trial"
+        run_id = None
+        trial_id = None
 
     if run_override is not None:
         run_id = run_override
@@ -204,6 +216,7 @@ def cmd_inspect(
         return
 
     run_rows = build_run_rows(experiments)
+    trial_rows = build_trial_rows(experiments)
 
     header = []
     display_level = None
@@ -211,9 +224,21 @@ def cmd_inspect(
     detail_row = None
 
     # =========================================================
+    # TRIAL LIST (NEW)
+    # =========================================================
+    if level == "trial" and run_id is None:
+        display_level = "trial"
+        display_mode = "list"
+
+        working_rows = trial_rows
+
+        header = ["[bold]Trials (all experiments)[/bold]"]
+
+    # =========================================================
     # RUN LIST
     # =========================================================
-    if level == "run" and run_id is None:
+
+    elif level == "run" and run_id is None:
         display_level = "run"
         working_rows = run_rows
 

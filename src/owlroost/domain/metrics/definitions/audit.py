@@ -271,8 +271,8 @@ register_metric(
         label="Timeout",
         dtype=int,
         compute_level="run",
-        is_invariant=True,  # 🔥 THIS is the key change
-        compute_fn=lambda r: r.get("worker_timeout"),
+        is_invariant=True,
+        compute_fn=lambda r: ((r.get("_inputs") or {}).get("runtime", {}).get("worker_timeout")),
         description="Configured worker timeout (seconds).",
         value_series_fn=wrap_value_fn(lambda v, *_: f"{v}s" if isinstance(v, int) else (v or "-")),
         display_row_fn=lambda v, *_: (
@@ -281,20 +281,93 @@ register_metric(
     )
 )
 
+register_metric(
+    MetricSpec(
+        key="solver",
+        label="Solver",
+        dtype=int,
+        compute_level="run",
+        # is_invariant=True,
+        compute_fn=lambda r: (
+            (r.get("_inputs") or {}).get("solver_options", {}).get("solver", "default")
+        ),
+        description="Selected solver for the run.",
+        value_series_fn=wrap_value_fn(lambda v, *_: f"{v}s" if isinstance(v, int) else (v or "-")),
+        display_row_fn=lambda v, *_: (
+            f"{v}s" if isinstance(v, int) else (v if isinstance(v, str) else "-")
+        ),
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="trial_jobs",
+        label="Trial\nJobs",
+        dtype=int,
+        compute_level="run",
+        # is_invariant=True,
+        compute_fn=lambda r: ((r.get("_inputs") or {}).get("trial", {}).get("n_jobs")),
+        description="Parallel Trial jobs configured for this run.",
+        value_series_fn=wrap_value_fn(lambda v, *_: f"{v}" if isinstance(v, int) else (v or "-")),
+        display_row_fn=lambda v, *_: (
+            f"{v}" if isinstance(v, int) else (v if isinstance(v, str) else "-")
+        ),
+    )
+)
+
+
 # ---------------------------------------------------------
-# ELAPSED TIME (SECONDS)
+# Elapsed time
 # ---------------------------------------------------------
 
 register_metric(
     MetricSpec(
         key="elapsed_seconds",
-        path="timing.elapsed_seconds",
         label="Time (s)",
         fmt="float2",
         dtype=float,
         compute_level="trial",
+        compute_fn=lambda r: (
+            r.get("elapsed_seconds")
+            or r.get("elapsed")
+            or (r.get("timing") or {}).get("elapsed_seconds")
+        ),
         aggregates=["median", "p10", "p90", "p99"],
-        description="Elapsed solve time per trial (seconds). Aggregated across trials.",
+        description="Elapsed solve time per trial (seconds).",
+    )
+)
+
+# ---------------------------------------------------------
+# Start time (epoch → formatted later)
+# ---------------------------------------------------------
+
+register_metric(
+    MetricSpec(
+        key="started_at",
+        label="Start\nTime",
+        fmt="time_hms",
+        dtype=float,
+        compute_level="trial",
+        compute_fn=lambda r: r.get("started_at"),
+        aggregates=[],  # ❗ do NOT aggregate timestamps
+        description="Trial start time (wall-clock).",
+    )
+)
+
+# ---------------------------------------------------------
+# Finish time
+# ---------------------------------------------------------
+
+register_metric(
+    MetricSpec(
+        key="finished_at",
+        label="Finish\nTime",
+        fmt="time_hms",
+        dtype=float,
+        compute_level="trial",
+        compute_fn=lambda r: r.get("finished_at"),
+        aggregates=[],  # ❗ do NOT aggregate timestamps
+        description="Trial completion time (wall-clock).",
     )
 )
 
@@ -330,5 +403,154 @@ register_metric(
         value_series_fn=wrap_value_fn(
             lambda v, _: f"{v:.1f}s" if isinstance(v, (int, float)) else "-"
         ),
+    )
+)
+
+# ---------------------------------------------------------
+# TRIAL-LEVEL STATUS / FAILURE METRICS
+# ---------------------------------------------------------
+
+register_metric(
+    MetricSpec(
+        key="status_trial",
+        label="Status",
+        dtype=str,
+        compute_level="trial",
+        compute_fn=lambda r: r.get("status") or "-",
+        description="Execution status of the trial (solved, failed, timeout, etc).",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="failure_category",
+        label="Failure",
+        dtype=str,
+        compute_level="trial",
+        compute_fn=lambda r: r.get("failure_category") or "-",
+        description="Failure category for the trial (timeout, infeasible, etc).",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="failure_subtype",
+        label="Subtype",
+        dtype=str,
+        compute_level="trial",
+        compute_fn=lambda r: r.get("failure_subtype") or "-",
+        description="Detailed failure subtype if available.",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="failure_detail",
+        label="Failure\nDetail",
+        dtype=str,
+        compute_level="trial",
+        compute_fn=lambda r: r.get("failure_detail") or "-",
+        description="Failure detail if available (e.g. solver message).",
+    )
+)
+
+# ---------------------------------------------------------
+# TRIAL FLAGS (FOR FILTERING)
+# ---------------------------------------------------------
+
+# ---------------------------------------------------------
+# Trial outcome flags
+# ---------------------------------------------------------
+
+register_metric(
+    MetricSpec(
+        key="timeout",
+        label="Timeouts",
+        dtype=int,
+        compute_level="trial",
+        aggregates=["sum", "pct"],
+        compute_fn=lambda r: 1 if (r.get("failure_category") or "") == "timeout" else 0,
+        description="1 if trial timed out, else 0.",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="error",
+        label="Errors",
+        dtype=int,
+        compute_level="trial",
+        aggregates=["sum", "pct"],
+        compute_fn=lambda r: (
+            1
+            if (r.get("status") or "").lower() != "solved"
+            and (r.get("failure_category") or "") != "timeout"
+            else 0
+        ),
+        description="1 if trial errored (excluding timeouts), else 0.",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="solved",
+        label="Solved",
+        dtype=int,
+        compute_level="trial",
+        aggregates=["sum", "pct"],
+        compute_fn=lambda r: 1 if (r.get("status") or "").lower() == "solved" else 0,
+        description="1 if trial solved successfully, else 0.",
+    )
+)
+
+# ---------------------------------------------------------
+# Run-level timing metrics (from progress.log)
+# ---------------------------------------------------------
+
+register_metric(
+    MetricSpec(
+        key="run_wall_time",
+        label="Wall\nTime\n(m:s)",
+        dtype=float,
+        fmt="duration_hms",
+        compute_level="run",
+        is_invariant=True,
+        aggregates=[],
+        compute_fn=lambda r: r.get("run_wall_time"),
+        description="Total wall-clock time for the run (from first start to last finish).",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="throughput",
+        label="Trials/s",
+        dtype=float,
+        compute_level="run",
+        aggregates=[],
+        fmt="float2",
+        compute_fn=lambda r: r.get("throughput"),
+        description="Number of trials completed per second of wall-clock time.",
+    )
+)
+
+# ---------------------------------------------------------
+# Optional (highly recommended): efficiency metric
+# ---------------------------------------------------------
+
+register_metric(
+    MetricSpec(
+        key="efficiency",
+        label="Eff.",
+        dtype=float,
+        compute_level="run",
+        aggregates=[],
+        fmt="float2",
+        compute_fn=lambda r: (
+            (r.get("throughput") / r.get("trial_jobs"))
+            if r.get("throughput") and r.get("trial_jobs")
+            else None
+        ),
+        description="Throughput normalized by number of parallel trial jobs.",
     )
 )

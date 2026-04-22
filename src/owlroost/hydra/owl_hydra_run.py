@@ -139,7 +139,22 @@ def orchestrate_trials(
             tid = r.get("trial_id")
             if progress_file is not None and tid is not None:
                 status = r.get("status", "unknown")
-                record_progress(progress_file, job_id, tid, status)
+                if status == "solved":
+                    progress_status = "completed"
+                elif status in ("failed", "timeout", "crashed"):
+                    progress_status = "failed"
+                else:
+                    progress_status = "failed"
+
+                record_progress(
+                    progress_file,
+                    job_id,
+                    tid,
+                    progress_status,
+                    elapsed=r.get("elapsed_seconds"),
+                    started_at=r.get("started_at"),
+                    finished_at=r.get("finished_at"),
+                )
 
     # -----------------------------------------------------
     # Multiprocessing mode
@@ -163,7 +178,22 @@ def orchestrate_trials(
                 tid = r.get("trial_id")
                 if progress_file is not None and tid is not None:
                     status = r.get("status", "unknown")
-                    record_progress(progress_file, job_id, tid, status)
+                    if status == "solved":
+                        progress_status = "completed"
+                    elif status in ("failed", "timeout", "crashed"):
+                        progress_status = "failed"
+                    else:
+                        progress_status = "failed"
+
+                    record_progress(
+                        progress_file,
+                        job_id,
+                        tid,
+                        progress_status,
+                        elapsed=r.get("elapsed_seconds"),
+                        started_at=r.get("started_at"),
+                        finished_at=r.get("finished_at"),
+                    )
 
     solved = [r for r in results if r["status"] == "solved"]
     failed = [r for r in results if r["status"] != "solved"]

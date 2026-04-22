@@ -241,6 +241,41 @@ def format_value(value, fmt: str | None):
         except Exception:
             return str(value)
 
+    if fmt == "time_hms":
+        try:
+            import datetime
+
+            if value is None:
+                return "-"
+
+            # value is epoch seconds
+            dt = datetime.datetime.fromtimestamp(float(value))
+
+            return dt.strftime("%H:%M:%S")
+        except Exception:
+            return str(value)
+
+    if fmt == "duration_hms":
+        try:
+            if value is None:
+                return "-"
+
+            total = int(round(float(value)))
+
+            hours = total // 3600
+            minutes = (total % 3600) // 60
+            seconds = total % 60
+
+            if hours > 0:
+                return f"{hours}:{minutes:02d}:{seconds:02d}"
+            elif minutes > 0:
+                return f"{minutes}:{seconds:02d}"
+            else:
+                return f"{seconds}s"
+
+        except Exception:
+            return str(value)
+
     # -------------------------------------------------
     # FALLBACK
     # -------------------------------------------------

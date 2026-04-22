@@ -8,6 +8,7 @@ register_view(
     "trial",
     "default",
     [
+        ("group", "run_identity_trial"),
         "status",
         "elapsed",
         {"separator": "section", "label": "OUTCOMES"},
@@ -23,6 +24,19 @@ register_view(
     description="Trial-level results including financial outcomes and spending stress behavior",
     tags=["summary"],
 )
+
+register_view(
+    "trial",
+    "audit",
+    [
+        ("group", "run_identity_trial"),
+        ("group", "audit_trial"),
+    ],
+    layout="table",
+    description="Trial-level results including financial outcomes and spending stress behavior",
+    tags=["summary"],
+)
+
 
 # =========================================================
 # RUN VIEWS

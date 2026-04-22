@@ -3,8 +3,7 @@
 from ...formatting import format_value
 from ..metric_registry import register_metric
 from ..metric_spec import MetricSpec
-from ..utils import wrap_value_fn, _as_float, _bool_value
-
+from ..utils import _bool_value, wrap_value_fn
 
 # =========================================================
 # SPENDING PROFILE
@@ -279,9 +278,7 @@ register_metric(
         fmt="int",
         aggregates=["mean", "p90"],
         description="Number of years spending falls below essential spending.",
-        value_series_fn=wrap_value_fn(
-            lambda v, _: f"{int(v)} years below essential spending"
-        ),
+        value_series_fn=wrap_value_fn(lambda v, _: f"{int(v)} years below essential spending"),
     )
 )
 
@@ -367,9 +364,7 @@ register_metric(
         fmt="int",
         aggregates=["mean", "p90"],
         description="Years spending falls below lifestyle target.",
-        value_series_fn=wrap_value_fn(
-            lambda v, _: f"{int(v)} years below lifestyle"
-        ),
+        value_series_fn=wrap_value_fn(lambda v, _: f"{int(v)} years below lifestyle"),
     )
 )
 
@@ -381,9 +376,7 @@ register_metric(
         fmt="int",
         aggregates=["mean", "p90"],
         description="Maximum consecutive years below lifestyle target.",
-        value_series_fn=wrap_value_fn(
-            lambda v, _: f"{int(v)} consecutive years below lifestyle"
-        ),
+        value_series_fn=wrap_value_fn(lambda v, _: f"{int(v)} consecutive years below lifestyle"),
     )
 )
 
@@ -454,8 +447,6 @@ register_metric(
         fmt="int",
         aggregates=["mean"],
         description="Years where spending is below lifestyle but above essential (adaptive zone).",
-        value_series_fn=wrap_value_fn(
-            lambda v, _: f"{int(v)} years in adaptive zone"
-        ),
+        value_series_fn=wrap_value_fn(lambda v, _: f"{int(v)} years in adaptive zone"),
     )
 )
