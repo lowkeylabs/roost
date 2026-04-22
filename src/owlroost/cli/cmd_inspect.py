@@ -129,6 +129,42 @@ def runrow_to_dict(r):
     return d
 
 
+def parse_delete_ids(delete_str: str) -> list[int]:
+    ids = set()
+
+    for part in delete_str.split(","):
+        part = part.strip()
+        if not part:
+            continue
+
+        # ----------------------------------------
+        # Range: "start-end"
+        # ----------------------------------------
+        if "-" in part:
+            try:
+                start_str, end_str = part.split("-", 1)
+                start = int(start_str)
+                end = int(end_str)
+            except ValueError:
+                raise click.ClickException(f"Invalid range: '{part}'") from None
+
+            if start > end:
+                raise click.ClickException(f"Invalid range (start > end): '{part}'")
+
+            ids.update(range(start, end + 1))
+            continue
+
+        # ----------------------------------------
+        # Single ID
+        # ----------------------------------------
+        if not part.isdigit():
+            raise click.ClickException(f"Invalid delete id: '{part}'")
+
+        ids.add(int(part))
+
+    return sorted(ids)
+
+
 # =========================================================
 # CLI
 # =========================================================
@@ -161,6 +197,11 @@ def runrow_to_dict(r):
     is_flag=True,
     help="Show trial-level rows instead of run-level rows",
 )
+@click.option(
+    "--delete",
+    type=str,
+    help="Delete one or more runs by ID (comma-separated, run/table view only).",
+)
 def cmd_inspect(
     args,
     case_override,
@@ -174,6 +215,7 @@ def cmd_inspect(
     pivot,
     explain_opts,
     trials_flag,
+    delete,
 ):
     console = Console()
 
@@ -197,6 +239,13 @@ def cmd_inspect(
     if not RESULTS_DIR.exists():
         console.print("[red]Results directory not found[/red]")
         return
+
+    if delete is not None:
+        if level != "run":
+            raise click.ClickException("--delete only supported in run view")
+
+        if level == "pivot":
+            raise click.ClickException("--delete not supported in pivot view")
 
     experiments = discover_experiments(RESULTS_DIR)
 
@@ -383,6 +432,55 @@ def cmd_inspect(
     working_rows = apply_top(working_rows, top_n)
 
     final_rows = working_rows
+
+    # ---------------------------------------------------------
+    # Delete against the row ID of filtered rows.
+    # ---------------------------------------------------------
+
+    if delete is not None:
+        if display_level != "run":
+            raise click.ClickException("--delete only supported in run view")
+
+        if layout == "pivot":
+            raise click.ClickException("--delete not supported in pivot view")
+
+        delete_ids = parse_delete_ids(delete)
+
+        if not delete_ids:
+            raise click.ClickException("No valid IDs provided to --delete")
+
+        # Validate IDs
+        max_id = len(final_rows) - 1
+        for i in delete_ids:
+            if i < 0 or i > max_id:
+                raise click.ClickException(f"Invalid ID {i}. Must be 0–{max_id}")
+
+        # Resolve run paths
+        targets = []
+        for i in delete_ids:
+            row = final_rows[i]
+            ref = row["_ref"]
+            exp = experiments[ref["exp_index"]]
+            run = exp.runs[ref["run_index"]]
+            targets.append((i, Path(run.path)))
+
+        # Confirm once
+        console.print("[bold red]Delete the following runs:[/bold red]")
+        for i, path in targets:
+            console.print(f"  ID {i}: {path}")
+
+        click.confirm("Proceed?", abort=True)
+
+        import shutil
+
+        for i, path in targets:
+            if path.exists():
+                shutil.rmtree(path)
+                console.print(f"[green]Deleted {i}: {path}[/green]")
+            else:
+                console.print(f"[yellow]Skipping {i}: path not found[/yellow]")
+
+        return
 
     # ---------------------------------------------------------
     # Header
