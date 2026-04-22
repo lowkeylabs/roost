@@ -269,6 +269,8 @@ class RuntimeConfig(BaseModel):
     cpu_reserve: int = 2
     oversubscribe_factor: float = 1.0
     enforce_single_axis: bool = True
+    trial_jobs: int | None = None
+    run_jobs: int | None = None
 
 
 EXTRA_SECTION_REGISTRY: dict[str, type[BaseModel]] = {
@@ -1030,3 +1032,13 @@ class Case:
             return 0.0
 
         return spending / (1000.0 * self.total_savings)
+
+    @property
+    def trial_jobs(self) -> int | None:
+        runtime = getattr(self.config, "runtime", None)
+        return getattr(runtime, "trial_jobs", None) if runtime else None
+
+    @property
+    def run_jobs(self) -> int | None:
+        runtime = getattr(self.config, "runtime", None)
+        return getattr(runtime, "run_jobs", None) if runtime else None

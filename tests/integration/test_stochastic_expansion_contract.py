@@ -94,8 +94,6 @@ def run_cli(runner: CliRunner, case_file: Path, *extra_args):
         cmd_run,
         [
             str(case_file),
-            "--trial-jobs=1",
-            "--run-jobs=1",
             *extra_args,
         ],
     )

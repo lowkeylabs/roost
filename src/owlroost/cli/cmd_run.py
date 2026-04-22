@@ -263,53 +263,107 @@ def load_roost_defaults(conf_dir: Path) -> dict:
         return {}
 
 
-def resolve_parallelism(
-    *,
-    num_runs: int,
-    trial_count: int,
-    trial_jobs: int | None,
-    run_jobs: int | None,
-    cfg: dict,
-):
-    # --------------------------------------------------
-    # Config
-    # --------------------------------------------------
+def load_runtime_config(conf_dir: Path) -> dict:
+    import yaml
+
+    path = conf_dir / "runtime" / "default.yaml"
+    return yaml.safe_load(path.read_text()) or {}
+
+
+def build_runtime_environment(case_file: Path | None) -> dict:
+    """
+    Build environment variables for Hydra subprocess from [runtime_environment].
+
+    Supports:
+      - key = "value" → set env var
+      - key = "__DELETE__" → unset env var
+    """
+    env = os.environ.copy()
+
+    if not case_file:
+        return env
+
+    try:
+        with case_file.open("rb") as f:
+            data = tomllib.load(f)
+    except Exception:
+        return env  # fail safe: do not block execution
+
+    env_config = data.get("runtime_environment", {})
+
+    if not isinstance(env_config, dict):
+        return env
+
+    for key, value in env_config.items():
+        if value == "__DELETE__":
+            env.pop(key, None)
+        else:
+            env[key] = str(value)
+
+    return env
+
+
+def extract_runtime_environment_overrides(overrides: list[str]) -> dict:
+    result = {}
+    for o in overrides:
+        if o.startswith("runtime_environment."):
+            key, value = o.split("=", 1)
+            env_key = key.split(".", 1)[1]
+            result[env_key] = value
+    return result
+
+
+def resolve_parallelism(*, num_runs, trial_count, cfg):
     max_trial_jobs = cfg.get("max_trial_jobs", 28)
     max_run_jobs = cfg.get("max_run_jobs", 8)
     cpu_reserve = cfg.get("cpu_reserve", 2)
     oversubscribe = cfg.get("oversubscribe_factor", 1.0)
 
+    runtime_trial_jobs = cfg.get("trial_jobs")
+    runtime_run_jobs = cfg.get("run_jobs")
+
     cpu_count = os.cpu_count() or 1
-    base_cpu = max(1, cpu_count - cpu_reserve)
-    usable_cpu = max(1, int(base_cpu * oversubscribe))
+    usable_cpu = max(1, int((cpu_count - cpu_reserve) * oversubscribe))
 
     # --------------------------------------------------
-    # Explicit overrides (handled FIRST)
+    # Explicit runtime overrides (highest priority)
     # --------------------------------------------------
-    if trial_jobs is not None or run_jobs is not None:
-        t = trial_jobs if trial_jobs is not None else 1
-        r = run_jobs if run_jobs is not None else 1
+    if runtime_trial_jobs is not None or runtime_run_jobs is not None:
+        t = runtime_trial_jobs if runtime_trial_jobs is not None else None
+        r = runtime_run_jobs if runtime_run_jobs is not None else None
+
+        # fill missing dimension with policy
+        if t is None:
+            t = 1
+        if r is None:
+            r = 1
+
         return t, r
 
     # --------------------------------------------------
-    # Policy
+    # Policy (auto mode)
     # --------------------------------------------------
     if trial_count > 1:
-        # parallelize trials
         t = min(max_trial_jobs, trial_count, usable_cpu)
         r = 1
         return t, r
 
     if num_runs > 1:
-        # parallelize runs
         t = 1
         r = min(max_run_jobs, num_runs, usable_cpu)
         return t, r
 
-    # --------------------------------------------------
-    # Default (single run, single trial)
-    # --------------------------------------------------
     return 1, 1
+
+
+def extract_runtime_overrides(overrides: list[str]) -> dict:
+    result = {}
+    for o in overrides:
+        if o.startswith("runtime.trial_jobs="):
+            result["trial_jobs"] = o.split("=", 1)[1]
+        elif o.startswith("runtime.run_jobs="):
+            result["run_jobs"] = o.split("=", 1)[1]
+    return result
 
 
 def build_hydra_command(
@@ -345,14 +399,16 @@ def build_hydra_command(
     if trials is not None:
         cmd.append(f"trial.count={trials}")
 
-    if trial_jobs is not None:
-        cmd.append(f"trial.n_jobs={trial_jobs}")
-
     if trial_id is not None:
         cmd.append(f"trial.id={trial_id}")
 
-    if run_jobs is not None:
-        cmd.append(f"hydra.launcher.n_jobs={run_jobs}")
+    # eventually, remove trial.n_jobs
+    if not any(oo.startswith("runtime.trial_jobs=") for oo in overrides):
+        cmd.append(f"runtime.trial_jobs={trial_jobs}")
+        cmd.append(f"trial.n_jobs={trial_jobs}")
+
+    cmd.append(f"runtime.run_jobs={run_jobs}")
+    cmd.append(f"hydra.launcher.n_jobs={run_jobs}")
 
     cmd.extend(overrides)
 
@@ -374,15 +430,12 @@ def build_run_help(cmd) -> str:
         "Parallelism:",
         "  -t, --trials INTEGER          Number of stochastic trials (trial.count)",
         "      --trial-id INTEGER        Run a specific trial id (trial.id)",
-        "      --trial-jobs INTEGER      Max concurrent trials per run (trial.n_jobs)",
-        "      --run-jobs INTEGER        Max concurrent Hydra runs (launcher.n_jobs)",
         "",
         "Examples:",
         "  roost run Case.toml",
         "  roost run Case.toml -t 100",
         "  roost run Case.toml --trial-id 7",
         "  roost run Case.toml -t 100 --trial-id 7",
-        "  roost run Case.toml -t 100 --trial-jobs 8 --run-jobs 4",
         "",
         format_override_help(conf_dir, groups=helper_groups),
         format_click_options(cmd),
@@ -406,8 +459,6 @@ def build_run_help(cmd) -> str:
 @click.argument("case", required=False)
 @click.option("-t", "--trials", type=int, default=None)
 @click.option("--trial-id", type=int, default=None)
-@click.option("--trial-jobs", type=int, default=None)
-@click.option("--run-jobs", type=int, default=None)
 @click.option("--open-folder", is_flag=True, help="Open experiment folder after run.")
 @click.pass_context
 def cmd_run(
@@ -415,8 +466,6 @@ def cmd_run(
     case: str | None,
     trials: int | None,
     trial_id: int | None,
-    trial_jobs: int | None,
-    run_jobs: int | None,
     open_folder: bool,
 ):
     cwd = Path.cwd()
@@ -453,6 +502,15 @@ def cmd_run(
         *hydra_overrides,
     ]
 
+    # Load environment settings
+    env = build_runtime_environment(case_file)
+    env_overrides = extract_runtime_environment_overrides(hydra_overrides)
+    for k, v in env_overrides.items():
+        if v == "__DELETE__":
+            env.pop(k, None)
+        else:
+            env[k] = str(v)
+
     num_runs = get_total_runs_from_overrides(hydra_overrides)
     trial_count = trials or 1
     total_trials = num_runs * trial_count
@@ -461,13 +519,20 @@ def cmd_run(
     # Auto parallelism policy
     # ------------------------------------------------------------
 
-    cfg = load_roost_defaults(CONF_DIR)
+    cfg = load_runtime_config(CONF_DIR)
+    runtime_overrides = extract_runtime_overrides(hydra_overrides)
+
+    # Apply overrides (convert to int if single value)
+    for k, v in runtime_overrides.items():
+        try:
+            cfg[k] = int(v)
+        except ValueError:
+            # sweep values like "4,8,12" → ignore here (Hydra will handle)
+            pass
 
     trial_jobs, run_jobs = resolve_parallelism(
         num_runs=num_runs,
         trial_count=trial_count,
-        trial_jobs=trial_jobs,
-        run_jobs=run_jobs,
         cfg=cfg,
     )
 
@@ -476,8 +541,6 @@ def cmd_run(
     # ------------------------------------------------------------
     trial_jobs = trial_jobs or 1
     run_jobs = run_jobs or 1
-
-    parallel_jobs = min(run_jobs, num_runs)
 
     # ------------------------------------------------------------
     # Validation
@@ -489,11 +552,10 @@ def cmd_run(
             )
 
     logger.info(
-        "Runs: {} | Parallel runs: {} | Trials: {} | Parallel trials: {}",
+        "Runs: {} | Trials per run: {} | Total trials: {}",
         num_runs,
-        parallel_jobs,
+        trial_count,
         total_trials,
-        trial_jobs,
     )
 
     # ------------------------------------------------------------
@@ -607,7 +669,7 @@ def cmd_run(
 
         start_time = time.perf_counter()
 
-        proc = subprocess.Popen(cmd)
+        proc = subprocess.Popen(cmd, env=env)
         monitor_thread, progress_file = start_progress_monitor(run_root, total_trials)
         proc.wait()
 
@@ -647,7 +709,7 @@ def cmd_run(
     results_root = Path.cwd() / "results"
     # Start monitor BEFORE Hydra runs
     try:
-        proc = subprocess.Popen(cmd)
+        proc = subprocess.Popen(cmd, env=env)
         monitor_thread, progress_file = start_progress_monitor(run_root, total_trials)
         proc.wait()
         # Wait until progress completes

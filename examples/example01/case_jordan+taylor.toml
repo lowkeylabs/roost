@@ -92,8 +92,14 @@ health = [ "average", "average",]
 smoker = [ false, false,]
 
 [roost]
-master_seed = 3401451584
+master_seed = 2348696865
 trials = 1
+
+[runtime_environment]
+OMP_NUM_THREADS = 1
+MKL_NUM_THREADS = 1
+OPENBLAS_NUM_THREADS = 1
+MSK_IPAR_NUM_THREADS = 1
 
 [spending_policy]
 essential_spending = 0
@@ -103,7 +109,7 @@ max_years_below_threshhold = 5
 max_consecutive_years_below_threshhold = 5
 
 [cache]
-generated_at = "2026-04-21T11:31:31.069654"
+generated_at = "2026-04-22T13:21:32.676682"
 retirement_horizon = 0
 max_spending = 373905.57
 first_year_total_withdrawals = 1145882.2

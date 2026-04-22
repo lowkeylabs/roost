@@ -28,6 +28,7 @@ def case_upgrade(
         "longevity_fixed_alignment": False,
         "life_expectancy_updated": False,
         "written": False,
+        "runtime_environment_added": False,
     }
 
     # ---------------------------------------------------------
@@ -74,6 +75,20 @@ def case_upgrade(
         actions["roost_added"] = True
         if verbose:
             print("Added default [roost] section.")
+
+    # ---------------------------------------------------------
+    # Runtime Environment
+    # ---------------------------------------------------------
+
+    if "runtime_environment" not in case._raw_dict:
+        _add_default_runtime_environment(case)
+        actions["runtime_environment_added"] = True
+        if verbose:
+            print("Added default [runtime_environment] section.")
+
+    # Always mirror into case.extra
+    if "runtime_environment" in case._raw_dict:
+        case.extra["runtime_environment"] = case._raw_dict["runtime_environment"]
 
     # ---------------------------------------------------------
     # Spending Policy (STRICT NEW SCHEMA)
@@ -159,6 +174,7 @@ def case_upgrade(
             "roost_added",
             "longevity_fixed_alignment",
             "life_expectancy_updated",
+            "runtime_environment_added",
         )
     ):
         case.write()
@@ -188,6 +204,21 @@ def _add_default_roost(case: Case) -> None:
     case.extensions["roost"] = model
     case.extra["roost"] = model.model_dump(exclude_none=True, by_alias=True)
     case._raw_dict["roost"] = model.model_dump(exclude_none=True, by_alias=True)
+
+
+def _add_default_runtime_environment(case: Case) -> None:
+    env = {
+        # Prevent oversubscription across ROOST parallel trials
+        "OMP_NUM_THREADS": 1,
+        "MKL_NUM_THREADS": 1,
+        "OPENBLAS_NUM_THREADS": 1,
+        # MOSEK-specific settings
+        "MSK_IPAR_NUM_THREADS": 1,
+        # "MOSEK_SYS_NUM_CORES" : 1,
+    }
+
+    case._raw_dict["runtime_environment"] = env
+    case.extra["runtime_environment"] = env
 
 
 def _add_default_spending_policy(case: Case) -> None:

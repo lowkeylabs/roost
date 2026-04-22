@@ -306,7 +306,7 @@ register_metric(
         dtype=int,
         compute_level="run",
         # is_invariant=True,
-        compute_fn=lambda r: ((r.get("_inputs") or {}).get("trial", {}).get("n_jobs")),
+        compute_fn=lambda r: ((r.get("_inputs") or {}).get("runtime", {}).get("trial_jobs")),
         description="Parallel Trial jobs configured for this run.",
         value_series_fn=wrap_value_fn(lambda v, *_: f"{v}" if isinstance(v, int) else (v or "-")),
         display_row_fn=lambda v, *_: (
@@ -320,6 +320,21 @@ register_metric(
 # Elapsed time
 # ---------------------------------------------------------
 
+
+def _elapsed_seconds(r):
+    start = r.get("started_at")
+    end = r.get("finished_at")
+
+    if isinstance(start, (int, float)) and isinstance(end, (int, float)):
+        return end - start
+
+    return (
+        r.get("elapsed_seconds")
+        or r.get("elapsed")
+        or (r.get("timing") or {}).get("elapsed_seconds")
+    )
+
+
 register_metric(
     MetricSpec(
         key="elapsed_seconds",
@@ -327,11 +342,7 @@ register_metric(
         fmt="float2",
         dtype=float,
         compute_level="trial",
-        compute_fn=lambda r: (
-            r.get("elapsed_seconds")
-            or r.get("elapsed")
-            or (r.get("timing") or {}).get("elapsed_seconds")
-        ),
+        compute_fn=_elapsed_seconds,
         aggregates=["median", "p10", "p90", "p99"],
         description="Elapsed solve time per trial (seconds).",
     )
@@ -507,6 +518,23 @@ register_metric(
 # Run-level timing metrics (from progress.log)
 # ---------------------------------------------------------
 
+
+def _run_wall_time(r):
+    trials = _trials(r)
+    if not trials:
+        return None
+
+    starts = [t.get("started_at") for t in trials if isinstance(t.get("started_at"), (int, float))]
+    finishes = [
+        t.get("finished_at") for t in trials if isinstance(t.get("finished_at"), (int, float))
+    ]
+
+    if not starts or not finishes:
+        return None
+
+    return max(finishes) - min(starts)
+
+
 register_metric(
     MetricSpec(
         key="run_wall_time",
@@ -514,9 +542,9 @@ register_metric(
         dtype=float,
         fmt="duration_hms",
         compute_level="run",
-        is_invariant=True,
+        is_invariant=False,
         aggregates=[],
-        compute_fn=lambda r: r.get("run_wall_time"),
+        compute_fn=_run_wall_time,
         description="Total wall-clock time for the run (from first start to last finish).",
     )
 )
@@ -552,5 +580,110 @@ register_metric(
             else None
         ),
         description="Throughput normalized by number of parallel trial jobs.",
+    )
+)
+
+
+def _total_elapsed_seconds(r):
+    # _debug_row(r)
+    trials = (r.get("_ctx") or {}).get("trial_rows") or []
+    run_id = r.get("run_id")
+
+    total = 0.0
+
+    for t in trials:
+        if t.get("run_id") != run_id:
+            continue
+
+        val = t.get("elapsed_seconds") or (t.get("timing") or {}).get("elapsed_seconds")
+
+        if isinstance(val, (int, float)):
+            total += val
+
+    return total if total > 0 else None
+
+
+def _wall_time_efficiency(r):
+    wall = _run_wall_time(r)
+    total = _total_elapsed_seconds(r)
+
+    if not wall or not total:
+        return None
+
+    return total / wall
+
+
+register_metric(
+    MetricSpec(
+        key="wall_time_efficiency",
+        label="Wall\nEffic.",
+        dtype=float,
+        fmt="float2",
+        compute_level="run",
+        compute_fn=_wall_time_efficiency,
+        description="Total compute time divided by elapsed wall time (≈ effective parallelism).",
+        value_series_fn=wrap_value_fn(lambda v, _: f"{v:.1f}× parallel"),
+    )
+)
+
+dummy = 0
+
+
+def _solver_efficiency_trial(r):
+    solve = (r.get("timing") or {}).get("elapsed_seconds")
+    wall = r.get("elapsed_seconds")
+
+    if not isinstance(solve, (int, float)):
+        return None
+    if not isinstance(wall, (int, float)) or wall <= 0:
+        return None
+
+    return solve / wall
+
+
+register_metric(
+    MetricSpec(
+        key="solver_efficiency",
+        label="Solve\nEffic.",
+        dtype=float,
+        fmt="percent",
+        compute_level="trial",
+        compute_fn=_solver_efficiency_trial,
+        aggregates=["median", "p10", "p90"],
+        description="Fraction of trial time spent inside solver.",
+    )
+)
+
+
+def _solver_efficiency_run(r):
+    trials = _trials(r)
+
+    total_solve = 0.0
+    total_wall = 0.0
+
+    for t in trials:
+        solve = (t.get("timing") or {}).get("elapsed_seconds")
+        wall = t.get("elapsed_seconds")
+
+        if not isinstance(solve, (int, float)):
+            continue
+        if not isinstance(wall, (int, float)) or wall <= 0:
+            continue
+
+        total_solve += solve
+        total_wall += wall
+
+    return total_solve / total_wall if total_wall else None
+
+
+register_metric(
+    MetricSpec(
+        key="solver_efficiency_run",
+        label="Solve %",
+        dtype=float,
+        fmt="percent",
+        compute_level="run",
+        compute_fn=_solver_efficiency_run,
+        description="Fraction of total runtime spent solving (weighted).",
     )
 )

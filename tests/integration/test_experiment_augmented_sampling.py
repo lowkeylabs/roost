@@ -98,8 +98,6 @@ def test_historical_complete_multiple_slices(tmp_path, monkeypatch):
             str(case_file),
             "experiment=augmented_sampling",
             "rates_selection.from_to=[[1966,1970],[1988,1992]]",
-            "--trial-jobs=1",
-            "--run-jobs=1",
         ],
     )
 

@@ -15,3 +15,9 @@ max_run_jobs: 8
 cpu_reserve: 2        # leave cores free (UI, OS, etc.)
 oversubscribe_factor: 1.5
 enforce_single_axis: true
+
+# --------------------------------------------------
+# Active runtime configuration (authoritative)
+# --------------------------------------------------
+trial_jobs: 8  # 8 for MOSEK, 10 for HiGHS
+run_jobs: 1

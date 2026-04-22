@@ -406,7 +406,7 @@ register_group(
         # Outcome counts (primary)
         # -------------------------------------------------
         ("trial_completeness"),
-        ("solved", "sum"),
+        ("solved", "sum", {"show_if": "is_pivot"}),
         ("timeout", "sum"),
         ("error", "sum"),
         # Ratios (cleaner than separate rate metrics)
@@ -429,8 +429,13 @@ register_group(
         # Run-level performance
         # -------------------------------------------------
         ("run_wall_time"),
+        ("wall_time_efficiency"),
         ("throughput", {"show_if": "is_pivot"}),
         ("efficiency", {"show_if": "is_pivot"}),
+        ("solver_efficiency_run"),
+        ("solver_efficiency", "median", {"show_if": "is_pivot"}),
+        ("solver_efficiency", "p10", {"show_if": "is_pivot"}),
+        ("solver_efficiency", "p90", {"show_if": "is_pivot"}),
     ],
     description="Execution audit including outcomes, completeness, and performance.",
 )

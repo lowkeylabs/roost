@@ -53,7 +53,7 @@ def test_orchestrate_trials_deadlocks_on_worker_exception(monkeypatch, tmp_path)
         master_seed=1234,
         trial_ids=[0, 1],
         use_trial_seeds=True,
-        n_jobs=2,
+        trial_jobs=2,
         case_file=case_file,
         overrides={},
         run_dir=tmp_path,

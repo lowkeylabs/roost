@@ -77,7 +77,7 @@ def orchestrate_trials(
     master_seed: int,
     trial_ids: list[int],
     use_trial_seeds: bool,
-    n_jobs: int,
+    trial_jobs: int,
     case_file: Path,
     overrides: dict,
     run_dir: Path,
@@ -104,11 +104,12 @@ def orchestrate_trials(
         rates_seed, longevity_seed = seed_map[tid]
 
         logger.debug(
-            "{} - Trial {:04d} seeds: rates={}, longevity={}",
+            "{} - Trial {:04d} seeds: rates={}, longevity={}, trial_jobs={}",
             job_id,
             tid,
             rates_seed,
             longevity_seed,
+            trial_jobs,
         )
 
         trial_args.append(
@@ -131,7 +132,7 @@ def orchestrate_trials(
     # -----------------------------------------------------
     # Single-process mode
     # -----------------------------------------------------
-    if n_jobs == 1:
+    if trial_jobs == 1:
         for args in trial_args:
             r = safe_run_trial((worker_fn, args))
             results.append(r)
@@ -160,7 +161,7 @@ def orchestrate_trials(
     # Multiprocessing mode
     # -----------------------------------------------------
     else:
-        with ProcessPoolExecutor(max_workers=n_jobs) as executor:
+        with ProcessPoolExecutor(max_workers=trial_jobs) as executor:
             futures = [executor.submit(safe_run_trial, (worker_fn, args)) for args in trial_args]
 
             for future in as_completed(futures):
@@ -304,8 +305,7 @@ def run_hydra_job(cfg: DictConfig):
         extra={"master_seed": master_seed},
     )
 
-    trial_cfg = cfg.trial
-    trial_jobs = int(trial_cfg.n_jobs)
+    trial_jobs = int(cfg.runtime.trial_jobs)
 
     try:
         hc = HydraConfig.get()
@@ -320,6 +320,7 @@ def run_hydra_job(cfg: DictConfig):
     if trial_jobs > 1 and run_jobs > 1:
         raise RuntimeError("Invalid configuration: cannot parallelize both trials and runs.")
 
+    trial_cfg = cfg.trial
     trial_id_override = _extract_trial_override(overrides, "id")
     trial_count_override = _extract_trial_override(overrides, "count", default=int(trial_cfg.count))
 
@@ -337,7 +338,7 @@ def run_hydra_job(cfg: DictConfig):
         master_seed=master_seed,
         trial_ids=trial_ids,
         use_trial_seeds=use_trial_seeds,
-        n_jobs=trial_jobs,
+        trial_jobs=trial_jobs,
         case_file=case_file,
         overrides=overrides,
         run_dir=run_dir,

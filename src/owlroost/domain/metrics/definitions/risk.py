@@ -10,7 +10,7 @@ from ..metric_spec import MetricSpec
 from ..utils import _as_float, wrap_value_fn
 
 # =========================================================
-# CORE OUTCOME METRICS
+# CORE OUTCOME METRICS (UNCHANGED)
 # =========================================================
 
 register_metric(
@@ -110,32 +110,73 @@ register_metric(
     )
 )
 
+# =========================================================
+# NEW: STRUCTURED RISK MODEL
+# =========================================================
+
+
+def _profile_lifestyle(r):
+    return {
+        "p10": _as_float(r.get("spending_ratio_to_lifestyle_min_p10")),
+        "years": r.get("years_below_lifestyle_mean") or 0,
+        "consec": r.get("consecutive_years_below_lifestyle_mean") or 0,
+        "breach": _as_float(r.get("lifestyle_stress_flag_ratio")) or 0,
+    }
+
+
+def _profile_essential(r):
+    return {
+        "p10": _as_float(r.get("spending_ratio_to_essential_min_p10")),
+        "years": r.get("years_below_essential_mean") or 0,
+        "consec": r.get("consecutive_years_below_essential_mean") or 0,
+        "breach": _as_float(r.get("essential_spending_breach_ratio")) or 0,
+    }
+
+
+def _classify(p):
+    p10 = p["p10"]
+    years = p["years"]
+    consec = p["consec"]
+    breach = p["breach"]
+
+    return {
+        "severity": "severe" if (p10 is not None and p10 < 1.0) else "strong",
+        "frequency": (
+            "none"
+            if breach == 0
+            else "rare"
+            if breach < 0.05
+            else "occasional"
+            if breach < 0.2
+            else "frequent"
+        ),
+        "persistence": ("none" if years == 0 else "episodic" if consec <= 1 else "persistent"),
+    }
+
 
 # =========================================================
-# DISTRIBUTION RISK SIGNALS
+# SIGNALS (REWRITTEN)
 # =========================================================
 
 
-def _compute_distribution_risk_flags(r):
-    flags = 0
+def _signals_from_profile(p, label):
+    c = _classify(p)
+    signals = []
 
-    p10_ess = _as_float(r.get("spending_ratio_to_essential_min_p10"))
-    p10_life = _as_float(r.get("spending_ratio_to_lifestyle_min_p10"))
-    breach = _as_float(r.get("lifestyle_stress_flag_ratio"))
+    if c["severity"] == "severe":
+        signals.append(f"{label} shortfall in adverse scenarios")
 
-    if p10_ess is not None and p10_ess < 1.0:
-        flags += 1
+    if c["persistence"] == "persistent":
+        signals.append(f"Persistent {label.lower()} shortfall")
 
-    if p10_ess is not None and p10_ess < 0.5:
-        flags += 1
+    if c["frequency"] == "frequent":
+        signals.append(f"Frequent {label.lower()} shortfalls")
+    elif c["frequency"] == "occasional":
+        signals.append(f"Occasional {label.lower()} shortfalls")
+    elif c["frequency"] == "rare":
+        signals.append(f"Rare {label.lower()} shortfalls")
 
-    if p10_life is not None and p10_life < 1.0:
-        flags += 1
-
-    if breach is not None and breach > 0.1:
-        flags += 1
-
-    return flags
+    return signals
 
 
 def _compute_path_risk_signals(r):
@@ -144,50 +185,23 @@ def _compute_path_risk_signals(r):
 
 
 def _compute_distribution_risk_signals(r):
+    life = _profile_lifestyle(r)
+    ess = _profile_essential(r)
+
     signals = []
+    signals.extend(_signals_from_profile(ess, "Essential"))
+    signals.extend(_signals_from_profile(life, "Lifestyle"))
 
-    p10_ess = _as_float(r.get("spending_ratio_to_essential_min_p10"))
-    p10_life = _as_float(r.get("spending_ratio_to_lifestyle_min_p10"))
-    breach = _as_float(r.get("lifestyle_stress_flag_ratio"))
-
-    years_ess = r.get("years_below_essential_mean")
-    years_life = r.get("years_below_lifestyle_mean")
-
-    # --- PRIORITY ORDER ---
-
-    if p10_ess is not None and p10_ess < 0.5:
-        return ["Severe essential shortfall risk"]
-
-    if p10_ess is not None and p10_ess < 1.0:
-        signals.append("Below essential spending in tail scenarios")
-
-    if years_ess is not None and years_ess > 0:
-        signals.append("Persistent essential shortfall")
-
-    if years_life is not None and years_life > 0:
-        signals.append("Sustained lifestyle shortfall")
-
-    if p10_life is not None and p10_life < 1.0:
-        signals.append("Lifestyle degradation risk")
-
-    if breach is not None:
-        if breach > 0.9:
-            signals.append("Frequent shortfalls")
-        elif breach > 0.1:
-            signals.append("Occasional shortfalls")
-
-    return signals[:3]
+    return signals[:3] or None
 
 
 def _compute_risk_signals_run(r):
     trial_count = r.get("trial") or r.get("trial_cnt") or r.get("trial_count") or 1
 
     if trial_count == 1:
-        signals = _compute_path_risk_signals(r)
-    else:
-        signals = _compute_distribution_risk_signals(r)
+        return _compute_path_risk_signals(r)
 
-    return signals if signals else None
+    return _compute_distribution_risk_signals(r)
 
 
 def _compute_risk_flags_run(r):
@@ -195,61 +209,73 @@ def _compute_risk_flags_run(r):
     return len(signals) if signals else 0
 
 
+# =========================================================
+# INTERPRETATION (REWRITTEN)
+# =========================================================
+
+
 def _compute_risk_interpretation(r):
-    signals = r.get("risk_signals") or []
+    life_profile = _profile_lifestyle(r)
+    ess_profile = _profile_essential(r)
 
-    if not signals:
-        return None
+    life = _classify(life_profile)
+    ess = _classify(ess_profile)
 
-    primary = signals[0]
+    # Essential dominates
+    if ess["severity"] == "severe":
+        return "Plan fails to meet essential spending in adverse scenarios."
 
-    mapping = {
-        "Severe essential shortfall risk": "Plan fails to meet essential spending in worst-case scenarios.",
-        "Below essential spending in tail scenarios": "Essential spending is not sustained in adverse scenarios.",
-        "Persistent essential shortfall": "Essential spending is not maintained over extended periods.",
-        "Sustained lifestyle shortfall": "Lifestyle spending is not consistently maintained.",
-        "Lifestyle degradation risk": "Spending occasionally falls below lifestyle targets.",
-        "Frequent shortfalls": "Shortfalls occur across most scenarios.",
-        "Occasional shortfalls": "Shortfalls occur in a minority of scenarios.",
-    }
+    if ess["frequency"] == "none":
+        essential_msg = "Essential spending is fully protected."
+    else:
+        essential_msg = "Essential spending is mostly protected."
 
-    return mapping.get(primary, "Mixed risk signals present.")
+    # Lifestyle interpretation
+    if life["frequency"] == "none":
+        lifestyle_msg = "Lifestyle is fully maintained."
+
+    elif life["frequency"] == "rare":
+        if life_profile["consec"] > 1:
+            lifestyle_msg = (
+                "Lifestyle is maintained in nearly all scenarios, with rare clustered shortfalls."
+            )
+        else:
+            lifestyle_msg = (
+                "Lifestyle is maintained in nearly all scenarios with rare, isolated shortfalls."
+            )
+
+    elif life["frequency"] == "occasional":
+        lifestyle_msg = "Lifestyle occasionally falls below target."
+
+    elif life["frequency"] == "frequent":
+        lifestyle_msg = "Lifestyle is frequently not maintained."
+
+    else:
+        lifestyle_msg = "Mixed lifestyle outcomes."
+
+    return f"{essential_msg} {lifestyle_msg}"
 
 
 # =========================================================
-# RISK LEVEL CLASSIFICATION
+# RISK LEVELS (UPDATED)
 # =========================================================
-
-
-def _lifestyle_level(r):
-    p10 = _as_float(r.get("spending_ratio_to_lifestyle_min_p10"))
-    years = r.get("years_below_lifestyle_mean")
-
-    if p10 is not None:
-        if p10 < 0.5:
-            return "high"
-        if p10 < 1.0:
-            return "moderate"
-
-    if years is not None and years > 0:
-        return "moderate"
-
-    return "low"
 
 
 def _essential_level(r):
-    p10 = _as_float(r.get("spending_ratio_to_essential_min_p10"))
-    years = r.get("years_below_essential_mean")
-
-    if p10 is not None:
-        if p10 < 0.5:
-            return "high"
-        if p10 < 1.0:
-            return "moderate"
-
-    if years is not None and years > 0:
+    c = _classify(_profile_essential(r))
+    if c["severity"] == "severe":
+        return "high"
+    if c["frequency"] in ("occasional", "frequent"):
         return "moderate"
+    return "low"
 
+
+def _lifestyle_level(r):
+    c = _classify(_profile_lifestyle(r))
+    if c["severity"] == "severe":
+        return "high"
+    if c["frequency"] in ("occasional", "frequent") or c["persistence"] == "persistent":
+        return "moderate"
     return "low"
 
 
@@ -259,21 +285,17 @@ def _compute_risk_summary(r):
 
     if essential == "high":
         return "At risk of depletion"
-
     if essential == "moderate":
         return "At risk"
-
     if lifestyle == "high":
         return "Severely constrained"
-
     if lifestyle == "moderate":
         return "Safe but constrained"
-
     return "Comfortable and safe"
 
 
 # =========================================================
-# REGISTER METRICS
+# REGISTER METRICS (UNCHANGED KEYS)
 # =========================================================
 
 register_metric(

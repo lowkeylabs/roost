@@ -26,6 +26,7 @@ UPGRADE_MESSAGES = {
     "roost_added": "Added [roost] section",
     "longevity_fixed_alignment": "Fixed [longevity] alignment",
     "cache_updated": "Rebuild [cache] section",
+    "runtime_environment_added": "Added [runtime_environment] section",
 }
 
 

@@ -52,8 +52,13 @@ def load_effective(trial_path: Path) -> dict:
 _progress_cache: dict[Path, dict[int, dict]] = {}
 
 
-def _load_progress_file(progress_file: Path) -> dict[int, dict]:
-    result = {}
+def _load_progress_file(progress_file: Path) -> dict[tuple[int, int], dict]:
+    """
+    Load progress.log and key by (run_index, trial_id).
+
+    This avoids collisions where multiple runs reuse the same trial_id.
+    """
+    result: dict[tuple[int, int], dict] = {}
 
     try:
         with open(progress_file) as f:
@@ -65,12 +70,21 @@ def _load_progress_file(progress_file: Path) -> dict[int, dict]:
 
                 finished_at, job_id, tid, status, elapsed, started_at = parts
 
+                # parse trial id
                 try:
                     tid_int = int(tid)
                 except Exception:
                     continue
 
-                result[tid_int] = {
+                # parse run index from job_id like "run_3"
+                try:
+                    run_idx = int(job_id.split("_")[1])
+                except Exception:
+                    continue
+
+                key = (run_idx, tid_int)
+
+                result[key] = {
                     "elapsed_seconds": float(elapsed),
                     "started_at": float(started_at),
                     "finished_at": float(finished_at),
@@ -82,7 +96,12 @@ def _load_progress_file(progress_file: Path) -> dict[int, dict]:
     return result
 
 
-def load_progress(trial_path: Path) -> dict:
+def load_progress(trial_path: Path, base_row: dict | None = None) -> dict:
+    """
+    Load per-trial progress data using (run, trial_id) key.
+
+    Requires run index from base_row (already available via enrich_row).
+    """
     try:
         progress_file = trial_path.parents[2] / "progress.log"
 
@@ -92,13 +111,21 @@ def load_progress(trial_path: Path) -> dict:
         if progress_file not in _progress_cache:
             _progress_cache[progress_file] = _load_progress_file(progress_file)
 
-        # 🔥 normalize trial id
+        # parse trial id
         try:
             trial_id_int = int(trial_path.name)
         except Exception:
             return {}
 
-        return _progress_cache[progress_file].get(trial_id_int, {})
+        # extract run index (must exist)
+        run_idx = None
+        if base_row:
+            run_idx = base_row.get("run")
+
+        if run_idx is None:
+            return {}
+
+        return _progress_cache[progress_file].get((run_idx, trial_id_int), {})
 
     except Exception:
         return {}
@@ -183,7 +210,7 @@ def build_trial_row(
         return None
 
     effective_data = load_effective(trial_path)
-    progress_data = load_progress(trial_path)
+    progress_data = load_progress(trial_path, base_row)
 
     # ----------------------------------------
     # Unified data payload (NEW)

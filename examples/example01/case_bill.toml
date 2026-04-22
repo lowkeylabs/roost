@@ -19,12 +19,13 @@ hsa_savings_balances = [ 0.0,]
 HFP_file_name = "None"
 
 [fixed_income]
-pension_monthly_amounts = [ 0,]
+pension_monthly_amounts = [ 0.0,]
 pension_ages = [ 65.0,]
 pension_indexed = [ true,]
 pension_survivor_fraction = [ 0.0,]
 social_security_pia_amounts = [ 0,]
 social_security_ages = [ 67.0,]
+social_security_trim_pct = 0
 
 [rates_selection]
 heirs_rate_on_tax_deferred_estate = 30.0
@@ -32,20 +33,24 @@ effective_tax_rate = 20.0
 dividend_rate = 1.8
 obbba_expiration_year = 2032
 method = "historical"
-to = 1996
 from = 1966
+to = 1996
+reproducible_rates = false
 reverse_sequence = false
 roll_sequence = 0
 
 [asset_allocation]
 interpolation_method = "linear"
 type = "individual"
-generic = [ [ [ 50.0, 0.0, 50.0, 0.0,], [ 50.0, 0.0, 50.0, 0.0,],],]
+generic = [ [ [ 50, 0, 50, 0,], [ 50, 0, 50, 0,],],]
 
 [optimization_parameters]
 spending_profile = "flat"
 surviving_spouse_spending_percent = 60
 objective = "maxSpending"
+smile_dip = 15
+smile_increase = 12
+smile_delay = 0
 
 [solver_options]
 maxRothConversion = 0
@@ -79,13 +84,19 @@ life_expectancy_seed = 1234567890
 model_name = "default"
 partnered = false
 lifetime_percentile = [ 0.8,]
-sex = [ "female",]
+sex = [ "male",]
 health = [ "average",]
 smoker = [ false,]
 
 [roost]
-master_seed = 3795040156
+master_seed = 1745392466
 trials = 1
+
+[runtime_environment]
+OMP_NUM_THREADS = 1
+MKL_NUM_THREADS = 1
+OPENBLAS_NUM_THREADS = 1
+MSK_IPAR_NUM_THREADS = 1
 
 [spending_policy]
 essential_spending = 0
@@ -95,7 +106,7 @@ max_years_below_threshhold = 5
 max_consecutive_years_below_threshhold = 5
 
 [cache]
-generated_at = "2026-04-21T11:31:26.630939"
+generated_at = "2026-04-22T13:21:28.197397"
 retirement_horizon = 0
 max_spending = 36665.93
 first_year_total_withdrawals = 36665.93

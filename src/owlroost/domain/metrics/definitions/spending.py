@@ -2,7 +2,7 @@
 
 from ...formatting import format_value
 from ..metric_registry import register_metric
-from ..metric_spec import MetricSpec
+from ..metric_spec import MetricSpec, default_series_fn
 from ..utils import _bool_value, wrap_value_fn
 
 # =========================================================
@@ -89,18 +89,32 @@ register_metric(
         fmt="currency",
         dtype=float,
         aggregates=["median", "p10", "p90"],
+        value_series_fn=lambda values, raw, rows: (
+            "Not specified (no lifestyle target)"
+            if not any(v is not None for v in raw)
+            else default_series_fn(MetricSpec(key="tmp", label="tmp", fmt="currency"))(
+                values, raw, rows
+            )
+        ),
         description="Target spending level that maintains the desired lifestyle.",
     )
 )
 
+
 register_metric(
     MetricSpec(
         key="lifestyle_spending_input",
-        label="Lifestyle\n(spend)",
+        label="Lifestyle\n(input)",
         dtype=float,
         is_invariant=True,
         compute_fn=lambda r: (
-            r.get("_inputs", {}).get("spending_policy", {}).get("lifestyle_spending")
+            r.get("_inputs", {}).get("spending_policy", {}).get("lifestyle_spending") or 0
+        ),
+        value_series_fn=wrap_value_fn(
+            lambda v, _: (
+                print(f"[DEBUG lifestyle_input] v={v}"),
+                "Not set in TOML" if v in (0, None) else format_value(v, "currency"),
+            )
         ),
         description="User-defined lifestyle spending (raw input value).",
     )
@@ -233,7 +247,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="spending_ratio_to_essential_min",
-        path="financial.spending_summary.min_ratio_to_minimum",
+        path="financial.spending_summary.min_ratio_to_essential",
         label="Worst Year/\nEssential",
         fmt="percent2",
         aggregates=["mean", "p10"],
@@ -251,7 +265,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="spending_ratio_to_essential_mean",
-        path="financial.spending_summary.mean_ratio_to_minimum",
+        path="financial.spending_summary.mean_ratio_to_essential",
         label="Avg Year/\nEssential",
         fmt="percent2",
         aggregates=["mean"],
@@ -262,7 +276,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="spending_ratio_to_essential_median",
-        path="financial.spending_summary.median_ratio_to_minimum",
+        path="financial.spending_summary.median_ratio_to_essential",
         label="Median Year/\nEssential",
         fmt="percent2",
         aggregates=["mean"],
@@ -273,7 +287,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="years_below_essential",
-        path="financial.spending_summary.years_below_minimum",
+        path="financial.spending_summary.years_below_essential",
         label="Years\n< Essential",
         fmt="int",
         aggregates=["mean", "p90"],
@@ -285,7 +299,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="consecutive_years_below_essential",
-        path="financial.spending_summary.consecutive_years_below_minimum",
+        path="financial.spending_summary.consecutive_years_below_essential",
         label="Consec <\nEssential",
         fmt="int",
         aggregates=["mean", "p90"],
@@ -319,7 +333,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="spending_ratio_to_lifestyle_min",
-        path="financial.spending_summary.min_ratio_to_acceptable",
+        path="financial.spending_summary.min_ratio_to_lifestyle",
         label="Worst Year/\nLifestyle",
         fmt="percent2",
         aggregates=["mean", "p10"],
@@ -337,7 +351,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="spending_ratio_to_lifestyle_mean",
-        path="financial.spending_summary.mean_ratio_to_acceptable",
+        path="financial.spending_summary.mean_ratio_to_lifestyle",
         label="Avg Year/\nLifestyle",
         fmt="percent2",
         aggregates=["mean"],
@@ -348,7 +362,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="spending_ratio_to_lifestyle_median",
-        path="financial.spending_summary.median_ratio_to_acceptable",
+        path="financial.spending_summary.median_ratio_to_lifestyle",
         label="Median Year/\nLifestyle",
         fmt="percent2",
         aggregates=["mean"],
@@ -359,7 +373,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="years_below_lifestyle",
-        path="financial.spending_summary.years_below_acceptable",
+        path="financial.spending_summary.years_below_lifestyle",
         label="Years <\nLifestyle",
         fmt="int",
         aggregates=["mean", "p90"],
@@ -371,7 +385,7 @@ register_metric(
 register_metric(
     MetricSpec(
         key="consecutive_years_below_lifestyle",
-        path="financial.spending_summary.consecutive_years_below_acceptable",
+        path="financial.spending_summary.consecutive_years_below_lifestyle",
         label="Consec <\nLifestyle",
         fmt="int",
         aggregates=["mean", "p90"],
