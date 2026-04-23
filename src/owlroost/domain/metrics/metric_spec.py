@@ -53,6 +53,7 @@ class MetricSpec:
     # -----------------------------------------------------
     fmt: str = "default"
     align: str = "right"
+    wrap: int | None = None
 
     # -----------------------------------------------------
     # Typing / semantics

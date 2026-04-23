@@ -288,6 +288,7 @@ def parse_view_item(item):
         if "separator" in item:
             return {
                 "separator": item["separator"],
+                "label": item.get("label"),
                 "view_show_if": item.get("show_if"),
             }
 

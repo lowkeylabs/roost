@@ -1,0 +1,95 @@
+---
+title: "ROOST Simple Report"
+format: html
+execute:
+  echo: false
+---
+
+```{python}
+# ---------------------------------------------------------
+# Setup
+# ---------------------------------------------------------
+import yaml
+import json
+from pathlib import Path
+import pandas as pd
+import matplotlib.pyplot as plt
+
+bundle_dir = Path(__file__).parent
+meta_path = bundle_dir / "metadata.yaml"
+
+if not meta_path.exists():
+    raise RuntimeError(f"metadata.yaml not found in {bundle_dir}")
+
+meta = yaml.safe_load(meta_path.read_text())
+runs = meta.get("runs", [])
+```
+
+```
+rows = []
+
+for run in runs:
+    run_path = Path(run["path"])
+
+    trials_dir = run_path / "trials"
+    if not trials_dir.exists():
+        continue
+
+    for trial_dir in sorted(trials_dir.iterdir()):
+        if not trial_dir.is_dir():
+            continue
+
+        metrics_files = list(trial_dir.glob("*_metrics.json"))
+        if not metrics_files:
+            continue
+
+        metrics_file = metrics_files[0]
+
+        try:
+            data = json.loads(metrics_file.read_text())
+        except Exception:
+            continue
+
+        row = {
+            "run_path": str(run_path),
+            "trial": int(trial_dir.name),
+        }
+
+        # timing
+        row["elapsed_seconds"] = (
+            data.get("timing", {}).get("elapsed_seconds")
+        )
+
+        # status
+        row["status"] = (
+            data.get("run_status", {}).get("status")
+        )
+
+        # example financial metric
+        row["spending_mean"] = (
+            data.get("financial", {})
+                .get("spending_summary", {})
+                .get("mean")
+        )
+
+        rows.append(row)
+
+df = pd.DataFrame(rows)
+
+df.head()
+
+if not df.empty:
+    summary = (
+        df.groupby("run_path")
+        .agg(
+            n_trials=("trial", "count"),
+            elapsed_mean=("elapsed_seconds", "mean"),
+            spending_mean=("spending_mean", "mean"),
+        )
+        .reset_index()
+    )
+    summary
+else:
+    print("No data available")
+
+```

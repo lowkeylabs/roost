@@ -18,8 +18,8 @@ from owlroost.domain.metrics.view_registry import (
 )
 from owlroost.domain.services.discovery import discover_experiments
 from owlroost.domain.services.query import apply_filters, apply_sort, apply_top
+from owlroost.domain.services.render_table import render_table
 from owlroost.domain.services.rows import build_run_rows, build_trial_rows
-from owlroost.domain.views.inspect import render_table
 
 # Ensure metrics + views are registered
 load_metrics()

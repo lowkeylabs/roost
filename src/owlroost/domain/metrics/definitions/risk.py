@@ -332,6 +332,7 @@ register_metric(
         compute_fn=_compute_risk_interpretation,
         compute_level="run",
         is_invariant=True,
+        wrap=50,
     )
 )
 
