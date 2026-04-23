@@ -36,7 +36,7 @@ def _is_separator(rm):
 
 def _get_sep_label(rm):
     if isinstance(rm, dict):
-        return rm.get("seperator_label", "") or ""
+        return rm.get("separator_label", "") or ""
     return getattr(rm, "separator_label", "") or ""
 
 
