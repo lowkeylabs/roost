@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 
 import yaml
+from collections import defaultdict
+
 
 from ..models.results import Experiment, Run, Trial
 
@@ -106,6 +108,8 @@ def discover_experiments(results_dir) -> list[Experiment]:
 
                 exp_id += 1
 
+    _mark_duplicate_runs(experiments)
+
     return experiments
 
 
@@ -171,6 +175,110 @@ def _parse_overrides(override_list: list[str]) -> dict:
 
     return result
 
+def compute_run_signature(run: Run, exp: Experiment) -> str:
+    merged: dict[str, str] = {}
+
+    # ----------------------------------------
+    # Filter overrides
+    # ----------------------------------------
+    def normalize(d):
+        out = {}
+
+        for k, v in (d or {}).items():
+            # skip runtime noise
+            if k.startswith("trial.") or k.startswith("hydra."):
+                continue
+
+            # normalize values
+            v = str(v).strip()
+
+            # normalize numeric strings
+            if v.endswith(".0"):
+                v = v[:-2]
+
+            out[k] = v
+
+        return out
+
+    merged.update(normalize(run.common_overrides))
+    merged.update(normalize(run.run_overrides))
+
+    # ----------------------------------------
+    # IMPORTANT: fill known defaults
+    # ----------------------------------------
+    DEFAULTS = {
+        "solver_options.bequest": "0",
+        "optimization_parameters.objective": "maxSpending",
+    }
+
+    for k, v in DEFAULTS.items():
+        merged.setdefault(k, v)
+
+    # ----------------------------------------
+    # Stable ordering
+    # ----------------------------------------
+    items = sorted(merged.items())
+
+    return json.dumps(items)
+
+
+def _mark_duplicate_runs(experiments: list[Experiment]) -> None:
+    """
+    Identify duplicate runs within each case and mark:
+
+        run.is_duplicate
+        run.is_latest_duplicate
+
+    Grouping:
+        - by case
+        - by signature
+    """
+
+    # ----------------------------------------
+    # Group by (case, signature)
+    # ----------------------------------------
+    groups: dict[tuple[str, str], list[tuple[Experiment, Run]]] = defaultdict(list)
+
+    for exp in experiments:
+        for run in exp.runs:
+            sig = compute_run_signature(run, exp)
+
+            run.signature = sig  # attach for debugging / future use
+            #print(sig)
+            key = (exp.case, sig)
+            groups[key].append((exp, run))
+
+    # ----------------------------------------
+    # Process each group
+    # ----------------------------------------
+    for (_, _), items in groups.items():
+        if len(items) == 1:
+            # Not a duplicate
+            _, run = items[0]
+            run.is_duplicate = False
+            run.is_latest_duplicate = True
+            continue
+
+        # ----------------------------------------
+        # Sort by (date, time) → oldest → newest
+        # ----------------------------------------
+        items_sorted = sorted(
+            items,
+            key=lambda x: (x[0].date, x[0].time, x[1].run_id or 0)
+        )
+
+        # ----------------------------------------
+        # Mark all as duplicates
+        # ----------------------------------------
+        for _, run in items_sorted:
+            run.is_duplicate = True
+            run.is_latest_duplicate = False
+
+        # ----------------------------------------
+        # Mark newest as canonical
+        # ----------------------------------------
+        _, latest_run = items_sorted[-1]
+        latest_run.is_latest_duplicate = True
 
 # =========================================================
 # Trial Helpers (unchanged)

@@ -405,7 +405,7 @@ def build_hydra_command(
     # eventually, remove trial.n_jobs
     if not any(oo.startswith("runtime.trial_jobs=") for oo in overrides):
         cmd.append(f"runtime.trial_jobs={trial_jobs}")
-        cmd.append(f"trial.n_jobs={trial_jobs}")
+    #    cmd.append(f"trial.n_jobs={trial_jobs}")
 
     cmd.append(f"runtime.run_jobs={run_jobs}")
     cmd.append(f"hydra.launcher.n_jobs={run_jobs}")

@@ -128,6 +128,8 @@ def build_run_rows(experiments):
                 "exp_index": exp_index,
                 "run_index": run_index,
             }
+            summary["is_duplicate"] = getattr(_run, "is_duplicate", False)
+            summary["is_latest_duplicate"] = getattr(_run, "is_latest_duplicate", True)
 
             run_rows.append(summary)
 

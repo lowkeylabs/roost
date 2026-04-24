@@ -425,6 +425,7 @@ register_metric(
         dtype=dict,
         fmt="overrides",
         is_invariant=True,
+        align="right",
         compute_fn=lambda r: r.get("run_specific_overrides"),
         description=(
             "Overrides that vary across runs (e.g., parameter sweeps such as "
@@ -443,6 +444,7 @@ register_metric(
         dtype=dict,
         fmt="overrides",
         is_invariant=True,
+        align="right",
         compute_fn=lambda r: r.get("common_overrides"),
         description=(
             "Overrides shared across all runs in the experiment "

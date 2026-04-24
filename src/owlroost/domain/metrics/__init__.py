@@ -8,14 +8,36 @@ Call `load_metrics()` explicitly when needed.
 
 
 def load_metrics():
-    # 1. Load core/base metrics
-    from . import metric_definitions
+    """
+    Ensure all metrics, groups, and views are registered.
 
-    # 2. Load modular definitions (spending, risk, etc.)
+    Safe to call multiple times.
+    """
+
+    # ----------------------------------------
+    # Core metrics
+    # ----------------------------------------
+    from . import metric_definitions  # noqa: F401
+
+    # ----------------------------------------
+    # Modular metric definitions
+    # ----------------------------------------
     from .definitions import load as load_defs
 
     load_defs()
 
-    # 3. Load groups (depends on metrics)
-    # 4. Load views LAST (depends on everything)
-    from . import group_definitions, view_definitions
+    # ----------------------------------------
+    # Groups
+    # ----------------------------------------
+    from . import group_definitions
+
+    if hasattr(group_definitions, "register_groups"):
+        group_definitions.register_groups()
+
+    # ----------------------------------------
+    # Views (CRITICAL FIX)
+    # ----------------------------------------
+    from . import view_definitions
+
+    if hasattr(view_definitions, "register_views"):
+        view_definitions.register_views()

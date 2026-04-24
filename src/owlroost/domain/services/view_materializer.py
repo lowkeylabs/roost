@@ -145,10 +145,8 @@ def materialize_view(rows, view, layout="table", explain=None):
                     for rm in metric_rms
                     if getattr(rm.spec, "wrap", None)
                 },
-                "column_keys": ["ID", "run_label"] + [
-                    (rm.key, getattr(rm, "aggregate", None))
-                    for rm in metric_rms
-                ],                
+                "column_keys": ["ID", "run_label"]
+                + [(rm.key, getattr(rm, "aggregate", None)) for rm in metric_rms],
                 "context": ctx,
                 "explain": explain,
                 "value_mode": "dual",

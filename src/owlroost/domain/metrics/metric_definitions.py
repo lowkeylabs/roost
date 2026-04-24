@@ -55,7 +55,7 @@ register_metric(
     MetricSpec(
         key="run_variation_profile",
         label="Design",
-        align="left",
+        align="right",
         dtype=str,
         compute_level="run",
         compute_fn=_run_variation_profile,
@@ -68,7 +68,7 @@ register_metric(
     MetricSpec(
         key="run_scenario_profile",
         label="Scenario",
-        align="left",
+        align="right",
         dtype=str,
         compute_level="run",
         compute_fn=_run_scenario_profile,

@@ -28,7 +28,9 @@ bundle = load_bundle(metadata_path)
 
 ```{python}
 #| output: asis
+#|
 table = generate_table( bundle, "run", "default", "pivot", explain=[] )
 print(render_relevant_table(table))
+
 
 ```

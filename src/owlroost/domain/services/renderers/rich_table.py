@@ -47,7 +47,17 @@ def _render_table(console, table):
     rich = _make_table()
 
     align_map = table.meta.get("align", {})
-    wrap_map = table.meta.get("wrap", {})
+    wrap_map  = table.meta.get("wrap", {})
+    rows_data = table.meta.get("rows", [])
+
+    # ----------------------------------------
+    # Build lookup by _ref (robust to sorting)
+    # ----------------------------------------
+    row_lookup = {
+        (r["_ref"]["exp_index"], r["_ref"]["run_index"]): r
+        for r in rows_data
+        if isinstance(r, dict) and "_ref" in r
+    }
 
     # Use stable keys if available
     column_keys = table.meta.get("column_keys", table.columns)
@@ -55,8 +65,8 @@ def _render_table(console, table):
     visible_cols = [i for i, col in enumerate(table.columns) if col != "run_label"]
 
     for i in visible_cols:
-        col_name = table.columns[i]  # display (may include \n)
-        col_key = column_keys[i]  # stable lookup key
+        col_name = table.columns[i]
+        col_key = column_keys[i]
 
         if col_name == "ID":
             justify = "right"
@@ -73,9 +83,45 @@ def _render_table(console, table):
             overflow="fold",
         )
 
-    for row in table.rows:
+    # ----------------------------------------
+    # Render rows (aligned via _ref)
+    # ----------------------------------------
+    for idx, row in enumerate(table.rows):
         visible_row = [row[i] for i in visible_cols]
-        rich.add_row(*[str(_extract(c)) for c in visible_row])
+
+        style = None
+        is_old_duplicate = False
+        is_primary_duplicate = False  # 🔥 FIX: initialize
+
+        rdata = rows_data[idx] if idx < len(rows_data) else None
+
+        if rdata:
+            if rdata.get("is_duplicate"):
+                if rdata.get("is_latest_duplicate"):
+                    is_primary_duplicate = True
+                else:
+                    is_old_duplicate = True
+                    style = "dim"
+
+        # ----------------------------------------
+        # Append markers
+        # ----------------------------------------
+        if visible_row:
+            first_val = _extract(visible_row[0])
+
+            if first_val is not None:
+                if is_old_duplicate:
+                    visible_row[0] = f"·{first_val}"
+                elif is_primary_duplicate:
+                    visible_row[0] = f"∘{first_val}"
+
+        # ----------------------------------------
+        # Render row
+        # ----------------------------------------
+        rich.add_row(
+            *[str(_extract(c)) for c in visible_row],
+            style=style,
+        )
 
     console.print(rich)
 

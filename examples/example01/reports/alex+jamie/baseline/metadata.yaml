@@ -1,0 +1,27 @@
+version: 1
+bundle:
+  name: baseline
+  created_at: '2026-04-23T09:33:31.103548'
+  command: /home/john/projects/owl-roost/.venv/bin/roost inspect --case=0 --to-report
+    baseline
+paths:
+  project_root: /home/john/projects/owl-roost/examples/example01
+  results_dir: /home/john/projects/owl-roost/examples/example01/results
+  reports_dir: /home/john/projects/owl-roost/examples/example01/reports
+selection:
+  level: run
+  case: 0
+  experiment: null
+  run_refs:
+  - exp_index: 0
+    run_index: 0
+runs:
+- path: alex+jamie/2026-04-22/14-20-19/run_0
+  abs_path: /home/john/projects/owl-roost/examples/example01/results/alex+jamie/2026-04-22/14-20-19/run_0
+view:
+  name: default
+  layout: table
+  explain: []
+templates: []
+options: {}
+notes: ''

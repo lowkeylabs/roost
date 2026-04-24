@@ -1,5 +1,6 @@
 # src/owlroost/domain/services/render_table.py
 
+from owlroost.domain.services.renderers.html_table import render_html_table
 from owlroost.domain.services.renderers.rich_table import render_rich_table
 from owlroost.domain.services.view_materializer import materialize_view
 
@@ -16,6 +17,9 @@ def render_with_engine(console, table, engine="rich"):
 
     elif engine == "none":
         return table
+
+    elif engine == "html":
+        return render_html_table(table)
 
     else:
         raise ValueError(f"Unknown engine: {engine}")
@@ -38,5 +42,5 @@ def render_table(
         layout=layout,
         explain=explain,
     )
-
+    table.meta["rows"] = rows
     return render_with_engine(console, table, engine=engine)
