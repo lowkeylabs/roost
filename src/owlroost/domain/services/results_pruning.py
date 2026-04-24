@@ -1,10 +1,8 @@
 # /src/owlroost/domain/services/results_pruning.py
 
-from pathlib import Path
 import shutil
-from typing import Optional
+from pathlib import Path
 
-from rich.console import Console
 
 def prune_empty_experiments(results_dir: Path, console=None):
     """
@@ -21,10 +19,7 @@ def prune_empty_experiments(results_dir: Path, console=None):
 
             for time_dir in sorted(p for p in date_dir.iterdir() if p.is_dir()):
                 # Does this time_dir contain any run_* folders?
-                has_runs = any(
-                    p.is_dir() and p.name.startswith("run_")
-                    for p in time_dir.iterdir()
-                )
+                has_runs = any(p.is_dir() and p.name.startswith("run_") for p in time_dir.iterdir())
 
                 if not has_runs:
                     # Remove entire time_dir
@@ -48,4 +43,3 @@ def prune_empty_experiments(results_dir: Path, console=None):
 
             if console:
                 console.print(f"[dim]Pruned empty case:[/dim] {case_dir}")
-

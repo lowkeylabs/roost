@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
+from collections import defaultdict
 from pathlib import Path
 
 import yaml
-from collections import defaultdict
-
 
 from ..models.results import Experiment, Run, Trial
 
@@ -175,6 +174,7 @@ def _parse_overrides(override_list: list[str]) -> dict:
 
     return result
 
+
 def compute_run_signature(run: Run, exp: Experiment) -> str:
     merged: dict[str, str] = {}
 
@@ -244,7 +244,7 @@ def _mark_duplicate_runs(experiments: list[Experiment]) -> None:
             sig = compute_run_signature(run, exp)
 
             run.signature = sig  # attach for debugging / future use
-            #print(sig)
+            # print(sig)
             key = (exp.case, sig)
             groups[key].append((exp, run))
 
@@ -262,10 +262,7 @@ def _mark_duplicate_runs(experiments: list[Experiment]) -> None:
         # ----------------------------------------
         # Sort by (date, time) → oldest → newest
         # ----------------------------------------
-        items_sorted = sorted(
-            items,
-            key=lambda x: (x[0].date, x[0].time, x[1].run_id or 0)
-        )
+        items_sorted = sorted(items, key=lambda x: (x[0].date, x[0].time, x[1].run_id or 0))
 
         # ----------------------------------------
         # Mark all as duplicates
@@ -279,6 +276,7 @@ def _mark_duplicate_runs(experiments: list[Experiment]) -> None:
         # ----------------------------------------
         _, latest_run = items_sorted[-1]
         latest_run.is_latest_duplicate = True
+
 
 # =========================================================
 # Trial Helpers (unchanged)

@@ -5,7 +5,6 @@ import yaml
 from owlroost.domain.metrics import load_metrics
 from owlroost.domain.services.discovery import discover_experiments
 
-
 # ---------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------
@@ -134,6 +133,7 @@ def _resolve_runs(meta: dict, results_dir: Path, experiments):
 
 def load_trial_rows_from_metadata(metadata_path: Path):
     import copy
+
     from owlroost.domain.services.rows import build_trial_rows
 
     # ----------------------------------------
@@ -190,6 +190,7 @@ def load_trial_rows_from_metadata(metadata_path: Path):
 
 def load_final_rows_from_metadata(metadata_path: Path):
     import copy
+
     from owlroost.domain.services.rows import build_run_rows
 
     # ----------------------------------------

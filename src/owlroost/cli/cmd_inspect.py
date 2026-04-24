@@ -22,8 +22,8 @@ from owlroost.domain.metrics.view_registry import (
 from owlroost.domain.services.discovery import discover_experiments
 from owlroost.domain.services.query import apply_filters, apply_sort, apply_top
 from owlroost.domain.services.render_table import render_table
-from owlroost.domain.services.rows import build_run_rows, build_trial_rows
 from owlroost.domain.services.results_pruning import prune_empty_experiments
+from owlroost.domain.services.rows import build_run_rows, build_trial_rows
 
 # Ensure metrics + views are registered
 load_metrics()
@@ -236,7 +236,7 @@ def cmd_inspect(
     trials_flag,
     delete,
     to_report,
-    purge
+    purge,
 ):
     console = Console()
 
@@ -500,7 +500,7 @@ def cmd_inspect(
         prune_empty_experiments(RESULTS_DIR, console)
 
         return
-    
+
     # ---------------------------------------------------------
     # Delete using the row ID of filtered rows.
     # ---------------------------------------------------------
@@ -634,13 +634,10 @@ def cmd_inspect(
                 {
                     # Preferred: relative to results_dir
                     "path": str(Path(p).resolve().relative_to(RESULTS_DIR.resolve())),
-
                     # Fallback: absolute (in case relocation fails)
                     "abs_path": str(Path(p).resolve()),
-
                     # ✅ NEW: stable logical identity
                     "signature": getattr(run, "signature", None),
-
                     # ✅ OPTIONAL: may go stale, safe to include
                     "ref": {
                         "exp_index": ref["exp_index"],

@@ -47,17 +47,8 @@ def _render_table(console, table):
     rich = _make_table()
 
     align_map = table.meta.get("align", {})
-    wrap_map  = table.meta.get("wrap", {})
+    wrap_map = table.meta.get("wrap", {})
     rows_data = table.meta.get("rows", [])
-
-    # ----------------------------------------
-    # Build lookup by _ref (robust to sorting)
-    # ----------------------------------------
-    row_lookup = {
-        (r["_ref"]["exp_index"], r["_ref"]["run_index"]): r
-        for r in rows_data
-        if isinstance(r, dict) and "_ref" in r
-    }
 
     # Use stable keys if available
     column_keys = table.meta.get("column_keys", table.columns)
