@@ -91,7 +91,8 @@ def _filter_overrides(d: dict) -> dict:
 
     EXCLUDE = {
         "case.file",
-        "trial.count",
+        "runtime.run_jobs",
+        "runtime.trial_jobs",
     }
 
     return {k: v for k, v in d.items() if k not in EXCLUDE}

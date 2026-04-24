@@ -69,12 +69,63 @@ register_metric(
     )
 )
 
+
+# =========================================================
+# trials
+# =========================================================
+
 register_metric(
     MetricSpec(
         key="trial",
         label="Trls",
+        dtype=str,
+        compute_level="trial",
+        compute_fn=lambda r: r.get("trial_id"),
         aggregates=["cnt"],
-        description="Number of simulation trials in the run.",
+        description="Trial identifier (aggregated count gives number of trials).",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="trials_completed",
+        label="Trls (done)",
+        compute_level="run",
+        compute_fn=lambda r: len(r.get("_ctx", {}).get("trial_rows", [])),
+        description="Number of completed simulation trials.",
+    )
+)
+
+
+def _compute_requested_trials(r):
+    # Try overrides first (most reliable)
+    val = (r.get("_inputs", {}) or {}).get("trial", {}).get("count")
+
+    if val is not None:
+        try:
+            return int(val)
+        except Exception:
+            pass
+
+    # fallback: raw overrides (string-based)
+    raw = (r.get("_inputs", {}) or {}).get("roost", {}) or {}
+    if "trials" in raw:
+        try:
+            return int(raw["trials"])
+        except Exception:
+            pass
+
+    return None
+
+
+register_metric(
+    MetricSpec(
+        key="trials_requested",
+        label="Trls",
+        dtype=int,
+        compute_fn=_compute_requested_trials,
+        is_invariant=True,
+        description="Requested number of simulation trials (from input configuration).",
     )
 )
 
@@ -452,5 +503,17 @@ register_metric(
         ),
         display_row_fn=lambda v, row, ctx: _format_override_dict(v, row),
         value_series_fn=_override_value_series_fn,
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="signature",
+        label="Signature",
+        dtype=str,
+        compute_level="run",
+        wrap=50,
+        compute_fn=lambda r: getattr(r, "signature", None),
+        description="Run signature (normalized configuration + execution identity).",
     )
 )

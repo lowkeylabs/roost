@@ -37,6 +37,20 @@ register_view(
     tags=["summary"],
 )
 
+register_view(
+    "run",
+    "signatures",
+    [
+        ("group", "run_identity"),
+        "signature",
+        "run_specific_overrides",
+        "common_overrides",
+    ],
+    layout="table",
+    description="x",
+    tags=["summary"],
+)
+
 
 # =========================================================
 # RUN VIEWS
@@ -50,6 +64,7 @@ register_view(
         # IDENTITY
         # -------------------------------------------------
         ("group", "run_identity"),
+        {"separator": "section", "label": "OVERRIDES"},
         ("group", "overrides"),
         # -------------------------------------------------
         # PROFILE / SETUP

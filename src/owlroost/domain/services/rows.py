@@ -65,7 +65,7 @@ def build_run_rows(experiments):
             )
 
             # -------------------------------------------------
-            # 🔥 NEW: Run-level timing (from progress.log data)
+            # Run-level timing (from progress.log data)
             # -------------------------------------------------
             starts = [r.get("started_at") for r in trial_rows if r.get("started_at")]
             ends = [r.get("finished_at") for r in trial_rows if r.get("finished_at")]
@@ -130,6 +130,7 @@ def build_run_rows(experiments):
             }
             summary["is_duplicate"] = getattr(_run, "is_duplicate", False)
             summary["is_latest_duplicate"] = getattr(_run, "is_latest_duplicate", True)
+            summary["signature"] = getattr(_run, "signature", None)
 
             run_rows.append(summary)
 

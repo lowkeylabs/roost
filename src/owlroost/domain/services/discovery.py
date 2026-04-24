@@ -179,20 +179,20 @@ def compute_run_signature(run: Run, exp: Experiment) -> str:
     merged: dict[str, str] = {}
 
     # ----------------------------------------
-    # Filter overrides
+    # Filter overrides (keep logical config)
     # ----------------------------------------
     def normalize(d):
         out = {}
 
         for k, v in (d or {}).items():
-            # skip runtime noise
-            if k.startswith("trial.") or k.startswith("hydra."):
+            # skip runtime noise, but KEEP trial.count separately
+            if k.startswith("hydra."):
+                continue
+            if k.startswith("trial.") and k != "trial.count":
                 continue
 
-            # normalize values
             v = str(v).strip()
 
-            # normalize numeric strings
             if v.endswith(".0"):
                 v = v[:-2]
 
@@ -204,7 +204,22 @@ def compute_run_signature(run: Run, exp: Experiment) -> str:
     merged.update(normalize(run.run_overrides))
 
     # ----------------------------------------
-    # IMPORTANT: fill known defaults
+    # IMPORTANT: include requested trial.count from raw overrides
+    # ----------------------------------------
+    raw = (run.meta or {}).get("overrides", [])
+
+    for o in raw or []:
+        if "=" not in o:
+            continue
+        k, v = o.split("=", 1)
+        k = k.strip()
+        v = v.strip()
+
+        if k == "trial.count":
+            merged["trial.count"] = v
+
+    # ----------------------------------------
+    # Fill known defaults
     # ----------------------------------------
     DEFAULTS = {
         "solver_options.bequest": "0",
