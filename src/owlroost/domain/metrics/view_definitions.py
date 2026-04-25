@@ -60,6 +60,16 @@ register_view(
     "run",
     "default",
     [
+        ("group", "run_identity"),
+    ],
+    description="Decision-oriented run comparison using risk decomposition and outcomes",
+)
+
+
+register_view(
+    "run",
+    "default",
+    [
         # -------------------------------------------------
         # IDENTITY
         # -------------------------------------------------

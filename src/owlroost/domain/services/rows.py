@@ -149,6 +149,8 @@ def build_trial_rows(experiments):
         for run in exp.runs:
             for trial in run.trials:
                 base = enrich_row({}, exp, run, trial)
+                base["_case"] = exp.case_obj
+
                 # base["run"] = run_index
                 # base["run_name"] = run.name
 

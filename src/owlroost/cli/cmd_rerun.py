@@ -14,7 +14,7 @@ from loguru import logger
 from rich.console import Console
 
 # reuse helper from inspect
-from owlroost.cli.cmd_inspect import runrow_to_dict
+from owlroost.cli.cmd_results import runrow_to_dict
 from owlroost.core.progress_renderers import create_renderer
 from owlroost.domain.metrics.view_registry import get_view
 from owlroost.domain.services.discovery import discover_experiments

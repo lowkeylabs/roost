@@ -1,0 +1,15 @@
+
+```{python}
+#| label: fig-gross-income
+#| fig-cap: "Gross Income over time for the nominal and today scenarios."
+#| fig-subcap:
+#|  - "Nominal dollars"
+#|  - "Today's dollars"
+#| layout-ncol: 2
+# Nominal
+plan.setDefaultPlots("nominal")
+x = plan.showGrossIncome()
+# Today
+plan.setDefaultPlots("today")
+x = plan.showGrossIncome()
+```

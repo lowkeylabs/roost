@@ -42,11 +42,10 @@ class Experiment:
     time: str
     path: Path
     runs: list[Run]
-
-    # ----------------------------
-    # NEW: shared overrides across runs
-    # ----------------------------
     common_overrides: dict = field(default_factory=dict)
+    case_obj: object | None = None
+    case_path: Path | None = None
+    meta: dict = field(default_factory=dict)
 
     @property
     def experiment_id(self) -> str:

@@ -6,7 +6,11 @@ from pathlib import Path
 
 import yaml
 
+from ..models.case import Case
 from ..models.results import Experiment, Run, Trial
+from ..services.metrics import load_effective
+
+_CASE_CACHE: dict[Path, Case] = {}
 
 
 # =========================================================
@@ -31,6 +35,20 @@ def discover_experiments(results_dir) -> list[Experiment]:
         for date_dir in sorted(p for p in case_dir.iterdir() if p.is_dir()):
             for time_dir in sorted(p for p in date_dir.iterdir() if p.is_dir()):
                 runs: list[Run] = []
+
+                # ----------------------------------------
+                # Load multirun metadata (optional)
+                # ----------------------------------------
+                exp_meta = load_multirun_meta(time_dir)
+                case_path = get_case_path_from_multirun(exp_meta)
+
+                case_obj = None
+
+                if case_path and case_path.exists():
+                    case_path = case_path.resolve()
+                    if case_path not in _CASE_CACHE:
+                        _CASE_CACHE[case_path] = Case(case_path)
+                    case_obj = _CASE_CACHE[case_path]
 
                 # ----------------------------------------
                 # Build runs
@@ -84,6 +102,28 @@ def discover_experiments(results_dir) -> list[Experiment]:
                         )
                     )
 
+                if case_obj is None and runs:
+                    for r in runs:
+                        for t in r.trials:
+                            if t.data:
+                                # load effective TOML lazily
+                                eff = load_effective(t.path)
+                                case_file = (eff.get("case") or {}).get("file")
+                                if case_file:
+                                    try:
+                                        p = Path(case_file).resolve()
+                                        if p not in _CASE_CACHE:
+                                            _CASE_CACHE[p] = Case(p)
+                                        case_obj = _CASE_CACHE[p]
+                                        break
+                                    except Exception:
+                                        pass
+                        if case_obj:
+                            break
+
+                if case_obj and not case_path:
+                    case_path = case_obj.path
+
                 # ----------------------------------------
                 # Compute overrides across runs
                 # ----------------------------------------
@@ -101,14 +141,16 @@ def discover_experiments(results_dir) -> list[Experiment]:
                         time=time_dir.name,
                         path=time_dir,
                         runs=runs,
-                        common_overrides=_get_common_overrides(runs),  # ✅ NEW
+                        common_overrides=_get_common_overrides(runs),
+                        case_obj=case_obj,
+                        case_path=case_path,
+                        meta=exp_meta,
                     )
                 )
 
                 exp_id += 1
 
     _mark_duplicate_runs(experiments)
-
     return experiments
 
 
@@ -335,3 +377,22 @@ def load_hydra_meta(run_dir: Path) -> dict:
             return yaml.safe_load(f) or {}
     except Exception:
         return {}
+
+
+def load_multirun_meta(time_dir: Path) -> dict:
+    file = time_dir / "multirun.yaml"
+    if not file.exists():
+        return {}
+
+    try:
+        with file.open() as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+
+
+def get_case_path_from_multirun(meta: dict) -> Path | None:
+    case_file = (meta.get("case") or {}).get("file")
+    if case_file:
+        return Path(case_file)
+    return None

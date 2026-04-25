@@ -1,0 +1,9 @@
+
+
+this is from inside the _case_0.qmd file.
+
+```{python}
+
+print("hello world")
+
+```

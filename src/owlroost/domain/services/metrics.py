@@ -227,4 +227,21 @@ def build_trial_row(
     if specs is None:
         specs = list(METRIC_REGISTRY.values())
 
-    return extract_row(data, specs, base_row=base_row)
+    row = extract_row(data, specs, base_row=base_row)
+
+    # ----------------------------------------
+    # Attach file system context (CRITICAL)
+    # ----------------------------------------
+    row["_trial_path"] = str(trial_path)
+
+    # safer than string formatting
+    eff = next(trial_path.glob("*_effective.toml"), None)
+    met = next(trial_path.glob("*_metrics.json"), None)
+
+    if eff:
+        row["_effective_toml"] = str(eff)
+
+    if met:
+        row["_metrics_json"] = str(met)
+
+    return row

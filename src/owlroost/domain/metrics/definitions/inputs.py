@@ -1,5 +1,6 @@
 # src/owlroost/domain/metrics/definitions/inputs.py
 
+
 from ..metric_registry import register_metric
 from ..metric_spec import MetricSpec
 from ..utils import RATES_METHOD_ABBR
@@ -86,12 +87,17 @@ register_metric(
     )
 )
 
+
+def _compute_completed_trials(r):
+    return len(r.get("_ctx", {}).get("trial_rows", []))
+
+
 register_metric(
     MetricSpec(
         key="trials_completed",
-        label="Trls (done)",
+        label="Trials\nCompleted",
         compute_level="run",
-        compute_fn=lambda r: len(r.get("_ctx", {}).get("trial_rows", [])),
+        compute_fn=_compute_completed_trials,
         description="Number of completed simulation trials.",
     )
 )
@@ -121,11 +127,31 @@ def _compute_requested_trials(r):
 register_metric(
     MetricSpec(
         key="trials_requested",
-        label="Trls",
+        label="Trials\nAttempted",
         dtype=int,
         compute_fn=_compute_requested_trials,
         is_invariant=True,
         description="Requested number of simulation trials (from input configuration).",
+    )
+)
+
+
+def _format_trials_compact(r):
+    completed = _compute_completed_trials(r)
+    print(f"{completed}")
+    requested = _compute_requested_trials(r)
+    return f"{requested}/{completed}"
+
+
+register_metric(
+    MetricSpec(
+        key="trials_compact",
+        label="Trials\n(att/comp)",
+        compute_level="run",
+        dtype=str,
+        align="center",
+        compute_fn=_format_trials_compact,
+        description="Compact identifier: case/experiment/run",
     )
 )
 

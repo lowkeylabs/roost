@@ -622,6 +622,14 @@ class Case:
         return self.config.case_name or self.path.name
 
     @property
+    def case_name(self) -> str:
+        return self.config.case_name or self.path.stem
+
+    @property
+    def description(self) -> str | None:
+        return self.config.description or None
+
+    @property
     def filename(self) -> str:
         return self.path.name
 

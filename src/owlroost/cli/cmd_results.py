@@ -1,919 +1,717 @@
+# src/owlroost/cli/cmd_results.py
+
 from __future__ import annotations
 
-import json
-import os
-import subprocess
+import shutil
 import sys
-import tomllib
-from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
-from typing import Literal
 
 import click
-import tomlkit
 import yaml
-from loguru import logger
+from rich.console import Console
 
-from owlroost.cli.utils import format_optimization_summary, format_rates_summary
+from owlroost.domain.metrics import load_metrics
+from owlroost.domain.metrics.metric_spec import EXPLAIN_FACETS, facet_help
+from owlroost.domain.metrics.view_registry import (
+    get_view,
+    list_views,
+    resolve_default_view,
+    view_help,
+)
+from owlroost.domain.services.discovery import discover_experiments
+from owlroost.domain.services.query import apply_filters, apply_sort, apply_top
+from owlroost.domain.services.render_table import render_table
+from owlroost.domain.services.results_pruning import prune_empty_experiments
+from owlroost.domain.services.rows import build_run_rows, build_trial_rows
 
-# ---------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------
+# Ensure metrics + views are registered
+load_metrics()
 
 RESULTS_DIR = Path("results")
-IGNORE_PREFIXES = ("Hydra", "hydra")
-
-W_ID = 3
-W_EXP = 4
-W_RUN = 7
-W_TRIAL = 6
-W_CASE = 20
-W_OPT = 30
-W_RATES = 30
-W_YEAR = 9
-W_NET = 9
-W_BEQ = 9
-W_SECONDS = 7
-
-# ---------------------------------------------------------------------
-# Data models
-# ---------------------------------------------------------------------
-
-
-@dataclass
-class Trial:
-    path: Path
-    name: str
-
+REPORTS_DIR = Path("reports")
+TEMPLATE_DIR = Path("/home/john/projects/owl-roost/templates")
 
-@dataclass
-class Run:
-    path: Path
-    name: str
-    overrides: list[str]
-    trials: list[Trial]
-
-
-@dataclass
-class Experiment:
-    type: Literal["single", "multi"]
-    runs: list[Run]
-
-
-@dataclass
-class Case:
-    name: str
-    path: Path
-    experiments: list[Experiment]
 
-
-@dataclass(frozen=True)
-class FileDescriptor:
-    suffix: str
-    kind: Literal["INPUT", "OUTPUT"]
-    description: str
+EXPLAIN_SPECIAL = {"none", "help"}
+EXPLAIN_ALL = EXPLAIN_FACETS | EXPLAIN_SPECIAL
 
+# =========================================================
+# Argument parsing
+# =========================================================
 
-# ---------------------------------------------------------------------
-# Formatting helpers
-# ---------------------------------------------------------------------
-
-FILE_DESCRIPTORS = [
-    FileDescriptor("_original.toml", "INPUT", "Original input TOML file"),
-    FileDescriptor("_effective.toml", "INPUT", "Modified input TOML file, with overrides"),
-    FileDescriptor("_rates.xlsx", "INPUT", "Modified rates just prior to solving"),
-    FileDescriptor("_original.xlsx", "INPUT", "Original HFP xlsx file"),
-    FileDescriptor("_effective.xlsx", "INPUT", "Modified HFP xlsx file, with overrides"),
-    FileDescriptor("_metrics.json", "OUTPUT", "OWL top-level metrics as JSON"),
-    FileDescriptor("_summary.json", "OUTPUT", "OWL top-level metrics as text"),
-    FileDescriptor("_results.xlsx", "OUTPUT", "OWL output workbook with full results"),
-]
-
-
-def relpath(p: Path) -> Path:
-    try:
-        return p.relative_to(Path.cwd())
-    except ValueError:
-        return p
-
-
-def describe_file(name: str) -> tuple[str | None, str | None]:
-    for d in FILE_DESCRIPTORS:
-        if name.endswith(d.suffix):
-            return d.kind, d.description
-    return None, None
-
-
-def format_k(value) -> str:
-    if value is None:
-        return "—"
-    try:
-        return f"${round(value / 1000):,}K"
-    except Exception:
-        return "—"
-
-
-def format_d(value) -> str:
-    if value is None:
-        return "—"
-    try:
-        return f"{round(value,2):,}"
-    except Exception:
-        return "—"
-
-
-def strip_override_prefix(override: str) -> str:
-    return override.split(".", 1)[1] if "." in override else override
-
-
-def _wsl_to_windows_path(path: Path) -> str:
-    """Convert a WSL path to a Windows path using wslpath."""
-    result = subprocess.run(
-        ["wslpath", "-w", str(path)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise click.ClickException(f"Failed to convert path for Explorer: {path}")
-    return result.stdout.strip()
-
-
-def open_in_file_explorer(path: Path):
-    if not path.exists():
-        raise click.ClickException(f"Path does not exist: {path}")
-
-    path = path.resolve()
-
-    # ---- WSL detection ----
-    if "microsoft" in os.uname().release.lower():
-        win_path = _wsl_to_windows_path(path)
-        subprocess.run(["explorer.exe", win_path], check=False)
-        return
-
-    # ---- Native Windows ----
-    if sys.platform.startswith("win"):
-        os.startfile(path)  # type: ignore[attr-defined]
-        return
-
-    # ---- macOS ----
-    if sys.platform == "darwin":
-        subprocess.run(["open", path], check=False)
-        return
-
-    # ---- Native Linux ----
-    subprocess.run(["xdg-open", path], check=False)
-
-
-# ---------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------
-
-
-@click.command(name="results")
-@click.argument("case", required=False)
-@click.argument("run_id", required=False, type=int)
-@click.argument("trial_id", required=False, type=int)
-@click.option("--diff", is_flag=True)
-@click.option("--diff-project", is_flag=True)
-@click.option("--metrics", is_flag=True)
-@click.option("--summary", is_flag=True)
-@click.option("--original", is_flag=True)
-@click.option("--effective", is_flag=True)
-@click.option("--nominal", is_flag=True)
-@click.option("--files", is_flag=True)
-@click.option("--delete", help="Comma-separated list of IDs to delete")
-@click.option(
-    "--clone",
-    metavar="TAG",
-    help="Clone the effective TOML from the selected trial into the project directory "
-    "using TAG as a suffix (e.g. _ext1.toml)",
-)
-@click.option(
-    "--open-folder",
-    is_flag=True,
-    help="Open the selected trial directory in the system file explorer",
-)
-def cmd_results(
-    case,
-    run_id,
-    trial_id,
-    diff,
-    diff_project,
-    metrics,
-    summary,
-    original,
-    effective,
-    nominal,
-    files,
-    delete,
-    clone,
-    open_folder,
-):
-    if diff and diff_project:
-        raise click.ClickException("Use only one diff mode")
-
-    value_mode = "nominal" if nominal else "real"
-
-    if not RESULTS_DIR.exists():
-        click.echo(f"Results directory not found: {RESULTS_DIR}")
-        return
-
-    cases = discover_cases(RESULTS_DIR)
-    if not cases:
-        click.echo("No results found.")
-        return
-
-    # -------------------------------------------------
-    # CASE SUMMARY (no case selected)
-    # -------------------------------------------------
-    if case is None:
-        if delete:
-            delete_ids = parse_id_list(delete)
-            bad = [i for i in delete_ids if i < 0 or i >= len(cases)]
-            if bad:
-                raise click.ClickException(f"Invalid case IDs: {bad}")
-
-            click.echo("Deleting cases:")
-            for i in delete_ids:
-                click.echo(f"  [{i}] {cases[i].path}")
-                import shutil
-
-                shutil.rmtree(cases[i].path, ignore_errors=True)
-            return
-
-        render_case_summary(cases)
-        return
-
-    selected = resolve_case(case, cases)
-    runs = flatten_runs(selected)
-
-    # -------------------------------------------------
-    # RUN SUMMARY (case selected, no run_id)
-    # -------------------------------------------------
-    if run_id is None:
-        if delete:
-            delete_ids = parse_id_list(delete)
-            bad = [i for i in delete_ids if i < 0 or i >= len(runs)]
-            if bad:
-                raise click.ClickException(f"Invalid run IDs: {bad}")
-
-            click.echo("Deleting runs:")
-            for i in delete_ids:
-                click.echo(f"  [{i}] {runs[i].path}")
-                import shutil
-
-                shutil.rmtree(runs[i].path, ignore_errors=True)
-            return
-
-        render_case_summary([selected])
-        render_run_summary(selected, value_mode)
-        return
-
-    # -------------------------------------------------
-    # RUN DETAIL (case + run_id)
-    # -------------------------------------------------
-    if delete:
-        raise click.ClickException("--delete not valid when viewing trials (delete the run)")
-
-    if run_id < 0 or run_id >= len(runs):
-        raise click.ClickException("Invalid run ID")
-
-    run = runs[run_id]
-    trials = run.trials
-
-    # -------------------------------------------------
-    # TRIAL TABLE (case + run_id, no trial_id)
-    # -------------------------------------------------
-    if trial_id is None:
-        if len(trials) > 1:
-            exp_id = next(i for i, e in enumerate(selected.experiments) if run in e.runs)
-            render_case_summary([selected])
-            render_run_summary(selected, value_mode, selected_run=run)
-            render_run_trials(selected, run, exp_id, value_mode)
-            return
-        else:
-            trial_id = 0
-
-    # -------------------------------------------------
-    # SINGLE TRIAL DETAIL (case + run_id + trial_id)
-    # -------------------------------------------------
-    if trial_id < 0 or trial_id >= len(trials):
-        raise click.ClickException("Invalid trial ID")
-
-    trial = trials[trial_id]
-
-    # --diff: original vs effective
-    if diff:
-        render_diff(trial.path)
-        return
-
-    # create clone of trial file
-    if clone:
-        clone_effective_toml(trial.path, clone)
-        return
-
-    # --open-folder is only valid at trial level
-    if open_folder:
-        open_in_file_explorer(trial.path)
-        return
-
-    # Context headers (lightweight, consistent)
-
-    exp_id = next(i for i, e in enumerate(selected.experiments) if run in e.runs)
-    trial_id = run.trials.index(trial)
-
-    render_case_summary([selected])
-
-    render_run_summary(selected, value_mode, selected_run=run)
-
-    if len(trials) > 1:
-        render_run_trials(selected, run, exp_id, value_mode, selected_trial=trial)
-
-    # render_single_trial_summary(selected,run,trial,exp_id,trial_id,value_mode )
-
-    # Leaf default behavior
-    if summary:
-        render_summary(trial.path)
-    if original:
-        render_original_toml(trial.path)
-    if effective:
-        render_effective_toml(trial.path)
-    if files:
-        render_files(trial.path)
-    if metrics:
-        render_metrics(trial.path)
-
-
-# ---------------------------------------------------------------------
-# Discovery
-# ---------------------------------------------------------------------
-
-
-def discover_cases(results_dir: Path) -> list[Case]:
-    return [
-        Case(d.name, d, discover_experiments(d))
-        for d in sorted(results_dir.iterdir())
-        if d.is_dir()
-    ]
-
-
-def discover_experiments(case_dir: Path) -> list[Experiment]:
-    experiments: list[Experiment] = []
-
-    for date_dir in sorted(p for p in case_dir.iterdir() if p.is_dir()):
-        for time_dir in sorted(p for p in date_dir.iterdir() if p.is_dir()):
-            runs: list[Run] = []
-
-            for run_dir in sorted(
-                p for p in time_dir.iterdir() if p.is_dir() and p.name.startswith("run_")
-            ):
-                overrides = extract_run_overrides(run_dir / "hydra_meta.yaml")
-                trials_dir = run_dir / "trials"
-                trials = (
-                    [Trial(p, p.name) for p in sorted(trials_dir.iterdir())]
-                    if trials_dir.exists()
-                    else [Trial(run_dir, run_dir.name)]
-                )
-                runs.append(Run(run_dir, run_dir.name, overrides, trials))
-
-            if runs:
-                experiments.append(
-                    Experiment(
-                        "multi" if (time_dir / "multirun.yaml").exists() else "single",
-                        runs,
-                    )
-                )
-
-    return experiments
-
-
-# ---------------------------------------------------------------------
-# Utilities
-# ---------------------------------------------------------------------
-
-
-def parse_id_list(s: str) -> list[int]:
-    ids: set[int] = set()
-    for part in s.split(","):
+
+def parse_args(args):
+    tokens = list(args)
+
+    def is_int(x):
+        return isinstance(x, str) and x.lstrip("-").isdigit()
+
+    level = "run"
+    run_id = None
+    trial_id = None
+
+    if not tokens:
+        return level, run_id, trial_id
+
+    if len(tokens) == 1 and is_int(tokens[0]):
+        return "run", int(tokens[0]), None
+
+    if len(tokens) == 2 and is_int(tokens[0]) and is_int(tokens[1]):
+        return "trial", int(tokens[0]), int(tokens[1])
+
+    if tokens[0] == "run":
+        if len(tokens) > 1 and is_int(tokens[1]):
+            run_id = int(tokens[1])
+        if len(tokens) > 2 and is_int(tokens[2]):
+            return "trial", run_id, int(tokens[2])
+        return "run", run_id, None
+
+    if tokens[0] == "trial":
+        if len(tokens) > 1 and is_int(tokens[1]):
+            return "trial", None, int(tokens[1])
+        return "trial", None, None
+
+    if is_int(tokens[0]):
+        run_id = int(tokens[0])
+        if len(tokens) > 2 and tokens[1] == "trial" and is_int(tokens[2]):
+            return "trial", run_id, int(tokens[2])
+        return "run", run_id, None
+
+    raise ValueError(f"Invalid arguments: {' '.join(tokens)}")
+
+
+# =========================================================
+# Explain parser
+# =========================================================
+
+
+def parse_explain(explain_opts, view_explain):
+    """
+    Normalize CLI explain options into a set of facets.
+
+    Returns:
+        set[str]
+    """
+
+    # ----------------------------------------
+    # No CLI input → fall back to view default
+    # ----------------------------------------
+    if not explain_opts:
+        return {"all"} if view_explain else set()
+
+    parts = set()
+
+    for opt in explain_opts:
+        for p in opt.split(","):
+            p = p.strip()
+            if not p:
+                continue
+            if p not in EXPLAIN_ALL:
+                valid = ", ".join(sorted(EXPLAIN_ALL))
+                raise ValueError(f"Invalid explain option '{p}'. Valid: {valid}")
+            parts.add(p)
+
+    # ----------------------------------------
+    # Special handling
+    # ----------------------------------------
+    if "none" in parts:
+        return set()
+
+    return set(parts)
+
+
+def runrow_to_dict(r):
+    # Case 1: already a dict → return as-is
+    if isinstance(r, dict):
+        return r
+
+    # Case 2: dataclass → convert
+    d = vars(r).copy()
+
+    # Preserve _ref if present
+    if hasattr(r, "_ref"):
+        d["_ref"] = r._ref
+
+    return d
+
+
+def parse_delete_ids(delete_str: str) -> list[int]:
+    ids = set()
+
+    for part in delete_str.split(","):
         part = part.strip()
+        if not part:
+            continue
+
+        # ----------------------------------------
+        # Range: "start-end"
+        # ----------------------------------------
         if "-" in part:
-            a, b = map(int, part.split("-", 1))
-            ids.update(range(a, b + 1))
-        else:
-            ids.add(int(part))
+            try:
+                start_str, end_str = part.split("-", 1)
+                start = int(start_str)
+                end = int(end_str)
+            except ValueError:
+                raise click.ClickException(f"Invalid range: '{part}'") from None
+
+            if start > end:
+                raise click.ClickException(f"Invalid range (start > end): '{part}'")
+
+            ids.update(range(start, end + 1))
+            continue
+
+        # ----------------------------------------
+        # Single ID
+        # ----------------------------------------
+        if not part.isdigit():
+            raise click.ClickException(f"Invalid delete id: '{part}'")
+
+        ids.add(int(part))
+
     return sorted(ids)
 
 
-def extract_run_overrides(meta_path: Path) -> list[str]:
-    if not meta_path.exists():
-        return []
-    data = yaml.safe_load(meta_path.read_text()) or {}
-    return [
-        strip_override_prefix(o)
-        for o in data.get("overrides", [])
-        if isinstance(o, str) and not o.startswith("case.file=")
-    ]
+# =========================================================
+# CLI
+# =========================================================
 
 
-def flatten_runs(case: Case) -> list[Run]:
-    return [run for exp in case.experiments for run in exp.runs]
-
-
-def flatten_trials_for_run(run: Run) -> list[Trial]:
-    return run.trials
-
-
-def load_metrics(run_dir: Path) -> dict | None:
-    # return metrics key from *_metrics.json if it exists
-    p = next(run_dir.glob("*_metrics.json"), None)
-    metrics = json.load(p.open()).get("metrics", None) if p else {}
-    timings = json.load(p.open()).get("timing", None) if p else {}
-    metrics["elapsed_seconds"] = timings.get("elapsed_seconds") if timings else None
-    return metrics
-
-
-def load_case_original_toml(case: Case) -> dict | None:
-    for exp in case.experiments:
-        for run in exp.runs:
-            for t in run.trials:
-                p = next(t.path.glob("*_original.toml"), None)
-                if p:
-                    return tomllib.load(p.open("rb"))
-    return None
-
-
-def normalize_overrides_for_display(overrides) -> str:
-    if not overrides:
-        return "—"
-
-    cleaned = []
-    for o in overrides:
-        if not isinstance(o, str):
-            continue
-
-        # Remove Hydra escaping for spaces
-        o = o.replace("\\ ", " ")
-
-        # Drop overrides with key == "count"
-        key = o.split("=", 1)[0]
-        if key == "count":
-            continue
-
-        cleaned.append(o)
-
-    return ", ".join(cleaned) if cleaned else "—"
-
-
-# ---------------------------------------------------------------------
-# Rendering
-# ---------------------------------------------------------------------
-
-
-def render_divider():
-    click.echo("-" * 100)
-
-
-def render_case_summary(cases: list[Case]):
-    click.echo("CASE SUMMARY")
-    render_divider()
-    click.echo(
-        f"{'ID':>{W_ID}} {'Exps':>{W_EXP}} "
-        f"{'Runs':<{W_RUN}} {'Trials':>{W_TRIAL}}  "
-        f"{'Case Name':<{W_CASE}} "
-        f"{'Optimization':<{W_OPT}} {'Rates':<{W_RATES}}"
-    )
-    render_divider()
-
-    for i, case in enumerate(cases):
-        orig = load_case_original_toml(case) or {}
-        click.echo(
-            f"{i:>{W_ID}} "
-            f"{len(case.experiments):>{W_EXP}} "
-            f"{sum(len(e.runs) for e in case.experiments):<{W_RUN}} "
-            f"{sum(len(r.trials) for e in case.experiments for r in e.runs):>{W_TRIAL}}  "
-            f"{case.name:<{W_CASE}} "
-            f"{format_optimization_summary(orig):<{W_OPT}} "
-            f"{format_rates_summary(orig):<{W_RATES}}"
-        )
-
-
-def render_run_summary(
-    case: Case,
-    value_mode: str,
-    selected_run: Run | None = None,
+@click.command(name="results")
+@click.argument("args", nargs=-1)
+@click.option("--case", "case_override", type=int)
+@click.option("--experiment", "--exp", "exp_override", type=int)
+@click.option("--run", "run_override", type=int)
+@click.option("--view", "view_name", default=None)
+@click.option("--sort", "sort_key", type=str)
+@click.option("--top", "top_n", type=int)
+@click.option("--filter", "filters", multiple=True)
+@click.option("--views", "list_views_flag", is_flag=True, help="List available views")
+@click.option(
+    "--pivot", is_flag=True, default=None, help="Render metrics as rows and items as columns"
+)
+@click.option(
+    "--explain",
+    "explain_opts",
+    multiple=True,
+    help=(
+        "Explanation facets (repeatable or comma-separated): " f"{', '.join(sorted(EXPLAIN_ALL))}"
+    ),
+)
+@click.option(
+    "--trials",
+    "trials_flag",
+    is_flag=True,
+    help="Show trial-level rows instead of run-level rows",
+)
+@click.option(
+    "--delete",
+    type=str,
+    help="Delete one or more runs by ID (comma-separated, run/table view only).",
+)
+@click.option(
+    "--to-report",
+    type=str,
+    default=None,
+    metavar="NAME",
+    help="Create a report workspace with the given name under reports/<case>/NAME.",
+)
+@click.option(
+    "--purge",
+    is_flag=True,
+    help="Delete duplicate runs, keeping only the most recent instance.",
+)
+def cmd_results(
+    args,
+    case_override,
+    exp_override,
+    run_override,
+    view_name,
+    sort_key,
+    top_n,
+    filters,
+    list_views_flag,
+    pivot,
+    explain_opts,
+    trials_flag,
+    delete,
+    to_report,
+    purge,
 ):
-    """
-    Render a summary of runs for a selected case.
-    If selected_run is provided, show only that run.
-    Averages numeric metrics across all trials in each run.
+    console = Console()
 
-    Sorting rules:
-      1. Determine an effective objective per run:
-         - If overrides contain maxBequest or maxSpending → use that
-         - Otherwise use case.optimization.objective
-      2. Group rows by effective objective:
-         - maxBequest first, sorted by bequest DESC
-         - maxSpending next, sorted by net spending DESC
-         - everything else last, stable order
-    """
-
-    # -------------------------
-    # Header
-    # -------------------------
-    click.echo("")
-    click.echo("RUN SUMMARY")
-    render_divider()
-    click.echo(
-        f"{'':>{W_ID}} "
-        f"{'':>{W_EXP}} "
-        f"{'':<{W_RUN}} "
-        f"{'':>{W_TRIAL}} "
-        f"{'Net/Yr':>{W_YEAR}} "
-        f"{'Total Net':>{W_NET}} "
-        f"{'Bequest':>{W_BEQ}} "
-        f""
-    )
-    value_display = f"({value_mode} $K)"
-    click.echo(
-        f"{'ID':>{W_ID}} {'Exp':>{W_EXP}} {'Run':<{W_RUN}} {'Trials':>{W_TRIAL}} "
-        f"{value_display:>{W_YEAR}} {value_display:>{W_NET}} {value_display:>{W_BEQ}}   Overrides"
-    )
-    render_divider()
-
-    # -------------------------
-    # Collect rows (no output)
-    # -------------------------
-    rows = []
-    run_id = 0
-    case_toml = load_case_original_toml(case)
-    case_objective = case_toml.get("optimization_parameters", {}).get("objective", "maxBequest")
-
-    for exp_id, exp in enumerate(case.experiments):
-        for run in exp.runs:
-            if selected_run is not None and run is not selected_run:
-                run_id += 1
-                continue
-
-            yearly_vals = []
-            net_vals = []
-            beq_vals = []
-
-            for t in run.trials:
-                m = load_metrics(t.path) or {}
-
-                if (v := m.get("net_yearly_spending_basis")) is not None:
-                    yearly_vals.append(v)
-
-                if (v := m.get(f"total_net_spending_{value_mode}")) is not None:
-                    net_vals.append(v)
-
-                if (v := m.get(f"total_final_bequest_{value_mode}")) is not None:
-                    beq_vals.append(v)
-
-            def avg(vals):
-                return sum(vals) / len(vals) if vals else None
-
-            yearly_avg = avg(yearly_vals)
-            net_avg = avg(net_vals)
-            beq_avg = avg(beq_vals)
-
-            overrides = run.overrides or []
-
-            if any("maxBequest" in o for o in overrides):
-                effective_objective = "maxBequest"
-            elif any("maxSpending" in o for o in overrides):
-                effective_objective = "maxSpending"
-            else:
-                effective_objective = case_objective
-
-            rows.append(
-                {
-                    "run_id": run_id,
-                    "exp_id": exp_id,
-                    "run": run,
-                    "trials": len(run.trials),
-                    "yearly": yearly_avg,
-                    "net": net_avg,
-                    "beq": beq_avg,
-                    "objective": effective_objective,
-                    "overrides": normalize_overrides_for_display(run.overrides),
-                }
-            )
-
-            run_id += 1
-
-    # -------------------------
-    # Sorting
-    # -------------------------
-    def sort_key(row):
-        obj = row["objective"]
-
-        if obj == "maxBequest":
-            return (0, -(row["beq"] or float("-inf")))
-        if obj == "maxSpending":
-            return (1, -(row["net"] or float("-inf")))
-
-        return (2, row["run_id"])  # stable fallback
-
-    rows.sort(key=sort_key)
-
-    # -------------------------
-    # Render rows
-    # -------------------------
-    for row in rows:
-        click.echo(
-            f"{row['run_id']:>{W_ID}} "
-            f"{row['exp_id']:>{W_EXP}} "
-            f"{row['run'].name:<{W_RUN}} "
-            f"{row['trials']:>{W_TRIAL}} "
-            f"{format_k(row['yearly']):>{W_YEAR}} "
-            f"{format_k(row['net']):>{W_NET}} "
-            f"{format_k(row['beq']):>{W_BEQ}}   "
-            f"{row['overrides']}"
-        )
-
-
-def render_run_trials(
-    case: Case,
-    run: Run,
-    exp_id: int,
-    value_mode: str,
-    selected_trial: Trial | None = None,
-):
-    click.echo("")
-    click.echo("TRIAL SUMMARY")
-
-    render_divider()
-    click.echo(
-        f"{'':>{W_ID}} "
-        f"{'':>{W_EXP}} "
-        f"{'':<{W_RUN}} "
-        f"{'':>{W_TRIAL}} "
-        f"{'':>{W_SECONDS}}"
-        f"{'Net/Yr':>{W_YEAR}} "
-        f"{'Total Net':>{W_NET}} "
-        f"{'Bequest':>{W_BEQ}} "
-        f""
-    )
-    value_display = f"({value_mode} $K)"
-    click.echo(
-        f"{'ID':>{W_ID}} {'Exp':>{W_EXP}} {'Run':<{W_RUN}} {'Trials':>{W_TRIAL}} "
-        f"{'Elapsed (s)':>{W_SECONDS}} "
-        f"{value_display:>{W_YEAR}} {value_display:>{W_NET}} {value_display:>{W_BEQ}}   Overrides"
-    )
-    render_divider()
-
-    for i, t in enumerate(run.trials):
-        # 🔹 Filter if a specific trial is selected
-        if selected_trial is not None and t is not selected_trial:
-            continue
-
-        m = load_metrics(t.path) or {}
-
-        click.echo(
-            f"{i:>{W_ID}} {exp_id:>{W_EXP}} {run.name:<{W_RUN}} {t.name:>{W_TRIAL}} "
-            f"{format_d(m.get('elapsed_seconds')):>{W_SECONDS}} "
-            f"{format_k(m.get('net_spending_for_plan_year_0')):>{W_YEAR}} "
-            f"{format_k(m.get(f'total_net_spending_{value_mode}')):>{W_NET}} "
-            f"{format_k(m.get(f'total_final_bequest_{value_mode}')):>{W_BEQ}}   "
-            f"{normalize_overrides_for_display(run.overrides)}"
-        )
-
-
-def render_metrics(run_dir: Path):
-    data = load_metrics(run_dir)
-    click.echo(json.dumps(data, indent=2) if data else "(no metrics found)")
-
-
-def render_summary(run_dir: Path):
-    p = next(run_dir.glob("*_summary.json"), None)
-    click.echo(p.read_text() if p else "(no summary found)")
-
-
-def render_original_toml(run_dir: Path):
-    p = next(run_dir.glob("*_original.toml"), None)
-    click.echo(p.read_text() if p else "(no original TOML found)")
-
-
-def render_effective_toml(run_dir: Path):
-    p = next(run_dir.glob("*_effective.toml"), None)
-    click.echo(p.read_text() if p else "(no effective TOML found)")
-
-
-def resolve_case(token: str, cases: list[Case]) -> Case:
-    if token.isdigit():
-        return cases[int(token)]
-    for c in cases:
-        if c.name == token:
-            return c
-    raise click.ClickException(f"Case not found: {token}")
-
-
-def render_files(run_dir: Path):
-    """List files in a trial directory."""
-    if not run_dir.exists():
-        click.echo("(trial directory not found)")
+    # ---------------------------------------------------------
+    # Parse inputs
+    # ---------------------------------------------------------
+    try:
+        level, run_id, trial_id = parse_args(args)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
         return
 
-    files = sorted(p for p in run_dir.iterdir() if p.is_file())
-    if not files:
-        click.echo("(no files found)")
+    if trials_flag:
+        level = "trial"
+        run_id = None
+        trial_id = None
+
+    if run_override is not None:
+        run_id = run_override
+
+    if not RESULTS_DIR.exists():
+        console.print("[red]Results directory not found[/red]")
         return
 
-    inputs: list[tuple[str, str]] = []
-    outputs: list[tuple[str, str]] = []
-    others: list[str] = []
+    if delete is not None:
+        if level != "run":
+            raise click.ClickException("--delete only supported in run view")
 
-    for p in files:
-        kind, desc = describe_file(p.name)
+        if level == "pivot":
+            raise click.ClickException("--delete not supported in pivot view")
 
-        if kind == "INPUT":
-            inputs.append((p.name, desc))
-        elif kind == "OUTPUT":
-            outputs.append((p.name, desc))
+    experiments = discover_experiments(RESULTS_DIR)
+
+    # ---------------------------------------------------------
+    # Apply case / experiment filters (NEW)
+    # ---------------------------------------------------------
+    if case_override is not None:
+        experiments = [e for e in experiments if getattr(e, "case_id", None) == case_override]
+
+    if exp_override is not None:
+        experiments = [e for e in experiments if getattr(e, "id", None) == exp_override]
+
+    if not experiments:
+        console.print(
+            f"[red]No experiments found for case={case_override}, experiment={exp_override}[/red]"
+        )
+        return
+
+    run_rows = build_run_rows(experiments)
+    trial_rows = build_trial_rows(experiments)
+
+    header = []
+    display_level = None
+    display_mode = "list"
+    detail_row = None
+
+    # =========================================================
+    # TRIAL LIST (NEW)
+    # =========================================================
+    if level == "trial" and run_id is None:
+        display_level = "trial"
+        display_mode = "list"
+
+        working_rows = trial_rows
+
+        header = ["[bold]Trials (all experiments)[/bold]"]
+
+    # =========================================================
+    # RUN LIST
+    # =========================================================
+
+    elif level == "run" and run_id is None:
+        display_level = "run"
+        working_rows = run_rows
+
+        # working_rows = [vars(r) for r in run_rows]
+        working_rows = [runrow_to_dict(r) for r in run_rows]
+
+        if case_override is not None and exp_override is not None:
+            case_name = experiments[0].case
+            header = [f"[bold]Runs (case {case_override}: {case_name}, exp {exp_override})[/bold]"]
+
+        elif case_override is not None:
+            case_name = experiments[0].case
+            header = [f"[bold]Runs (case {case_override}: {case_name})[/bold]"]
+
+        elif exp_override is not None:
+            header = [f"[bold]Runs (experiment {exp_override})[/bold]"]
+
         else:
-            others.append(p.name)
+            header = ["[bold]Runs (all experiments)[/bold]"]
 
-    # Sort alphabetically within groups
-    inputs.sort()
-    outputs.sort()
-    others.sort()
+    else:
+        if run_id is None:
+            run_id = len(run_rows) - 1
 
-    # -------------------------
-    # Display
-    # -------------------------
+        if run_id < 0 or run_id >= len(run_rows):
+            console.print("[red]Invalid run id[/red]")
+            return
 
-    click.echo("")
-    click.echo("FILES")
-    render_divider()
-    click.echo(f"Path: {run_dir}")
-    render_divider()
-    if inputs:
-        click.echo("INPUT FILES:")
-        for name, desc in inputs:
-            click.echo(f"  {name:<35} [{desc}]")
+        selected = run_rows[run_id]
+        ref = selected["_ref"]
 
-    if outputs:
-        click.echo("\nOUTPUT FILES:")
-        for name, desc in outputs:
-            click.echo(f"  {name:<35} [{desc}]")
+        exp = experiments[ref["exp_index"]]
+        run = exp.runs[ref["run_index"]]
 
-    if others:
-        click.echo("\nOTHER FILES:")
-        for name in others:
-            click.echo(f"  {name}")
+        trial_rows = build_trial_rows([exp])
+        trial_rows = [r for r in trial_rows if r.get("run") == run.name]
 
+        # TRIAL LIST
+        if trial_id is None:
+            display_level = "run"
+            display_mode = "summary"
+            working_rows = [selected]
 
-def render_diff(trial_dir: Path):
-    orig = next(trial_dir.glob("*_original.toml"), None)
-    eff = next(trial_dir.glob("*_effective.toml"), None)
+            working_rows = [runrow_to_dict(selected)]
 
-    if not orig or not eff:
-        click.echo("(original or effective TOML not found)")
+            header = [
+                "[bold cyan]RUN[/bold cyan]",
+                f"[dim]Exp {ref['exp_index']} | Run {ref['run_index']}[/dim]",
+                f"[dim]{run.path}[/dim]",
+            ]
+
+        # SINGLE TRIAL
+        else:
+            if trial_id < 0 or trial_id >= len(trial_rows):
+                console.print("[red]Invalid trial id[/red]")
+                return
+
+            display_level = "trial"
+            display_mode = "detail"
+            detail_row = trial_rows[trial_id]
+            working_rows = [detail_row]
+
+            trial = run.trials[trial_id]
+
+            header = [
+                f"[bold]Run {ref['run_index']} - Trial {trial_id}[/bold]",
+                f"[dim]{trial.path}[/dim]",
+            ]
+
+    # ---------------------------------------------------------
+    # View listing
+    # ---------------------------------------------------------
+    if view_name == "help" or list_views_flag:
+        tag_filter = None
+
+        # Only treat args as tag filter when NOT selecting a run/trial
+        if view_name == "help" and level == "run" and run_id is None and args:
+            tag_filter = args[0]
+
+        console.print(view_help(display_level, display_mode, detail_row, tag_filter))
         return
 
-    a = tomllib.load(orig.open("rb"))
-    b = tomllib.load(eff.open("rb"))
-
-    diffs = diff_dicts(a, b)
-
-    click.echo("")
-    click.echo("DIFF (original → effective)")
-    render_divider()
-
-    if not diffs:
-        click.echo("No differences.")
-        return
-
-    for line in diffs:
-        click.echo(line)
-
-
-def render_single_trial_summary(
-    case: Case,
-    run: Run,
-    trial: Trial,
-    exp_id: int,
-    trial_id: int,
-    value_mode: str,
-):
-    """
-    Render a single trial summary and default to metrics output.
-    """
-
-    # -------------------------
-    # Context header
-    # -------------------------
+    # ---------------------------------------------------------
+    # Default view override (only if user didn't specify)
+    # ---------------------------------------------------------
     if 0:
-        click.echo("RUN")
-        render_divider()
-        click.echo(f"EXP {exp_id} | {run.name} | {len(run.trials)} trials")
+        user_provided_view = "--view" in sys.argv
 
-        overrides = normalize_overrides_for_display(run.overrides)
-        click.echo(f"Overrides: {overrides}")
-        click.echo("")
+        if not user_provided_view:
+            view_name = resolve_default_view(display_level, display_mode, detail_row)
 
-    logger.debug(f"{case} {run} {trial} {exp_id} {trial_id} {value_mode}")
+            # -----------------------------------------------------
+            # Optional: smarter defaults for run summary (NEW)
+            # -----------------------------------------------------
+            if display_level == "run" and display_mode == "summary":
+                trial_cnt = working_rows[0].get("trial_cnt", 1)
 
-    # -------------------------
-    # Trial summary
-    # -------------------------
-    click.echo("")
-    click.echo("METRICS")
-    render_divider()
+                if trial_cnt == 1:
+                    view_name = "summary"
+                else:
+                    view_name = "diagnostics"
+    if view_name is None:
+        view_name = resolve_default_view(display_level, display_mode, detail_row)
 
-    render_metrics(trial.path)
+    # ---------------------------------------------------------
+    # Resolve view
+    # ---------------------------------------------------------
+    try:
+        selected_view, layout, view_explain = get_view(display_level, view_name)
+    except KeyError as e:
+        available = ", ".join(list_views(display_level))
+        console.print(f"[red]Failed to load view '{view_name}'[/red]")
+        console.print(f"[dim]Available: {available}[/dim]")
+        console.print(f"[yellow]Error: {e}[/yellow]")  # 🔥 THIS IS THE KEY LINE
+        return
 
+    # ---------------------------------------------------------
+    # Layout defaults based on display_mode (NEW)
+    # ---------------------------------------------------------
+    if pivot is True:
+        layout = "pivot"
+    elif pivot is None:
+        # default behavior
+        if display_mode in ("summary", "detail"):
+            layout = "pivot"
 
-def clone_effective_toml(trial_dir: Path, tag: str):
-    """
-    Clone *_effective.toml and *_effective.xlsx from a trial directory into the
-    project directory, appending _<tag> to the basename, and update
-    HFP_file_name in the cloned TOML to point to the new XLSX.
-    """
-    # -------------------------
-    # Locate source files
-    # -------------------------
-    src_toml = next(trial_dir.glob("*_effective.toml"), None)
-    if not src_toml:
-        raise click.ClickException("No effective TOML found to clone")
+    if any(opt.strip() == "help" for opt in explain_opts):
+        console.print(facet_help(explain_opts))
+        return
 
-    src_xlsx = next(trial_dir.glob("*_effective.xlsx"), None)
-    if not src_xlsx:
-        raise click.ClickException("No effective XLSX found to clone")
+    try:
+        explain_set = parse_explain(explain_opts, view_explain)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        return
 
-    if not tag.isidentifier():
-        raise click.ClickException(
-            "Clone tag must be a valid identifier (letters, numbers, underscores)"
-        )
+    # ---------------------------------------------------------
+    # Apply filters/sort/top
+    # ---------------------------------------------------------
+    working_rows = apply_filters(working_rows, selected_view, filters)
+    working_rows = apply_sort(working_rows, selected_view, sort_key)
+    working_rows = apply_top(working_rows, top_n)
 
-    # -------------------------
-    # Construct destination names
-    # -------------------------
-    base = src_toml.name.replace("_effective.toml", "")
-    dest_dir = Path.cwd()
+    final_rows = working_rows
 
-    dest_toml = dest_dir / f"{base}_{tag}.toml"
-    dest_xlsx = dest_dir / f"{base}_{tag}.xlsx"
+    # ---------------------------------------------------------
+    # PURGE duplicate runs (keep latest only)
+    # ---------------------------------------------------------
 
-    if dest_toml.exists():
-        raise click.ClickException(f"Target TOML already exists: {dest_toml.name}")
-    if dest_xlsx.exists():
-        raise click.ClickException(f"Target XLSX already exists: {dest_xlsx.name}")
+    if purge:
+        if display_level != "run":
+            raise click.ClickException("--purge only supported in run view")
 
-    # -------------------------
-    # Copy XLSX first
-    # -------------------------
-    dest_xlsx.write_bytes(src_xlsx.read_bytes())
+        if layout == "pivot":
+            raise click.ClickException("--purge not supported in pivot view")
 
-    # -------------------------
-    # Load + modify TOML
-    # -------------------------
-    doc = tomlkit.parse(src_toml.read_text(encoding="utf-8"))
+        # Identify duplicate-but-not-latest runs
+        targets = []
 
-    hfp = doc.get("household_financial_profile")
-    if not isinstance(hfp, dict):
-        raise click.ClickException("TOML missing [household_financial_profile] section")
+        for i, row in enumerate(final_rows):
+            if row.get("is_duplicate") and not row.get("is_latest_duplicate"):
+                ref = row["_ref"]
+                exp = experiments[ref["exp_index"]]
+                run = exp.runs[ref["run_index"]]
+                targets.append((i, Path(run.path)))
 
-    if "HFP_file_name" not in hfp:
-        raise click.ClickException("TOML missing household_financial_profile.HFP_file_name")
+        if not targets:
+            console.print("[green]No duplicate runs to purge.[/green]")
+            return
 
-    hfp["HFP_file_name"] = dest_xlsx.name
+        # Confirm
+        console.print("[bold red]Purge the following duplicate runs:[/bold red]")
+        for i, path in targets:
+            console.print(f"  ID {i}: {path}")
 
-    # -------------------------
-    # Write TOML
-    # -------------------------
-    dest_toml.write_text(tomlkit.dumps(doc), encoding="utf-8")
+        click.confirm("Proceed?", abort=True)
 
-    click.echo(f"Cloned effective TOML → {relpath(dest_toml)}")
-    click.echo(f"Cloned effective XLSX → {relpath(dest_xlsx)}")
+        # Delete
+        for i, path in targets:
+            if path.exists():
+                shutil.rmtree(path)
+                console.print(f"[green]Deleted {i}: {path}[/green]")
+            else:
+                console.print(f"[yellow]Skipping {i}: path not found[/yellow]")
 
+        # ----------------------------------------
+        # NEW: prune empty experiment folders
+        # ----------------------------------------
+        prune_empty_experiments(RESULTS_DIR, console)
 
-def diff_dicts(a: dict, b: dict, prefix: str = "") -> list[str]:
-    """
-    Recursively diff two dictionaries.
-    Returns a list of human-readable diff lines.
-    """
-    diffs: list[str] = []
+        return
 
-    a_keys = set(a.keys())
-    b_keys = set(b.keys())
+    # ---------------------------------------------------------
+    # Delete using the row ID of filtered rows.
+    # ---------------------------------------------------------
 
-    for key in sorted(a_keys - b_keys):
-        diffs.append(f"- {prefix}{key} (removed)")
+    if delete is not None:
+        if display_level != "run":
+            raise click.ClickException("--delete only supported in run view")
 
-    for key in sorted(b_keys - a_keys):
-        diffs.append(f"+ {prefix}{key} = {b[key]!r}")
+        if layout == "pivot":
+            raise click.ClickException("--delete not supported in pivot view")
 
-    for key in sorted(a_keys & b_keys):
-        av = a[key]
-        bv = b[key]
-        path = f"{prefix}{key}"
+        delete_ids = parse_delete_ids(delete)
 
-        if isinstance(av, dict) and isinstance(bv, dict):
-            diffs.extend(diff_dicts(av, bv, prefix=f"{path}."))
-        elif av != bv:
-            diffs.append(f"~ {path}: {av!r} → {bv!r}")
+        if not delete_ids:
+            raise click.ClickException("No valid IDs provided to --delete")
 
-    return diffs
+        # Validate IDs
+        max_id = len(final_rows) - 1
+        for i in delete_ids:
+            if i < 0 or i > max_id:
+                raise click.ClickException(f"Invalid ID {i}. Must be 0–{max_id}")
+
+        # Resolve run paths
+        targets = []
+        for i in delete_ids:
+            row = final_rows[i]
+            ref = row["_ref"]
+            exp = experiments[ref["exp_index"]]
+            run = exp.runs[ref["run_index"]]
+            targets.append((i, Path(run.path)))
+
+        # Confirm once
+        console.print("[bold red]Delete the following runs:[/bold red]")
+        for i, path in targets:
+            console.print(f"  ID {i}: {path}")
+
+        click.confirm("Proceed?", abort=True)
+
+        for i, path in targets:
+            if path.exists():
+                shutil.rmtree(path)
+                console.print(f"[green]Deleted {i}: {path}[/green]")
+            else:
+                console.print(f"[yellow]Skipping {i}: path not found[/yellow]")
+
+        return
+
+    # ---------------------------------------------------------
+    # Capture report bundle (metadata.yaml)
+    # ---------------------------------------------------------
+
+    if to_report is not None:
+        # ----------------------------------------
+        # Resolve case name
+        # ----------------------------------------
+        case_name = experiments[0].case if experiments else "unknown"
+
+        case_dir = REPORTS_DIR / case_name
+        case_dir.mkdir(parents=True, exist_ok=True)
+
+        # ----------------------------------------
+        # Extract run paths (CRITICAL for reproducibility)
+        # ----------------------------------------
+        run_paths = []
+        run_refs = []
+        run_objs = []  # ✅ NEW: keep run objects
+
+        for row in final_rows:
+            ref = row["_ref"]
+            exp = experiments[ref["exp_index"]]
+            run = exp.runs[ref["run_index"]]
+
+            run_paths.append(str(Path(run.path)))
+            run_refs.append(ref)
+            run_objs.append(run)  # ✅ NEW
+
+        # ----------------------------------------
+        # Resolve report folder name
+        # ----------------------------------------
+        report_name = (to_report or "").strip()
+
+        if not report_name:
+            # Auto-generate report_N
+            existing = {p.name for p in case_dir.iterdir() if p.is_dir()}
+
+            i = 0
+            while True:
+                candidate = f"report_{i}"
+                if candidate not in existing:
+                    report_name = candidate
+                    break
+                i += 1
+        else:
+            # Explicit name must not exist
+            if (case_dir / report_name).exists():
+                raise click.ClickException(
+                    f"Report folder already exists: {case_dir / report_name}"
+                )
+
+        bundle_dir = case_dir / report_name
+        bundle_dir.mkdir(parents=True, exist_ok=False)
+
+        # ----------------------------------------
+        # Build metadata
+        # ----------------------------------------
+        metadata = {
+            "version": 1,
+            # ----------------------------------------
+            # Bundle identity
+            # ----------------------------------------
+            "bundle": {
+                "name": report_name,
+                "created_at": datetime.now().isoformat(),
+                "command": " ".join(sys.argv),
+            },
+            # ----------------------------------------
+            # Paths (critical for portability + reproducibility)
+            # ----------------------------------------
+            "paths": {
+                # Absolute paths (primary reference)
+                "project_root": str(Path.cwd().resolve()),
+                "results_dir": str(RESULTS_DIR.resolve()),
+                "reports_dir": str(REPORTS_DIR.resolve()),
+                # Optional future use
+                # "data_dir": str((bundle_dir / "data").resolve()),
+            },
+            # ----------------------------------------
+            # Runs (portable + reproducible)
+            # ----------------------------------------
+            "runs": [
+                {
+                    # Preferred: relative to results_dir
+                    "path": str(Path(p).resolve().relative_to(RESULTS_DIR.resolve())),
+                    # Fallback: absolute (in case relocation fails)
+                    "abs_path": str(Path(p).resolve()),
+                    # ✅ NEW: stable logical identity
+                    "signature": getattr(run, "signature", None),
+                    # ✅ OPTIONAL: may go stale, safe to include
+                    "ref": {
+                        "exp_index": ref["exp_index"],
+                        "run_index": ref["run_index"],
+                    },
+                }
+                for p, run, ref in zip(run_paths, run_objs, run_refs, strict=False)
+            ],
+            # ----------------------------------------
+            # Future extensions (safe placeholders)
+            # ----------------------------------------
+            "options": {
+                # e.g., include_data=True in future
+                # "include_data": False,
+            },
+            "notes": "",
+        }
+
+        # ----------------------------------------
+        # Write metadata.yaml
+        # ----------------------------------------
+        metadata_path = bundle_dir / "metadata.yaml"
+
+        with open(metadata_path, "w") as f:
+            yaml.dump(metadata, f, sort_keys=False)
+
+        # ----------------------------------------
+        # Copy templates into bundle (optional)
+        # ----------------------------------------
+        template_list = ["simple"]
+        if template_list:
+            template_dest = bundle_dir
+
+            for name in template_list:
+                src = TEMPLATE_DIR / f"{name}.qmd"
+                dst = template_dest / f"{name}.qmd"
+
+                if src.exists():
+                    shutil.copy(src, dst)
+                else:
+                    console.print(f"[yellow]Template not found: {name}[/yellow]")
+
+            src = TEMPLATE_DIR / "_quarto.yml"
+            dst = template_dest / "_quarto.yml"
+            if src.exists():
+                shutil.copy(src, dst)
+            else:
+                console.print("[yellow]Project file not found: _quarto.yml[/yellow]")
+
+        # ----------------------------------------
+        # Done
+        # ----------------------------------------
+        console.print()
+        console.print(f"[green]Report workspace created:[/green] {bundle_dir}")
+        console.print(f"[dim]{metadata_path}[/dim]")
+
+        return
+
+    # ---------------------------------------------------------
+    # Header
+    # ---------------------------------------------------------
+    mode_tag = f" ({display_mode})" if display_mode != "list" else ""
+
+    if pivot:
+        header.append(f"[dim]View: {display_level}:{view_name}{mode_tag} PIVOT[/dim]")
+    else:
+        header.append(f"[dim]View: {display_level}:{view_name}{mode_tag}[/dim]")
+
+    # ---------------------------------------------------------
+    # Render
+    # ---------------------------------------------------------
+    console.print()
+    for line in header:
+        console.print(line)
+    console.print()
+
+    render_table(console, final_rows, selected_view, layout=layout, explain=explain_set)
