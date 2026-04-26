@@ -138,7 +138,7 @@ def test_smoker_coercion():
 def test_roost_defaults():
     cfg = RoostConfig()
     assert isinstance(cfg.master_seed, int)
-    assert cfg.trials == 1
+    assert cfg.trials_per_run == 1
 
 
 # =========================================================

@@ -29,6 +29,7 @@ def _to_bool(v, default=True):
         return v.lower() == "true"
     return default
 
+
 def run_trial_star(args):
     from owlroost.hydra.trial_worker import run_trial
 
@@ -42,8 +43,8 @@ def _exec_subprocess(args: dict, timeout: int):
         proc = subprocess.Popen(
             [sys.executable, "-m", "owlroost.entrypoints.run_case"],
             stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,   # capture JSON
-            stderr=None,              # stream logs live
+            stdout=subprocess.PIPE,  # capture JSON
+            stderr=None,  # stream logs live
             text=True,
         )
 
@@ -89,7 +90,7 @@ def _exec_subprocess(args: dict, timeout: int):
             "started_at": start,
             "finished_at": finished,
         }
-                
+
 
 def _exec_inprocess(args: dict, timeout: int):
     import traceback
@@ -139,7 +140,7 @@ def _exec_inprocess(args: dict, timeout: int):
             "started_at": start,
             "finished_at": finished,
         }
-        
+
 
 def _interpret_execution(raw):
     """
@@ -214,7 +215,7 @@ def _interpret_execution(raw):
             finished_at=finished,
             execution_mode=mode,
         )
-    
+
 
 def run_single_case(args: dict, timeout: int = 20, use_subprocess: bool = True):
     if use_subprocess:
@@ -223,7 +224,6 @@ def run_single_case(args: dict, timeout: int = 20, use_subprocess: bool = True):
         raw = _exec_inprocess(args, timeout)
 
     return _interpret_execution(raw)
-
 
 
 def run_trial(
@@ -382,11 +382,13 @@ def run_trial(
     # print( f"Before run_single_case_subprocess: {args}" )
 
     timeout = _get_runtime_flag(overrides, "worker_timeout", 20)
-    use_subprocess = _to_bool(_get_runtime_flag(overrides, "run_owl_as_subprocess", True))
+    mode = _get_runtime_flag(overrides, "owl_execution_mode", "inprocess")
+    use_subprocess = mode == "subprocess"
     threads = _get_runtime_flag(overrides, "math_library_threads")
 
     # Optional: safety guard
     import os
+
     if "JOBLIB_PARENT_PID" in os.environ:
         use_subprocess = True
 
@@ -405,7 +407,6 @@ def run_trial(
         timeout=timeout,
         use_subprocess=use_subprocess,
     )
-
 
     # --------------------------------------------------
     # Check for metrics.json existence (SOURCE OF TRUTH)

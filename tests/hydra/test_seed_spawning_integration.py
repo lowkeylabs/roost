@@ -290,7 +290,7 @@ def test_hydra_group_selection_passed_through(mock_run_trial, tmp_path):
 
     overrides = [
         f"case.file={case_file}",
-        "trial.count=2",
+        "roost.trials_per_run=2",
         "runtime.trial_jobs=1",
         "roost.master_seed=11111",
         "rates_selection=bootstrap_sor",

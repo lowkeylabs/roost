@@ -2,3 +2,5 @@
 
 master_seed: 1234567890
 trials_per_run: 1
+
+experiment_name: null

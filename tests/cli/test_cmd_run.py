@@ -96,10 +96,10 @@ def test_historical_multiple_trials_ok(tmp_path, monkeypatch):
     mock_monitor(monkeypatch)
 
     runner = CliRunner()
-    result = run_cli(runner, case_file, "-t", "10")
+    result = run_cli(runner, case_file, "roost.trials_per_run=10")
 
-    assert result.exit_code == 0
-    assert "trial.count=10" in " ".join(called["cmd"])
+    assert result.exit_code != 0
+    assert "Multiple trials require at least one stochastic model" in result.output
 
 
 # ---------------------------------------------------------------------
@@ -108,7 +108,7 @@ def test_historical_multiple_trials_ok(tmp_path, monkeypatch):
 
 
 def test_stochastic_multiple_trials_ok(tmp_path, monkeypatch):
-    case_file = write_case(tmp_path, "stochastic")
+    case_file = write_case(tmp_path, "bootstrap_sor")
     monkeypatch.chdir(tmp_path)
 
     called = {}
@@ -116,10 +116,10 @@ def test_stochastic_multiple_trials_ok(tmp_path, monkeypatch):
     mock_monitor(monkeypatch)
 
     runner = CliRunner()
-    result = run_cli(runner, case_file, "-t", "10")
+    result = run_cli(runner, case_file, "roost.trials_per_run=10")
 
     assert result.exit_code == 0
-    assert "trial.count=10" in " ".join(called["cmd"])
+    assert "roost.trials_per_run=10" in " ".join(called["cmd"])
 
 
 # ---------------------------------------------------------------------
@@ -128,7 +128,7 @@ def test_stochastic_multiple_trials_ok(tmp_path, monkeypatch):
 
 
 def test_hydra_override_passthrough(tmp_path, monkeypatch):
-    case_file = write_case(tmp_path, "stochastic")
+    case_file = write_case(tmp_path, "bootstrap_sor")
     monkeypatch.chdir(tmp_path)
 
     called = {}
@@ -159,7 +159,7 @@ def test_hydra_override_passthrough(tmp_path, monkeypatch):
 
 
 def test_trial_id_injection(tmp_path, monkeypatch):
-    case_file = write_case(tmp_path, "stochastic")
+    case_file = write_case(tmp_path, "bootstrap_sor")
     monkeypatch.chdir(tmp_path)
 
     called = {}

@@ -551,7 +551,9 @@ register_metric(
         compute_level="run",
         compute_fn=lambda r: (
             "inproc"
-            if not ((r.get("_inputs", {}) or {}).get("runtime", {}).get("run_owl_as_subprocess", True))
+            if not (
+                (r.get("_inputs", {}) or {}).get("runtime", {}).get("run_owl_as_subprocess", True)
+            )
             else "subproc"
         ),
         description="Execution mode: in-process or subprocess.",
@@ -565,9 +567,7 @@ register_metric(
         dtype=int,
         compute_level="run",
         compute_fn=lambda r: (
-            (r.get("_inputs", {}) or {})
-            .get("runtime", {})
-            .get("math_library_threads")
+            (r.get("_inputs", {}) or {}).get("runtime", {}).get("math_library_threads")
         ),
         description="Configured math library thread count.",
     )

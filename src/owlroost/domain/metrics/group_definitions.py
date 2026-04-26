@@ -413,7 +413,6 @@ register_group(
         ("solved", "sum", {"show_if": "is_pivot"}),
         ("timeout", "sum"),
         ("error", "sum"),
-
         # Ratios
         ("solved", "pct", {"show_if": "is_pivot"}),
         ("timeout", "pct", {"show_if": "is_pivot"}),
@@ -457,7 +456,6 @@ register_group(
         ("execution_mode"),
         ("math_threads"),
         ("worker_timeout", {"show_if": "is_pivot"}),
-
         # -------------------------------------------------
         # Primary performance (TOP LEVEL SIGNALS)
         # -------------------------------------------------
@@ -465,23 +463,19 @@ register_group(
         ("overhead_ratio"),
         ("efficiency"),
         ("run_wall_time"),
-
         # -------------------------------------------------
         # Per-trial timing (distribution)
         # -------------------------------------------------
         ("elapsed_seconds", "mean"),
         ("elapsed_seconds", "p99", {"show_if": "is_pivot"}),
         ("elapsed_seconds", "std", {"show_if": "is_pivot"}),
-
         ("elapsed_seconds", "median", {"show_if": "is_pivot"}),
         ("elapsed_seconds", "p10", {"show_if": "is_pivot"}),
         ("elapsed_seconds", "p90", {"show_if": "is_pivot"}),
-
         # -------------------------------------------------
         # Derived efficiency
         # -------------------------------------------------
         ("wall_time_efficiency", {"show_if": "is_pivot"}),
-
         # -------------------------------------------------
         # Solver efficiency
         # -------------------------------------------------

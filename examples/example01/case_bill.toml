@@ -90,7 +90,7 @@ smoker = [ false,]
 
 [roost]
 master_seed = 1745392466
-trials = 1
+trials_per_run = 1
 
 [runtime_environment]
 OMP_NUM_THREADS = 1

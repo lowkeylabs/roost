@@ -43,6 +43,7 @@ helper_groups = [
 # Helpers
 # ---------------------------------------------------------------------
 
+
 def apply_runtime_thread_env(env: dict, cfg: dict):
     n = cfg.get("math_library_threads")
     if not n:
@@ -51,8 +52,7 @@ def apply_runtime_thread_env(env: dict, cfg: dict):
     n = str(n)
 
     def set_if_missing(key):
-        if key not in env:
-            env[key] = n
+        env[key] = n
 
     set_if_missing("MOSEK_NUM_THREADS")
     set_if_missing("MSK_IPAR_NUM_THREADS")
@@ -125,6 +125,83 @@ def get_rate_selection_method(case_file: Path) -> str | None:
     return data.get("rates_selection", {}).get("method")
 
 
+def get_usable_cpus() -> int:
+    try:
+        return len(os.sched_getaffinity(0))
+    except Exception:
+        return os.cpu_count() or 1
+
+
+def resolve_solver(case_file: Path, overrides: list[str]) -> str:
+    """
+    Resolve solver with correct precedence:
+
+    1. CLI override (highest priority)
+    2. Case file
+    3. Default: MOSEK if available, else HiGHS
+    """
+
+    # ------------------------------------------------------------
+    # 1️⃣ CLI override (Hydra)
+    # ------------------------------------------------------------
+    for o in overrides:
+        if o.startswith("solver_options.solver="):
+            val = o.split("=", 1)[1]
+            return val.split(",")[0]  # handle sweeps
+
+    # ------------------------------------------------------------
+    # 2️⃣ Case file
+    # ------------------------------------------------------------
+    solver = None
+    try:
+        with case_file.open("rb") as f:
+            data = tomllib.load(f)
+            solver = data.get("solver_options", {}).get("solver")
+    except Exception:
+        pass
+
+    if solver:
+        return solver
+
+    # ------------------------------------------------------------
+    # 3️⃣ Default: prefer MOSEK
+    # ------------------------------------------------------------
+    try:
+        import mosek  # noqa
+
+        return "MOSEK"
+    except Exception:
+        return "HiGHS"
+
+
+def resolve_effective_solver(solver: str) -> str:
+    if solver.lower() != "default":
+        return solver
+
+    # default behavior
+    try:
+        import mosek  # noqa
+
+        return "MOSEK"
+    except Exception:
+        return "HiGHS"
+
+
+def compute_solver_defaults(solver: str, cpu: int) -> tuple[int, int]:
+    solver = solver.upper()
+
+    if solver == "MOSEK":
+        trial_jobs = min(cpu, max(2, int(cpu * 0.3)), 7)
+
+    elif solver == "HIGHS":
+        trial_jobs = min(cpu, max(4, int(cpu * 0.5)), 10)
+
+    else:
+        trial_jobs = max(1, cpu - 1)
+
+    return trial_jobs, 1
+
+
 # ---------------------------------------------------------------------
 # Stochastic Detection
 # ---------------------------------------------------------------------
@@ -185,15 +262,14 @@ def validate_rate_method_for_trials(
     *,
     rate_method: str | None,
     overrides: list[str],
+    trial_values: list[int],
     trial_id: int | None,
 ):
     """
     Multi-trial execution requires at least one stochastic dimension.
     """
 
-    requires_trials = (trials is not None and trials > 1) or (
-        trial_id is not None and trial_id != 0
-    )
+    requires_trials = any(t > 1 for t in trial_values) or (trial_id is not None and trial_id != 0)
 
     if not requires_trials:
         return
@@ -332,9 +408,10 @@ def extract_runtime_overrides(overrides: list[str]) -> dict:
             result["run_jobs"] = o.split("=", 1)[1]
         elif o.startswith("runtime.math_library_threads="):
             result["math_library_threads"] = o.split("=", 1)[1]
-        elif o.startswith("runtime.run_owl_as_subprocess="):
-            result["run_owl_as_subprocess"] = o.split("=", 1)[1]
+        elif o.startswith("runtime.owl_execution_mode="):
+            result["owl_execution_mode"] = o.split("=", 1)[1]
     return result
+
 
 def extract_runtime_environment_overrides(overrides: list[str]) -> dict:
     result = {}
@@ -345,6 +422,7 @@ def extract_runtime_environment_overrides(overrides: list[str]) -> dict:
             result[env_key] = value
     return result
 
+
 def get_trials_per_run_values(overrides: list[str]) -> list[int]:
     for o in overrides:
         if o.startswith("roost.trials_per_run="):
@@ -352,10 +430,9 @@ def get_trials_per_run_values(overrides: list[str]) -> list[int]:
             try:
                 return [int(x) for x in value.split(",")]
             except ValueError:
-                raise click.ClickException(
-                    f"Invalid roost.trials_per_run value: {value}"
-                ) from None
+                raise click.ClickException(f"Invalid roost.trials_per_run value: {value}") from None
     return [1]
+
 
 def compute_total_trials(overrides: list[str]) -> tuple[int, list[int], int, int]:
     """
@@ -391,7 +468,7 @@ def resolve_parallelism(*, num_runs, trial_count, cfg):
     runtime_trial_jobs = cfg.get("trial_jobs")
     runtime_run_jobs = cfg.get("run_jobs")
 
-    cpu_count = os.cpu_count() or 1
+    cpu_count = get_usable_cpus()
     usable_cpu = max(1, int((cpu_count - cpu_reserve) * oversubscribe))
 
     # --------------------------------------------------
@@ -432,7 +509,7 @@ def build_hydra_command(
     trial_jobs: int | None,
     run_jobs: int | None,
     trial_id: int | None,
-    cfg:dict,
+    cfg: dict,
 ) -> list[str]:
     package_root = Path(__file__).parents[1]
     script = package_root / "hydra" / "owl_hydra_run.py"
@@ -458,10 +535,10 @@ def build_hydra_command(
     if trial_id is not None:
         cmd.append(f"trial.id={trial_id}")
 
-    # eventually, remove trial.n_jobs
-    if not any(oo.startswith("runtime.trial_jobs=") for oo in overrides):
-        cmd.append(f"runtime.trial_jobs={trial_jobs}")
+    if "owl_execution_mode" in cfg:
+        cmd.append(f"runtime.owl_execution_mode={str(cfg['owl_execution_mode']).lower()}")
 
+    cmd.append(f"runtime.trial_jobs={trial_jobs}")
     cmd.append(f"runtime.run_jobs={run_jobs}")
     cmd.append(f"hydra.launcher.n_jobs={run_jobs}")
 
@@ -553,8 +630,9 @@ def cmd_run(
         f"hydra.sweep.dir={results_root}/{case_name}/{date_str}/{time_str}",
         *hydra_overrides,
     ]
+
     num_runs, trial_values, trial_count, total_trials = compute_total_trials(hydra_overrides)
-    
+
     # ------------------------------------------------------------
     # Load runtime config FIRST
     # ------------------------------------------------------------
@@ -566,12 +644,46 @@ def cmd_run(
         try:
             if k == "run_owl_as_subprocess":
                 if "," in v:
-                    continue  # Hydra sweep
-                cfg[k] = v.lower() == "true"
+                    # keep raw value for Hydra, but set default for cfg
+                    cfg[k] = v.split(",")[0].lower() == "true"
+                else:
+                    cfg[k] = v.lower() == "true"
             else:
                 cfg[k] = int(v)
         except ValueError:
             pass
+
+    # ------------------------------------------------------------
+    # Auto-detect CPU + solver defaults
+    # ------------------------------------------------------------
+    cpu = get_usable_cpus()
+    solver = resolve_solver(case_file, hydra_overrides)
+
+    has_trial_jobs = (
+        "trial_jobs" in runtime_overrides and "," not in runtime_overrides["trial_jobs"]
+    )
+    has_threads = (
+        "math_library_threads" in runtime_overrides
+        and "," not in runtime_overrides["math_library_threads"]
+    )
+
+    effective_solver = resolve_effective_solver(solver)
+    auto_trial_jobs, auto_threads = compute_solver_defaults(effective_solver, cpu)
+
+    if not has_trial_jobs:
+        cfg["trial_jobs"] = auto_trial_jobs
+
+    if not has_threads:
+        cfg["math_library_threads"] = auto_threads
+
+    logger.info(
+        "Auto runtime defaults | solver={} cpu={} trial_jobs={} threads={} mode={}",
+        effective_solver,
+        cpu,
+        cfg.get("trial_jobs"),
+        cfg.get("math_library_threads"),
+        cfg.get("owl_execution_mode"),
+    )
 
     # ------------------------------------------------------------
     # Build environment AFTER cfg is ready
@@ -583,6 +695,9 @@ def cmd_run(
             env.pop(k, None)
         else:
             env[k] = str(v)
+
+    cfg["trial_jobs"] = max(1, min(cfg.get("trial_jobs", 1), cpu))
+    cfg["math_library_threads"] = max(1, cfg.get("math_library_threads", 1))
 
     # Apply thread limits (now cfg exists)
     env = apply_runtime_thread_env(env, cfg)
@@ -624,8 +739,6 @@ def cmd_run(
         if not any(o.startswith("longevity=") for o in hydra_overrides):
             hydra_overrides = ["longevity=default", *hydra_overrides]
 
-    effective_rate_method(rate_method, hydra_overrides)
-
     logger.debug("Resolved case file: {}", case_file)
     logger.debug("Hydra overrides: {}", hydra_overrides)
 
@@ -637,14 +750,14 @@ def cmd_run(
     cleaned = []
 
     for o in hydra_overrides:
-        if o.startswith("experiment="):
+        if o.startswith("experiment_name="):
             experiment_name = o.split("=", 1)[1]
         else:
             cleaned.append(o)
 
     base_overrides = cleaned
     if experiment_name:
-        base_overrides.append(f"roost.experiment={experiment_name}")
+        base_overrides.append(f"roost.experiment_name={experiment_name}")
 
     if experiment_name == "augmented_sampling":
         slices = parse_from_to_slices(hydra_overrides)
@@ -715,8 +828,16 @@ def cmd_run(
         ]
         num_runs, trial_values, trial_count, total_trials = compute_total_trials(sweep_overrides)
 
-        trials_display = ",".join(map(str, trial_values))
+        effective_method = effective_rate_method(rate_method, sweep_overrides)
 
+        validate_rate_method_for_trials(
+            rate_method=effective_method,
+            overrides=sweep_overrides,
+            trial_values=trial_values,
+            trial_id=trial_id,
+        )
+
+        trials_display = ",".join(map(str, trial_values))
         logger.info(
             "Runs: {} | Trials per run: {} | Total trials: {}",
             num_runs,
@@ -730,7 +851,7 @@ def cmd_run(
             trial_jobs=trial_jobs,
             run_jobs=run_jobs,
             trial_id=trial_id,
-            cfg=cfg
+            cfg=cfg,
         )
 
         logger.debug("Executing SINGLE Hydra experiment multirun:")
@@ -761,7 +882,7 @@ def cmd_run(
     # --------------------------------------------------------
     # default processing outside of experiments
     # --------------------------------------------------------
-    
+
     cmd = build_hydra_command(
         case_file,
         hydra_overrides,
@@ -769,6 +890,14 @@ def cmd_run(
         run_jobs=run_jobs,
         trial_id=trial_id,
         cfg=cfg,
+    )
+
+    effective_method = effective_rate_method(rate_method, hydra_overrides)
+    validate_rate_method_for_trials(
+        rate_method=effective_method,
+        overrides=hydra_overrides,
+        trial_values=trial_values,
+        trial_id=trial_id,
     )
 
     logger.debug("Executing Hydra:")

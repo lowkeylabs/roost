@@ -146,7 +146,6 @@ register_view(
     "timing",
     [
         ("group", "run_identity"),
-
         {"separator": "section", "label": "TIMING"},
         ("group", "timing"),
     ],
@@ -159,12 +158,10 @@ register_view(
     "timing",
     [
         ("group", "run_identity_trial"),
-
         {"separator": "section", "label": "TIMING"},
         "elapsed_seconds",
         "started_at",
         "finished_at",
-
         {"separator": "section", "label": "STATUS"},
         "status",
         "failure_category",

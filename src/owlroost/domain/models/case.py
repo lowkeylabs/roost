@@ -242,8 +242,8 @@ class LongevityConfig(BaseModel):
 
 class RoostConfig(BaseModel):
     master_seed: int = Field(default_factory=lambda: secrets.randbits(32))
-    trials: int = 1
-    experiment: str | None = None
+    trials_per_run: int = 1
+    experiment_name: str | None = None
 
 
 class SpendingPolicyConfig(BaseModel):

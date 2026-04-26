@@ -1,12 +1,13 @@
-import os
 import json
+import os
 import sys
 
 from owlroost.core.configure_logging import configure_logging
+
 configure_logging(os.getenv("OWLROOST_LOG_LEVEL", "INFO"))
 
 
-from owlroost.core.owl_runner import run_single_case
+from owlroost.core.owl_runner import run_single_case  # noqa: E402
 
 
 def main():

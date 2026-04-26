@@ -688,6 +688,7 @@ register_metric(
     )
 )
 
+
 def _compute_overhead_ratio(r):
     try:
         wall = r.get("run_wall_time")
@@ -715,8 +716,8 @@ def _compute_overhead_ratio(r):
 
     except Exception:
         return None
-    
-    
+
+
 register_metric(
     MetricSpec(
         key="overhead_ratio",

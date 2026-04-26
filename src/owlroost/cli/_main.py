@@ -48,7 +48,7 @@ def cli(ctx, log_level: str | None):
 
     # Set it as the single source of truth
     os.environ["OWLROOST_LOG_LEVEL"] = effective_level
-    
+
     configure_logging(log_level)
 
     overrides = []

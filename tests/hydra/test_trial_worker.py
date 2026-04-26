@@ -37,8 +37,18 @@ life_expectancy = [65]
     base_overrides = {}
     run_dir = tmp_path
 
-    with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
-        mock_run.return_value = SimpleNamespace(status="solved")
+    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
+        mock_run.return_value = SimpleNamespace(
+            status="solved",
+            output_file="dummy.xlsx",
+            summary=None,
+            failure_category=None,
+            failure_subtype=None,
+            failure_detail=None,
+            elapsed_seconds=0.1,
+            started_at=0,
+            finished_at=0,
+        )
 
         trial_dir = tmp_path / "trials" / "0003"
         trial_dir.mkdir(parents=True, exist_ok=True)
@@ -74,9 +84,18 @@ def test_rates_seed_injected(tmp_path):
 life_expectancy = [65]
 """)
 
-    with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
-        mock_run.return_value = SimpleNamespace(status="solved")
-
+    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
+        mock_run.return_value = SimpleNamespace(
+            status="solved",
+            output_file="dummy.xlsx",
+            summary=None,
+            failure_category=None,
+            failure_subtype=None,
+            failure_detail=None,
+            elapsed_seconds=0.1,
+            started_at=0,
+            finished_at=0,
+        )
         run_trial(
             job_id="job",
             trial_id=0,
@@ -116,8 +135,18 @@ smoker = [false]
 partnered = false
 """)
 
-    with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
-        mock_run.return_value = SimpleNamespace(status="solved")
+    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
+        mock_run.return_value = SimpleNamespace(
+            status="solved",
+            output_file="dummy.xlsx",
+            summary=None,
+            failure_category=None,
+            failure_subtype=None,
+            failure_detail=None,
+            elapsed_seconds=0.1,
+            started_at=0,
+            finished_at=0,
+        )
 
         trial_dir = tmp_path / "trials" / "0000"
         trial_dir.mkdir(parents=True, exist_ok=True)
@@ -153,8 +182,18 @@ def test_longevity_defaults_used_when_section_missing(mock_sample, tmp_path):
 life_expectancy = [65]
 """)
 
-    with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
-        mock_run.return_value = SimpleNamespace(status="solved")
+    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
+        mock_run.return_value = SimpleNamespace(
+            status="solved",
+            output_file="dummy.xlsx",
+            summary=None,
+            failure_category=None,
+            failure_subtype=None,
+            failure_detail=None,
+            elapsed_seconds=0.1,
+            started_at=0,
+            finished_at=0,
+        )
 
         run_trial(
             job_id="job",
@@ -190,8 +229,18 @@ def test_longevity_defaults_two_individuals(mock_sample, tmp_path):
 life_expectancy = [65, 60]
 """)
 
-    with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
-        mock_run.return_value = SimpleNamespace(status="solved")
+    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
+        mock_run.return_value = SimpleNamespace(
+            status="solved",
+            output_file="dummy.xlsx",
+            summary=None,
+            failure_category=None,
+            failure_subtype=None,
+            failure_detail=None,
+            elapsed_seconds=0.1,
+            started_at=0,
+            finished_at=0,
+        )
 
         run_trial(
             job_id="job",
@@ -232,8 +281,18 @@ def test_longevity_not_run_when_not_enabled(mock_sample, tmp_path):
 life_expectancy = [65]
 """)
 
-    with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
-        mock_run.return_value = SimpleNamespace(status="solved")
+    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
+        mock_run.return_value = SimpleNamespace(
+            status="solved",
+            output_file="dummy.xlsx",
+            summary=None,
+            failure_category=None,
+            failure_subtype=None,
+            failure_detail=None,
+            elapsed_seconds=0.1,
+            started_at=0,
+            finished_at=0,
+        )
 
         run_trial(
             job_id="job",
@@ -271,8 +330,18 @@ life_expectancy = [65]
 method = "historical average"
 """)
 
-    with patch("owlroost.hydra.trial_worker.run_single_case_subprocess") as mock_run:
-        mock_run.return_value = SimpleNamespace(status="solved")
+    with patch("owlroost.hydra.trial_worker.run_single_case") as mock_run:
+        mock_run.return_value = SimpleNamespace(
+            status="solved",
+            output_file="dummy.xlsx",
+            summary=None,
+            failure_category=None,
+            failure_subtype=None,
+            failure_detail=None,
+            elapsed_seconds=0.1,
+            started_at=0,
+            finished_at=0,
+        )
 
         run_trial(
             job_id="job",
@@ -304,7 +373,7 @@ def test_run_trial_subprocess_success(tmp_path, monkeypatch):
         return SimpleNamespace(status="solved", output_file="dummy.xlsx")
 
     monkeypatch.setattr(
-        "owlroost.hydra.trial_worker.run_single_case_subprocess",
+        "owlroost.hydra.trial_worker.run_single_case",
         mock_subprocess,
     )
 
@@ -340,7 +409,7 @@ def test_run_trial_subprocess_crash(tmp_path, monkeypatch):
         return SimpleNamespace(status="failed")
 
     monkeypatch.setattr(
-        "owlroost.hydra.trial_worker.run_single_case_subprocess",
+        "owlroost.hydra.trial_worker.run_single_case",
         mock_subprocess,
     )
 
@@ -380,7 +449,7 @@ def test_subprocess_args_structure(tmp_path, monkeypatch):
         return SimpleNamespace(status="solved")
 
     monkeypatch.setattr(
-        "owlroost.hydra.trial_worker.run_single_case_subprocess",
+        "owlroost.hydra.trial_worker.run_single_case",
         mock_subprocess,
     )
 
