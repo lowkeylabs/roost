@@ -343,7 +343,7 @@ register_metric(
         dtype=float,
         compute_level="trial",
         compute_fn=_elapsed_seconds,
-        aggregates=["median", "p10", "p90", "p99"],
+        aggregates=["median", "mean", "std", "p10", "p90", "p99", "min", "max"],
         description="Elapsed solve time per trial (seconds).",
     )
 )
@@ -685,5 +685,46 @@ register_metric(
         compute_level="run",
         compute_fn=_solver_efficiency_run,
         description="Fraction of total runtime spent solving (weighted).",
+    )
+)
+
+def _compute_overhead_ratio(r):
+    try:
+        wall = r.get("run_wall_time")
+        jobs = r.get("trial_jobs")
+        trials = _trial_total(r)
+
+        trial_rows = _trials(r)
+        elapsed_vals = [
+            t.get("elapsed_seconds")
+            for t in trial_rows
+            if isinstance(t.get("elapsed_seconds"), (int, float))
+        ]
+
+        if not wall or not jobs or not trials or not elapsed_vals:
+            return None
+
+        mean_elapsed = sum(elapsed_vals) / len(elapsed_vals)
+
+        ideal = (mean_elapsed * trials) / jobs
+
+        if ideal <= 0:
+            return None
+
+        return wall / ideal
+
+    except Exception:
+        return None
+    
+    
+register_metric(
+    MetricSpec(
+        key="overhead_ratio",
+        label="Overhead",
+        dtype=float,
+        fmt="float2",
+        compute_level="run",
+        compute_fn=lambda r: _compute_overhead_ratio(r),
+        description="Ratio of wall time to ideal parallel execution time.",
     )
 )

@@ -19,5 +19,8 @@ enforce_single_axis: true
 # --------------------------------------------------
 # Active runtime configuration (authoritative)
 # --------------------------------------------------
-trial_jobs: 8  # 8 for MOSEK, 10 for HiGHS
+trial_jobs: 8  # 8 for MOSEK, 10 for HiGHS (when run_owl_as_subprocess), 24 otherwise
 run_jobs: 1
+
+run_owl_as_subprocess: false
+math_library_threads: 1

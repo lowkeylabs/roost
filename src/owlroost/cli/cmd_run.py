@@ -43,6 +43,27 @@ helper_groups = [
 # Helpers
 # ---------------------------------------------------------------------
 
+def apply_runtime_thread_env(env: dict, cfg: dict):
+    n = cfg.get("math_library_threads")
+    if not n:
+        return env
+
+    n = str(n)
+
+    def set_if_missing(key):
+        if key not in env:
+            env[key] = n
+
+    set_if_missing("MOSEK_NUM_THREADS")
+    set_if_missing("MSK_IPAR_NUM_THREADS")
+    set_if_missing("OMP_NUM_THREADS")
+    set_if_missing("OPENBLAS_NUM_THREADS")
+    set_if_missing("MKL_NUM_THREADS")
+    set_if_missing("NUMEXPR_NUM_THREADS")
+
+    return env
+
+
 # ---------------------------------------------------------------------
 # Experiment Helpers
 # ---------------------------------------------------------------------
@@ -164,7 +185,6 @@ def validate_rate_method_for_trials(
     *,
     rate_method: str | None,
     overrides: list[str],
-    trials: int | None,
     trial_id: int | None,
 ):
     """
@@ -303,6 +323,19 @@ def build_runtime_environment(case_file: Path | None) -> dict:
     return env
 
 
+def extract_runtime_overrides(overrides: list[str]) -> dict:
+    result = {}
+    for o in overrides:
+        if o.startswith("runtime.trial_jobs="):
+            result["trial_jobs"] = o.split("=", 1)[1]
+        elif o.startswith("runtime.run_jobs="):
+            result["run_jobs"] = o.split("=", 1)[1]
+        elif o.startswith("runtime.math_library_threads="):
+            result["math_library_threads"] = o.split("=", 1)[1]
+        elif o.startswith("runtime.run_owl_as_subprocess="):
+            result["run_owl_as_subprocess"] = o.split("=", 1)[1]
+    return result
+
 def extract_runtime_environment_overrides(overrides: list[str]) -> dict:
     result = {}
     for o in overrides:
@@ -311,6 +344,42 @@ def extract_runtime_environment_overrides(overrides: list[str]) -> dict:
             env_key = key.split(".", 1)[1]
             result[env_key] = value
     return result
+
+def get_trials_per_run_values(overrides: list[str]) -> list[int]:
+    for o in overrides:
+        if o.startswith("roost.trials_per_run="):
+            value = o.split("=", 1)[1]
+            try:
+                return [int(x) for x in value.split(",")]
+            except ValueError:
+                raise click.ClickException(
+                    f"Invalid roost.trials_per_run value: {value}"
+                ) from None
+    return [1]
+
+def compute_total_trials(overrides: list[str]) -> tuple[int, list[int], int, int]:
+    """
+    Returns:
+        num_runs
+        trial_values (list[int])
+        trial_count_for_parallelism (int)
+        total_trials (int)
+    """
+
+    num_runs = get_total_runs_from_overrides(overrides)
+    trial_values = get_trials_per_run_values(overrides)
+
+    if len(trial_values) == 1:
+        trial_count = trial_values[0]
+        total_trials = num_runs * trial_count
+    else:
+        runs_per_value = num_runs // len(trial_values)
+        total_trials = sum(v * runs_per_value for v in trial_values)
+
+        # use max for scheduling (safe upper bound)
+        trial_count = max(trial_values)
+
+    return num_runs, trial_values, trial_count, total_trials
 
 
 def resolve_parallelism(*, num_runs, trial_count, cfg):
@@ -356,24 +425,14 @@ def resolve_parallelism(*, num_runs, trial_count, cfg):
     return 1, 1
 
 
-def extract_runtime_overrides(overrides: list[str]) -> dict:
-    result = {}
-    for o in overrides:
-        if o.startswith("runtime.trial_jobs="):
-            result["trial_jobs"] = o.split("=", 1)[1]
-        elif o.startswith("runtime.run_jobs="):
-            result["run_jobs"] = o.split("=", 1)[1]
-    return result
-
-
 def build_hydra_command(
     case_file: Path | None,
     overrides: list[str],
     *,
-    trials: int | None,
     trial_jobs: int | None,
     run_jobs: int | None,
     trial_id: int | None,
+    cfg:dict,
 ) -> list[str]:
     package_root = Path(__file__).parents[1]
     script = package_root / "hydra" / "owl_hydra_run.py"
@@ -396,16 +455,12 @@ def build_hydra_command(
     if case_file:
         cmd.append(f"case.file={case_file}")
 
-    if trials is not None:
-        cmd.append(f"trial.count={trials}")
-
     if trial_id is not None:
         cmd.append(f"trial.id={trial_id}")
 
     # eventually, remove trial.n_jobs
     if not any(oo.startswith("runtime.trial_jobs=") for oo in overrides):
         cmd.append(f"runtime.trial_jobs={trial_jobs}")
-    #    cmd.append(f"trial.n_jobs={trial_jobs}")
 
     cmd.append(f"runtime.run_jobs={run_jobs}")
     cmd.append(f"hydra.launcher.n_jobs={run_jobs}")
@@ -428,7 +483,6 @@ def build_run_help(cmd) -> str:
         "Run OWL via Hydra.\n",
         "",
         "Parallelism:",
-        "  -t, --trials INTEGER          Number of stochastic trials (trial.count)",
         "      --trial-id INTEGER        Run a specific trial id (trial.id)",
         "",
         "Examples:",
@@ -457,14 +511,12 @@ def build_run_help(cmd) -> str:
     ),
 )
 @click.argument("case", required=False)
-@click.option("-t", "--trials", type=int, default=None)
 @click.option("--trial-id", type=int, default=None)
 @click.option("--open-folder", is_flag=True, help="Open experiment folder after run.")
 @click.pass_context
 def cmd_run(
     ctx: click.Context,
     case: str | None,
-    trials: int | None,
     trial_id: int | None,
     open_folder: bool,
 ):
@@ -501,8 +553,29 @@ def cmd_run(
         f"hydra.sweep.dir={results_root}/{case_name}/{date_str}/{time_str}",
         *hydra_overrides,
     ]
+    num_runs, trial_values, trial_count, total_trials = compute_total_trials(hydra_overrides)
+    
+    # ------------------------------------------------------------
+    # Load runtime config FIRST
+    # ------------------------------------------------------------
+    cfg = load_runtime_config(CONF_DIR)
+    runtime_overrides = extract_runtime_overrides(hydra_overrides)
 
-    # Load environment settings
+    # Apply overrides (convert to int/bool if single value)
+    for k, v in runtime_overrides.items():
+        try:
+            if k == "run_owl_as_subprocess":
+                if "," in v:
+                    continue  # Hydra sweep
+                cfg[k] = v.lower() == "true"
+            else:
+                cfg[k] = int(v)
+        except ValueError:
+            pass
+
+    # ------------------------------------------------------------
+    # Build environment AFTER cfg is ready
+    # ------------------------------------------------------------
     env = build_runtime_environment(case_file)
     env_overrides = extract_runtime_environment_overrides(hydra_overrides)
     for k, v in env_overrides.items():
@@ -511,24 +584,8 @@ def cmd_run(
         else:
             env[k] = str(v)
 
-    num_runs = get_total_runs_from_overrides(hydra_overrides)
-    trial_count = trials or 1
-    total_trials = num_runs * trial_count
-
-    # ------------------------------------------------------------
-    # Auto parallelism policy
-    # ------------------------------------------------------------
-
-    cfg = load_runtime_config(CONF_DIR)
-    runtime_overrides = extract_runtime_overrides(hydra_overrides)
-
-    # Apply overrides (convert to int if single value)
-    for k, v in runtime_overrides.items():
-        try:
-            cfg[k] = int(v)
-        except ValueError:
-            # sweep values like "4,8,12" → ignore here (Hydra will handle)
-            pass
+    # Apply thread limits (now cfg exists)
+    env = apply_runtime_thread_env(env, cfg)
 
     trial_jobs, run_jobs = resolve_parallelism(
         num_runs=num_runs,
@@ -551,10 +608,12 @@ def cmd_run(
                 "Cannot use both trial parallelism and run parallelism simultaneously."
             )
 
+    trials_display = ",".join(map(str, trial_values))
+
     logger.info(
         "Runs: {} | Trials per run: {} | Total trials: {}",
         num_runs,
-        trial_count,
+        trials_display,
         total_trials,
     )
 
@@ -654,14 +713,24 @@ def cmd_run(
             f"rates_selection.roll_sequence={','.join(roll_values)}",
             "rates_selection.reverse_sequence=true,false",
         ]
+        num_runs, trial_values, trial_count, total_trials = compute_total_trials(sweep_overrides)
+
+        trials_display = ",".join(map(str, trial_values))
+
+        logger.info(
+            "Runs: {} | Trials per run: {} | Total trials: {}",
+            num_runs,
+            trials_display,
+            total_trials,
+        )
 
         cmd = build_hydra_command(
             case_file,
             sweep_overrides,
-            trials=trials,
             trial_jobs=trial_jobs,
             run_jobs=run_jobs,
             trial_id=trial_id,
+            cfg=cfg
         )
 
         logger.debug("Executing SINGLE Hydra experiment multirun:")
@@ -692,13 +761,14 @@ def cmd_run(
     # --------------------------------------------------------
     # default processing outside of experiments
     # --------------------------------------------------------
+    
     cmd = build_hydra_command(
         case_file,
         hydra_overrides,
-        trials=trials,
         trial_jobs=trial_jobs,
         run_jobs=run_jobs,
         trial_id=trial_id,
+        cfg=cfg,
     )
 
     logger.debug("Executing Hydra:")

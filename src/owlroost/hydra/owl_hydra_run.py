@@ -42,7 +42,7 @@ def fits_uint32(n: int) -> bool:
     return 0 <= n <= 0xFFFFFFFF
 
 
-def _extract_trial_override(overrides: dict, key: str, default: int | None = None):
+def _extract_trial_id_override(overrides: dict, key: str, default: int | None = None):
     try:
         return int(overrides.get("trial", {}).get(key, default))
     except Exception:
@@ -320,18 +320,28 @@ def run_hydra_job(cfg: DictConfig):
     if trial_jobs > 1 and run_jobs > 1:
         raise RuntimeError("Invalid configuration: cannot parallelize both trials and runs.")
 
-    trial_cfg = cfg.trial
-    trial_id_override = _extract_trial_override(overrides, "id")
-    trial_count_override = _extract_trial_override(overrides, "count", default=int(trial_cfg.count))
+    trial_id_override = _extract_trial_id_override(overrides, "id")
 
-    use_trial_seeds = trial_id_override is not None or trial_count_override > 1
+    try:
+        trials_per_run = int(cfg.roost.trials_per_run)
+    except Exception:
+        trials_per_run = 1
+
+    use_trial_seeds = trial_id_override is not None or trials_per_run > 1
 
     if trial_id_override is not None:
         trial_ids = [trial_id_override]
-    elif trial_count_override == 1:
+    elif trials_per_run == 1:
         trial_ids = [0]
     else:
-        trial_ids = list(range(trial_count_override))
+        trial_ids = list(range(trials_per_run))
+
+    logger.debug(
+        "{} - trials_per_run={} → trial_ids={}",
+        job_id,
+        trials_per_run,
+        trial_ids,
+    )
 
     orchestrate_trials(
         job_id=job_id,

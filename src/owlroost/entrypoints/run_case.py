@@ -1,5 +1,10 @@
+import os
 import json
 import sys
+
+from owlroost.core.configure_logging import configure_logging
+configure_logging(os.getenv("OWLROOST_LOG_LEVEL", "INFO"))
+
 
 from owlroost.core.owl_runner import run_single_case
 

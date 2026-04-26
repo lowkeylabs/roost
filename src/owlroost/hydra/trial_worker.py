@@ -15,70 +15,195 @@ from loguru import logger
 from owlroost.core.longevity import sample_individual_lifetime
 
 
+def _get_runtime_flag(overrides: dict, key: str, default=None):
+    runtime = overrides.get("runtime", {})
+    if isinstance(runtime, dict):
+        return runtime.get(key, default)
+    return default
+
+
+def _to_bool(v, default=True):
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, str):
+        return v.lower() == "true"
+    return default
+
 def run_trial_star(args):
     from owlroost.hydra.trial_worker import run_trial
 
     return run_trial(*args)
 
 
-def run_single_case_subprocess(args: dict, timeout: int = 20):
+def _exec_subprocess(args: dict, timeout: int):
     start = time.time()
+
     try:
-        result = subprocess.run(
+        proc = subprocess.Popen(
             [sys.executable, "-m", "owlroost.entrypoints.run_case"],
-            input=json.dumps(args),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,   # capture JSON
+            stderr=None,              # stream logs live
             text=True,
-            capture_output=True,
-            timeout=timeout,
         )
+
+        try:
+            stdout, _ = proc.communicate(
+                input=json.dumps(args),
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+            finished = time.time()
+            return {
+                "mode": "subprocess",
+                "timeout": True,
+                "stdout": "",
+                "stderr": "timeout",
+                "elapsed": finished - start,
+                "started_at": start,
+                "finished_at": finished,
+            }
+
         finished = time.time()
-        elapsed = finished - start
-    except subprocess.TimeoutExpired:
+
+        return {
+            "mode": "subprocess",
+            "returncode": proc.returncode,
+            "stdout": stdout or "",
+            "stderr": "",
+            "elapsed": finished - start,
+            "started_at": start,
+            "finished_at": finished,
+        }
+
+    except Exception as e:
         finished = time.time()
-        elapsed = finished - start
+        return {
+            "mode": "subprocess",
+            "returncode": 1,
+            "stdout": "",
+            "stderr": str(e),
+            "elapsed": finished - start,
+            "started_at": start,
+            "finished_at": finished,
+        }
+                
+
+def _exec_inprocess(args: dict, timeout: int):
+    import traceback
+
+    start = time.time()
+
+    try:
+        from owlroost.core.owl_runner import run_single_case
+
+        result = run_single_case(**args)
+
+        finished = time.time()
+
+        data = {
+            "status": result.status,
+            "output_file": result.output_file,
+            "summary": result.summary,
+            "failure_category": result.failure_category,
+            "failure_subtype": result.failure_subtype,
+            "failure_detail": result.failure_detail,
+        }
+
+        return {
+            "mode": "inprocess",
+            "returncode": 0,
+            "stdout": json.dumps(data),
+            "stderr": "",
+            "elapsed": finished - start,
+            "started_at": start,
+            "finished_at": finished,
+        }
+
+    except Exception:
+        finished = time.time()
+
+        err = traceback.format_exc()
+        print("\n=== INPROCESS EXCEPTION ===")
+        print(err)
+        print("===========================\n")
+
+        return {
+            "mode": "inprocess",
+            "returncode": 1,
+            "stdout": "",
+            "stderr": err,
+            "elapsed": finished - start,
+            "started_at": start,
+            "finished_at": finished,
+        }
+        
+
+def _interpret_execution(raw):
+    """
+    This is your EXISTING logic from run_single_case_subprocess,
+    almost unchanged.
+    """
+
+    elapsed = raw["elapsed"]
+    start = raw["started_at"]
+    finished = raw["finished_at"]
+    mode = raw.get("mode")
+
+    # ----------------------------------------
+    # Timeout
+    # ----------------------------------------
+    if raw.get("timeout"):
         return SimpleNamespace(
             status="timeout",
             stderr="timeout",
             elapsed_seconds=elapsed,
             started_at=start,
             finished_at=finished,
+            execution_mode=mode,
         )
 
-    logger.trace(f"\n----Full result from subprocess---\n{result}")
-    # --------------------------------------------------
+    # ----------------------------------------
     # Hard crash (non-zero exit)
-    # --------------------------------------------------
-    if result.returncode != 0:
+    # ----------------------------------------
+    if raw.get("returncode", 1) != 0:
         return SimpleNamespace(
             status="crashed",
-            stderr=result.stderr,
+            stderr=raw.get("stderr", ""),
             elapsed_seconds=elapsed,
             started_at=start,
             finished_at=finished,
+            execution_mode=mode,
         )
 
-    # --------------------------------------------------
-    # Empty output (very common failure mode)
-    # --------------------------------------------------
-    if not result.stdout.strip():
+    stdout = raw.get("stdout", "")
+
+    # ----------------------------------------
+    # Empty output
+    # ----------------------------------------
+    if not stdout.strip():
         return SimpleNamespace(
             status="crashed",
             stderr="empty stdout",
             elapsed_seconds=elapsed,
             started_at=start,
             finished_at=finished,
+            execution_mode=mode,
         )
 
-    # --------------------------------------------------
-    # JSON parse failure
-    # --------------------------------------------------
+    # ----------------------------------------
+    # JSON parse
+    # ----------------------------------------
     try:
-        data = json.loads(result.stdout)
+        data = json.loads(stdout)
         return SimpleNamespace(
             **data,
             elapsed_seconds=elapsed,
             started_at=start,
             finished_at=finished,
+            execution_mode=mode,
         )
     except Exception as e:
         return SimpleNamespace(
@@ -87,7 +212,18 @@ def run_single_case_subprocess(args: dict, timeout: int = 20):
             elapsed_seconds=elapsed,
             started_at=start,
             finished_at=finished,
+            execution_mode=mode,
         )
+    
+
+def run_single_case(args: dict, timeout: int = 20, use_subprocess: bool = True):
+    if use_subprocess:
+        raw = _exec_subprocess(args, timeout)
+    else:
+        raw = _exec_inprocess(args, timeout)
+
+    return _interpret_execution(raw)
+
 
 
 def run_trial(
@@ -237,18 +373,39 @@ def run_trial(
         "longevity_runtime": longevity_runtime,
     }
 
-    # print( f"Before run_single_case_subprocess: {args}" )
-
-    runtime_cfg = overrides.get("runtime", {})
-    timeout = runtime_cfg.get("worker_timeout", 20)
-
     # --------------------------------------------------
     # PRIMARY WRAPPER AROUND OWL. designed to catch hard fails
     # and solver crashes that prevent _metrics.json from being written.
     # This file is the source of truth for trial status.
     # --------------------------------------------------
 
-    result = run_single_case_subprocess(args, timeout=timeout)
+    # print( f"Before run_single_case_subprocess: {args}" )
+
+    timeout = _get_runtime_flag(overrides, "worker_timeout", 20)
+    use_subprocess = _to_bool(_get_runtime_flag(overrides, "run_owl_as_subprocess", True))
+    threads = _get_runtime_flag(overrides, "math_library_threads")
+
+    # Optional: safety guard
+    import os
+    if "JOBLIB_PARENT_PID" in os.environ:
+        use_subprocess = True
+
+    if not use_subprocess:
+        logger.debug("In-process execution: worker_timeout not enforced")
+
+    logger.debug(
+        "Execution use_subprocess={} timeout={} threads={}",
+        use_subprocess,
+        timeout,
+        threads,
+    )
+
+    result = run_single_case(
+        args,
+        timeout=timeout,
+        use_subprocess=use_subprocess,
+    )
+
 
     # --------------------------------------------------
     # Check for metrics.json existence (SOURCE OF TRUTH)

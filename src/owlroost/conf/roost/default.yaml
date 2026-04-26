@@ -1,4 +1,4 @@
 # defaults are applied in roostconfig in case.py
 
 master_seed: 1234567890
-experiment: null
+trials_per_run: 1

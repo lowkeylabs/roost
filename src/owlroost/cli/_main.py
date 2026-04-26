@@ -12,12 +12,6 @@ from .cmd_rerun import cmd_rerun
 from .cmd_results import cmd_results
 from .cmd_run import cmd_run
 
-early_level = os.getenv("OWLSTATION_LOG_LEVEL", "INFO")
-if early_level:
-    early_level = early_level.upper()
-if early_level in LOG_LEVELS:
-    configure_logging(early_level)
-
 
 @click.group(invoke_without_command=True)
 @click.option(
@@ -48,6 +42,13 @@ def cli(ctx, log_level: str | None):
     """
     ctx.ensure_object(dict)
 
+    # Resolve final log level
+    env_level = os.getenv("OWLROOST_LOG_LEVEL")
+    effective_level = (log_level or env_level or "INFO").upper()
+
+    # Set it as the single source of truth
+    os.environ["OWLROOST_LOG_LEVEL"] = effective_level
+    
     configure_logging(log_level)
 
     overrides = []

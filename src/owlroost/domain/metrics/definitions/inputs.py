@@ -138,7 +138,6 @@ register_metric(
 
 def _format_trials_compact(r):
     completed = _compute_completed_trials(r)
-    print(f"{completed}")
     requested = _compute_requested_trials(r)
     return f"{requested}/{completed}"
 
@@ -541,5 +540,35 @@ register_metric(
         wrap=50,
         compute_fn=lambda r: getattr(r, "signature", None),
         description="Run signature (normalized configuration + execution identity).",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="execution_mode",
+        label="Mode",
+        dtype=str,
+        compute_level="run",
+        compute_fn=lambda r: (
+            "inproc"
+            if not ((r.get("_inputs", {}) or {}).get("runtime", {}).get("run_owl_as_subprocess", True))
+            else "subproc"
+        ),
+        description="Execution mode: in-process or subprocess.",
+    )
+)
+
+register_metric(
+    MetricSpec(
+        key="math_threads",
+        label="Threads",
+        dtype=int,
+        compute_level="run",
+        compute_fn=lambda r: (
+            (r.get("_inputs", {}) or {})
+            .get("runtime", {})
+            .get("math_library_threads")
+        ),
+        description="Configured math library thread count.",
     )
 )

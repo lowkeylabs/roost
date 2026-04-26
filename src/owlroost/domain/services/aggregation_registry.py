@@ -40,6 +40,8 @@ type AggExplainFn = Callable[[AggContext], str]
 def mean(values):
     return statistics.mean(values) if values else None
 
+def std(values):
+    return statistics.stdev(values) if len(values) > 1 else 0
 
 def median(values):
     return statistics.median(values) if values else None
@@ -119,6 +121,15 @@ register_aggregation(
     mean,
     explain=lambda ctx: (
         "Average" + (f" based on {ctx.n_valid}/{ctx.n_total} observations" if ctx.n_total else "")
+    ),
+)
+
+register_aggregation(
+    "std",
+    std,
+    explain=lambda ctx: (
+        "Standard deviation"
+        + (f" based on {ctx.n_valid}/{ctx.n_total} observations" if ctx.n_total else "")
     ),
 )
 

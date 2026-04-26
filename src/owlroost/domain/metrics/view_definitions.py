@@ -141,6 +141,38 @@ register_view(
     tags=["audit"],
 )
 
+register_view(
+    "run",
+    "timing",
+    [
+        ("group", "run_identity"),
+
+        {"separator": "section", "label": "TIMING"},
+        ("group", "timing"),
+    ],
+    description="Run-level timing and performance analysis.",
+    tags=["timing", "performance"],
+)
+
+register_view(
+    "trial",
+    "timing",
+    [
+        ("group", "run_identity_trial"),
+
+        {"separator": "section", "label": "TIMING"},
+        "elapsed_seconds",
+        "started_at",
+        "finished_at",
+
+        {"separator": "section", "label": "STATUS"},
+        "status",
+        "failure_category",
+    ],
+    layout="table",
+    description="Per-trial timing and execution diagnostics.",
+    tags=["timing"],
+)
 
 # =========================================================
 # RUN VIEW — DECISIONS (SS + RATES + GUIDANCE)

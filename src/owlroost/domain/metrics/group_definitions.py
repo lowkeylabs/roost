@@ -413,35 +413,13 @@ register_group(
         ("solved", "sum", {"show_if": "is_pivot"}),
         ("timeout", "sum"),
         ("error", "sum"),
-        # Ratios (cleaner than separate rate metrics)
+
+        # Ratios
         ("solved", "pct", {"show_if": "is_pivot"}),
         ("timeout", "pct", {"show_if": "is_pivot"}),
         ("error", "pct", {"show_if": "is_pivot"}),
-        # -------------------------------------------------
-        # Execution configuration
-        # -------------------------------------------------
-        ("solver"),
-        ("trial_jobs"),
-        ("worker_timeout"),
-        # -------------------------------------------------
-        # Timing (per-trial distribution)
-        # -------------------------------------------------
-        ("elapsed_seconds", "median", {"show_if": "is_pivot"}),
-        ("elapsed_seconds", "p10", {"show_if": "is_pivot"}),
-        ("elapsed_seconds", "p90", {"show_if": "is_pivot"}),
-        # -------------------------------------------------
-        # Run-level performance
-        # -------------------------------------------------
-        ("run_wall_time"),
-        ("wall_time_efficiency"),
-        ("throughput", {"show_if": "is_pivot"}),
-        ("efficiency", {"show_if": "is_pivot"}),
-        ("solver_efficiency_run"),
-        ("solver_efficiency", "median", {"show_if": "is_pivot"}),
-        ("solver_efficiency", "p10", {"show_if": "is_pivot"}),
-        ("solver_efficiency", "p90", {"show_if": "is_pivot"}),
     ],
-    description="Execution audit including outcomes, completeness, and performance.",
+    description="Execution correctness and completeness audit.",
 )
 
 
@@ -461,6 +439,58 @@ register_group(
         "worker_timeout",
     ],
     description="Per-trial audit details including timing and failure diagnostics.",
+)
+
+
+# =========================================================
+# TIMING / PERFORMANCE
+# =========================================================
+
+register_group(
+    "timing",
+    [
+        # -------------------------------------------------
+        # Execution configuration
+        # -------------------------------------------------
+        ("solver"),
+        ("trial_jobs"),
+        ("execution_mode"),
+        ("math_threads"),
+        ("worker_timeout", {"show_if": "is_pivot"}),
+
+        # -------------------------------------------------
+        # Primary performance (TOP LEVEL SIGNALS)
+        # -------------------------------------------------
+        ("throughput"),
+        ("overhead_ratio"),
+        ("efficiency"),
+        ("run_wall_time"),
+
+        # -------------------------------------------------
+        # Per-trial timing (distribution)
+        # -------------------------------------------------
+        ("elapsed_seconds", "mean"),
+        ("elapsed_seconds", "p99", {"show_if": "is_pivot"}),
+        ("elapsed_seconds", "std", {"show_if": "is_pivot"}),
+
+        ("elapsed_seconds", "median", {"show_if": "is_pivot"}),
+        ("elapsed_seconds", "p10", {"show_if": "is_pivot"}),
+        ("elapsed_seconds", "p90", {"show_if": "is_pivot"}),
+
+        # -------------------------------------------------
+        # Derived efficiency
+        # -------------------------------------------------
+        ("wall_time_efficiency", {"show_if": "is_pivot"}),
+
+        # -------------------------------------------------
+        # Solver efficiency
+        # -------------------------------------------------
+        ("solver_efficiency_run", {"show_if": "is_pivot"}),
+        ("solver_efficiency", "median", {"show_if": "is_pivot"}),
+        ("solver_efficiency", "p10", {"show_if": "is_pivot"}),
+        ("solver_efficiency", "p90", {"show_if": "is_pivot"}),
+    ],
+    description="Execution timing, configuration, and performance metrics.",
 )
 
 # =========================================================
