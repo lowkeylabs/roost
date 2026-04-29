@@ -309,4 +309,3 @@ This README:
 - prevents drifting back into v1 patterns
 - aligns perfectly with your goals (schema + metrics unification)
 - is actionable for every next module you build
-
