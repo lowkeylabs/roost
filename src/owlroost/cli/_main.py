@@ -2,14 +2,30 @@
 
 import click
 
+from ..version import __version__
 
-@click.group()
-def cli():
-    """OWL-ROOST v2 CLI (in development)."""
+
+@click.group(invoke_without_command=True)
+@click.version_option(version=__version__, prog_name="owlroost")
+@click.pass_context
+def cli(ctx):
+    """OWL-ROOST v2 CLI (in development).
+
+    documentation in owlroost/cli/_main.py
+
+    """
     pass
 
 
 @cli.command()
-def version():
-    """Show version."""
-    print("owlroost v2 (in development)")
+@click.pass_context
+def info(ctx):
+    """Show OWL-Station and OWL solver version information."""
+    click.echo(f"OWL-ROOST version: {__version__}")
+
+
+#    solver = get_owl_solver_info()
+#    click.echo(f"OWL-Planner version: {solver.version}")
+#    if solver.commit:
+#        click.echo(f"OWL-Planner commit:  {solver.commit}")
+#    click.echo(f"{solver}")
