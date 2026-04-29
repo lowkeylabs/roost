@@ -110,10 +110,10 @@ def _compute_requested_trials(r):
     # 1. Try common representations
     # ----------------------------------------
     candidates = [
-        inputs.get("trial.count"),                 # flattened Hydra style
-        inputs.get("trial_count"),                 # alternate flatten
+        inputs.get("trial.count"),  # flattened Hydra style
+        inputs.get("trial_count"),  # alternate flatten
         (inputs.get("trial") or {}).get("count"),  # nested (original intent)
-        (inputs.get("roost") or {}).get("trials"), # your fallback
+        (inputs.get("roost") or {}).get("trials"),  # your fallback
     ]
 
     for val in candidates:
@@ -131,6 +131,7 @@ def _compute_requested_trials(r):
         return len(trial_rows)
 
     return None
+
 
 register_metric(
     MetricSpec(
