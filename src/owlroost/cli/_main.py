@@ -3,6 +3,7 @@
 import click
 
 from ..version import __version__
+from .cmd_schema import cmd_schema
 
 
 @click.group(invoke_without_command=True)
@@ -29,3 +30,6 @@ def info(ctx):
 #    if solver.commit:
 #        click.echo(f"OWL-Planner commit:  {solver.commit}")
 #    click.echo(f"{solver}")
+
+
+cli.add_command(cmd_schema)

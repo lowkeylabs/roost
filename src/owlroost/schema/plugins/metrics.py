@@ -1,20 +1,17 @@
-# src/owlroost/schema/plugins/owl.py
-
-from owlplanner.config.schema import CaseConfig
-
+from ..metrics_model import MetricsModel
 from ..registry import FieldSpec
 from ..utils import unwrap_annotation, walk_model
 
 
-class OwlSchemaPlugin:
+class MetricsSchemaPlugin:
     def register(self, registry):
-        for name, field in walk_model("", CaseConfig):
+        for name, field in walk_model("", MetricsModel):
             registry.register(
                 FieldSpec(
                     name=name,
                     dtype=unwrap_annotation(field.annotation),
                     path=tuple(name.split(".")),
-                    source="input",
+                    source="output",
                     description=field.description,
                 )
             )
