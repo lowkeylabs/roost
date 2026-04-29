@@ -104,7 +104,7 @@ line-ending = "auto"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra"
+addopts = "-ra --ignore=tests_v1"
 testpaths = ["tests"]
 pythonpath = ["src"]
 python_files = ["test_*.py"]
