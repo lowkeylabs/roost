@@ -25,9 +25,11 @@ def test_extract_metrics_end_to_end():
                 "returns": {"avg": 0.06, "min": -0.2},
                 "inflation": {"avg": 0.03},
             },
+            "summary": {  # ✅ ADD THIS
+                "overall_risk": "low"
+            },
         },
     }
-
     specs = list(METRIC_REGISTRY.values())
     row = extract_metrics(data, specs)
 
@@ -35,13 +37,12 @@ def test_extract_metrics_end_to_end():
     assert row["elapsed"] == 10.5
     assert row["bequest"] == 100000
     assert row["spending_total"] == 50000
-    assert row["risk"] == "low"
+    assert row["outcome_risk"] == "low"
 
 
 def test_view_and_registry_integration():
     view, _layout, _explain = get_view("trial", "default")
 
-    keys = [spec.key for spec in view]
-
+    keys = [spec.key for spec in view if not getattr(spec, "is_separator", False)]
     assert "status" in keys
     assert "bequest" in keys

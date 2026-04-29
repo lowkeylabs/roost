@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from statistics import median
-from typing import Any
+from typing import Any, Literal
 
 from ..formatting import format_value
 from ..services.aggregation_registry import AggContext, get_aggregation_explain
@@ -53,6 +53,7 @@ class MetricSpec:
     # -----------------------------------------------------
     fmt: str = "default"
     align: str = "right"
+    wrap: int | None = None
 
     # -----------------------------------------------------
     # Typing / semantics
@@ -81,12 +82,13 @@ class MetricSpec:
     # Derived metric
     # -----------------------------------------------------
     compute_fn: Callable[[dict], Any] | None = None
+    compute_level: Literal["trial", "run"] = "trial"
 
     # -----------------------------------------------------
     # Semantics
     # -----------------------------------------------------
     description: str | None = None
-    display_fn: Callable[[Any], Any] | None = None
+    display_row_fn: Callable[[Any, dict | None, dict | None], Any] | None = None
 
     # Unified meaning layer (series-based only)
     value_series_fn: Callable[[list[Any], list[Any], list[dict]], str] | None = None
@@ -130,7 +132,7 @@ class MetricSpec:
             3. None
         """
         # Derived metric
-        if self.compute_fn:
+        if self.compute_fn and self.compute_level == "trial":
             try:
                 return self.compute_fn(data)
             except Exception:
@@ -179,6 +181,23 @@ class MetricSpec:
 
         return hints
 
+    def render_value(self, value, row=None, ctx=None, fmt_override=None):
+        fmt = fmt_override or self.fmt
+
+        try:
+            if self.display_row_fn:
+                result = self.display_row_fn(value, row, ctx)
+
+                if isinstance(result, str):
+                    return result
+
+                value = result
+
+            return format_value(value, fmt)
+
+        except Exception:
+            return format_value(value, fmt)
+
 
 # =========================================================
 # Helpers
@@ -226,8 +245,11 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
     raw_values = []
 
     for r in rows:
-        values.append(resolve_metric_value(r, rm.key, agg))
-        raw_values.append(resolve_metric_value(r, rm.key, None))
+        v, _ = resolve_metric_value(r, rm.key, agg)
+        values.append(v)
+
+        rv, _ = resolve_metric_value(r, rm.key, None)
+        raw_values.append(rv)
 
     parts = []
 
@@ -267,7 +289,7 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
                     n_valid = rows[0].get(f"{rm.key}_{agg}_n")
 
                 if n_valid is not None and n_valid <= 1:
-                    parts.append("Raw value from metrics")
+                    parts.append("Raw metric value (from plan output)")
 
                 elif explain_fn:
                     ctx = AggContext(
@@ -286,7 +308,7 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
                 parts.append(f"Aggregated using '{agg}'")
 
         else:
-            parts.append("Raw value from metrics")
+            parts.append("Raw metric value (from plan output)")
 
     # ----------------------------------------
     # DEBUG / FALLBACK
@@ -324,13 +346,17 @@ def explain_metric_series(rm, rows, explain: set[str] | None = None):
 
 def resolve_metric_value(row: dict, key: str, aggregate: str | None):
     lookup_key = key
+    fmt = None
 
     if aggregate:
         agg_key = f"{key}_{aggregate}"
+        fmt_key = f"{agg_key}__fmt"
+
         if agg_key in row:
             lookup_key = agg_key
+            fmt = row.get(fmt_key)
 
-    return row.get(lookup_key)
+    return row.get(lookup_key), fmt
 
 
 # =========================================================
@@ -382,7 +408,12 @@ def build_visibility_context(rows: list[dict]) -> dict:
 
 
 def default_series_fn(spec):
-    fmt = spec.fmt
+    base_fmt = spec.fmt
+
+    # ----------------------------------------
+    # Normalize aggregate names (handles tuples)
+    # ----------------------------------------
+    agg_names = [a if isinstance(a, str) else a[0] for a in (spec.aggregates or [])]
 
     def fn(values, raw, rows):
         clean = [v for v in raw if v is not None]
@@ -398,16 +429,21 @@ def default_series_fn(spec):
         # ----------------------------------------
         # COUNT METRICS
         # ----------------------------------------
-        if spec.key in ("trial", "exp", "run") or "cnt" in (spec.aggregates or []):
-            return format_value(clean[0], fmt)
+        if spec.key in ("trial", "exp", "run") or "cnt" in agg_names:
+            return format_value(clean[0], base_fmt)
 
         # ----------------------------------------
         # BOOLEAN / SUCCESS METRICS
         # ----------------------------------------
-        if spec.dtype in (bool, int) and "pct" in (spec.aggregates or []):
+        if spec.dtype in (bool, int) and "pct" in agg_names:
             total = len(clean)
             success = sum(1 for v in clean if v)
-            return f"{success}/{total} ({format_value(success/total, 'percent')})"
+
+            if total == 0:
+                return EMPTY_RETURN
+
+            pct = success / total
+            return f"{success}/{total} ({format_value(pct, 'percent')})"
 
         # ----------------------------------------
         # RUN COMPARISON
@@ -418,24 +454,24 @@ def default_series_fn(spec):
             unique = list(dict.fromkeys(clean))
 
             if len(unique) == 1:
-                return format_value(unique[0], fmt)
+                return format_value(unique[0], base_fmt)
 
             return f"{len(unique)} distinct values"
 
         # ----------------------------------------
         # NUMERIC DISTRIBUTION
         # ----------------------------------------
-        if all(isinstance(v, (int, float)) for v in clean):  # noqa: UP038
+        if all(isinstance(v, (int, float)) for v in clean):
             if len(clean) == 1:
-                return format_value(clean[0], fmt)
+                return format_value(clean[0], base_fmt)
 
             med = median(clean)
             lo = min(clean)
             hi = max(clean)
 
             return (
-                f"Median {format_value(med, fmt)}, "
-                f"range {format_value(lo, fmt)} → {format_value(hi, fmt)}"
+                f"Median {format_value(med, base_fmt)}, "
+                f"range {format_value(lo, base_fmt)} → {format_value(hi, base_fmt)}"
             )
 
         # ----------------------------------------

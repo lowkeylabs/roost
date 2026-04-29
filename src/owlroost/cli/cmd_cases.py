@@ -21,10 +21,12 @@ from owlroost.domain.views.analysis_registry import ANALYSIS_VIEW_REGISTRY
 from owlroost.domain.views.table import build_rows
 
 UPGRADE_MESSAGES = {
+    "spending_policy_added": "Added [spending_policy] section",
     "longevity_added": "Added [longevity] section",
     "roost_added": "Added [roost] section",
     "longevity_fixed_alignment": "Fixed [longevity] alignment",
     "cache_updated": "Rebuild [cache] section",
+    "runtime_environment_added": "Added [runtime_environment] section",
 }
 
 

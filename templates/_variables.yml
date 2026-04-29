@@ -1,0 +1,4 @@
+
+var_report_root : "~/projects/owl-roost/examples/example01"
+
+var_report_title : "generic title from _variables"

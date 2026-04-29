@@ -19,6 +19,7 @@ HYDRA_ORCHESTRATION_GROUPS = {
     "logging",
     "trial",
     "case",  # CLI injection group
+    "runtime",
     "__pycache__",
 }
 

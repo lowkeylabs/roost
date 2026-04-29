@@ -8,16 +8,46 @@ register_view(
     "trial",
     "default",
     [
+        ("group", "run_identity_trial"),
         "status",
         "elapsed",
-        "spending_annual",
-        "spending_total",
-        "bequest",
-        "risk",
-        "scenario_type",
+        {"separator": "section", "label": "OUTCOMES"},
+        ("group", "core_outcomes_trial"),
+        {"separator": "section", "label": "SPENDING"},
+        ("essential_spending", {"show_if": "is_pivot"}),
+        ("lifestyle_spending", {"show_if": "is_pivot"}),
+        ("group", "trial_spending_detail"),
+        {"separator": "section", "label": "RISK"},
+        ("group", "portfolio_risk_trial"),
     ],
     layout="table",
-    description="Core trial metrics for quick inspection of outcomes and performance",
+    description="Trial-level results including financial outcomes and spending stress behavior",
+    tags=["summary"],
+)
+
+register_view(
+    "trial",
+    "audit",
+    [
+        ("group", "run_identity_trial"),
+        ("group", "audit_trial"),
+    ],
+    layout="table",
+    description="Trial-level results including financial outcomes and spending stress behavior",
+    tags=["summary"],
+)
+
+register_view(
+    "run",
+    "signatures",
+    [
+        ("group", "run_identity"),
+        "signature",
+        "run_specific_overrides",
+        "common_overrides",
+    ],
+    layout="table",
+    description="x",
     tags=["summary"],
 )
 
@@ -30,158 +60,136 @@ register_view(
     "run",
     "default",
     [
-        "case_name",
-        "experiment",
-        "run",
-        ("trial", "cnt"),
-        "rates_method",
-        ("run_specific_overrides", {"show_if": "is_pivot"}),
-        ("has_overrides_display", {"show_if": "is_table"}),
-        ("success", "pct"),
-        ("spending_annual", "median"),
-        ("spending_total", "median"),
-        ("bequest", "median"),
-        # "run_overrides_display",
+        ("group", "run_identity"),
     ],
-    description="Summary of run-level results including success rates and median outcomes",
-    tags=["summary"],
+    description="Decision-oriented run comparison using risk decomposition and outcomes",
 )
+
 
 register_view(
     "run",
-    "summary",
+    "default",
     [
-        "case_name",
-        "experiment",
-        "run",
-        "trial",  # raw value
-        "rates_method",
-        ("spending_annual", "median"),
-        ("spending_total", "median"),
-        ("bequest", "median"),
-        ("ending_assets", "mean"),
-        ("min_cushion", "mean"),
-        ("worst_drawdown", "mean"),
-        "has_overrides_display",
+        # -------------------------------------------------
+        # IDENTITY
+        # -------------------------------------------------
+        ("group", "run_identity"),
+        {"separator": "section", "label": "OVERRIDES"},
+        ("group", "overrides"),
+        # -------------------------------------------------
+        # PROFILE / SETUP
+        # -------------------------------------------------
+        {"separator": "section", "label": "PROFILE"},
+        ("group", "goal"),
+        {"separator": "section", "label": "STRUCTURE"},
+        ("group", "run_structure"),
+        # -------------------------------------------------
+        # OUTCOMES
+        # -------------------------------------------------
+        {"separator": "section", "label": "OUTCOMES"},
+        ("group", "core_outcomes_run"),
+        {"separator": "section", "label": "SPENDING PROFILE"},
+        ("group", "spending_profile"),
+        {"separator": "section", "label": "SOCIAL SECURITY"},
+        ("group", "social_security"),
+        # -------------------------------------------------
+        # RATE ENVIRONMENT
+        # -------------------------------------------------
+        {"separator": "section", "label": "RATE ENVIRONMENT"},
+        ("group", "rates_characterization"),
+        {"separator": "section"},
+        ("group", "rates_input"),
+        {"separator": "section"},
+        ("group", "rates_early"),
+        {"separator": "section"},
+        ("group", "rates_full"),
+        {"separator": "section"},
+        ("group", "rates_cross"),
+        {"separator": "section"},
+        ("group", "rates_regime_summary"),
+        {"separator": "section"},
+        ("group", "rates_regime_distribution"),
+        # -------------------------------------------------
+        # RISK (UPDATED STRUCTURE)
+        # -------------------------------------------------
+        {"separator": "section", "label": "LIFESTYLE RISK"},
+        ("group", "lifestyle_spending_risk"),
+        {"separator": "section", "label": "ESSENTIAL RISK"},
+        ("group", "essential_spending_risk"),
+        {"separator": "section", "label": "DEPLETION RISK"},
+        ("group", "depletion_risk"),
+        {"separator": "section", "label": "RISK SUMMARY"},
+        ("group", "risk_summary"),
     ],
-    layout="pivot",
-    description="Single-run summary using raw values (non-aggregated)",
-    tags=["summary"],
+    description="Decision-oriented run comparison using risk decomposition and outcomes",
 )
 
 
 # =========================================================
-# TRIAL DIAGNOSTICS VIEWS
-# =========================================================
-
-# ---------------------------------------------------------
-# 1. Failure-focused view
-# ---------------------------------------------------------
-
-register_view(
-    "trial",
-    "failures",
-    [
-        "status",
-        "depleted",
-        "years_to_depletion",
-        "min_cushion",
-        "worst_drawdown",
-        "terminal_ratio",
-        "ending_assets",
-        "bequest",
-        "elapsed",
-    ],
-    layout="pivot",
-    description="Detailed view of failed trials, highlighting depletion timing and downside metrics",
-    tags=["failure", "risk", "diagnostics"],
-)
-
-
-# ---------------------------------------------------------
-# 2. Near-failure / fragility view
-# ---------------------------------------------------------
-
-register_view(
-    "trial",
-    "fragility",
-    [
-        "status",
-        "min_cushion",
-        "worst_drawdown",
-        "terminal_ratio",
-        "ending_assets",
-        "bequest",
-        "risk",
-        "elapsed",
-    ],
-    layout="pivot",
-    description="Identifies fragile scenarios with low cushion, high drawdowns, or near-failure conditions",
-    tags=["risk", "diagnostics"],
-)
-
-
-# ---------------------------------------------------------
-# 3. Scenario diagnostics (what caused bad outcomes)
-# ---------------------------------------------------------
-
-register_view(
-    "trial",
-    "scenario",
-    [
-        "status",
-        "severity",
-        "return_avg",
-        "return_worst",
-        "inflation_avg",
-        "min_cushion",
-        "bequest",
-    ],
-    description="Analyzes economic conditions (returns, inflation) associated with outcomes",
-    tags=["scenario", "diagnostics"],
-)
-
-
-# ---------------------------------------------------------
-# 4. Financial outcome distribution view
-# ---------------------------------------------------------
-
-register_view(
-    "trial",
-    "outcomes",
-    [
-        "status",
-        "bequest",
-        "ending_assets",
-        "spending",
-        "taxes",
-        "roth",
-    ],
-    description="Distribution of financial outcomes including wealth, spending, and tax impacts",
-    tags=["distribution", "summary"],
-)
-
-# =========================================================
-# RUN DIAGNOSTICS VIEWS
+# RUN VIEW — AUDIT
 # =========================================================
 
 register_view(
     "run",
-    "diagnostics",
+    "audit",
     [
-        "run",
-        ("trial", "cnt"),
-        ("success", "pct"),
-        ("fail", "pct"),
-        ("bequest", "mean"),
-        ("bequest", "median"),
-        ("bequest", "p10"),
-        ("bequest", "p90"),
-        ("ending_assets", "mean"),
-        ("min_cushion", "mean"),
-        ("worst_drawdown", "mean"),
-        ("elapsed", "mean"),
+        ("group", "run_identity"),
+        {"separator": "section", "label": "AUDIT"},
+        ("group", "audit"),
     ],
-    description="Aggregated diagnostics across trials including success rates, distribution metrics, and averages",
-    tags=["diagnostics", "distribution"],
+    description="Audit view focused on infrastructure performance, completeness, and failure diagnostics.",
+    tags=["audit"],
+)
+
+register_view(
+    "run",
+    "timing",
+    [
+        ("group", "run_identity"),
+        {"separator": "section", "label": "TIMING"},
+        ("group", "timing"),
+    ],
+    description="Run-level timing and performance analysis.",
+    tags=["timing", "performance"],
+)
+
+register_view(
+    "trial",
+    "timing",
+    [
+        ("group", "run_identity_trial"),
+        {"separator": "section", "label": "TIMING"},
+        "elapsed_seconds",
+        "started_at",
+        "finished_at",
+        {"separator": "section", "label": "STATUS"},
+        "status",
+        "failure_category",
+    ],
+    layout="table",
+    description="Per-trial timing and execution diagnostics.",
+    tags=["timing"],
+)
+
+# =========================================================
+# RUN VIEW — DECISIONS (SS + RATES + GUIDANCE)
+# =========================================================
+
+register_view(
+    "run",
+    "decisions",
+    [
+        ("group", "run_identity"),
+        {"separator": "section", "label": "SOCIAL SECURITY"},
+        ("group", "social_security"),
+        {"separator": "section", "label": "RATE ENVIRONMENT"},
+        ("group", "rates_characterization"),
+        {"separator": "section", "label": "DECISION GUIDANCE"},
+        ("group", "decision_guidance"),
+    ],
+    description=(
+        "Focused view of Social Security decisions under different rate environments. "
+        "Combines decision outputs, market conditions, and interpretation signals."
+    ),
+    tags=["decisions", "ss", "rates"],
 )

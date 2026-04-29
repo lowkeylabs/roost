@@ -5,9 +5,49 @@ from click.testing import CliRunner
 
 from tests.utils import run_cli
 
+
 # ---------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------
+class FakeProcess:
+    def __init__(self, cmd, called):
+        called["cmd"] = cmd
+        self.returncode = 0
+
+    def wait(self):
+        return self.returncode
+
+
+def mock_popen(monkeypatch, called):
+    class FakeProcess:
+        def __init__(self, cmd):
+            called["cmd"] = cmd
+            self.returncode = 0
+
+        def wait(self):
+            return self.returncode
+
+    def fake_popen(cmd, *args, **kwargs):
+        return FakeProcess(cmd)
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+
+def mock_monitor(monkeypatch):
+    def fake_monitor(run_root, total_trials):
+        class DummyThread:
+            def join(self):
+                pass
+
+        return DummyThread(), Path("dummy.log")
+
+    monkeypatch.setattr("owlroost.cli.cmd_run.start_progress_monitor", fake_monitor)
+
+    # 🔥 THIS IS THE CRITICAL FIX
+    monkeypatch.setattr(
+        "owlroost.cli.cmd_run.read_progress",
+        lambda _: 10**9,  # always "complete"
+    )
 
 
 def write_case(tmp_path: Path, method: str) -> Path:
@@ -31,11 +71,9 @@ def test_rate_model_override_allows_trials(tmp_path, monkeypatch):
     case_file = write_case(tmp_path, "historical")
     monkeypatch.chdir(tmp_path)
 
-    monkeypatch.setattr(
-        subprocess,
-        "run",
-        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0),
-    )
+    called = {}
+    mock_popen(monkeypatch, called)
+    mock_monitor(monkeypatch)
 
     runner = CliRunner()
 
@@ -58,11 +96,9 @@ def test_longevity_model_allows_trials(tmp_path, monkeypatch):
     case_file = write_case(tmp_path, "historical")
     monkeypatch.chdir(tmp_path)
 
-    monkeypatch.setattr(
-        subprocess,
-        "run",
-        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0),
-    )
+    called = {}
+    mock_popen(monkeypatch, called)
+    mock_monitor(monkeypatch)
 
     runner = CliRunner()
 
@@ -85,11 +121,9 @@ def test_stochastic_rate_without_trials_flag(tmp_path, monkeypatch):
     case_file = write_case(tmp_path, "bootstrap_sor")
     monkeypatch.chdir(tmp_path)
 
-    monkeypatch.setattr(
-        subprocess,
-        "run",
-        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0),
-    )
+    called = {}
+    mock_popen(monkeypatch, called)
+    mock_monitor(monkeypatch)
 
     runner = CliRunner()
 
@@ -107,11 +141,9 @@ def test_longevity_without_trials_flag(tmp_path, monkeypatch):
     case_file = write_case(tmp_path, "historical")
     monkeypatch.chdir(tmp_path)
 
-    monkeypatch.setattr(
-        subprocess,
-        "run",
-        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0),
-    )
+    called = {}
+    mock_popen(monkeypatch, called)
+    mock_monitor(monkeypatch)
 
     runner = CliRunner()
 
@@ -133,11 +165,9 @@ def test_rates_and_longevity_with_trials(tmp_path, monkeypatch):
     case_file = write_case(tmp_path, "bootstrap_sor")
     monkeypatch.chdir(tmp_path)
 
-    monkeypatch.setattr(
-        subprocess,
-        "run",
-        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0),
-    )
+    called = {}
+    mock_popen(monkeypatch, called)
+    mock_monitor(monkeypatch)
 
     runner = CliRunner()
 

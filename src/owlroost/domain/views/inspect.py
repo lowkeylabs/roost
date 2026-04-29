@@ -1,7 +1,6 @@
 from rich import box
 from rich.table import Table
 
-from owlroost.domain.formatting import format_value
 from owlroost.domain.metrics.metric_spec import (
     build_visibility_context,
     explain_metric_series,
@@ -12,13 +11,10 @@ from owlroost.domain.metrics.metric_spec import (
 # =========================================================
 # Shared value resolver
 # =========================================================
-def get_value(row, rm):
-    val = resolve_metric_value(row, rm.key, getattr(rm, "aggregate", None))
-    # Apply display transform BEFORE formatting
-    if rm.spec.display_fn:
-        val = rm.spec.display_fn(val)
+def get_value(row, rm, ctx=None):
+    val, fmt_override = resolve_metric_value(row, rm.key, getattr(rm, "aggregate", None))
 
-    return format_value(val, rm.spec.fmt)
+    return rm.spec.render_value(val, row=row, ctx=ctx, fmt_override=fmt_override)
 
 
 # =========================================================
@@ -49,14 +45,15 @@ def render_table(console, rows, view, layout="table", explain: set[str] | None =
     filtered_view = []
 
     for rm in view:
-        # Metric-level show_if (existing behavior)
+        # Skip non-metric entries (separators, etc.)
+        if getattr(rm, "spec", None) is None:
+            filtered_view.append(rm)  # still keep for pivot rendering
+            continue
 
         if rm.view_show_if and not view_allows(rm.view_show_if, layout):
             continue
 
         filtered_view.append(rm)
-
-    # filtered_view = [rm for rm in view if (rm.spec.show_if is None or rm.spec.show_if(ctx))]
 
     # ----------------------------------------
     # Deduplicate aggregates for single-row (NEW)
@@ -66,7 +63,12 @@ def render_table(console, rows, view, layout="table", explain: set[str] | None =
         deduped = []
 
         for rm in filtered_view:
-            key = rm.key  # ignore aggregation
+            # Skip non-metric entries
+            if getattr(rm, "spec", None) is None:
+                deduped.append(rm)
+                continue
+
+            key = rm.key
 
             if key in seen:
                 continue
@@ -81,9 +83,9 @@ def render_table(console, rows, view, layout="table", explain: set[str] | None =
     # ----------------------------------------
 
     if layout == "pivot":
-        return render_pivot_table(console, rows, filtered_view, explain=explain)
+        return render_pivot_table(console, rows, filtered_view, ctx=ctx, explain=explain)
     else:
-        return render_standard_table(console, rows, filtered_view, explain=explain)
+        return render_standard_table(console, rows, filtered_view, ctx=ctx, explain=explain)
 
 
 # =========================================================
@@ -102,7 +104,7 @@ def make_table():
 # =========================================================
 # Standard table (row-wise)
 # =========================================================
-def render_standard_table(console, rows, view, explain: set[str] | None = None):
+def render_standard_table(console, rows, view, ctx, explain: set[str] | None = None):
     if rows is None:
         console.print("[yellow]No data[/yellow]")
         return
@@ -125,6 +127,8 @@ def render_standard_table(console, rows, view, explain: set[str] | None = None):
     table.add_column("ID", justify="right")
 
     for rm in view:
+        if getattr(rm, "spec", None) is None:
+            continue
         label = rm.spec.label or rm.spec.key
         table.add_column(label, justify=rm.spec.align or "right")
 
@@ -135,7 +139,9 @@ def render_standard_table(console, rows, view, explain: set[str] | None = None):
         values = [str(i)]
 
         for rm in view:
-            formatted = get_value(row, rm)
+            if getattr(rm, "spec", None) is None:
+                continue
+            formatted = get_value(row, rm, ctx)
             values.append(formatted)
 
         table.add_row(*values)
@@ -147,6 +153,8 @@ def render_standard_table(console, rows, view, explain: set[str] | None = None):
         explanation_row = [""]  # for ID column
 
         for rm in view:
+            if getattr(rm, "spec", None) is None:
+                continue
             explanation = explain_metric_series(rm, rows, explain)
             explanation_row.append(explanation)
 
@@ -158,7 +166,7 @@ def render_standard_table(console, rows, view, explain: set[str] | None = None):
 # =========================================================
 # Pivot table (metrics as rows)
 # =========================================================
-def render_pivot_table(console, rows, view, explain: set[str] | None = None):
+def render_pivot_table(console, rows, view, ctx, explain: set[str] | None = None):
     if rows is None:
         console.print("[yellow]No data[/yellow]")
         return
@@ -172,7 +180,6 @@ def render_pivot_table(console, rows, view, explain: set[str] | None = None):
         return
 
     explain = explain or set()
-    ctx = build_visibility_context(rows)
 
     # ----------------------------------------
     # Build table
@@ -201,6 +208,20 @@ def render_pivot_table(console, rows, view, explain: set[str] | None = None):
     # rm : resolved metric with all attributes
 
     for rm in view:
+        # ----------------------------------------
+        # Separator row
+        # ----------------------------------------
+        if getattr(rm, "is_separator", False):
+            # total columns:
+            n_cols = 1 + len(rows) + (1 if explain else 0)
+
+            # ----------------------------------------
+            # Always render as blank row (safe)
+            # ----------------------------------------
+            table.add_row(*([""] * n_cols))
+
+            continue
+
         # Label
 
         label = rm.spec.label or rm.spec.key
@@ -217,7 +238,7 @@ def render_pivot_table(console, rows, view, explain: set[str] | None = None):
 
         # Values
         for r in rows:
-            formatted = get_value(r, rm)
+            formatted = get_value(r, rm, ctx)
             row_cells.append(formatted)
 
         # Explanation (series-aware)

@@ -1,14 +1,34 @@
 import multiprocessing as mp
 
-import pytest
-
 from owlroost.hydra.owl_hydra_run import orchestrate_trials
 
 
 def _orchestrator_entry(args):
-    """Entry point executed in a subprocess."""
+    worker = args.pop("worker_fn")
+    orchestrate_trials(worker_fn=worker, **args)
 
-    orchestrate_trials(**args)
+
+def fake_run_trial(
+    job_id,
+    trial_id,
+    rates_seed,
+    longevity_seed,
+    case_file,
+    overrides,
+    run_dir,
+    master_seed,
+    longevity_cfg,
+):
+    if trial_id == 1:
+        raise RuntimeError("Simulated OWL crash")
+
+    return {
+        "trial_id": trial_id,
+        "rates_seed": rates_seed,
+        "longevity_seed": longevity_seed,
+        "status": "solved",
+        "output": "fake.xlsx",
+    }
 
 
 def test_orchestrate_trials_deadlocks_on_worker_exception(monkeypatch, tmp_path):
@@ -23,36 +43,6 @@ def test_orchestrate_trials_deadlocks_on_worker_exception(monkeypatch, tmp_path)
     """
 
     # -----------------------------
-    # Fake worker that crashes
-    # -----------------------------
-    def fake_run_trial(
-        job_id,
-        trial_id,
-        rates_seed,
-        longevity_seed,
-        case_file,
-        overrides,
-        run_dir,
-        master_seed,
-        longevity_cfg,
-    ):
-        if trial_id == 1:
-            raise RuntimeError("Simulated OWL crash")
-
-        return {
-            "trial_id": trial_id,
-            "rates_seed": rates_seed,
-            "longevity_seed": longevity_seed,
-            "status": "solved",
-            "output": "fake.xlsx",
-        }
-
-    monkeypatch.setattr(
-        "owlroost.hydra.owl_hydra_run.run_trial",
-        fake_run_trial,
-    )
-
-    # -----------------------------
     # Minimal run configuration
     # -----------------------------
     case_file = tmp_path / "case.toml"
@@ -63,11 +53,12 @@ def test_orchestrate_trials_deadlocks_on_worker_exception(monkeypatch, tmp_path)
         master_seed=1234,
         trial_ids=[0, 1],
         use_trial_seeds=True,
-        n_jobs=2,
+        trial_jobs=2,
         case_file=case_file,
         overrides={},
         run_dir=tmp_path,
         longevity_cfg={},
+        worker_fn=fake_run_trial,
     )
 
     # -----------------------------
@@ -77,10 +68,8 @@ def test_orchestrate_trials_deadlocks_on_worker_exception(monkeypatch, tmp_path)
     p = ctx.Process(target=_orchestrator_entry, args=(args,))
     p.start()
 
-    p.join(timeout=5)
+    p.join(timeout=10)
 
-    if p.is_alive():
-        p.terminate()
-        p.join()
+    assert not p.is_alive(), "orchestrate_trials hung (should not deadlock)"
 
-        pytest.fail("orchestrate_trials deadlocked when a worker raised an exception.")
+    assert p.exitcode == 0

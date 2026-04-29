@@ -1,5 +1,6 @@
 # src/owlroost/core/configure_logging.py
 
+import os
 import sys
 from typing import Union
 
@@ -42,6 +43,10 @@ def configure_logging(
     # ------------------------------------------------------------
     if DictConfig and isinstance(log_level, DictConfig):
         log_level = log_level.get("logging", {}).get("level", "INFO")
+
+    env_level = os.getenv("OWLROOST_LOG_LEVEL")
+    if env_level:
+        log_level = env_level
 
     if not log_level:
         return

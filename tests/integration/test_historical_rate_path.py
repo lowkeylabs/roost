@@ -42,6 +42,9 @@ pension_indexed = [false, false]
 social_security_pia_amounts = [2000, 2000]
 social_security_ages = [67.0, 67.0]
 
+[household_financial_profile]
+HFP_file_name = ""
+
 [rates_selection]
 heirs_rate_on_tax_deferred_estate = 30.0
 dividend_rate = 1.72
@@ -107,9 +110,12 @@ def test_rates_file_is_created_and_loadable(tmp_path, monkeypatch):
 
     result = runner.invoke(
         cmd_run,
-        [str(case_file), "--trial-jobs=1", "--run-jobs=1"],
+        [str(case_file)],
     )
 
+    print(result.output)
+    print(result.stderr)
+    print(result.stdout)
     assert result.exit_code == 0
 
     df = load_rates_df(tmp_path)
@@ -136,7 +142,7 @@ def test_roll_sequence_changes_rate_path(tmp_path, monkeypatch):
     case_file = make_historical_case(tmp_path)
     result = runner.invoke(
         cmd_run,
-        [str(case_file), "--trial-jobs=1", "--run-jobs=1"],
+        [str(case_file)],
     )
     assert result.exit_code == 0
     baseline = load_rates_df(tmp_path)
@@ -150,7 +156,7 @@ def test_roll_sequence_changes_rate_path(tmp_path, monkeypatch):
 
     result2 = runner.invoke(
         cmd_run,
-        [str(case_file_roll), "--trial-jobs=1", "--run-jobs=1"],
+        [str(case_file)],
     )
     assert result2.exit_code == 0
     rolled = load_rates_df(tmp_path)
@@ -171,7 +177,7 @@ def test_reverse_sequence_changes_rate_path(tmp_path, monkeypatch):
     case_file = make_historical_case(tmp_path)
     result = runner.invoke(
         cmd_run,
-        [str(case_file), "--trial-jobs=1", "--run-jobs=1"],
+        [str(case_file)],
     )
     assert result.exit_code == 0
     baseline = load_rates_df(tmp_path)
@@ -185,7 +191,7 @@ def test_reverse_sequence_changes_rate_path(tmp_path, monkeypatch):
 
     result2 = runner.invoke(
         cmd_run,
-        [str(case_file_rev), "--trial-jobs=1", "--run-jobs=1"],
+        [str(case_file)],
     )
     assert result2.exit_code == 0
     reversed_df = load_rates_df(tmp_path)

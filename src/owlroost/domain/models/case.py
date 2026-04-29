@@ -1,3 +1,4 @@
+# src/owlroost/domain/models/case.py
 import ast
 import os
 import re
@@ -13,6 +14,149 @@ from owlplanner.config.toml_io import load_toml, save_toml
 from pydantic import BaseModel, Field, field_validator
 
 from owlroost.core.longevity import deterministic_individual_lifetime
+
+# helpers
+
+
+def _resolve_spending_value(value, baseline):
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+        value = value.strip()
+
+        if value.endswith("%"):
+            try:
+                pct = float(value[:-1]) / 100.0
+                return pct * baseline  # already dollars
+            except Exception:
+                return None
+
+    try:
+        return float(value)  # still in user units
+    except Exception:
+        return None
+
+
+def _apply_units(value, case):
+    if value is None:
+        return None
+
+    solver = getattr(case.config, "solver_options", None)
+
+    if isinstance(solver, dict):
+        units = solver.get("units", "k")
+    else:
+        units = getattr(solver, "units", "k")
+
+    if units == "k":
+        return value * 1_000
+    if units == "M":
+        return value * 1_000_000
+
+    return value  # assume already dollars
+
+
+def _get_input_baseline(case):
+    """
+    Resolve baseline spending from inputs ONLY.
+    Works without running the solver.
+    """
+
+    obj = case.objective
+    solver = getattr(case.config, "solver_options", None)
+
+    if solver is None:
+        return 0.0
+
+    # Handle both object and dict
+    if isinstance(solver, dict):
+        get = solver.get
+    else:
+
+        def get(k, default=None):
+            return getattr(solver, k, default)
+
+    if obj == "maxBequest":
+        val = get("netSpending")
+    elif obj == "maxSpending":
+        return None
+    else:
+        val = None
+
+    if val is None:
+        return 0.0
+
+    # Handle units
+    units = get("units", "k")
+
+    v = float(val)
+
+    if units == "k":
+        return v * 1_000
+    if units == "M":
+        return v * 1_000_000
+
+    return v
+
+
+def get_effective_spending_policy(case, baseline=None):
+    if case is None or case.spending_policy is None:
+        return {
+            "essential_spending": None,
+            "lifestyle_spending": None,
+            "baseline_years": 3,
+            "max_years_below_threshhold": 5,
+            "max_consecutive_years_below_threshhold": 5,
+        }
+
+    policy = case.spending_policy
+
+    # ----------------------------------------
+    # Normalize sentinel (THE KEY STEP)
+    # ----------------------------------------
+
+    def normalize(v):
+        if v in (None, 0):
+            return None
+        return v
+
+    essential_raw = normalize(policy.essential_spending)
+    lifestyle_raw = normalize(policy.lifestyle_spending)
+
+    # ----------------------------------------
+    # Validate type (no % allowed)
+    # ----------------------------------------
+
+    if isinstance(essential_raw, str):
+        raise ValueError("essential_spending must be numeric (no percentages)")
+
+    if isinstance(lifestyle_raw, str):
+        raise ValueError("lifestyle_spending must be numeric (no percentages)")
+
+    # ----------------------------------------
+    # Apply units ONLY if real values
+    # ----------------------------------------
+
+    essential = _apply_units(essential_raw, case) if essential_raw is not None else None
+    lifestyle = _apply_units(lifestyle_raw, case) if lifestyle_raw is not None else None
+
+    # ----------------------------------------
+    # Enforce constraint (only if active)
+    # ----------------------------------------
+
+    if essential is not None and lifestyle is not None:
+        if lifestyle < essential:
+            raise ValueError("lifestyle_spending must be >= essential_spending")
+
+    return {
+        "essential_spending": essential,
+        "lifestyle_spending": lifestyle,
+        "baseline_years": policy.baseline_years,
+        "max_years_below_threshhold": policy.max_years_below_threshhold,
+        "max_consecutive_years_below_threshhold": policy.max_consecutive_years_below_threshhold,
+    }
+
 
 # =========================================================
 # ROOST Extension Schemas
@@ -98,8 +242,16 @@ class LongevityConfig(BaseModel):
 
 class RoostConfig(BaseModel):
     master_seed: int = Field(default_factory=lambda: secrets.randbits(32))
-    trials: int = 1
-    experiment: str | None = None
+    trials_per_run: int = 1
+    experiment_name: str | None = None
+
+
+class SpendingPolicyConfig(BaseModel):
+    essential_spending: float | int | None = None
+    lifestyle_spending: float | int | None = None
+    baseline_years: int = 3
+    max_years_below_threshhold: int = 5
+    max_consecutive_years_below_threshhold: int = 5
 
 
 class CacheConfig(BaseModel):
@@ -110,7 +262,19 @@ class CacheConfig(BaseModel):
     first_year_total_withdrawals: float | None = None
 
 
+class RuntimeConfig(BaseModel):
+    worker_timeout: int = 20
+    max_trial_jobs: int = 28
+    max_run_jobs: int = 8
+    cpu_reserve: int = 2
+    oversubscribe_factor: float = 1.0
+    enforce_single_axis: bool = True
+    trial_jobs: int | None = None
+    run_jobs: int | None = None
+
+
 EXTRA_SECTION_REGISTRY: dict[str, type[BaseModel]] = {
+    "spending_policy": SpendingPolicyConfig,
     "longevity": LongevityConfig,
     "roost": RoostConfig,
     "cache": CacheConfig,
@@ -430,6 +594,10 @@ class Case:
     # =========================================================
 
     @property
+    def spending_policy(self) -> SpendingPolicyConfig | None:
+        return self.extensions.get("spending_policy")
+
+    @property
     def longevity(self):
         return self.extensions.get("longevity")
 
@@ -452,6 +620,14 @@ class Case:
     @property
     def name(self) -> str:
         return self.config.case_name or self.path.name
+
+    @property
+    def case_name(self) -> str:
+        return self.config.case_name or self.path.stem
+
+    @property
+    def description(self) -> str | None:
+        return self.config.description or None
 
     @property
     def filename(self) -> str:
@@ -864,3 +1040,13 @@ class Case:
             return 0.0
 
         return spending / (1000.0 * self.total_savings)
+
+    @property
+    def trial_jobs(self) -> int | None:
+        runtime = getattr(self.config, "runtime", None)
+        return getattr(runtime, "trial_jobs", None) if runtime else None
+
+    @property
+    def run_jobs(self) -> int | None:
+        runtime = getattr(self.config, "runtime", None)
+        return getattr(runtime, "run_jobs", None) if runtime else None

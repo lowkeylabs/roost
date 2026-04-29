@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Union
 
+from .group_registry import METRIC_GROUP_REGISTRY, expand_items_with_groups
 from .metric_registry import METRIC_REGISTRY, get_metric
 from .metric_spec import MetricSpec
 
@@ -15,6 +16,7 @@ MetricKey = Union[  # noqa: UP007
     tuple[str, str],  # (key, aggregate)
     tuple[str, dict],  # (key, opts)
     tuple[str, str, dict],  # (key, aggregate, opts)
+    dict,  # (separators)
 ]
 
 
@@ -23,6 +25,9 @@ class ResolvedMetric:
     spec: MetricSpec
     aggregate: str | None = None
     view_show_if: str | None = None
+    is_separator: bool = False
+    separator_type: str | None = None  # "blank", "line", "section"
+    separator_label: str | None = None
 
     # -----------------------------
     # Core identity
@@ -67,13 +72,74 @@ def register_view(
     description: str | None = None,
     tags: list[str] | None = None,
 ):
-    METRIC_VIEW_REGISTRY[level][name] = {
-        "metrics": metric_keys,
-        "layout": layout,
-        "explain": explain,
-        "description": description or "",
-        "tags": tags or [],
-    }
+    try:
+        # ----------------------------------------
+        # Validate metrics exist
+        # ----------------------------------------
+        from owlroost.domain.metrics.metric_registry import METRIC_REGISTRY
+        from owlroost.domain.services.aggregation_registry import AGG_FUNCS
+
+        for m in metric_keys:
+            # Separator logic
+            if isinstance(m, dict) and "separator" in m:
+                continue
+
+            # Handle ("metric", "agg") or ("metric", {...})
+            # ----------------------------------------
+            # Normalize key + agg
+            # ----------------------------------------
+            key = None
+            agg = None
+
+            if isinstance(m, tuple):
+                key = m[0]
+
+                # GROUP — skip validation
+                if key == "group":
+                    group_name = m[1]
+                    if group_name not in METRIC_GROUP_REGISTRY:
+                        raise ValueError(f"Unknown group '{group_name}' in view '{level}:{name}'")
+
+                    continue
+
+                if len(m) > 1 and isinstance(m[1], str):
+                    agg = m[1]
+
+            else:
+                key = m
+
+            # --- metric existence ---
+            if key not in METRIC_REGISTRY:
+                raise ValueError(f"Unknown metric '{key}' in view '{level}:{name}'")
+
+            # spec = METRIC_REGISTRY[key]
+
+            # --- aggregation validation ---
+            if agg:
+                agg_name = agg if isinstance(agg, str) else agg[0]
+
+                if agg_name not in AGG_FUNCS:
+                    raise ValueError(
+                        f"Unknown aggregation '{agg_name}' for metric '{key}' "
+                        f"in view '{level}:{name}'"
+                    )
+
+        # ----------------------------------------
+        # Register (only if valid)
+        # ----------------------------------------
+
+        METRIC_VIEW_REGISTRY[level][name] = {
+            "metrics": metric_keys,
+            "layout": layout,
+            "explain": explain,
+            "description": description or "",
+            "tags": tags or [],
+        }
+
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to register view '{level}:{name}'\n" f"Metrics: {metric_keys}\n" f"Error: {e}"
+        ) from e
 
 
 # ===============================================
@@ -93,7 +159,7 @@ def resolve_metric(key):
 
 def get_view(level: str, name: str):
     view_def = METRIC_VIEW_REGISTRY[level][name]
-    keys = view_def["metrics"]
+    keys = expand_items_with_groups(view_def["metrics"])
     layout = view_def.get("layout", "table")
     explain = view_def.get("explain", False)
 
@@ -102,6 +168,21 @@ def get_view(level: str, name: str):
 
     for item in keys:
         parsed = parse_view_item(item)
+
+        # ----------------------------------------
+        # Handle separator
+        # ----------------------------------------
+        if "separator" in parsed:
+            resolved.append(
+                ResolvedMetric(
+                    spec=None,
+                    is_separator=True,
+                    separator_type=parsed["separator"],
+                    view_show_if=parsed.get("view_show_if"),
+                    separator_label=parsed.get("label"),
+                )
+            )
+            continue
 
         key = parsed["key"]
         agg = parsed["aggregate"]
@@ -113,8 +194,14 @@ def get_view(level: str, name: str):
 
         spec = get_metric(key)
 
-        if agg and agg not in (spec.aggregates or []):
-            raise KeyError(f"Metric '{key}' does not support aggregate '{agg}'")
+        if agg:
+            spec_aggs = spec.aggregates or []
+
+            # Normalize aggregate names (handle tuples)
+            agg_names = [a if isinstance(a, str) else a[0] for a in spec_aggs]
+
+            if agg not in agg_names:
+                raise KeyError(f"Metric '{key}' does not support aggregate '{agg}'")
 
         resolved.append(ResolvedMetric(spec, agg, view_show_if))
 
@@ -130,7 +217,7 @@ def get_view(level: str, name: str):
 
 
 def view_keys(view):
-    return {rm.key for rm in view}
+    return {rm.key for rm in view if not getattr(rm, "is_separator", False) and rm.spec is not None}
 
 
 def get_view_tags(level: str, name: str) -> list[str]:
@@ -156,6 +243,15 @@ def parse_view_item(item):
         return {"key": item, "aggregate": None, "view_show_if": None}
 
     if isinstance(item, tuple):
+        # ---------------------------------------
+        # Separators
+        # ----------------------------------------
+        if isinstance(item, dict) and "separator" in item:
+            return {
+                "separator": item["separator"],
+                "label": item.get("label"),
+                "view_show_if": item.get("show_if"),
+            }
         # ----------------------------------------
         # (key, agg)
         # ----------------------------------------
@@ -189,6 +285,13 @@ def parse_view_item(item):
             }
 
     if isinstance(item, dict):
+        if "separator" in item:
+            return {
+                "separator": item["separator"],
+                "label": item.get("label"),
+                "view_show_if": item.get("show_if"),
+            }
+
         return {
             "key": item["key"],
             "aggregate": item.get("aggregate"),
@@ -268,10 +371,8 @@ def resolve_default_view(display_level: str, display_mode: str, row: dict | None
             return "default"
 
         if display_mode == "detail":
-            status = (row or {}).get("status")
-            if status == "failed":
-                return "failures"
-            return "fragility"
+            # status = (row or {}).get("status")
+            return "default"
 
     return "default"
 

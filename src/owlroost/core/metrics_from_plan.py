@@ -3,6 +3,9 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
+from loguru import logger
+
+from owlroost.domain.models.case import get_effective_spending_policy
 
 
 def _mosek_available():
@@ -23,24 +26,298 @@ def normalize_timestamp(ts) -> str:
     raise TypeError(f"Unsupported timestamp type: {type(ts)}")
 
 
+def normalize_failure(run_status: dict) -> dict:
+    detail = (run_status.get("failure_detail") or "").lower()
+
+    # Ensure subtype exists
+    run_status.setdefault("failure_subtype", None)
+
+    # --------------------------------------------------
+    # Solver crash (native / memory)
+    # --------------------------------------------------
+    if "double free" in detail or "corruption" in detail:
+        return {
+            "status": "failed",
+            "failure_category": "solver_crash",
+            "failure_subtype": "memory_corruption",
+            "failure_detail": "solver crashed (memory corruption)",
+        }
+
+    # --------------------------------------------------
+    # Pass-through for worker-level classifications
+    # --------------------------------------------------
+    if run_status.get("failure_category") in {
+        "worker_crash",
+        "input_error",
+        "hard_crash",
+        "empty_output",
+        "invalid_output",
+        "timeout",
+    }:
+        return run_status
+
+    return run_status
+
+
 # =========================================================
 # RUN STATUS
 # =========================================================
 def classify_run_status_from_plan(plan) -> dict:
-    case_status = (plan.caseStatus or "").lower()
+    case_status_raw = plan.caseStatus or ""
+    case_status = case_status_raw.lower().strip()
 
+    # --------------------------------------------------
+    # SOLVED
+    # --------------------------------------------------
     if case_status == "solved":
         return {
             "status": "solved",
             "failure_category": None,
+            "failure_subtype": None,
             "failure_detail": None,
         }
+
+    # --------------------------------------------------
+    # Known OWL statuses
+    # --------------------------------------------------
+
+    # No feasible / infeasible
+    if "no feasible" in case_status or "infeasible" in case_status:
+        return {
+            "status": "failed",
+            "failure_category": "no_feasible_solution",
+            "failure_subtype": "infeasible",
+            "failure_detail": "no feasible solution",
+        }
+
+    # Solver timeout
+    if "timeout" in case_status:
+        return {
+            "status": "failed",
+            "failure_category": "timeout",
+            "failure_subtype": "solver_timeout",
+            "failure_detail": "solver timeout",
+        }
+
+    # --------------------------------------------------
+    # Unknown / fallback
+    # --------------------------------------------------
+    # Preserve original text (not lowercased) for readability
+    detail = case_status_raw.strip()
+    if not detail:
+        detail = "unknown"
 
     return {
         "status": "failed",
         "failure_category": "unknown",
-        "failure_detail": case_status,
+        "failure_subtype": None,
+        "failure_detail": detail[:120],  # truncate noise
     }
+
+
+def ensure_complete_metrics(metrics: dict, status: str) -> dict:
+    """
+    Non-destructive normalization:
+    - Preserves computed values
+    - Only fills missing keys
+    - Forces defaults only for non-solved runs
+    """
+
+    # --------------------------------------------------
+    # Top-level structure
+    # --------------------------------------------------
+    metrics.setdefault("financial", {})
+    metrics.setdefault("risk", {})
+    metrics.setdefault("run_status", {})
+    metrics.setdefault("rates", {})
+
+    risk = metrics.setdefault("risk", {})
+    risk_summary = risk.setdefault("summary", {})
+
+    for k in [
+        "overall_risk",
+        "scenario_severity",
+        "depleted",
+        "worst_drawdown",
+        "terminal_ratio",
+        "flag_count",
+    ]:
+        if k not in risk_summary:
+            risk_summary[k] = None
+
+    if "flags" not in risk_summary:
+        risk_summary["flags"] = []
+
+    # --------------------------------------------------
+    # Financial structure
+    # --------------------------------------------------
+    fin = metrics["financial"]
+
+    fin.setdefault("baseline", {})
+    if "annual_spending" not in fin["baseline"]:
+        fin["baseline"]["annual_spending"] = None
+
+    ts = fin.setdefault("timeseries", {})
+    spending = ts.setdefault("spending", {})
+    ratio = spending.setdefault("ratio", {})
+
+    # --------------------------------------------------
+    # Horizon detection
+    # --------------------------------------------------
+    horizon = (
+        metrics.get("financial", {}).get("horizon", {}).get("years")
+        or len(ratio.get("by_year", []))
+        or metrics.get("risk", {}).get("scenario", {}).get("horizon")
+        or metrics.get("complexity", {}).get("horizon")
+        or 30
+    )
+
+    try:
+        horizon = int(horizon)
+    except Exception:
+        horizon = 30
+
+    fin.setdefault("inflation", {})
+    if "final_factor" not in fin["inflation"]:
+        fin["inflation"]["final_factor"] = 1.0
+
+    ts = fin.setdefault("timeseries", {})
+    ts.setdefault("inflation", {})
+    if "factor_by_year" not in ts["inflation"]:
+        ts["inflation"]["factor_by_year"] = [1.0] * horizon
+
+    assets = ts.setdefault("assets", {})
+
+    if "today_by_year" not in assets:
+        assets["today_by_year"] = [0.0] * horizon
+
+    if "future_by_year" not in assets:
+        assets["future_by_year"] = [0.0] * horizon
+
+    spending_ts = ts.setdefault("spending", {})
+
+    if "today_by_year" not in spending_ts:
+        spending_ts["today_by_year"] = [0.0] * horizon
+
+    if "future_by_year" not in spending_ts:
+        spending_ts["future_by_year"] = [0.0] * horizon
+
+    # --------------------------------------------------
+    # Ensure ratio.by_year
+    # --------------------------------------------------
+    if "by_year" not in ratio or not isinstance(ratio["by_year"], list):
+        ratio["by_year"] = [0.0] * horizon if status != "solved" else [None] * horizon
+
+    # --------------------------------------------------
+    # Ratio aggregates (NON-DESTRUCTIVE)
+    # --------------------------------------------------
+    if status != "solved":
+        ratio["min"] = 0.0
+        ratio["mean"] = 0.0
+        ratio["median"] = 0.0
+    else:
+        values = [v for v in ratio["by_year"] if isinstance(v, (int, float))]
+        if values:
+            if "min" not in ratio:
+                ratio["min"] = min(values)
+            if "mean" not in ratio:
+                ratio["mean"] = sum(values) / len(values)
+            if "median" not in ratio:
+                ratio["median"] = sorted(values)[len(values) // 2]
+        else:
+            for k in ["min", "mean", "median"]:
+                if k not in ratio:
+                    ratio[k] = None
+
+    # --------------------------------------------------
+    # Clamp ratios (safe)
+    # --------------------------------------------------
+    if isinstance(ratio.get("by_year"), list):
+        ratio["by_year"] = [
+            min(max(v, 0.0), 2.0) if isinstance(v, (int, float)) else v for v in ratio["by_year"]
+        ]
+
+    for k in ["min", "mean", "median"]:
+        if isinstance(ratio.get(k), (int, float)):
+            ratio[k] = min(max(ratio[k], 0.0), 2.0)
+
+    # --------------------------------------------------
+    # Baseline fallback
+    # --------------------------------------------------
+    if fin["baseline"].get("annual_spending") is None:
+        try:
+            fin["baseline"]["annual_spending"] = metrics["financial"]["spending"]["year0"]["today"]
+        except Exception:
+            pass
+
+    # --------------------------------------------------
+    # Valid flag
+    # --------------------------------------------------
+    fin["valid"] = status == "solved"
+
+    # --------------------------------------------------
+    # Spending summary (NON-DESTRUCTIVE)
+    # --------------------------------------------------
+    fin.setdefault("spending_summary", {})
+    spending_summary = fin["spending_summary"]
+
+    if status != "solved":
+        # overwrite is OK here (failed runs)
+        spending_summary.update(
+            {
+                "min_ratio": 0.0,
+                "mean_ratio": 0.0,
+                "median_ratio": 0.0,
+                "p10_ratio": 0.0,
+                "std_ratio": 0.0,
+                "years_under_target": horizon,
+                "shortfall": 1.0,
+                "required_slack": 1.0,
+                "min_ratio_to_essential": 0.0,
+                "mean_ratio_to_essential": 0.0,
+                "median_ratio_to_essential": 0.0,
+                "years_below_essential": horizon,
+                "essential_spending_breach": 1,
+                "min_ratio_to_lifestyle": 0.0,
+                "mean_ratio_to_lifestyle": 0.0,
+                "median_ratio_to_lifestyle": 0.0,
+                "years_below_lifestyle": horizon,
+                "consecutive_years_below_lifestyle": horizon,
+                "consecutive_years_below_essential": horizon,
+                "years_between_essential_and_target": 0,
+                "lifestyle_stress_flag": 1,
+            }
+        )
+    else:
+        defaults = {
+            "min_ratio": None,
+            "mean_ratio": None,
+            "median_ratio": None,
+            "p10_ratio": None,
+            "std_ratio": None,
+            "years_under_target": None,
+            "shortfall": None,
+            "required_slack": None,
+            "min_ratio_to_essential": None,
+            "mean_ratio_to_essential": None,
+            "median_ratio_to_essential": None,
+            "years_below_essential": None,
+            "essential_spending_breach": None,
+            "min_ratio_to_lifestyle": None,
+            "mean_ratio_to_lifestyle": None,
+            "median_ratio_to_lifestyle": None,
+            "years_below_lifestyle": None,
+            "consecutive_years_below_lifestyle": None,
+            "consecutive_years_below_essential": None,
+            "years_between_essential_and_target": None,
+            "lifestyle_stress_flag": None,
+        }
+
+        for k, v in defaults.items():
+            if k not in spending_summary:
+                spending_summary[k] = v
+
+    return metrics
 
 
 # =========================================================
@@ -50,49 +327,51 @@ def classify_run_status_from_plan(plan) -> dict:
 
 def identity_from_plan(plan) -> dict:
     return {
-        "plan_name": plan._name,
+        "plan_name": getattr(plan, "_name", "unknown"),
     }
 
 
 # =========================================================
 # METRICS
 # =========================================================
-def financials_from_plan(plan, N=None) -> dict:
-    if N is None:
-        N = plan.N_n
-    if not (0 < N <= plan.N_n):
-        raise ValueError(f"Value N={N} is out of range")
 
+
+def financial_core_from_plan(plan, N):
     gamma = plan.gamma_n[:N]
 
-    start_year = int(plan.year_n[0])
-    final_year = int(plan.year_n[-1])
+    actual_future = plan.g_n[:N]
+    actual_today = actual_future / gamma
 
-    horizon = {
-        "start_year": int(start_year),
-        "final_year": int(final_year),
-    }
+    k = min(5, N // 2 if N >= 2 else 1)
 
-    inflation = {
-        "final_factor": float(plan.gamma_n[-1]),
+    early_avg = float(np.mean(actual_today[:k]))
+    late_avg = float(np.mean(actual_today[-k:]))
+
+    year0 = float(actual_today[0])
+    yearN = float(actual_today[-1])
+
+    survivor_ratio = None
+    if early_avg > 0:
+        survivor_ratio = late_avg / early_avg
+        survivor_ratio = float(min(max(survivor_ratio, 0.0), 2.0))
+
+    spending_profile = {
+        "year0": year0,
+        "early_avg": early_avg,
+        "late_avg": late_avg,
+        "yearN": yearN,
+        "survivor_ratio": survivor_ratio,
     }
 
     spending = {
         "year0": {
-            "future": float(plan.g_n[0]),
-            "today": float(plan.g_n[0] / plan.gamma_n[0]),
+            "future": float(actual_future[0]),
+            "today": float(actual_today[0]),
         },
         "total": {
-            "future": float(np.sum(plan.g_n[:N])),
-            "today": float(np.sum(plan.g_n[:N] / gamma)),
+            "future": float(np.sum(actual_future)),
+            "today": float(np.sum(actual_today)),
         },
-    }
-
-    roth = {
-        "total": {
-            "future": float(np.sum(plan.x_in[:, :N])),
-            "today": float(np.sum(np.sum(plan.x_in[:, :N], axis=0) / gamma)),
-        }
     }
 
     taxes = {
@@ -102,6 +381,14 @@ def financials_from_plan(plan, N=None) -> dict:
         }
     }
 
+    roth = {
+        "total": {
+            "future": float(np.sum(plan.x_in[:, :N])),
+            "today": float(np.sum(np.sum(plan.x_in[:, :N], axis=0) / gamma)),
+        }
+    }
+
+    # ---- bequest ----
     estate = np.sum(plan.b_ijn[:, :, plan.N_n], axis=0).copy()
     estate[1] *= 1 - plan.nu
     estate[3] *= 1 - plan.nu
@@ -119,49 +406,289 @@ def financials_from_plan(plan, N=None) -> dict:
         }
     }
 
-    spending_future = plan.g_n[:N]
-    spending_today = spending_future / gamma
-
-    tax_future = plan.T_n[:N]
-    tax_today = tax_future / gamma
-
-    roth_future = np.sum(plan.x_in[:, :N], axis=0)
-    roth_today = roth_future / gamma
-
-    assets_future = np.sum(plan.b_ijn[:, :, :N], axis=(0, 1))
-    assets_today = assets_future / gamma
-
-    timeseries = {
-        "spending": {
-            "future_by_year": spending_future.tolist(),
-            "today_by_year": spending_today.tolist(),
-        },
-        "taxes": {
-            "future_by_year": tax_future.tolist(),
-            "today_by_year": tax_today.tolist(),
-        },
-        "roth": {
-            "future_by_year": roth_future.tolist(),
-            "today_by_year": roth_today.tolist(),
-        },
-        "assets": {
-            "future_by_year": assets_future.tolist(),
-            "today_by_year": assets_today.tolist(),
-        },
-        "inflation": {
-            "factor_by_year": gamma.tolist(),
-        },
-    }
-
     return {
-        "horizon": horizon,
-        "inflation": inflation,
         "spending": spending,
-        "roth": roth,
+        "spending_profile": spending_profile,
         "taxes": taxes,
+        "roth": roth,
         "bequest": bequest,
-        "timeseries": timeseries,
     }
+
+
+def spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma):
+    tracer = "starting"
+    try:
+        # -------------------------------------------------
+        # Inputs
+        # -------------------------------------------------
+        tracer = "1"
+        xi = getattr(plan, "xi_n", None)
+        if xi is None:
+            xi = np.ones_like(actual_future)
+        else:
+            xi = xi[:N]
+
+        # -------------------------------------------------
+        # Baseline (solution-derived, still used for target ratio)
+        # -------------------------------------------------
+        tracer = "2"
+        case = getattr(plan, "_case", None)
+
+        k = 3
+        if case and case.spending_policy:
+            k = case.spending_policy.baseline_years
+
+        k = max(1, min(k, N))
+
+        if len(actual_future):
+            baseline = float(np.mean(actual_future[:k]))
+        else:
+            baseline = None
+
+        if not isinstance(baseline, (int, float)) or not np.isfinite(baseline) or baseline <= 0:
+            fallback = float(actual_today[0]) if len(actual_today) else 1.0
+            baseline = fallback if np.isfinite(fallback) and fallback > 0 else 1.0
+
+        # -------------------------------------------------
+        # Policy (NEW MODEL)
+        # -------------------------------------------------
+        tracer = "3"
+        policy = get_effective_spending_policy(case)
+
+        essential_spending = policy.get("essential_spending")
+        lifestyle_spending = policy.get("lifestyle_spending")
+
+        # -------------------------------------------------
+        # Clean xi
+        # -------------------------------------------------
+        tracer = "4"
+        xi = np.array(xi, dtype=float)
+        xi = np.nan_to_num(xi, nan=1.0, posinf=1.0, neginf=1.0)
+
+        # -------------------------------------------------
+        # Expected spending
+        # -------------------------------------------------
+        tracer = "5"
+        expected_future = xi * baseline
+
+        lifestyle_future = xi * lifestyle_spending if lifestyle_spending is not None else None
+        essential_future = xi * essential_spending if essential_spending is not None else None
+
+        # -------------------------------------------------
+        # Ratios
+        # -------------------------------------------------
+        tracer = "6"
+        with np.errstate(divide="ignore", invalid="ignore"):
+            ratio = np.divide(
+                actual_future,
+                expected_future,
+                out=np.zeros_like(actual_future),
+                where=expected_future > 0,
+            )
+
+            ratio_lifestyle = (
+                np.divide(
+                    actual_future,
+                    lifestyle_future,
+                    out=np.zeros_like(actual_future),
+                    where=lifestyle_future > 0,
+                )
+                if lifestyle_future is not None
+                else None
+            )
+
+            ratio_essential = (
+                np.divide(
+                    actual_future,
+                    essential_future,
+                    out=np.zeros_like(actual_future),
+                    where=essential_future > 0,
+                )
+                if essential_future is not None
+                else None
+            )
+
+        # Clip for stability
+        ratio = np.clip(ratio, 0.0, 2.0)
+
+        if ratio_lifestyle is not None:
+            ratio_lifestyle = np.clip(ratio_lifestyle, 0.0, 2.0)
+
+        if ratio_essential is not None:
+            ratio_essential = np.clip(ratio_essential, 0.0, 2.0)
+
+        clean = ratio[np.isfinite(ratio)]
+
+        clean_lifestyle = (
+            ratio_lifestyle[np.isfinite(ratio_lifestyle)] if ratio_lifestyle is not None else []
+        )
+
+        clean_essential = (
+            ratio_essential[np.isfinite(ratio_essential)] if ratio_essential is not None else []
+        )
+
+        # -------------------------------------------------
+        # Helpers
+        # -------------------------------------------------
+        tracer = "7"
+
+        def safe_stats(arr):
+            if len(arr):
+                return float(np.min(arr)), float(np.mean(arr)), float(np.median(arr))
+            return None, None, None
+
+        def max_consecutive_below(arr):
+            max_run = run = 0
+            for v in arr:
+                if v < 1.0:
+                    run += 1
+                    max_run = max(max_run, run)
+                else:
+                    run = 0
+            return max_run
+
+        # -------------------------------------------------
+        # Summary metrics
+        # -------------------------------------------------
+        tracer = "8"
+
+        min_ratio, mean_ratio, median_ratio = safe_stats(clean)
+
+        min_life, mean_life, median_life = safe_stats(clean_lifestyle)
+        min_ess, mean_ess, median_ess = safe_stats(clean_essential)
+
+        years_under_target = int(np.sum(clean < 1.0)) if len(clean) else None
+
+        years_below_lifestyle = int(np.sum(clean_lifestyle < 1.0)) if len(clean_lifestyle) else None
+        years_below_essential = int(np.sum(clean_essential < 1.0)) if len(clean_essential) else None
+
+        consecutive_below_lifestyle = (
+            max_consecutive_below(clean_lifestyle) if len(clean_lifestyle) else None
+        )
+        consecutive_below_essential = (
+            max_consecutive_below(clean_essential) if len(clean_essential) else None
+        )
+
+        # -------------------------------------------------
+        # Flags (respect None)
+        # -------------------------------------------------
+        tracer = "9"
+
+        lifestyle_stress_flag = (
+            1
+            if (years_below_lifestyle is not None and years_below_lifestyle > 0)
+            else 0
+            if lifestyle_spending is not None
+            else None
+        )
+
+        essential_spending_breach = (
+            1
+            if (years_below_essential is not None and years_below_essential > 0)
+            else 0
+            if essential_spending is not None
+            else None
+        )
+
+        # -------------------------------------------------
+        # Return
+        # -------------------------------------------------
+        tracer = "10"
+
+        return {
+            "baseline_valid": True,
+            "baseline": {"annual_spending": float(baseline)},
+            "spending_summary": {
+                "min_ratio": min_ratio,
+                "mean_ratio": mean_ratio,
+                "median_ratio": median_ratio,
+                "years_under_target": years_under_target,
+                "min_ratio_to_lifestyle": min_life,
+                "mean_ratio_to_lifestyle": mean_life,
+                "median_ratio_to_lifestyle": median_life,
+                "min_ratio_to_essential": min_ess,
+                "mean_ratio_to_essential": mean_ess,
+                "median_ratio_to_essential": median_ess,
+                "years_below_lifestyle": years_below_lifestyle,
+                "years_below_essential": years_below_essential,
+                "consecutive_years_below_lifestyle": consecutive_below_lifestyle,
+                "consecutive_years_below_essential": consecutive_below_essential,
+                "lifestyle_stress_flag": lifestyle_stress_flag,
+                "essential_spending_breach": essential_spending_breach,
+            },
+            "spending_policy": {
+                "essential_spending": float(essential_spending)
+                if essential_spending is not None
+                else None,
+                "lifestyle_spending": float(lifestyle_spending)
+                if lifestyle_spending is not None
+                else None,
+            },
+        }
+
+    except Exception as e:
+        logger.exception("spending_metrics_from_plan failed")
+        return {
+            "baseline_valid": False,
+            "spending_error_tracer": tracer,
+            "spending_error": str(e),
+        }
+
+
+def financials_from_plan(plan, N=None) -> dict:
+    try:
+        if not hasattr(plan, "g_n") or not hasattr(plan, "gamma_n"):
+            return {"valid": False, "reason": "missing_core_arrays"}
+
+        if N is None:
+            N = plan.N_n
+
+        gamma = plan.gamma_n[:N]
+        actual_future = plan.g_n[:N]
+        actual_today = actual_future / gamma
+
+        assets_future = np.array(
+            [float(np.sum(plan.b_ijn[:, :, n])) for n in range(N)], dtype=float
+        )
+
+        assets_today = assets_future / gamma
+
+        # --- inflation ---
+        inflation = {"final_factor": float(gamma[-1]) if len(gamma) else 1.0}
+
+        inflation_ts = {"factor_by_year": [float(x) for x in gamma]}
+
+        # ---- core (never fails) ----
+        core = financial_core_from_plan(plan, N)
+
+        # ---- spending metrics (may fail) ----
+        spending = spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma)
+
+        result = {
+            "valid": True,
+            "inflation": inflation,
+            **core,
+            **spending,
+        }
+
+        # --- merge timeseries safely ---
+        result.setdefault("timeseries", {})
+        result["timeseries"]["inflation"] = inflation_ts
+
+        result["timeseries"]["assets"] = {
+            "future_by_year": [float(x) for x in assets_future],
+            "today_by_year": [float(x) for x in assets_today],
+        }
+        result["timeseries"]["spending"] = {
+            "future_by_year": [float(x) for x in actual_future],
+            "today_by_year": [float(x) for x in actual_today],
+        }
+
+        return result
+
+    except Exception as e:
+        logger.exception("financials_from_plan failed")
+        return {"valid": False, "reason": str(e)}
 
 
 # =========================================================
@@ -189,6 +716,16 @@ def complexity_from_plan(plan) -> dict:
     nnz_per_var = nnz / nvars if nvars else None
     nnz_per_cons = nnz / ncons if ncons else None
     int_ratio = num_integer_vars / nvars if (num_integer_vars and nvars) else None
+
+    # Prefer N_n (always available)
+    try:
+        horizon = int(plan.N_n)
+    except Exception:
+        horizon = None
+
+    # Fallback if needed
+    if not horizon:
+        horizon = len(getattr(plan, "g_n", [])) or 30
 
     return {
         "num_decision_variables": nvars,
@@ -292,7 +829,7 @@ def scenario_risk_from_plan(plan) -> dict:
 
     return {
         "valid": True,
-        "horizon": int(N),
+        "horizon": int(len(plan.g_n[:N])),
         "returns": {
             "avg": avg_return,
             "min": min_return,
@@ -366,14 +903,15 @@ def outcome_risk_from_plan(plan) -> dict:
     late_dd = late_dd[np.isfinite(late_dd)]
     late_drawdown = float(np.min(late_dd)) if len(late_dd) else None
 
-    # ✅ NEW METRICS
     terminal_ratio = None
     if final_assets > 0:
         terminal_ratio = float(spending_today[-1] / final_assets)
 
-    min_cushion = None
-    if max_assets > 0:
-        min_cushion = float(min_assets / max_assets)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratios = assets_today / spending_today
+
+    valid = ratios[np.isfinite(ratios)]
+    min_cushion = float(np.min(valid)) if len(valid) else None
 
     consumption_ratio = None
     if spending_today[0] > 0:
@@ -440,6 +978,61 @@ def outcome_risk_from_plan(plan) -> dict:
     }
 
 
+def summarize_risk(scenario: dict, outcome: dict) -> dict:
+    if not scenario.get("valid") or not outcome.get("valid"):
+        return {"valid": False}
+
+    severity = scenario.get("severity_score")
+    if isinstance(severity, (int, float)):
+        severity = float(min(max(severity, 0.0), 1.0))
+
+    risk_level = outcome.get("classification", {}).get("risk_level")
+
+    depletion = outcome.get("depletion", {}).get("depleted", False)
+    worst_dd = outcome.get("drawdown", {}).get("worst_drawdown_factor")
+    terminal_ratio = outcome.get("terminal", {}).get("spending_to_assets_ratio")
+
+    flags = set(scenario.get("flags", [])) | set(outcome.get("flags", []))
+
+    # --------------------------------------------------
+    # Harmonized (consumption-first) risk classification
+    # --------------------------------------------------
+
+    # Priority 1: depletion (true failure)
+    if depletion:
+        overall = "failure"
+
+    # Priority 2: spending-driven stress (from outcome flags)
+    elif "high_spending_pressure" in flags:
+        overall = "high"
+
+    # Priority 3: scenario severity (bad environment)
+    elif severity is not None and severity > 0.6:
+        overall = "high"
+
+    # Priority 4: drawdown (secondary signal, softened)
+    elif worst_dd is not None and worst_dd < 0.3:
+        overall = "moderate"
+
+    # Priority 5: fallback to outcome classification
+    elif risk_level in ("high", "moderate"):
+        overall = risk_level
+
+    else:
+        overall = "low"
+
+    return {
+        "valid": True,
+        "overall_risk": overall,
+        "scenario_severity": severity,
+        "depleted": depletion,
+        "worst_drawdown": worst_dd,
+        "terminal_ratio": terminal_ratio,
+        "flag_count": len(flags),
+        "flags": sorted(flags),
+    }
+
+
 # =========================================================
 # RISK WRAPPER
 # =========================================================
@@ -449,12 +1042,75 @@ def risk_from_plan(plan) -> dict:
     except Exception as e:
         scenario = {"valid": False, "reason": str(e)}
 
-    if (plan.caseStatus or "").lower() == "solved":
-        outcome = outcome_risk_from_plan(plan)
+    try:
+        solved = (plan.caseStatus or "").lower() == "solved"
+    except Exception:
+        solved = False
+
+    if solved:
+        try:
+            outcome = outcome_risk_from_plan(plan)
+        except Exception as e:
+            outcome = {"valid": False, "reason": f"outcome_error: {str(e)}"}
     else:
         outcome = {"valid": False, "reason": "plan_not_solved"}
 
-    return {"scenario": scenario, "outcome": outcome}
+    overall_risk = "failure" if not outcome.get("valid") else "unknown"
+
+    sev = scenario.get("severity_score")
+    if isinstance(sev, (int, float)):
+        sev = float(min(max(sev, 0.0), 1.0))
+
+    summary = summarize_risk(scenario, outcome)
+    if not summary.get("valid"):
+        summary = {
+            "valid": False,
+            "overall_risk": overall_risk,
+            "scenario_severity": sev,
+            "depleted": None,
+            "worst_drawdown": None,
+            "terminal_ratio": None,
+            "flag_count": None,
+            "flags": [],
+        }
+
+    return {
+        "scenario": scenario,
+        "outcome": outcome,
+        "summary": summary,
+    }
+
+
+def social_security_from_plan(plan) -> dict:
+    try:
+        # --------------------------------------------
+        # Mode (raw from plan)
+        # --------------------------------------------
+        optimized = plan._ssa_lp
+
+        # --------------------------------------------
+        # Optimized ages (actual result)
+        # --------------------------------------------
+        optimized_ages = None
+        if hasattr(plan, "ssecAges") and plan.ssecAges is not None:
+            try:
+                optimized_ages = [float(x) for x in plan.ssecAges]
+            except Exception:
+                optimized_ages = None
+
+        # --------------------------------------------
+        # Return
+        # --------------------------------------------
+        return {
+            "optimized": optimized,
+            "ages": optimized_ages,
+        }
+
+    except Exception:
+        return {
+            "optimized": None,
+            "ages": None,
+        }
 
 
 # =========================================================
@@ -497,40 +1153,166 @@ def score_trial(metrics: dict) -> dict:
 
 
 # =========================================================
+# RATES
+# =========================================================
+
+
+def rates_from_plan(plan) -> dict:
+    try:
+        tau = plan.tau_kn
+
+        stock = np.asarray(tau[0], dtype=float)
+        bonds = np.asarray(tau[2], dtype=float)
+        inflation = np.asarray(tau[3], dtype=float)
+
+        if stock.size == 0 or inflation.size == 0:
+            return {"valid": False, "reason": "empty rates"}
+
+        N = min(len(stock), len(inflation))
+        stock = stock[:N]
+        bonds = bonds[:N]
+        inflation = inflation[:N]
+
+        # --------------------------------------------------
+        # Real returns
+        # --------------------------------------------------
+        real = (1 + stock) / (1 + inflation) - 1
+
+        # --------------------------------------------------
+        # Helpers
+        # --------------------------------------------------
+        def stats(arr):
+            return {
+                "mean": float(np.mean(arr)),
+                "std": float(np.std(arr)),
+                "min": float(np.min(arr)),
+                "max": float(np.max(arr)),
+            }
+
+        def geom_mean(arr):
+            return float(np.prod(1 + arr) ** (1 / len(arr)) - 1)
+
+        # --------------------------------------------------
+        # Early regime (7-year default)
+        # --------------------------------------------------
+        k = min(7, N)
+
+        early_real = real[:k]
+
+        early = {
+            "years": int(k),
+            "real_mean": float(np.mean(early_real)),
+            "real_cagr": geom_mean(early_real),
+            "min_year": float(np.min(early_real)),
+        }
+
+        # --------------------------------------------------
+        # Return
+        # --------------------------------------------------
+        return {
+            "valid": True,
+            "returns": stats(stock),
+            "bonds": stats(bonds),
+            "inflation": stats(inflation),
+            "real": stats(real),
+            "early": early,
+        }
+
+    except Exception as e:
+        logger.exception("rates_from_plan failed")
+        return {"valid": False, "reason": str(e)}
+
+
+# =========================================================
 # WRITE JSON
 # =========================================================
-def write_metrics_json(plan, metrics_path: Path, timing: dict) -> Path:
-    solver = plan.solverOptions.get("solver", plan.defaultSolver)
-    if solver == "default":
-        solver = "MOSEK" if _mosek_available() else "HiGHS"
+def write_metrics_json(plan, metrics_path: Path, timing: dict, failure_override=None) -> Path:
+    def safe_call(fn, default):
+        try:
+            return fn(plan)
+        except Exception as e:
+            return {"valid": False, "reason": f"{fn.__name__}_error: {str(e)}"}
 
-    schema = "roost.metrics.v2"
+    try:
+        solver_opts = getattr(plan, "solverOptions", {})
+        default_solver = getattr(plan, "defaultSolver", "unknown")
 
-    identity = identity_from_plan(plan)
+        solver = solver_opts.get("solver", default_solver)
+        if solver == "default":
+            solver = "MOSEK" if _mosek_available() else "HiGHS"
 
-    run_status = classify_run_status_from_plan(plan)
-    risk = risk_from_plan(plan)
+        schema = "roost.metrics.v2"
 
-    if run_status["status"] == "solved":
-        financial = financials_from_plan(plan)
-    else:
-        financial = {}
+        identity = identity_from_plan(plan)
 
-    complexity = complexity_from_plan(plan)
+        if failure_override:
+            run_status = normalize_failure(failure_override)
+        else:
+            raw_status = classify_run_status_from_plan(plan)
+            run_status = normalize_failure(raw_status)
 
-    score = score_trial({"risk": risk, "financial": financial})
+        if run_status.get("failure_detail"):
+            run_status["failure_detail"] = run_status["failure_detail"].split("\n")[0][:120]
 
-    output_json = {
-        "schema": schema,
-        "identity": identity,
-        "run_status": run_status,
-        "timing": timing,
-        "solver": solver,
-        "financial": financial,
-        "risk": risk,
-        "complexity": complexity,
-        "score": score,
-    }
+        financial = safe_call(financials_from_plan, {})
+        risk = safe_call(risk_from_plan, {})
+        complexity = safe_call(complexity_from_plan, {})
+        social_security = safe_call(social_security_from_plan, {})
+
+        score = score_trial({"risk": risk, "financial": financial})
+        rates = safe_call(rates_from_plan, {})
+
+        output_json = {
+            "schema": schema,
+            "identity": identity,
+            "run_status": run_status,
+            "timing": timing,
+            "solver": solver,
+            "financial": financial,
+            "risk": risk,
+            "complexity": complexity,
+            "social_security": social_security,
+            "rates": rates,
+            "score": score,
+        }
+
+    except Exception as e:
+        output_json = {
+            "schema": "roost.metrics.v2",
+            "run_status": {
+                "status": "failed",
+                "failure_category": "metrics_error",
+                "failure_detail": str(e),
+            },
+            "timing": timing,
+            "financial": {},
+            "risk": {},
+            "rates": {},
+            "complexity": {},
+        }
+
+    # --------------------------------------------------
+    # 🔥 NORMALIZE STRUCTURE HERE (CRITICAL)
+    # --------------------------------------------------
+    run_status_obj = output_json.get("run_status", {})
+    status = run_status_obj.get("status", "unknown")
+
+    output_json = ensure_complete_metrics(output_json, status)
+
+    if status != "solved":
+        fin = output_json.setdefault("financial", {})
+
+        fin["valid"] = False
+
+        ts = fin.setdefault("timeseries", {})
+        spending = ts.setdefault("spending", {})
+        ratio = spending.setdefault("ratio", {})
+
+        # Ensure safe defaults
+        ratio.setdefault("by_year", [])
+        ratio.setdefault("min", 0.0)
+        ratio.setdefault("mean", 0.0)
+        ratio.setdefault("median", 0.0)
 
     with open(metrics_path, "w") as f:
         json.dump(output_json, f, indent=2, sort_keys=True)

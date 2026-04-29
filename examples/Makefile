@@ -41,3 +41,5 @@ adjust_cases:
 	cd example01 && uv run roost cases case_jack+jill.toml --set 'longevity.sex=["male","female"]' --apply
 	cd example01 && uv run roost cases case_john+sally.toml --set 'longevity.sex=["male","female"]' --apply
 	cd example01 && uv run roost cases case_jon+jane.toml --set 'longevity.sex=["male","female"]' --apply
+	cd example01 && uv run roost cases case_joe.toml --set 'longevity.sex=["male"]' --apply
+	cd example01 && uv run roost cases case_bill.toml --set 'longevity.sex=["male"]' --set 'household_financial_profile.HFP_file_name="None"' --apply

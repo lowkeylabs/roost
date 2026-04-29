@@ -1,0 +1,26 @@
+# --------------------------------------------------
+# Worker behavior
+# --------------------------------------------------
+worker_timeout: 20   # seconds
+
+# --------------------------------------------------
+# Parallelism limits (hardware-dependent)
+# --------------------------------------------------
+max_trial_jobs: 28
+max_run_jobs: 8
+
+# --------------------------------------------------
+# System tuning
+# --------------------------------------------------
+cpu_reserve: 2        # leave cores free (UI, OS, etc.)
+oversubscribe_factor: 1.5
+enforce_single_axis: true
+
+# --------------------------------------------------
+# Active runtime configuration (authoritative)
+# --------------------------------------------------
+trial_jobs: 8  # 8 for MOSEK, 10 for HiGHS, run_owl_as_subprocess=false
+run_jobs: 1
+
+owl_execution_mode: inprocess  # or subprocess
+math_library_threads: 1

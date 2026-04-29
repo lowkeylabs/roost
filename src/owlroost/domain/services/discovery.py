@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+from collections import defaultdict
 from pathlib import Path
 
 import yaml
 
+from ..models.case import Case
 from ..models.results import Experiment, Run, Trial
+from ..services.metrics import load_effective
+
+_CASE_CACHE: dict[Path, Case] = {}
 
 
 # =========================================================
@@ -15,10 +20,35 @@ def discover_experiments(results_dir) -> list[Experiment]:
     experiments: list[Experiment] = []
     exp_id = 0
 
+    case_id_map: dict[str, int] = {}
+    next_case_id = 0
+
     for case_dir in sorted(p for p in results_dir.iterdir() if p.is_dir()):
+        case_name = case_dir.name
+
+        if case_name not in case_id_map:
+            case_id_map[case_name] = next_case_id
+            next_case_id += 1
+
+        case_id = case_id_map[case_name]
+
         for date_dir in sorted(p for p in case_dir.iterdir() if p.is_dir()):
             for time_dir in sorted(p for p in date_dir.iterdir() if p.is_dir()):
                 runs: list[Run] = []
+
+                # ----------------------------------------
+                # Load multirun metadata (optional)
+                # ----------------------------------------
+                exp_meta = load_multirun_meta(time_dir)
+                case_path = get_case_path_from_multirun(exp_meta)
+
+                case_obj = None
+
+                if case_path and case_path.exists():
+                    case_path = case_path.resolve()
+                    if case_path not in _CASE_CACHE:
+                        _CASE_CACHE[case_path] = Case(case_path)
+                    case_obj = _CASE_CACHE[case_path]
 
                 # ----------------------------------------
                 # Build runs
@@ -72,6 +102,28 @@ def discover_experiments(results_dir) -> list[Experiment]:
                         )
                     )
 
+                if case_obj is None and runs:
+                    for r in runs:
+                        for t in r.trials:
+                            if t.data:
+                                # load effective TOML lazily
+                                eff = load_effective(t.path)
+                                case_file = (eff.get("case") or {}).get("file")
+                                if case_file:
+                                    try:
+                                        p = Path(case_file).resolve()
+                                        if p not in _CASE_CACHE:
+                                            _CASE_CACHE[p] = Case(p)
+                                        case_obj = _CASE_CACHE[p]
+                                        break
+                                    except Exception:
+                                        pass
+                        if case_obj:
+                            break
+
+                if case_obj and not case_path:
+                    case_path = case_obj.path
+
                 # ----------------------------------------
                 # Compute overrides across runs
                 # ----------------------------------------
@@ -84,16 +136,21 @@ def discover_experiments(results_dir) -> list[Experiment]:
                     Experiment(
                         id=exp_id,
                         case=case_dir.name,
+                        case_id=case_id,
                         date=date_dir.name,
                         time=time_dir.name,
                         path=time_dir,
                         runs=runs,
-                        common_overrides=_get_common_overrides(runs),  # ✅ NEW
+                        common_overrides=_get_common_overrides(runs),
+                        case_obj=case_obj,
+                        case_path=case_path,
+                        meta=exp_meta,
                     )
                 )
 
                 exp_id += 1
 
+    _mark_duplicate_runs(experiments)
     return experiments
 
 
@@ -160,6 +217,124 @@ def _parse_overrides(override_list: list[str]) -> dict:
     return result
 
 
+def compute_run_signature(run: Run, exp: Experiment) -> str:
+    merged: dict[str, str] = {}
+
+    # ----------------------------------------
+    # Filter overrides (keep logical config)
+    # ----------------------------------------
+    def normalize(d):
+        out = {}
+
+        for k, v in (d or {}).items():
+            # skip runtime noise, but KEEP trial.count separately
+            if k.startswith("hydra."):
+                continue
+            if k.startswith("trial.") and k != "trial.count":
+                continue
+
+            v = str(v).strip()
+
+            if v.endswith(".0"):
+                v = v[:-2]
+
+            out[k] = v
+
+        return out
+
+    merged.update(normalize(run.common_overrides))
+    merged.update(normalize(run.run_overrides))
+
+    # ----------------------------------------
+    # IMPORTANT: include requested trial.count from raw overrides
+    # ----------------------------------------
+    raw = (run.meta or {}).get("overrides", [])
+
+    for o in raw or []:
+        if "=" not in o:
+            continue
+        k, v = o.split("=", 1)
+        k = k.strip()
+        v = v.strip()
+
+        if k == "trial.count":
+            merged["trial.count"] = v
+
+    # ----------------------------------------
+    # Fill known defaults
+    # ----------------------------------------
+    DEFAULTS = {
+        "solver_options.bequest": "0",
+        "optimization_parameters.objective": "maxSpending",
+    }
+
+    for k, v in DEFAULTS.items():
+        merged.setdefault(k, v)
+
+    # ----------------------------------------
+    # Stable ordering
+    # ----------------------------------------
+    items = sorted(merged.items())
+
+    return json.dumps(items)
+
+
+def _mark_duplicate_runs(experiments: list[Experiment]) -> None:
+    """
+    Identify duplicate runs within each case and mark:
+
+        run.is_duplicate
+        run.is_latest_duplicate
+
+    Grouping:
+        - by case
+        - by signature
+    """
+
+    # ----------------------------------------
+    # Group by (case, signature)
+    # ----------------------------------------
+    groups: dict[tuple[str, str], list[tuple[Experiment, Run]]] = defaultdict(list)
+
+    for exp in experiments:
+        for run in exp.runs:
+            sig = compute_run_signature(run, exp)
+
+            run.signature = sig  # attach for debugging / future use
+            # print(sig)
+            key = (exp.case, sig)
+            groups[key].append((exp, run))
+
+    # ----------------------------------------
+    # Process each group
+    # ----------------------------------------
+    for (_, _), items in groups.items():
+        if len(items) == 1:
+            # Not a duplicate
+            _, run = items[0]
+            run.is_duplicate = False
+            run.is_latest_duplicate = True
+            continue
+
+        # ----------------------------------------
+        # Sort by (date, time) → oldest → newest
+        # ----------------------------------------
+        items_sorted = sorted(items, key=lambda x: (x[0].date, x[0].time, x[1].run_id or 0))
+
+        # ----------------------------------------
+        # Mark all as duplicates
+        # ----------------------------------------
+        for _, run in items_sorted:
+            run.is_duplicate = True
+            run.is_latest_duplicate = False
+
+        # ----------------------------------------
+        # Mark newest as canonical
+        # ----------------------------------------
+        _, latest_run = items_sorted[-1]
+        latest_run.is_latest_duplicate = True
+
+
 # =========================================================
 # Trial Helpers (unchanged)
 # =========================================================
@@ -202,3 +377,22 @@ def load_hydra_meta(run_dir: Path) -> dict:
             return yaml.safe_load(f) or {}
     except Exception:
         return {}
+
+
+def load_multirun_meta(time_dir: Path) -> dict:
+    file = time_dir / "multirun.yaml"
+    if not file.exists():
+        return {}
+
+    try:
+        with file.open() as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+
+
+def get_case_path_from_multirun(meta: dict) -> Path | None:
+    case_file = (meta.get("case") or {}).get("file")
+    if case_file:
+        return Path(case_file)
+    return None

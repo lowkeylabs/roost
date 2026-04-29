@@ -4,6 +4,21 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+AGG_DEFAULT_FMT = {
+    "cnt": "int",
+    "cnt_true": "int",
+    "pct": "percent",
+    "ratio": "count_ratio",
+    "mean": None,
+    "median": None,
+    "sum": None,
+    "min": None,
+    "max": None,
+    "p10": None,
+    "p90": None,
+    "p99": None,
+}
+
 
 @dataclass(slots=True)
 class AggContext:
@@ -24,6 +39,10 @@ type AggExplainFn = Callable[[AggContext], str]
 
 def mean(values):
     return statistics.mean(values) if values else None
+
+
+def std(values):
+    return statistics.stdev(values) if len(values) > 1 else 0
 
 
 def median(values):
@@ -56,6 +75,16 @@ def percentile(values, p):
 
 def len_(values):
     return len(values) if values else 0
+
+
+def cnt_true(values):
+    return sum(values) if values else 0
+
+
+def ratio(values):
+    if not values:
+        return (0, 0)
+    return (sum(values), len(values))
 
 
 # =========================================================
@@ -98,6 +127,15 @@ register_aggregation(
 )
 
 register_aggregation(
+    "std",
+    std,
+    explain=lambda ctx: (
+        "Standard deviation"
+        + (f" based on {ctx.n_valid}/{ctx.n_total} observations" if ctx.n_total else "")
+    ),
+)
+
+register_aggregation(
     "pct",
     mean,
     explain=lambda ctx: (
@@ -113,6 +151,16 @@ register_aggregation(
         f"{ctx.n_valid}/{ctx.n_total} observations"
         if ctx.n_total is not None
         else "Count of observations"
+    ),
+)
+
+register_aggregation(
+    "cnt_true",
+    cnt_true,
+    explain=lambda ctx: (
+        f"{sum(ctx.agg_values)}/{ctx.n_total} true observations"
+        if ctx.n_total is not None
+        else "Count of true values"
     ),
 )
 
@@ -166,5 +214,25 @@ register_aggregation(
     explain=lambda ctx: (
         "90th percentile (upside outcome)"
         + (f" based on {ctx.n_valid}/{ctx.n_total} observations" if ctx.n_total else "")
+    ),
+)
+
+register_aggregation(
+    "p99",
+    lambda v: percentile(v, 99),
+    explain=lambda ctx: (
+        "99th percentile (upside outcome)"
+        + (f" based on {ctx.n_valid}/{ctx.n_total} observations" if ctx.n_total else "")
+    ),
+)
+
+
+register_aggregation(
+    "ratio",
+    ratio,
+    explain=lambda ctx: (
+        f"{sum(ctx.agg_values)}/{ctx.n_total} true observations"
+        if ctx.n_total is not None
+        else "Ratio of true values"
     ),
 )

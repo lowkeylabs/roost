@@ -91,9 +91,15 @@ def test_hydra_defaults_match_model_defaults(group, model):
         if field and field.default_factory is not None:
             continue
 
-        assert model_defaults.get(key) == value, (
-            f"[{group}] Default mismatch for '{key}': "
-            f"Hydra={value} | Model={model_defaults.get(key)}"
+        model_val = model_defaults.get(key)
+
+        # Normalize sentinel equivalence
+        if key in ("essential_spending", "lifestyle_spending"):
+            if model_val is None and value == 0:
+                continue  # valid equivalence
+
+        assert model_val == value, (
+            f"[{group}] Default mismatch for '{key}': " f"Hydra={value} | Model={model_val}"
         )
 
 

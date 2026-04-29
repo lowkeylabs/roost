@@ -26,6 +26,9 @@ date_of_birth = ["1960-01-01", "1961-01-01"]
 life_expectancy = [85, 85]
 start_date = "2026-01-01"
 
+[household_financial_profile]
+HFP_file_name = "None"
+
 [savings_assets]
 taxable_savings_balances = [1000.0, 500.0]
 tax_deferred_savings_balances = [0.0, 0.0]
@@ -96,10 +99,8 @@ def test_historical_complete_multiple_slices(tmp_path, monkeypatch):
         cmd_run,
         [
             str(case_file),
-            "experiment=augmented_sampling",
+            "experiment_name=augmented_sampling",
             "rates_selection.from_to=[[1966,1970],[1988,1992]]",
-            "--trial-jobs=1",
-            "--run-jobs=1",
         ],
     )
 

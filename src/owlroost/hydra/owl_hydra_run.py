@@ -1,7 +1,6 @@
 # src/owlroost/hydra/owl_hydra_run.py
 
-import time
-from multiprocessing import Pool
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import hydra
@@ -9,11 +8,14 @@ import numpy as np
 from hydra.core.hydra_config import HydraConfig
 from loguru import logger
 from omegaconf import DictConfig
-from tqdm import tqdm
 
 from owlroost.cli.utils import normalize_case_file_overrides
 from owlroost.core.configure_logging import configure_logging
 from owlroost.core.override_parser import hydra_overrides_to_dict
+from owlroost.core.progress import (
+    init_progress,
+    record_progress,
+)
 from owlroost.hydra.helpers import (
     PROJECT_ROOT,
     bootstrap_logging,
@@ -24,6 +26,7 @@ from owlroost.hydra.helpers import (
     save_hydra_metadata,
 )
 from owlroost.hydra.trial_worker import run_trial
+from owlroost.hydra.worker_pool import safe_run_trial
 
 # ---------------------------------------------------------------------
 # Bootstrap (must run before Hydra initializes)
@@ -39,7 +42,7 @@ def fits_uint32(n: int) -> bool:
     return 0 <= n <= 0xFFFFFFFF
 
 
-def _extract_trial_override(overrides: dict, key: str, default: int | None = None):
+def _extract_trial_id_override(overrides: dict, key: str, default: int | None = None):
     try:
         return int(overrides.get("trial", {}).get(key, default))
     except Exception:
@@ -74,17 +77,22 @@ def orchestrate_trials(
     master_seed: int,
     trial_ids: list[int],
     use_trial_seeds: bool,
-    n_jobs: int,
+    trial_jobs: int,
     case_file: Path,
     overrides: dict,
     run_dir: Path,
     longevity_cfg: dict,
+    progress_file: Path | None = None,
+    worker_fn=None,
 ):
     """
     Pure orchestration layer.
     Robust against worker crashes.
     Fully testable.
     """
+
+    if worker_fn is None:
+        worker_fn = run_trial
 
     if use_trial_seeds:
         seed_map = spawn_trial_seeds(master_seed, trial_ids)
@@ -96,11 +104,12 @@ def orchestrate_trials(
         rates_seed, longevity_seed = seed_map[tid]
 
         logger.debug(
-            "{} - Trial {:04d} seeds: rates={}, longevity={}",
+            "{} - Trial {:04d} seeds: rates={}, longevity={}, trial_jobs={}",
             job_id,
             tid,
             rates_seed,
             longevity_seed,
+            trial_jobs,
         )
 
         trial_args.append(
@@ -117,108 +126,80 @@ def orchestrate_trials(
             )
         )
 
-    n_trials = len(trial_args)
+    is_single_trial = len(trial_ids) == 1
     results = []
-
-    HEARTBEAT_SEC = 1
-    last_update = time.monotonic()
 
     # -----------------------------------------------------
     # Single-process mode
     # -----------------------------------------------------
-    if n_jobs == 1:
+    if trial_jobs == 1:
         for args in trial_args:
-            try:
-                results.append(run_trial(*args))
-            except Exception as e:
-                tid = args[1]
-                logger.exception("{} - Trial {:04d} crashed", job_id, tid)
+            r = safe_run_trial((worker_fn, args))
+            results.append(r)
 
-                results.append(
-                    {
-                        "trial_id": tid,
-                        "rates_seed": args[2],
-                        "longevity_seed": args[3],
-                        "status": "error",
-                        "output": None,
-                        "error": str(e),
-                    }
+            tid = r.get("trial_id")
+            if progress_file is not None and tid is not None:
+                status = r.get("status", "unknown")
+                if status == "solved":
+                    progress_status = "completed"
+                elif status in ("failed", "timeout", "crashed"):
+                    progress_status = "failed"
+                else:
+                    progress_status = "failed"
+
+                record_progress(
+                    progress_file,
+                    job_id,
+                    tid,
+                    progress_status,
+                    elapsed=r.get("elapsed_seconds"),
+                    started_at=r.get("started_at"),
+                    finished_at=r.get("finished_at"),
                 )
 
     # -----------------------------------------------------
     # Multiprocessing mode
     # -----------------------------------------------------
     else:
-        with Pool(processes=n_jobs) as pool:
-            async_results = [
-                (tid, pool.apply_async(run_trial, args))
-                for tid, args in zip(trial_ids, trial_args, strict=False)
-            ]
+        with ProcessPoolExecutor(max_workers=trial_jobs) as executor:
+            futures = [executor.submit(safe_run_trial, (worker_fn, args)) for args in trial_args]
 
-            completed = 0
+            for future in as_completed(futures):
+                try:
+                    r = future.result(timeout=300)
+                except Exception as e:
+                    r = {
+                        "trial_id": None,
+                        "status": "crashed",
+                        "error": str(e),
+                    }
 
-            with tqdm(
-                total=n_trials,
-                desc=f"{job_id}",
-                unit="trial",
-                dynamic_ncols=True,
-                bar_format="{desc}: {percentage:.1f}% |{bar}| {postfix}",
-            ) as pbar:
-                while completed < n_trials:
-                    for tid, async_r in async_results:
-                        if async_r is None:
-                            continue
+                results.append(r)
 
-                        if async_r.ready():
-                            try:
-                                r = async_r.get()
+                tid = r.get("trial_id")
+                if progress_file is not None and tid is not None:
+                    status = r.get("status", "unknown")
+                    if status == "solved":
+                        progress_status = "completed"
+                    elif status in ("failed", "timeout", "crashed"):
+                        progress_status = "failed"
+                    else:
+                        progress_status = "failed"
 
-                            except Exception as e:
-                                logger.exception(
-                                    "{} - Trial {:04d} crashed: {}",
-                                    job_id,
-                                    tid,
-                                    e,
-                                )
-
-                                r = {
-                                    "trial_id": tid,
-                                    "rates_seed": None,
-                                    "longevity_seed": None,
-                                    "status": "error",
-                                    "output": None,
-                                    "error": str(e),
-                                }
-
-                            results.append(r)
-
-                            completed += 1
-                            pbar.update(1)
-
-                            async_results = [
-                                (t, a) if t != tid else (t, None) for t, a in async_results
-                            ]
-
-                    now = time.monotonic()
-                    if now - last_update >= HEARTBEAT_SEC:
-                        elapsed = pbar.format_dict["elapsed"] or 0.0
-                        spt = elapsed / max(completed, 1)
-
-                        pbar.set_postfix_str(
-                            f"elapsed={elapsed:.1f}s, "
-                            f"running={completed}/{n_trials}, "
-                            f"s_per_trial={spt:.1f}s"
-                        )
-
-                        pbar.refresh()
-                        last_update = now
-
-                    time.sleep(0.2)
+                    record_progress(
+                        progress_file,
+                        job_id,
+                        tid,
+                        progress_status,
+                        elapsed=r.get("elapsed_seconds"),
+                        started_at=r.get("started_at"),
+                        finished_at=r.get("finished_at"),
+                    )
 
     solved = [r for r in results if r["status"] == "solved"]
     failed = [r for r in results if r["status"] != "solved"]
 
-    logger.info(
+    logger.debug(
         "{} - Trials complete: {} solved, {} failed",
         job_id,
         len(solved),
@@ -226,12 +207,25 @@ def orchestrate_trials(
     )
 
     if failed:
-        logger.warning(
+        logger.debug(
             "{} - Failed trial IDs: {}",
             job_id,
             [r["trial_id"] for r in sorted(failed, key=lambda x: x["trial_id"])],
         )
 
+        if is_single_trial:
+            err = failed[0].get("error")
+            if err:
+                logger.error("\n--- Trial Failure Detail ---\n{}\n", err)
+
+    if results is not None:
+        expected = len(trial_ids)
+        actual = len(results)
+
+        if actual != expected:
+            logger.error("{} - Expected {} results, got {}", job_id, expected, actual)
+
+        results.sort(key=lambda r: (r.get("trial_id") is None, r.get("trial_id")))
     return results
 
 
@@ -251,13 +245,13 @@ def get_master_seed(cfg: DictConfig, job_id: str) -> int | None:
 
     else:
         # No seed defined → deterministic mode
-        logger.info("{} - No master_seed defined (deterministic mode)", job_id)
+        logger.debug("{} - No master_seed defined (deterministic mode)", job_id)
         return None
 
     if not fits_uint32(master_seed):
         raise ValueError(f"Invalid master_seed (must fit uint32): {master_seed}")
 
-    logger.info("{} - Using master_seed={} (source={})", job_id, master_seed, source)
+    logger.debug("{} - Using master_seed={} (source={})", job_id, master_seed, source)
     return master_seed
 
 
@@ -288,12 +282,18 @@ def run_hydra_job(cfg: DictConfig):
         mode = "UNIT_TEST"
 
     overrides = hydra_overrides_to_dict(raw_overrides)
+    overrides.setdefault("runtime", {})
+    overrides["runtime"]["worker_timeout"] = int(cfg.runtime.worker_timeout)
+
     clean_overrides = normalize_case_file_overrides(raw_overrides)
 
     logger.debug("{} - overrides: {}", job_id, " ".join(clean_overrides))
 
     run_dir = get_run_dir()
     logger.debug("{} - Run directory: {}", job_id, run_dir.relative_to(PROJECT_ROOT))
+
+    progress_file = run_dir.parent / "progress.log"
+    init_progress(progress_file)
 
     master_seed = get_master_seed(cfg, job_id)
 
@@ -305,31 +305,55 @@ def run_hydra_job(cfg: DictConfig):
         extra={"master_seed": master_seed},
     )
 
-    trial_cfg = cfg.trial
-    n_jobs = int(trial_cfg.n_jobs)
+    trial_jobs = int(cfg.runtime.trial_jobs)
 
-    trial_id_override = _extract_trial_override(overrides, "id")
-    trial_count_override = _extract_trial_override(overrides, "count", default=int(trial_cfg.count))
+    try:
+        hc = HydraConfig.get()
+        launcher_cfg = getattr(hc, "launcher", None)
+        run_jobs = int(getattr(launcher_cfg, "n_jobs", 1))
+    except Exception:
+        # --------------------------------------------------
+        # Fallback for tests / non-Hydra execution
+        # --------------------------------------------------
+        run_jobs = int(cfg.get("hydra", {}).get("launcher", {}).get("n_jobs", 1))
 
-    use_trial_seeds = trial_id_override is not None or trial_count_override > 1
+    if trial_jobs > 1 and run_jobs > 1:
+        raise RuntimeError("Invalid configuration: cannot parallelize both trials and runs.")
+
+    trial_id_override = _extract_trial_id_override(overrides, "id")
+
+    try:
+        trials_per_run = int(cfg.roost.trials_per_run)
+    except Exception:
+        trials_per_run = 1
+
+    use_trial_seeds = trial_id_override is not None or trials_per_run > 1
 
     if trial_id_override is not None:
         trial_ids = [trial_id_override]
-    elif trial_count_override == 1:
+    elif trials_per_run == 1:
         trial_ids = [0]
     else:
-        trial_ids = list(range(trial_count_override))
+        trial_ids = list(range(trials_per_run))
+
+    logger.debug(
+        "{} - trials_per_run={} → trial_ids={}",
+        job_id,
+        trials_per_run,
+        trial_ids,
+    )
 
     orchestrate_trials(
         job_id=job_id,
         master_seed=master_seed,
         trial_ids=trial_ids,
         use_trial_seeds=use_trial_seeds,
-        n_jobs=n_jobs,
+        trial_jobs=trial_jobs,
         case_file=case_file,
         overrides=overrides,
         run_dir=run_dir,
         longevity_cfg=dict(cfg.longevity),
+        progress_file=progress_file,
     )
 
 

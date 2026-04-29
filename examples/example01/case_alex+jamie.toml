@@ -4,6 +4,7 @@ description = "Alex and Jamie face a stark longevity gap: Alex has a shorter lif
 [basic_info]
 status = "married"
 names = [ "Alex", "Jamie",]
+sexes = [ "M", "F",]
 date_of_birth = [ "1960-01-15", "1961-01-17",]
 life_expectancy = [ 72, 90,]
 start_date = "2026-01-01"
@@ -75,11 +76,24 @@ health = [ "average", "average",]
 smoker = [ false, false,]
 
 [roost]
-master_seed = 2998135032
-trials = 1
+master_seed = 985114884
+trials_per_run = 1
+
+[runtime_environment]
+OMP_NUM_THREADS = 1
+MKL_NUM_THREADS = 1
+OPENBLAS_NUM_THREADS = 1
+MSK_IPAR_NUM_THREADS = 1
+
+[spending_policy]
+essential_spending = 80
+lifestyle_spending = 110
+baseline_years = 3
+max_years_below_threshhold = 5
+max_consecutive_years_below_threshhold = 5
 
 [cache]
-generated_at = "2026-03-15T19:50:44.354378"
+generated_at = "2026-04-22T13:21:28.135253"
 retirement_horizon = 3
 max_spending = 233697.81
 first_year_total_withdrawals = 147941.0

@@ -26,6 +26,9 @@ date_of_birth = ["1960-01-15", "1961-01-17"]
 life_expectancy = [72, 90]
 start_date = "2026-01-01"
 
+[household_financial_profile]
+HFP_file_name = "None"
+
 [savings_assets]
 taxable_savings_balances = [500.0, 200.0]
 tax_deferred_savings_balances = [1500.0, 400.0]
@@ -94,8 +97,6 @@ def run_cli(runner: CliRunner, case_file: Path, *extra_args):
         cmd_run,
         [
             str(case_file),
-            "--trial-jobs=1",
-            "--run-jobs=1",
             *extra_args,
         ],
     )
@@ -148,7 +149,8 @@ def test_multi_trial_injects_seeds(tmp_path, monkeypatch):
         case_file,
         "longevity=default",
         "longevity.apply_to_plan=false",
-        "--trials=3",
+        "runtime.worker_timeout=15",
+        "roost.trials_per_run=3",
     )
 
     assert result.exit_code == 0
@@ -171,7 +173,7 @@ def test_longevity_not_applied_when_flag_false(tmp_path, monkeypatch):
         case_file,
         "longevity=default",
         "longevity.apply_to_plan=false",
-        "--trials=2",
+        "roost.trials_per_run=2",
     )
 
     assert result.exit_code == 0
@@ -193,7 +195,7 @@ def test_longevity_overwrites_when_enabled(tmp_path, monkeypatch):
         case_file,
         "longevity=default",
         "longevity.apply_to_plan=true",
-        "--trials=2",
+        "roost.trials_per_run=2",
     )
 
     assert result.exit_code == 0
@@ -216,7 +218,7 @@ def test_longevity_override_auto_activates_group(tmp_path, monkeypatch):
         runner,
         case_file,
         "longevity.apply_to_plan=true",
-        "--trials=2",
+        "roost.trials_per_run=2",
     )
 
     assert result.exit_code == 0
@@ -233,7 +235,9 @@ def test_promoted_effective_runs_as_is(tmp_path, monkeypatch):
 
     runner = CliRunner()
 
-    result = run_cli(runner, case_file, "--trials=2")
+    result = run_cli(
+        runner, case_file, "roost.trials_per_run=2", "rates_selection.method=bootstrap_sor"
+    )
     print("FIRST RUN EXIT:", result.exit_code)
     print("FIRST RUN OUTPUT:")
     print(result.output)

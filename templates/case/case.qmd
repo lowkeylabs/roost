@@ -1,0 +1,7 @@
+---
+title: CASE
+---
+
+this is case.qmd
+
+{{< include ../../templates/case/_case_0.qmd >}}

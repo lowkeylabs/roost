@@ -17,6 +17,7 @@ import toml
 from loguru import logger
 
 from owlroost.core.metrics_from_plan import write_metrics_json
+from owlroost.domain.models.case import Case
 
 # ---------------------------------------------------------------------
 # Result object
@@ -29,6 +30,11 @@ class PlanRunResult:
     output_file: str | None = None
     summary: dict | None = None
     adjusted_toml: str | None = None
+
+    # 🔥 NEW
+    failure_category: str | None = None
+    failure_subtype: str | None = None
+    failure_detail: str | None = None
 
 
 # ---------------------------------------------------------------------
@@ -278,6 +284,8 @@ def run_single_case(
     # Handle HFP relocation
     hfp_section = toml_dict.get("household_financial_profile", {})
     hfp_file = hfp_section.get("HFP_file_name")
+    if str(hfp_file) in ("", "None"):
+        hfp_file = None
 
     trial_path = Path(output_file).parent
 
@@ -297,26 +305,66 @@ def run_single_case(
 
     save_early_files(output_file, modified_toml, original_toml)
 
-    plan = owl.readConfig(
-        toml_buf,
-        logstreams="loguru",
-        loadHFP=False,
-    )
+    try:
+        plan = owl.readConfig(
+            toml_buf,
+            logstreams="loguru",
+            loadHFP=False,
+        )
+        case = Case(Path(case_file))
+        plan._case = case
 
-    if hfp_file:
-        plan.readHFP(str(hfp_modified))
+    except Exception as e:
+        return PlanRunResult(
+            status="failed",
+            failure_category="input_error",
+            failure_subtype="config_load",
+            failure_detail=str(e),
+        )
 
-    solve_and_save(plan, output_file)
+    try:
+        if hfp_file:
+            plan.readHFP(str(hfp_modified))
+    except Exception as e:
+        return PlanRunResult(
+            status="failed",
+            failure_category="input_error",
+            failure_subtype="hfp_load",
+            failure_detail=str(e),
+        )
 
-    status_file = Path(trial_path) / plan.caseStatus.upper()
+    try:
+        solve_and_save(plan, output_file)
+        status = (plan.caseStatus or "unknown").lower()
+
+    except Exception as e:
+        return PlanRunResult(
+            status="failed",
+            failure_category="runtime_error",
+            failure_subtype="solve_exception",
+            failure_detail=str(e),
+        )
+
+    # --------------------------------------------------
+    # ALWAYS write status file
+    # --------------------------------------------------
+    status_file = Path(trial_path) / status.upper()
     status_file.touch(exist_ok=True)
 
-    if plan.caseStatus != "solved":
-        return PlanRunResult(status=plan.caseStatus)
+    if status != "solved":
+        return PlanRunResult(
+            status="failed",
+            failure_category="solver_result",
+            failure_subtype=status,
+            failure_detail=status,
+        )
 
     return PlanRunResult(
         status="solved",
         output_file=output_file,
         summary=plan.summaryDic(),
         adjusted_toml=modified_toml,
+        failure_category=None,
+        failure_subtype=None,
+        failure_detail=None,
     )

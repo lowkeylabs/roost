@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from loguru import logger
 from owlplanner.config.toml_io import load_toml
 
 from owlroost.domain.metrics.metric_registry import METRIC_REGISTRY
@@ -22,6 +23,7 @@ def load_metrics(trial_path: Path) -> dict | None:
 
 def load_effective(trial_path: Path) -> dict:
     file = next(trial_path.glob("*_effective.toml"), None)
+    logger.debug(f"effective_toml: {str(file)}")
 
     if not file:
         return {}
@@ -47,15 +49,130 @@ def load_effective(trial_path: Path) -> dict:
         return {}
 
 
+_progress_cache: dict[Path, dict[int, dict]] = {}
+
+
+def _load_progress_file(progress_file: Path) -> dict[tuple[int, int], dict]:
+    """
+    Load progress.log and key by (run_index, trial_id).
+
+    This avoids collisions where multiple runs reuse the same trial_id.
+    """
+    result: dict[tuple[int, int], dict] = {}
+
+    try:
+        with open(progress_file) as f:
+            for line in f:
+                parts = line.strip().split(",")
+
+                if len(parts) < 6:
+                    continue
+
+                finished_at, job_id, tid, status, elapsed, started_at = parts
+
+                # parse trial id
+                try:
+                    tid_int = int(tid)
+                except Exception:
+                    continue
+
+                # parse run index from job_id like "run_3"
+                try:
+                    run_idx = int(job_id.split("_")[1])
+                except Exception:
+                    continue
+
+                key = (run_idx, tid_int)
+
+                result[key] = {
+                    "elapsed_seconds": float(elapsed),
+                    "started_at": float(started_at),
+                    "finished_at": float(finished_at),
+                }
+
+    except Exception:
+        return {}
+
+    return result
+
+
+def load_progress(trial_path: Path, base_row: dict | None = None) -> dict:
+    """
+    Load per-trial progress data using (run, trial_id) key.
+
+    Requires run index from base_row (already available via enrich_row).
+    """
+    try:
+        progress_file = trial_path.parents[2] / "progress.log"
+
+        if not progress_file.exists():
+            return {}
+
+        if progress_file not in _progress_cache:
+            _progress_cache[progress_file] = _load_progress_file(progress_file)
+
+        # parse trial id
+        try:
+            trial_id_int = int(trial_path.name)
+        except Exception:
+            return {}
+
+        # extract run index (must exist)
+        run_idx = None
+        if base_row:
+            run_idx = base_row.get("run")
+
+        if run_idx is None:
+            return {}
+
+        return _progress_cache[progress_file].get((run_idx, trial_id_int), {})
+
+    except Exception:
+        return {}
+
+
 def extract_row(data: dict, specs: list[MetricSpec], base_row: dict | None = None) -> dict:
-    row = base_row.copy() if base_row else {}
+    #    row = {
+    #        **(base_row or {}),
+    #        **data,
+    #    }
+
+    row = dict(base_row) if base_row is not None else {}
+    if data:
+        for k, v in data.items():
+            if k in row:
+                # prefer structured data over scalar
+                if isinstance(v, dict) and not isinstance(row[k], dict):
+                    row[k] = v
+                continue
+
+            row[k] = v
+
+    run_status = data.get("run_status", {}) if data else {}
+
+    if run_status:
+        row["status"] = run_status.get("status")
+        row["failure_category"] = run_status.get("failure_category")
+        row["failure_detail"] = run_status.get("failure_detail")
+
+    status = (row.get("status") or "").lower()
+    row["status"] = status
+
+    failure_category = row.get("failure_category")
+
+    if status == "failed" and not failure_category:
+        row["failure_category"] = "unknown_failure"
+
+    # ensure path-based metrics come before compute_fn
+    specs = sorted(specs, key=lambda s: bool(s.compute_fn))
 
     for spec in specs:
         try:
             # ----------------------------------------
             # 1. compute_fn (explicit override)
             # ----------------------------------------
-            if spec.compute_fn:
+
+            if spec.compute_fn and spec.compute_level == "trial":
                 row[spec.key] = spec.compute_fn(row)
 
             # ----------------------------------------
@@ -67,7 +184,7 @@ def extract_row(data: dict, specs: list[MetricSpec], base_row: dict | None = Non
             # ----------------------------------------
             # 3. path-based extraction
             # ----------------------------------------
-            elif spec.path:
+            elif spec.path and not spec.compute_fn:
                 row[spec.key] = spec.extract(data)
 
             # ----------------------------------------
@@ -88,12 +205,12 @@ def build_trial_row(
     base_row: dict | None = None,
 ) -> dict | None:
     #
-    data = load_metrics(trial_path)
     metrics_data = load_metrics(trial_path)
     if not metrics_data:
         return None
 
     effective_data = load_effective(trial_path)
+    progress_data = load_progress(trial_path, base_row)
 
     # ----------------------------------------
     # Unified data payload (NEW)
@@ -101,9 +218,30 @@ def build_trial_row(
     data = {
         **metrics_data,
         "_inputs": effective_data,  # namespaced input layer
+        "_progress": progress_data,
     }
+
+    if progress_data:
+        data.update(progress_data)
 
     if specs is None:
         specs = list(METRIC_REGISTRY.values())
 
-    return extract_row(data, specs, base_row=base_row)
+    row = extract_row(data, specs, base_row=base_row)
+
+    # ----------------------------------------
+    # Attach file system context (CRITICAL)
+    # ----------------------------------------
+    row["_trial_path"] = str(trial_path)
+
+    # safer than string formatting
+    eff = next(trial_path.glob("*_effective.toml"), None)
+    met = next(trial_path.glob("*_metrics.json"), None)
+
+    if eff:
+        row["_effective_toml"] = str(eff)
+
+    if met:
+        row["_metrics_json"] = str(met)
+
+    return row
