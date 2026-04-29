@@ -104,25 +104,33 @@ register_metric(
 
 
 def _compute_requested_trials(r):
-    # Try overrides first (most reliable)
-    val = (r.get("_inputs", {}) or {}).get("trial", {}).get("count")
+    inputs = r.get("_inputs", {}) or {}
 
-    if val is not None:
-        try:
-            return int(val)
-        except Exception:
-            pass
+    # ----------------------------------------
+    # 1. Try common representations
+    # ----------------------------------------
+    candidates = [
+        inputs.get("trial.count"),                 # flattened Hydra style
+        inputs.get("trial_count"),                 # alternate flatten
+        (inputs.get("trial") or {}).get("count"),  # nested (original intent)
+        (inputs.get("roost") or {}).get("trials"), # your fallback
+    ]
 
-    # fallback: raw overrides (string-based)
-    raw = (r.get("_inputs", {}) or {}).get("roost", {}) or {}
-    if "trials" in raw:
-        try:
-            return int(raw["trials"])
-        except Exception:
-            pass
+    for val in candidates:
+        if val is not None:
+            try:
+                return int(val)
+            except Exception:
+                pass
+
+    # ----------------------------------------
+    # 2. Final fallback: infer from trial rows
+    # ----------------------------------------
+    trial_rows = (r.get("_ctx", {}) or {}).get("trial_rows", [])
+    if trial_rows:
+        return len(trial_rows)
 
     return None
-
 
 register_metric(
     MetricSpec(
@@ -139,18 +147,18 @@ register_metric(
 def _format_trials_compact(r):
     completed = _compute_completed_trials(r)
     requested = _compute_requested_trials(r)
-    return f"{requested}/{completed}"
+    return f"{completed}/{requested}"
 
 
 register_metric(
     MetricSpec(
         key="trials_compact",
-        label="Trials\n(att/comp)",
+        label="Trials\n(comp/req)",
         compute_level="run",
         dtype=str,
         align="center",
         compute_fn=_format_trials_compact,
-        description="Compact identifier: case/experiment/run",
+        description="Trials completed vs requested",
     )
 )
 
