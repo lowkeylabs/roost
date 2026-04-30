@@ -24,3 +24,13 @@ def test_spending_policy_plugin_registers_fields():
     field = reg.get("spending_policy.essential")
 
     assert field.name == "spending_policy.essential"
+
+
+def test_system_models_registered():
+    from owlroost.schema.bootstrap import build_registry
+
+    reg = build_registry()
+
+    assert reg.get("trial.count")
+    assert reg.get("runtime.trial_jobs")
+    assert reg.get("roost.master_seed")

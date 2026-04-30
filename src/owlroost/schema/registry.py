@@ -1,8 +1,3 @@
-# src/owlroost/schema/registry.py
-
-# src/owlroost/schema/registry.py
-
-
 class FieldSpec:
     def __init__(
         self,
@@ -16,11 +11,11 @@ class FieldSpec:
     ):
         self.name = name
         self.dtype = dtype
-        self.path = path
+        self.path = tuple(path) if path is not None else ()
         self.source = source
         self.compute_fn = compute_fn
         self.aggregates = aggregates or []
-        self.description = description
+        self.description = description or ""
 
 
 class SchemaRegistry:
@@ -28,10 +23,15 @@ class SchemaRegistry:
         self._fields = {}
 
     def register(self, field: FieldSpec):
+        if field.name in self._fields:
+            raise ValueError(f"Duplicate field registered: {field.name}")
         self._fields[field.name] = field
 
     def get(self, name):
-        return self._fields[name]
+        try:
+            return self._fields[name]
+        except KeyError as err:
+            raise KeyError(f"Field not found: {name}") from err
 
     def all(self):
         return self._fields.values()

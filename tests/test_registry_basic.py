@@ -1,5 +1,7 @@
 # tests/schema/test_registry_basic.py
 
+import pytest
+
 
 def test_register_and_get_field():
     from owlroost.schema.registry import FieldSpec, SchemaRegistry
@@ -21,12 +23,26 @@ def test_register_and_get_field():
     assert retrieved.path == ("test", "field")
 
 
-def test_registry_overwrites_existing_field():
+def test_registry_rejects_duplicate_field():
     from owlroost.schema.registry import FieldSpec, SchemaRegistry
 
     reg = SchemaRegistry()
 
     reg.register(FieldSpec("a", int))
-    reg.register(FieldSpec("a", float))
 
-    assert reg.get("a").dtype == float
+    with pytest.raises(ValueError):
+        reg.register(FieldSpec("a", float))
+
+
+def test_duplicate_field_error_message():
+    import pytest
+
+    from owlroost.schema.registry import FieldSpec, SchemaRegistry
+
+    reg = SchemaRegistry()
+    reg.register(FieldSpec("a", int))
+
+    with pytest.raises(ValueError) as exc:
+        reg.register(FieldSpec("a", float))
+
+    assert "Duplicate field registered: a" in str(exc.value)

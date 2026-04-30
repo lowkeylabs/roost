@@ -1,6 +1,9 @@
 # tests/schema/test_registry.py
 
 
+import pytest
+
+
 def test_register_and_get_field():
     from owlroost.schema.registry import FieldSpec, SchemaRegistry
 
@@ -21,12 +24,12 @@ def test_register_and_get_field():
     assert result.path == ("foo",)
 
 
-def test_registry_overwrites_field():
+def test_registry_rejects_duplicate_field():
     from owlroost.schema.registry import FieldSpec, SchemaRegistry
 
     reg = SchemaRegistry()
 
-    reg.register(FieldSpec("foo", int))
-    reg.register(FieldSpec("foo", float))
+    reg.register(FieldSpec("a", int))
 
-    assert reg.get("foo").dtype == float
+    with pytest.raises(ValueError):
+        reg.register(FieldSpec("a", float))

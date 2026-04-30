@@ -1,16 +1,20 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
+
+# =========================================================
+# BASE
+# =========================================================
+
+
+class BaseMetricsModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
 
 # =========================================================
 # CORE SMALL STRUCTURES
 # =========================================================
 
 
-class ValueFutureToday(BaseModel):
-    future: float
-    today: float
-
-
-class TotalFutureToday(BaseModel):
+class ValueFutureToday(BaseMetricsModel):
     future: float
     today: float
 
@@ -20,83 +24,83 @@ class TotalFutureToday(BaseModel):
 # =========================================================
 
 
-class Spending(BaseModel):
-    year0: ValueFutureToday
-    total: TotalFutureToday
+class Spending(BaseMetricsModel):
+    year0: ValueFutureToday | None = None
+    total: ValueFutureToday | None = None
 
 
-class SpendingProfile(BaseModel):
+class SpendingProfile(BaseMetricsModel):
     year0: float
     early_avg: float
     late_avg: float
     yearN: float
-    survivor_ratio: float | None
+    survivor_ratio: float | None = None
 
 
-class Taxes(BaseModel):
-    total: TotalFutureToday
+class Taxes(BaseMetricsModel):
+    total: ValueFutureToday | None = None
 
 
-class Roth(BaseModel):
-    total: TotalFutureToday
+class Roth(BaseMetricsModel):
+    total: ValueFutureToday | None = None
 
 
-class Bequest(BaseModel):
-    total: TotalFutureToday
+class Bequest(BaseMetricsModel):
+    total: ValueFutureToday | None = None
 
 
-class SpendingSummary(BaseModel):
-    min_ratio: float | None
-    mean_ratio: float | None
-    median_ratio: float | None
+class SpendingSummary(BaseMetricsModel):
+    min_ratio: float | None = None
+    mean_ratio: float | None = None
+    median_ratio: float | None = None
     p10_ratio: float | None = None
     std_ratio: float | None = None
 
-    years_under_target: int | None
+    years_under_target: int | None = None
 
-    min_ratio_to_essential: float | None
-    mean_ratio_to_essential: float | None
-    median_ratio_to_essential: float | None
+    min_ratio_to_essential: float | None = None
+    mean_ratio_to_essential: float | None = None
+    median_ratio_to_essential: float | None = None
 
-    min_ratio_to_lifestyle: float | None
-    mean_ratio_to_lifestyle: float | None
-    median_ratio_to_lifestyle: float | None
+    min_ratio_to_lifestyle: float | None = None
+    mean_ratio_to_lifestyle: float | None = None
+    median_ratio_to_lifestyle: float | None = None
 
-    years_below_essential: int | None
-    years_below_lifestyle: int | None
+    years_below_essential: int | None = None
+    years_below_lifestyle: int | None = None
 
-    consecutive_years_below_lifestyle: int | None
-    consecutive_years_below_essential: int | None
+    consecutive_years_below_lifestyle: int | None = None
+    consecutive_years_below_essential: int | None = None
 
-    lifestyle_stress_flag: int | None
-    essential_spending_breach: int | None
+    lifestyle_stress_flag: int | None = None
+    essential_spending_breach: int | None = None
 
 
-class Inflation(BaseModel):
+class Inflation(BaseMetricsModel):
     final_factor: float
 
 
-class InflationTS(BaseModel):
-    factor_by_year: list[float]
+class InflationTS(BaseMetricsModel):
+    factor_by_year: list[float] = Field(default_factory=list)
 
 
-class AssetsTS(BaseModel):
-    future_by_year: list[float]
-    today_by_year: list[float]
+class AssetsTS(BaseMetricsModel):
+    future_by_year: list[float] = Field(default_factory=list)
+    today_by_year: list[float] = Field(default_factory=list)
 
 
-class SpendingTS(BaseModel):
-    future_by_year: list[float]
-    today_by_year: list[float]
+class SpendingTS(BaseMetricsModel):
+    future_by_year: list[float] = Field(default_factory=list)
+    today_by_year: list[float] = Field(default_factory=list)
 
 
-class TimeSeries(BaseModel):
+class TimeSeries(BaseMetricsModel):
     inflation: InflationTS | None = None
     assets: AssetsTS | None = None
     spending: SpendingTS | None = None
 
 
-class Financial(BaseModel):
+class Financial(BaseMetricsModel):
     valid: bool
 
     spending: Spending | None = None
@@ -116,17 +120,17 @@ class Financial(BaseModel):
 # =========================================================
 
 
-class RiskSummary(BaseModel):
-    overall_risk: str | None
-    scenario_severity: float | None
-    depleted: bool | None
-    worst_drawdown: float | None
-    terminal_ratio: float | None
-    flag_count: int | None
-    flags: list[str]
+class RiskSummary(BaseMetricsModel):
+    overall_risk: str | None = None
+    scenario_severity: float | None = None
+    depleted: bool | None = None
+    worst_drawdown: float | None = None
+    terminal_ratio: float | None = None
+    flag_count: int | None = None
+    flags: list[str] = Field(default_factory=list)
 
 
-class RiskScenario(BaseModel):
+class RiskScenario(BaseMetricsModel):
     valid: bool
     horizon: int | None = None
 
@@ -137,10 +141,10 @@ class RiskScenario(BaseModel):
 
     classification: dict[str, str] | None = None
     severity_score: float | None = None
-    flags: list[str] | None = None
+    flags: list[str] = Field(default_factory=list)
 
 
-class RiskOutcome(BaseModel):
+class RiskOutcome(BaseMetricsModel):
     valid: bool
     horizon: int | None = None
 
@@ -154,10 +158,10 @@ class RiskOutcome(BaseModel):
     consumption: dict | None = None
 
     classification: dict[str, str] | None = None
-    flags: list[str] | None = None
+    flags: list[str] = Field(default_factory=list)
 
 
-class Risk(BaseModel):
+class Risk(BaseMetricsModel):
     scenario: RiskScenario | None = None
     outcome: RiskOutcome | None = None
     summary: RiskSummary | None = None
@@ -168,16 +172,16 @@ class Risk(BaseModel):
 # =========================================================
 
 
-class Complexity(BaseModel):
-    num_decision_variables: int | None
-    num_constraints: int | None
-    num_nonzeros: int | None
-    matrix_density: float | None
-    num_integer_variables: int | None
-    integer_variable_ratio: float | None
-    horizon: int | None
-    nnz_per_variable: float | None
-    nnz_per_constraint: float | None
+class Complexity(BaseMetricsModel):
+    num_decision_variables: int | None = None
+    num_constraints: int | None = None
+    num_nonzeros: int | None = None
+    matrix_density: float | None = None
+    num_integer_variables: int | None = None
+    integer_variable_ratio: float | None = None
+    horizon: int | None = None
+    nnz_per_variable: float | None = None
+    nnz_per_constraint: float | None = None
 
 
 # =========================================================
@@ -185,9 +189,9 @@ class Complexity(BaseModel):
 # =========================================================
 
 
-class SocialSecurity(BaseModel):
-    optimized: bool | None
-    ages: list[float] | None
+class SocialSecurity(BaseMetricsModel):
+    optimized: bool | None = None
+    ages: list[float] = Field(default_factory=list)
 
 
 # =========================================================
@@ -195,8 +199,8 @@ class SocialSecurity(BaseModel):
 # =========================================================
 
 
-class Rates(BaseModel):
-    valid: bool | None
+class Rates(BaseMetricsModel):
+    valid: bool | None = None
 
     returns: dict[str, float] | None = None
     bonds: dict[str, float] | None = None
@@ -211,7 +215,7 @@ class Rates(BaseModel):
 # =========================================================
 
 
-class Score(BaseModel):
+class Score(BaseMetricsModel):
     score: float
 
 
@@ -220,11 +224,11 @@ class Score(BaseModel):
 # =========================================================
 
 
-class RunStatus(BaseModel):
+class RunStatus(BaseMetricsModel):
     status: str
-    failure_category: str | None
-    failure_subtype: str | None
-    failure_detail: str | None
+    failure_category: str | None = None
+    failure_subtype: str | None = None
+    failure_detail: str | None = None
 
 
 # =========================================================
@@ -232,8 +236,19 @@ class RunStatus(BaseModel):
 # =========================================================
 
 
-class Identity(BaseModel):
+class Identity(BaseMetricsModel):
     plan_name: str
+
+
+# =========================================================
+# TIMING (NEW — replaces dict)
+# =========================================================
+
+
+class Timing(BaseMetricsModel):
+    solve_start: float | None = None
+    solve_end: float | None = None
+    elapsed_seconds: float | None = None
 
 
 # =========================================================
@@ -241,14 +256,14 @@ class Identity(BaseModel):
 # =========================================================
 
 
-class MetricsModel(BaseModel):
+class MetricsModel(BaseMetricsModel):
     schema_version: str
 
     identity: Identity
     run_status: RunStatus
-    timing: dict[str, float]
+    timing: Timing
 
-    solver: str | None
+    solver: str | None = None
 
     financial: Financial
     risk: Risk
