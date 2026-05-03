@@ -31,6 +31,6 @@ def test_system_models_registered():
 
     reg = build_registry()
 
-    assert reg.get("trial.count")
+    assert reg.get("roost.trials_per_run")
     assert reg.get("runtime.trial_jobs")
     assert reg.get("roost.master_seed")

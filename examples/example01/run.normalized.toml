@@ -1,0 +1,45 @@
+[case]
+file = "/home/john/projects/owl-roost/examples/example01/case_alex+jamie.toml"
+name = "${toml.plan_name:${case.file}}"
+
+[aca_settings]
+
+[asset_allocation]
+
+[basic_info]
+
+[case_name]
+
+[description]
+
+[fixed_income]
+
+[household_financial_profile]
+
+[longevity]
+sex = "female"
+seed = 1234567890
+
+[optimization_parameters]
+
+[rates_selection]
+
+[results]
+
+[roost]
+
+[runtime]
+
+[savings_assets]
+
+[solver_options]
+
+[spending_policy]
+
+[trial]
+id = 0
+count = 1
+n_jobs = 1
+
+[experiment]
+id = "${now:%Y-%m-%d}_${now:%H-%M-%S}"

@@ -1,0 +1,17 @@
+savings_assets:
+  taxable_savings_balances:
+  - 0.0
+  tax_deferred_savings_balances:
+  - 0.0
+  tax_free_savings_balances:
+  - 0.0
+  hsa_savings_balances:
+  - 0.0
+taxable_savings_balances:
+- 0.0
+tax_deferred_savings_balances:
+- 0.0
+tax_free_savings_balances:
+- 0.0
+hsa_savings_balances:
+- 0.0

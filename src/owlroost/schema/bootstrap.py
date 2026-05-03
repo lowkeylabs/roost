@@ -8,19 +8,30 @@ from .plugins.runtime import RuntimePlugin
 from .plugins.spending_policy import SpendingPolicyPlugin
 from .plugins.trial import TrialPlugin
 from .registry import SchemaRegistry
+from .runtime_defaults import build_runtime_defaults, get_from_path
 
 
-def build_registry():
+def build_registry(return_plugins: bool = False):
     reg = SchemaRegistry()
 
-    OwlSchemaPlugin().register(reg)
-    LongevityPlugin().register(reg)
-    SpendingPolicyPlugin().register(reg)
+    plugins = [
+        OwlSchemaPlugin(),
+        LongevityPlugin(),
+        SpendingPolicyPlugin(),
+        TrialPlugin(),
+        RuntimePlugin(),
+        RoostPlugin(),
+        MetricsSchemaPlugin(),
+    ]
 
-    MetricsSchemaPlugin().register(reg)
+    for p in plugins:
+        p.register(reg)
 
-    TrialPlugin().register(reg)
-    RuntimePlugin().register(reg)
-    RoostPlugin().register(reg)
+    runtime_defaults = build_runtime_defaults()
+    reg.register_runtime_fields(runtime_defaults)
+    reg.attach_runtime_defaults(runtime_defaults, get_from_path)
+
+    if return_plugins:
+        return reg, plugins
 
     return reg

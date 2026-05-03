@@ -31,6 +31,8 @@ def test_generate_creates_conf_dirs(tmp_path, monkeypatch):
 
     # Each should have default.yaml
     for d in dirs:
+        if d.name == "hydra":
+            continue
         assert (d / "default.yaml").exists()
 
 

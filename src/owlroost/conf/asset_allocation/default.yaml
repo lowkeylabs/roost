@@ -1,0 +1,17 @@
+asset_allocation:
+  interpolation_method: linear
+  type: individual
+  generic:
+  - &id001
+    - - 60.0
+      - 40.0
+      - 0.0
+      - 0.0
+    - - 60.0
+      - 40.0
+      - 0.0
+      - 0.0
+interpolation_method: linear
+type: individual
+generic:
+- *id001

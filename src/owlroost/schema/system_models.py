@@ -18,12 +18,6 @@ class TrialConfig(BaseSystemConfig):
         description="Trial index within a run.",
     )
 
-    count: int = Field(
-        default=1,
-        ge=1,
-        description="Number of trials per run.",
-    )
-
     n_jobs: int = Field(
         default=5,
         ge=1,
@@ -96,4 +90,10 @@ class RoostConfig(BaseSystemConfig):
     description: str | None = Field(
         default=None,
         description="Optional description of experiment.",
+    )
+
+    trials_per_run: int = Field(
+        default=1,
+        ge=1,
+        description="Number of trials per run.",
     )

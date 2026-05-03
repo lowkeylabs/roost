@@ -1,0 +1,269 @@
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: .
+    subdir: .
+  launcher:
+    _target_: hydra._internal.core_plugins.basic_launcher.BasicLauncher
+  sweeper:
+    _target_: hydra._internal.core_plugins.basic_sweeper.BasicSweeper
+    max_batch_size: null
+    params: null
+  help:
+    app_name: ${hydra.job.name}
+    header: '${hydra.help.app_name} is powered by Hydra.
+
+      '
+    footer: 'Powered by Hydra (https://hydra.cc)
+
+      Use --hydra-help to view Hydra specific help
+
+      '
+    template: '${hydra.help.header}
+
+      == Configuration groups ==
+
+      Compose your configuration from those groups (group=option)
+
+
+      $APP_CONFIG_GROUPS
+
+
+      == Config ==
+
+      Override anything in the config (foo.bar=value)
+
+
+      $CONFIG
+
+
+      ${hydra.help.footer}
+
+      '
+  hydra_help:
+    template: 'Hydra (${hydra.runtime.version})
+
+      See https://hydra.cc for more info.
+
+
+      == Flags ==
+
+      $FLAGS_HELP
+
+
+      == Configuration groups ==
+
+      Compose your configuration from those groups (For example, append hydra/job_logging=disabled
+      to command line)
+
+
+      $HYDRA_CONFIG_GROUPS
+
+
+      Use ''--cfg hydra'' to Show the Hydra config.
+
+      '
+    hydra_help: ???
+  hydra_logging:
+    version: 1
+    formatters:
+      simple:
+        format: '[%(asctime)s][HYDRA] %(message)s'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: simple
+        stream: ext://sys.stdout
+    root:
+      level: INFO
+      handlers:
+      - console
+    loggers:
+      logging_example:
+        level: DEBUG
+    disable_existing_loggers: false
+  job_logging:
+    version: 1
+    formatters:
+      simple:
+        format: '[%(asctime)s][%(name)s][%(levelname)s] - %(message)s'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: simple
+        stream: ext://sys.stdout
+      file:
+        class: logging.FileHandler
+        formatter: simple
+        filename: ${hydra.runtime.output_dir}/${hydra.job.name}.log
+    root:
+      level: INFO
+      handlers:
+      - console
+      - file
+    disable_existing_loggers: false
+  env: {}
+  mode: MULTIRUN
+  searchpath: []
+  callbacks: {}
+  output_subdir: .hydra
+  overrides:
+    hydra:
+    - hydra.mode=MULTIRUN
+    task:
+    - case.file=/home/john/projects/owl-roost/examples/example01/case_alex+jamie.toml
+  job:
+    name: run
+    chdir: true
+    override_dirname: case.file=/home/john/projects/owl-roost/examples/example01/case_alex+jamie.toml
+    id: ???
+    num: ???
+    config_name: config
+    env_set: {}
+    env_copy: []
+    config:
+      override_dirname:
+        kv_sep: '='
+        item_sep: ','
+        exclude_keys: []
+  runtime:
+    version: 1.3.2
+    version_base: '1.3'
+    cwd: /home/john/projects/owl-roost/examples/example01
+    config_sources:
+    - path: hydra.conf
+      schema: pkg
+      provider: hydra
+    - path: /home/john/projects/owl-roost/src/owlroost/conf
+      schema: file
+      provider: main
+    - path: ''
+      schema: structured
+      provider: schema
+    output_dir: ???
+    choices:
+      hydra/sweep: flat
+      trial: default
+      spending_policy: default
+      solver_options: default
+      savings_assets: default
+      runtime: default
+      roost: default
+      results: default
+      rates_selection: default
+      optimization_parameters: default
+      longevity: default
+      household_financial_profile: default
+      fixed_income: default
+      description: default
+      case_name: default
+      basic_info: default
+      asset_allocation: default
+      aca_settings: default
+      case: default
+      hydra/env: default
+      hydra/callbacks: null
+      hydra/job_logging: default
+      hydra/hydra_logging: default
+      hydra/hydra_help: default
+      hydra/help: default
+      hydra/sweeper: basic
+      hydra/launcher: basic
+      hydra/output: default
+  verbose: false
+case:
+  file: /home/john/projects/owl-roost/examples/example01/case_alex+jamie.toml
+  name: ${toml.plan_name:${case.file}}
+aca_settings:
+  slcsp_annual: null
+asset_allocation:
+  interpolation_method: null
+  interpolation_center: null
+  interpolation_width: null
+  type: null
+  generic: null
+  taxable: null
+  tax_deferred: null
+  tax_free: null
+basic_info:
+  status: null
+  names: null
+  date_of_birth: null
+  life_expectancy: null
+  sexes: null
+  start_date: null
+case_name: {}
+description: {}
+fixed_income:
+  pension_monthly_amounts: null
+  pension_ages: null
+  pension_indexed: null
+  pension_survivor_fraction: null
+  social_security_pia_amounts: null
+  social_security_ages: null
+  social_security_trim_pct: null
+  social_security_trim_year: null
+household_financial_profile:
+  HFP_file_name: null
+longevity:
+  sex: female
+  seed: 1234567890
+optimization_parameters:
+  spending_profile: null
+  surviving_spouse_spending_percent: null
+  objective: null
+  smile_dip: null
+  smile_increase: null
+  smile_delay: null
+rates_selection:
+  heirs_rate_on_tax_deferred_estate: null
+  effective_tax_rate: null
+  dividend_rate: null
+  obbba_expiration_year: null
+  method: null
+  from_: null
+  to: null
+  values: null
+  standard_deviations: null
+  correlations: null
+  rate_seed: null
+  reproducible_rates: null
+  reverse_sequence: null
+  roll_sequence: null
+  bootstrap_type: null
+  block_size: null
+  shrink: null
+results:
+  default_plots: null
+  worksheet_show_ages: null
+  worksheet_hide_zero_columns: null
+  worksheet_real_dollars: null
+roost:
+  master_seed: null
+  experiment_id: null
+  description: null
+runtime:
+  trial_jobs: null
+  run_jobs: null
+  worker_timeout: null
+  cpu_reserve: null
+  oversubscribe_factor: null
+  enforce_single_axis: null
+savings_assets:
+  taxable_savings_balances: null
+  tax_deferred_savings_balances: null
+  tax_free_savings_balances: null
+  hsa_savings_balances: null
+  beneficiary_fractions: null
+  spousal_surplus_deposit_fraction: null
+solver_options: {}
+spending_policy:
+  essential: null
+  lifestyle: null
+trial:
+  id: 0
+  count: 1
+  n_jobs: 1
+experiment:
+  id: ${now:%Y-%m-%d}_${now:%H-%M-%S}

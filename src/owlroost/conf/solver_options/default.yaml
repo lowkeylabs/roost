@@ -1,0 +1,8 @@
+solver_options:
+  solver: default
+  withMedicare: loop
+  withSSTaxability: loop
+  withLTCG: loop
+  withNIIT: loop
+  withSCLoop: true
+  startRothConversions: 2026

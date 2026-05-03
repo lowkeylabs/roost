@@ -1,0 +1,18 @@
+rates_selection:
+  heirs_rate_on_tax_deferred_estate: 30.0
+  effective_tax_rate: 20.0
+  dividend_rate: 1.8000000000000003
+  obbba_expiration_year: 2032
+  method: historical average
+  to: 2020
+  from: 1960
+  reverse_sequence: false
+  roll_sequence: 0
+heirs_rate_on_tax_deferred_estate: 30.0
+effective_tax_rate: 20.0
+dividend_rate: 1.8000000000000003
+obbba_expiration_year: 2032
+method: historical average
+to: 2020
+reverse_sequence: false
+roll_sequence: 0

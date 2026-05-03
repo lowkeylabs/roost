@@ -1,0 +1,25 @@
+fixed_income:
+  pension_monthly_amounts:
+  - 0
+  pension_ages:
+  - 65
+  pension_indexed:
+  - false
+  pension_survivor_fraction:
+  - 0.0
+  social_security_pia_amounts:
+  - 0
+  social_security_ages:
+  - 67.0
+pension_monthly_amounts:
+- 0
+pension_ages:
+- 65
+pension_indexed:
+- false
+pension_survivor_fraction:
+- 0.0
+social_security_pia_amounts:
+- 0
+social_security_ages:
+- 67.0
