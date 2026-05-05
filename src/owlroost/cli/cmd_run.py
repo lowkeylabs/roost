@@ -1,149 +1,179 @@
-import subprocess
-import sys
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from io import StringIO
 from pathlib import Path
 
 import click
+import owlplanner as owl
+import toml
 
-from owlroost.display import load_cases
-from owlroost.display.api import render
-
-
-# ---------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------
-def _with_ids(dataset):
-    rows = []
-    for i, r in enumerate(dataset.rows):
-        new = dict(r)
-        new["_row_id"] = i
-        rows.append(new)
-    return type(dataset)(rows, level=dataset.level)
-
-
-def _resolve_selection(arg, dataset):
-    rows = dataset.rows
-
-    # ID
-    if arg.isdigit():
-        idx = int(arg)
-        if idx < 0 or idx >= len(rows):
-            raise click.ClickException(f"Invalid ID: {idx}")
-        return rows[idx]
-
-    # File path
-    path = Path(arg)
-    if not path.exists():
-        raise click.ClickException(f"File not found: {arg}")
-
-    for r in rows:
-        if Path(r["_path"]).resolve() == path.resolve():
-            return r
-
-    raise click.ClickException(f"File not recognized as case: {arg}")
-
-
-def _inject_id_column(table, dataset):
-    table.columns = ["ID"] + list(table.columns)
-
-    new_rows = []
-    for row_data, r in zip(table.rows, dataset.rows, strict=False):
-        new_rows.append([str(r["_row_id"])] + list(row_data))
-
-    table.rows = new_rows
-    return table
+from owlroost.core.metrics_from_plan import write_metrics_json
 
 
 # ---------------------------------------------------------
-# Hydra execution
+# Core: minimal trial execution
 # ---------------------------------------------------------
-def _run_hydra(case_path: Path, overrides: list[str]):
+def run_trial_from_toml(trial_dir: Path):
+    trial_toml = trial_dir / "trial.toml"
+
+    if not trial_toml.exists():
+        raise RuntimeError(f"Missing trial.toml in {trial_dir}")
+
+    # Skip if already done
+    if list(trial_dir.glob("metrics.json")):
+        return {"status": "skipped", "trial_dir": str(trial_dir)}
+
+    # ----------------------------------------
+    # Load TOML
+    # ----------------------------------------
+    toml_dict = toml.load(trial_toml)
+    toml_str = toml.dumps(toml_dict)
+
+    buf = StringIO(toml_str)
+
+    # ----------------------------------------
+    # Build + solve
+    # ----------------------------------------
+    start = time.time()
+
+    plan = owl.readConfig(
+        buf,
+        logstreams="loguru",
+        loadHFP=False,
+    )
+
+    plan.solve(plan.objective, plan.solverOptions)
+
+    elapsed = time.time() - start
+
+    # ----------------------------------------
+    # Write metrics
+    # ----------------------------------------
+    # case_name = toml_dict.get("case_name", trial_dir.name)
+    metrics_path = trial_dir / "metrics.json"
+
+    timing = {"elapsed_seconds": elapsed}
+    write_metrics_json(plan, metrics_path, timing)
+
+    return {
+        "status": plan.caseStatus or "unknown",
+        "elapsed": elapsed,
+        "trial_dir": str(trial_dir),
+    }
+
+
+# ---------------------------------------------------------
+# Discovery
+# ---------------------------------------------------------
+def find_runs(results_root: Path):
     """
-    Execute Hydra generator in multirun mode.
+    Find all run directories (contain trials/ subdir).
     """
+    runs = []
 
-    # locate package root (same approach as old system)
-    package_root = Path(__file__).parents[1]
-    conf_dir = package_root / "conf"
+    for trials_dir in results_root.rglob("trials"):
+        run_dir = trials_dir.parent
+        runs.append(run_dir)
 
-    cmd = [
-        sys.executable,
-        "-m",
-        "owlroost.hydra.generate_trials",
-        # 🔥 CRITICAL
-        "--multirun",
-        # 🔥 REQUIRED for Hydra to find your generated config
-        f"--config-path={conf_dir}",
-        "--config-name=config",
-        # inputs
-        f"case.file={str(case_path)}",
-        f"case.name={case_path.stem}",
-    ]
+    return sorted(runs)
 
-    cmd.extend(overrides)
 
-    click.echo("Running Hydra:")
-    click.echo(" ".join(cmd))
-    click.echo()
+def summarize_run(run_dir: Path):
+    trials_dir = run_dir / "trials"
+    trial_dirs = sorted([p for p in trials_dir.iterdir() if p.is_dir()])
 
-    result = subprocess.run(cmd)
+    total = len(trial_dirs)
+    completed = 0
 
-    if result.returncode != 0:
-        raise click.ClickException("Hydra run failed")
+    for td in trial_dirs:
+        if list(td.glob("*_metrics.json")):
+            completed += 1
+
+    return {
+        "run_dir": run_dir,
+        "total": total,
+        "completed": completed,
+    }
 
 
 # ---------------------------------------------------------
 # CLI
 # ---------------------------------------------------------
 @click.command("run")
-@click.argument("target", required=False)
-@click.argument("overrides", nargs=-1)
-@click.option("--view", default="basic")
-@click.option("--markdown", is_flag=True)
-@click.option("--latex", is_flag=True)
-def cmd_run(target, overrides, view, markdown, latex):
+@click.option("--root", default="results", type=click.Path(exists=True))
+@click.option("--run-all", is_flag=True, help="Run all pending trials")
+@click.option("--trial-jobs", default=4, help="Parallel workers")
+def cmd_run(root, run_all, trial_jobs):
     """
-    Display or execute cases.
-
-    Examples:
-      roost run
-      roost run 0
-      roost run case.toml
-      roost run 0 solver_options.maxSpending=1
+    List runs and optionally execute pending trials.
     """
+    root = Path(root).resolve()
 
-    # ----------------------------------------
-    # Load dataset
-    # ----------------------------------------
-    ds = _with_ids(load_cases("."))
+    runs = find_runs(root)
 
-    renderer = "rich"
-    if markdown:
-        renderer = "markdown"
-    elif latex:
-        renderer = "latex"
-
-    # ----------------------------------------
-    # No target → LIST
-    # ----------------------------------------
-    if not target:
-        table = ds.view(view)
-        table = _inject_id_column(table, ds)
-
-        output = render(table, renderer)
-        if output:
-            click.echo(output)
+    if not runs:
+        click.echo("No runs found.")
         return
 
-    # ----------------------------------------
-    # Resolve target
-    # ----------------------------------------
-    selected_row = _resolve_selection(target, ds)
-    case_path = Path(selected_row["_path"]).resolve()
+    click.echo("\nRuns:\n")
 
-    click.echo(f"ID   : {selected_row['_row_id']}")
-    click.echo(f"Path : {case_path}\n")
+    all_pending = []
 
     # ----------------------------------------
-    # ALWAYS run hydra if target provided
+    # Summarize
     # ----------------------------------------
-    _run_hydra(case_path, list(overrides))
+    for idx, run_dir in enumerate(runs):
+        summary = summarize_run(run_dir)
+
+        click.echo(
+            f"[{idx:02d}] {run_dir.relative_to(root)} "
+            f"| trials: {summary['completed']}/{summary['total']}"
+        )
+
+        if run_all:
+            trials_dir = run_dir / "trials"
+            for td in trials_dir.iterdir():
+                if not td.is_dir():
+                    continue
+                if not list(td.glob("*_metrics.json")):
+                    all_pending.append(td)
+
+    # ----------------------------------------
+    # Execute if requested
+    # ----------------------------------------
+    if not run_all:
+        return
+
+    if not all_pending:
+        click.echo("\nNo pending trials.")
+        return
+
+    click.echo(f"\nRunning {len(all_pending)} pending trials...\n")
+
+    results = []
+
+    if trial_jobs == 1:
+        for td in all_pending:
+            r = run_trial_from_toml(td)
+            click.echo(f"{td.name} -> {r['status']}")
+            results.append(r)
+    else:
+        with ProcessPoolExecutor(max_workers=trial_jobs) as ex:
+            futures = [ex.submit(run_trial_from_toml, td) for td in all_pending]
+
+            for f in as_completed(futures):
+                r = f.result()
+                click.echo(f"{Path(r['trial_dir']).name} -> {r['status']}")
+                results.append(r)
+
+    # ----------------------------------------
+    # Summary
+    # ----------------------------------------
+    solved = sum(1 for r in results if r["status"] == "solved")
+    failed = len(results) - solved
+
+    click.echo(f"\nDone: {solved} solved, {failed} failed\n")
+
+
+if __name__ == "__main__":
+    cmd_run()

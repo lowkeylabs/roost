@@ -3,6 +3,7 @@
 import click
 
 from ..version import __version__
+from .cmd_build import cmd_build
 from .cmd_run import cmd_run
 from .cmd_schema import cmd_schema
 
@@ -34,4 +35,5 @@ def info(ctx):
 
 
 cli.add_command(cmd_schema)
+cli.add_command(cmd_build)
 cli.add_command(cmd_run)
