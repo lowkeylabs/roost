@@ -7,6 +7,7 @@ from loguru import logger
 
 SCHEMA_VERSION = "roost.metrics.v1"
 
+
 def _mosek_available():
     import importlib.util
     import os
@@ -438,7 +439,6 @@ def spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma, cont
         if not isinstance(baseline, (int, float)) or not np.isfinite(baseline) or baseline <= 0:
             fallback = float(actual_today[0]) if len(actual_today) else 1.0
             baseline = fallback if np.isfinite(fallback) and fallback > 0 else 1.0
-
 
         # -------------------------------------------------
         # Clean xi
@@ -1208,7 +1208,9 @@ def rates_from_plan(plan) -> dict:
 # =========================================================
 # WRITE JSON
 # =========================================================
-def write_metrics_json(plan, metrics_path: Path, timing: dict, failure_override=None, context=None) -> Path:
+def write_metrics_json(
+    plan, metrics_path: Path, timing: dict, failure_override=None, context=None
+) -> Path:
     def safe_compute(fn):
         try:
             return fn()
@@ -1231,7 +1233,6 @@ def write_metrics_json(plan, metrics_path: Path, timing: dict, failure_override=
             horizon = int(plan.N_n)
         except Exception:
             horizon = None
-                    
 
         def build_run_status(plan, failure_override):
             if failure_override:
@@ -1252,14 +1253,11 @@ def write_metrics_json(plan, metrics_path: Path, timing: dict, failure_override=
             social_security = safe_compute(lambda: social_security_from_plan(plan))
             rates = safe_compute(lambda: rates_from_plan(plan))
 
-            if (
-                financial.get("valid") is True
-                and risk.get("summary", {}).get("valid") is not False
-            ):
+            if financial.get("valid") is True and risk.get("summary", {}).get("valid") is not False:
                 score = score_trial({"risk": risk, "financial": financial})
             else:
                 score = {"score": None}
-                
+
         else:
             financial = {}
             risk = {}
@@ -1267,12 +1265,12 @@ def write_metrics_json(plan, metrics_path: Path, timing: dict, failure_override=
             social_security = {}
             rates = {}
             score = {"score": None}
-            
+
         output_json = {
             "schema": SCHEMA_VERSION,
             "identity": identity,
             "run_status": run_status,
-            "horizon" : {"years":horizon},
+            "horizon": {"years": horizon},
             "timing": timing,
             "solver": solver,
             "financial": financial,
