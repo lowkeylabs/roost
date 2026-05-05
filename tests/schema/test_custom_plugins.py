@@ -11,7 +11,7 @@ def test_longevity_plugin_registers_fields():
     field = reg.get("longevity.sex")
 
     assert field.name == "longevity.sex"
-    assert field.source == "input"
+    assert field.source == "roost"
 
 
 def test_spending_policy_plugin_registers_fields():
@@ -21,9 +21,9 @@ def test_spending_policy_plugin_registers_fields():
     reg = SchemaRegistry()
     SpendingPolicyPlugin().register(reg)
 
-    field = reg.get("spending_policy.essential")
+    field = reg.get("spending_policy.essential_spending")
 
-    assert field.name == "spending_policy.essential"
+    assert field.name == "spending_policy.essential_spending"
 
 
 def test_system_models_registered():

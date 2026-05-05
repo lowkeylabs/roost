@@ -1,4 +1,6 @@
 import pytest
+import toml
+import yaml
 from omegaconf import OmegaConf
 
 from owlroost.hydra.generate_trials import generate_trials
@@ -23,7 +25,7 @@ HFP_file_name = "hfp.csv"
 """
     )
 
-    # create fake HFP file
+    # fake HFP file
     (tmp_path / "hfp.csv").write_text("dummy")
 
     return case
@@ -31,10 +33,6 @@ HFP_file_name = "hfp.csv"
 
 @pytest.fixture
 def hydra_cfg(tmp_case, tmp_path, monkeypatch):
-    """
-    Build a fake Hydra cfg + mock HydraConfig runtime.
-    """
-
     cfg = OmegaConf.create(
         {
             "case": {"file": str(tmp_case)},
@@ -42,14 +40,17 @@ def hydra_cfg(tmp_case, tmp_path, monkeypatch):
         }
     )
 
-    # ----------------------------------------
-    # Mock Hydra runtime
-    # ----------------------------------------
     class FakeRuntime:
         output_dir = str(tmp_path / "results/case/2026-01-01/00-00-00/run_0")
 
     class FakeHydraConfig:
         runtime = FakeRuntime()
+
+        class job:
+            num = 0
+
+        class overrides:
+            task = []
 
         @staticmethod
         def get():
@@ -70,42 +71,66 @@ def test_generate_trials_creates_structure(hydra_cfg, tmp_path):
 
     assert root.exists()
 
+    # run-level file
+    assert (root / "run.toml").exists()
+
     trials = root / "trials"
     assert trials.exists()
 
-    # 3 trials created
     trial_dirs = sorted(trials.glob("*"))
     assert len(trial_dirs) == 3
 
-    # check each trial
     for tdir in trial_dirs:
-        assert (tdir / "trial.normalized.toml").exists()
+        assert (tdir / "trial.toml").exists()
         assert (tdir / "trial_meta.yaml").exists()
 
 
 def test_trial_toml_contains_seeds(hydra_cfg, tmp_path):
     generate_trials(hydra_cfg)
 
-    root = tmp_path / "results/case/2026-01-01/00-00-00/run_0"
-    trial0 = root / "trials/0000"
+    trial0 = tmp_path / "results/case/2026-01-01/00-00-00/run_0/trials/0000/trial.toml"
 
-    content = (trial0 / "trial.normalized.toml").read_text()
+    data = toml.load(trial0)
 
-    assert "rates_seed" in content
-    assert "longevity_seed" in content
+    # seeds exist in both locations
+    assert "rates_seed" in data["roost"]
+    assert "longevity_seed" in data["roost"]
+
+    assert "rates_seed" in data["rates_selection"]
+    assert "seed" in data["longevity"]
 
 
-def test_hfp_copied_once(hydra_cfg, tmp_path):
+def test_hfp_copied_once_and_rewritten(hydra_cfg, tmp_path):
     generate_trials(hydra_cfg)
 
     run_dir = tmp_path / "results/case/2026-01-01/00-00-00/run_0"
 
-    # should exist in run dir
+    # copied to run dir
     assert (run_dir / "hfp.csv").exists()
 
+    # rewritten relative path inside trial
+    trial0 = run_dir / "trials/0000/trial.toml"
+    data = toml.load(trial0)
 
-def test_case_normalized_written(hydra_cfg, tmp_path):
+    assert data["household_financial_profile"]["HFP_file_name"] == "../../hfp.csv"
+
+
+def test_trial_meta_yaml(hydra_cfg, tmp_path):
     generate_trials(hydra_cfg)
 
-    case_root = tmp_path / "results/case"
-    assert (case_root / "case.normalized.toml").exists()
+    meta_file = tmp_path / "results/case/2026-01-01/00-00-00/run_0/trials/0000/trial_meta.yaml"
+
+    meta = yaml.safe_load(meta_file.read_text())
+
+    assert meta["trial_id"] == 0
+    assert meta["run_id"] == 0
+    assert "rates_seed" in meta
+    assert "longevity_seed" in meta
+    assert "created_at" in meta
+
+
+def test_experiment_case_written_once(hydra_cfg, tmp_path):
+    generate_trials(hydra_cfg)
+
+    exp_dir = tmp_path / "results/case/2026-01-01/00-00-00"
+    assert (exp_dir / "case.toml").exists()

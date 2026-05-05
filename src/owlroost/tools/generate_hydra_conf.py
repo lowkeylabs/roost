@@ -1,10 +1,9 @@
 """
 Generate Hydra conf/**/default.yaml and config.yaml from schema registry.
 
-- Autodiscovers plugin models (root + model)
-- Uses Pydantic models for defaults
-- No hardcoded schema mapping
-- Generates Hydra config structure
+- Uses full schema registry (all sources)
+- Emits complete tree (including None values)
+- Ensures Hydra override compatibility
 
 Run:
     python -m owlroost.tools.generate_hydra_conf
@@ -25,13 +24,6 @@ CONF_ROOT = Path("src/owlroost/conf")
 # Plugin model discovery
 # =========================================================
 def build_model_index(plugins):
-    """
-    Build mapping:
-        root -> Pydantic model
-
-    Special:
-        OWL plugin → stored under "_owl"
-    """
     model_index = {}
 
     for p in plugins:
@@ -50,14 +42,13 @@ def build_model_index(plugins):
 
 
 # =========================================================
-# Default extraction
+# Default extraction (Pydantic fallback)
 # =========================================================
 def get_default(path: tuple[str, ...], model_index):
     root = path[0]
 
     model = model_index.get(root)
 
-    # fallback to OWL model
     if model is None:
         model = model_index.get("_owl")
 
@@ -65,8 +56,6 @@ def get_default(path: tuple[str, ...], model_index):
         return None
 
     cur = model
-
-    # skip root if model explicitly mapped
     parts = path[1:] if root in model_index else path
 
     for i, part in enumerate(parts):
@@ -100,20 +89,27 @@ def get_default(path: tuple[str, ...], model_index):
 # Tree helpers
 # =========================================================
 def insert_path(tree: dict, path: tuple[str, ...], value: Any):
-    if value is None:
-        return
-
     cur = tree
-    for key in path[:-1]:
-        cur = cur.setdefault(key, {})
 
+    for key in path[:-1]:
+        # -------------------------------------
+        # If key missing OR not a dict → fix it
+        # -------------------------------------
+        if key not in cur or not isinstance(cur[key], dict):
+            cur[key] = {}
+
+        cur = cur[key]
+
+    # -------------------------------------
+    # Assign leaf value
+    # -------------------------------------
     cur[path[-1]] = value
 
 
 def split_by_root(fields):
     groups = {}
     for f in fields:
-        if f.source != "input":
+        if not f.path:
             continue
         root = f.path[0]
         groups.setdefault(root, []).append(f)
@@ -142,9 +138,6 @@ def generate_group_configs(reg, model_index):
     generated_groups = []
 
     for group_name, fields in groups.items():
-        # ---------------------------------------------------------
-        # Skip non-schema hydra group
-        # ---------------------------------------------------------
         if group_name == "hydra":
             continue
 
@@ -153,36 +146,32 @@ def generate_group_configs(reg, model_index):
 
         tree = {}
 
-        # ---------------------------------------------------------
-        # Populate tree from schema defaults
-        # ---------------------------------------------------------
         for f in fields:
-            # allow root-level fields
             subpath = f.path[1:] if len(f.path) > 1 else f.path
 
+            # -------------------------------------------------
+            # Priority: registry default → model → None
+            # -------------------------------------------------
             value = f.default
 
-            # -----------------------------------------------------
-            # Skip unset values → prevents partial OWL configs
-            # -----------------------------------------------------
             if value is None:
-                continue
+                value = get_default(f.path, model_index)
 
-            value = normalize_value(value)
+            value = normalize_value(value) if value is not None else None
+
+            # -------------------------------------------------
+            # ALWAYS insert (critical for Hydra)
+            # -------------------------------------------------
             insert_path(tree, subpath, value)
 
         # ---------------------------------------------------------
-        # Enforce minimal valid OWL structure (Option 1)
+        # Minimal OWL validity safety (optional)
         # ---------------------------------------------------------
         if group_name == "basic_info":
-            # Only enforce if section is present or being created
             tree.setdefault("status", "single")
             tree.setdefault("names", ["A"])
             tree.setdefault("life_expectancy", [90])
 
-        # ---------------------------------------------------------
-        # Write YAML
-        # ---------------------------------------------------------
         file_path = group_dir / "default.yaml"
 
         with open(file_path, "w") as fh:
@@ -201,25 +190,20 @@ def generate_group_configs(reg, model_index):
 def generate_config_yaml(groups):
     defaults = []
 
-    # Static base
     defaults.extend(
         [
-            "logging: default",
-            "case: default",
+            {"case": "default"},
         ]
     )
 
-    # Schema-driven groups
-    defaults.extend([{g: "default"} for g in groups])
+    defaults.extend([{g: "default"} for g in groups if g != "case"])
 
-    # Hydra plumbing
     defaults.extend(
         [
-            "hydra/sweep: basic",
-            "override hydra/sweep: flat",
-            # "#override hydra/hydra_logging: disabled",
-            # "override hydra/job_logging: disabled",
-            # "override hydra/launcher: joblib",
+            {"hydra/sweep": "basic"},
+            {"override hydra/sweep": "flat"},
+            {"override hydra/hydra_logging": "disabled"},
+            {"override hydra/job_logging": "disabled"},
             "_self_",
         ]
     )
@@ -231,9 +215,6 @@ def generate_config_yaml(groups):
             "job": {
                 "chdir": True,
                 "name": "run",
-            },
-            "launcher": {
-                "n_jobs": 1,
             },
         },
     }
@@ -247,18 +228,12 @@ def generate_config_yaml(groups):
 
 
 # =========================================================
-# Generate Hydra scaffolding (non-schema)
+# Generate Hydra scaffolding
 # =========================================================
 def generate_hydra_scaffolding():
-    """
-    Create minimal Hydra config groups required for sweep + logging.
-    """
-
     hydra_root = CONF_ROOT / "hydra"
 
-    # ----------------------------------------
     # sweep/basic.yaml
-    # ----------------------------------------
     sweep_basic = hydra_root / "sweep" / "basic.yaml"
     sweep_basic.parent.mkdir(parents=True, exist_ok=True)
 
@@ -267,52 +242,52 @@ def generate_hydra_scaffolding():
 
     print(f"Generated: {sweep_basic}")
 
-    # ----------------------------------------
-    # sweep/flat.yaml
-    # ----------------------------------------
+    # sweep/flat.yaml (corrected)
     sweep_flat = hydra_root / "sweep" / "flat.yaml"
 
     with open(sweep_flat, "w") as fh:
-        yaml.dump({"dir": ".", "subdir": "."}, fh, sort_keys=False)
+        yaml.dump(
+            {
+                "dir": "results/${case.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}",
+                "subdir": "run_${hydra:job.num}",
+            },
+            fh,
+            sort_keys=False,
+        )
 
     print(f"Generated: {sweep_flat}")
 
-    if 0:
-        # ----------------------------------------
-        # hydra_logging/disabled.yaml
-        # ----------------------------------------
-        hydra_logging = hydra_root / "hydra_logging" / "disabled.yaml"
-        hydra_logging.parent.mkdir(parents=True, exist_ok=True)
+    # hydra logging disabled
+    hydra_logging = hydra_root / "hydra_logging" / "disabled.yaml"
+    hydra_logging.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(hydra_logging, "w") as fh:
-            yaml.dump(
-                {
-                    "version": 1,
-                    "disable_existing_loggers": True,
-                },
-                fh,
-                sort_keys=False,
-            )
+    with open(hydra_logging, "w") as fh:
+        yaml.dump(
+            {
+                "version": 1,
+                "disable_existing_loggers": True,
+            },
+            fh,
+            sort_keys=False,
+        )
 
-        print(f"Generated: {hydra_logging}")
+    print(f"Generated: {hydra_logging}")
 
-        # ----------------------------------------
-        # job_logging/disabled.yaml
-        # ----------------------------------------
-        job_logging = hydra_root / "job_logging" / "disabled.yaml"
-        job_logging.parent.mkdir(parents=True, exist_ok=True)
+    # job logging disabled
+    job_logging = hydra_root / "job_logging" / "disabled.yaml"
+    job_logging.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(job_logging, "w") as fh:
-            yaml.dump(
-                {
-                    "version": 1,
-                    "disable_existing_loggers": True,
-                },
-                fh,
-                sort_keys=False,
-            )
+    with open(job_logging, "w") as fh:
+        yaml.dump(
+            {
+                "version": 1,
+                "disable_existing_loggers": True,
+            },
+            fh,
+            sort_keys=False,
+        )
 
-        print(f"Generated: {job_logging}")
+    print(f"Generated: {job_logging}")
 
 
 # =========================================================
@@ -327,7 +302,6 @@ def generate():
 
     generate_config_yaml(groups)
 
-    # 👇 ADD THIS
     generate_hydra_scaffolding()
 
 

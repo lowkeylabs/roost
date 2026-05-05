@@ -1,24 +1,30 @@
 # src/owlroost/schema/plugins/spending_policy.py
 
 from ..registry import FieldSpec
+from ..system_models import SpendingPolicyConfig
+from ..utils import unwrap_annotation, walk_model
 
 
 class SpendingPolicyPlugin:
-    def register(self, registry):
-        registry.register(
-            FieldSpec(
-                name="spending_policy.essential",
-                dtype=float,
-                path=("spending_policy", "essential"),
-                source="input",
-            )
-        )
+    root = "spending_policy"
+    model = SpendingPolicyConfig
 
-        registry.register(
-            FieldSpec(
-                name="spending_policy.lifestyle",
-                dtype=float,
-                path=("spending_policy", "lifestyle"),
-                source="input",
+    def register(self, registry):
+        for name, field in walk_model("", SpendingPolicyConfig):
+            full_name = f"spending_policy.{name}"
+
+            # -------------------------------------------------
+            # Skip duplicates (important for merged schema)
+            # -------------------------------------------------
+            if full_name in registry._fields:
+                continue
+
+            registry.register(
+                FieldSpec(
+                    name=full_name,
+                    dtype=unwrap_annotation(field.annotation),
+                    path=("spending_policy",) + tuple(name.split(".")),
+                    source="roost",
+                    description=field.description or "",
+                )
             )
-        )

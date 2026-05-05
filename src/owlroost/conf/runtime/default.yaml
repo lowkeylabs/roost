@@ -1,1 +1,6 @@
-{}
+trial_jobs: null
+run_jobs: null
+worker_timeout: null
+cpu_reserve: null
+oversubscribe_factor: null
+enforce_single_axis: null

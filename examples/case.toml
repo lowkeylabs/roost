@@ -1,0 +1,99 @@
+case_name = "alex+jamie"
+description = "Alex and Jamie face a stark longevity gap: Alex has a shorter life expectancy (72) while Jamie may live to 90. This creates unique planning challenges—how much to spend now vs. preserve for the survivor, and how to structure Roth conversions when one spouse will likely outlive the other by two decades.\n\nThis case showcases Owl's handling of asymmetric life expectancies, the AMO (at-most-one) Roth and AMO surplus options for aggressive optimization, and the importance of survivor spending assumptions. The 60% surviving-spouse factor means Jamie's longer horizon drives much of the strategy.\n"
+
+[basic_info]
+status = "married"
+names = [ "Alex", "Jamie",]
+sexes = [ "M", "F",]
+date_of_birth = [ "1960-01-15", "1961-01-17",]
+life_expectancy = [ 72, 90,]
+start_date = "2026-01-01"
+
+[savings_assets]
+taxable_savings_balances = [ 500.0, 200.0,]
+tax_deferred_savings_balances = [ 1500.0, 400.0,]
+tax_free_savings_balances = [ 50.0, 40.0,]
+beneficiary_fractions = [ 1.0, 1.0, 1.0,]
+spousal_surplus_deposit_fraction = 0.5
+
+[household_financial_profile]
+HFP_file_name = "HFP_alex+jamie.xlsx"
+
+[fixed_income]
+pension_monthly_amounts = [ 0, 0,]
+pension_ages = [ 65.0, 65.0,]
+pension_indexed = [ false, false,]
+social_security_pia_amounts = [ 3000, 1200,]
+social_security_ages = [ 69.0, 62.083333,]
+
+[rates_selection]
+heirs_rate_on_tax_deferred_estate = 30.0
+dividend_rate = 1.72
+obbba_expiration_year = 2032
+method = "user"
+values = [ 7.0, 4.0, 3.3, 2.8,]
+from = 1928
+to = 2025
+
+[asset_allocation]
+interpolation_method = "linear"
+interpolation_center = 15.0
+interpolation_width = 5.0
+type = "individual"
+generic = [ [ [ 60, 40, 0, 0,], [ 60, 40, 0, 0,],], [ [ 60, 40, 0, 0,], [ 60, 40, 0, 0,],],]
+
+[optimization_parameters]
+spending_profile = "flat"
+surviving_spouse_spending_percent = 60
+objective = "maxSpending"
+
+[solver_options]
+maxRothConversion = 400.0
+noRothConversions = "none"
+startRothConversions = 2026
+bequest = 0
+solver = "default"
+spendingSlack = 0
+amoRoth = true
+amoSurplus = true
+withSCLoop = true
+withMedicare = "loop"
+noLateSurplus = false
+previousMAGIs = [ 200.0, 200.0,]
+
+[results]
+default_plots = "today"
+
+[longevity]
+apply_to_plan = false
+use_stochastic_model = false
+life_expectancy_seed = 1234567890
+model_name = "default"
+partnered = true
+lifetime_percentile = [ 0.8, 0.8,]
+sex = [ "female", "female",]
+health = [ "average", "average",]
+smoker = [ false, false,]
+
+[roost]
+master_seed = 985114884
+trials_per_run = 1
+
+[runtime_environment]
+OMP_NUM_THREADS = 1
+MKL_NUM_THREADS = 1
+OPENBLAS_NUM_THREADS = 1
+MSK_IPAR_NUM_THREADS = 1
+
+[spending_policy]
+essential_spending = 80
+lifestyle_spending = 110
+baseline_years = 3
+max_years_below_threshhold = 5
+max_consecutive_years_below_threshhold = 5
+
+[cache]
+generated_at = "2026-04-22T13:21:28.135253"
+retirement_horizon = 3
+max_spending = 233697.81
+first_year_total_withdrawals = 147941.0

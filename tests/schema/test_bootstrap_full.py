@@ -13,4 +13,4 @@ def test_full_registry_contains_all_plugins():
     assert reg.get("longevity.sex")
 
     # Spending policy
-    assert reg.get("spending_policy.essential")
+    assert reg.get("spending_policy.essential_spending")

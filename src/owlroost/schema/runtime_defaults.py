@@ -78,6 +78,7 @@ def build_runtime_defaults():
             "surviving_spouse_spending_percent": 60,
         },
         "solver_options": {
+            "bequest": 0,
             "solver": "default",
             "withMedicare": "loop",
             "withSSTaxability": "loop",

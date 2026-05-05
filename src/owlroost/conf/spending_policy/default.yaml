@@ -1,1 +1,5 @@
-{}
+essential_spending: 0.0
+lifestyle_spending: 0.0
+baseline_years: 3
+max_years_below_threshhold: 5
+max_consecutive_years_below_threshhold: 5

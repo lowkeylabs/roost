@@ -5,3 +5,6 @@ optimization_parameters:
 spending_profile: flat
 surviving_spouse_spending_percent: 60
 objective: maxSpending
+smile_dip: null
+smile_increase: null
+smile_delay: null

@@ -1,0 +1,57 @@
+financial: null
+valid: null
+spending:
+  year0:
+    future: null
+    today: null
+  total:
+    future: null
+    today: null
+spending_profile:
+  year0: null
+  early_avg: null
+  late_avg: null
+  yearN: null
+  survivor_ratio: null
+taxes:
+  total:
+    future: null
+    today: null
+roth:
+  total:
+    future: null
+    today: null
+bequest:
+  total:
+    future: null
+    today: null
+spending_summary:
+  min_ratio: null
+  mean_ratio: null
+  median_ratio: null
+  p10_ratio: null
+  std_ratio: null
+  years_under_target: null
+  min_ratio_to_essential: null
+  mean_ratio_to_essential: null
+  median_ratio_to_essential: null
+  min_ratio_to_lifestyle: null
+  mean_ratio_to_lifestyle: null
+  median_ratio_to_lifestyle: null
+  years_below_essential: null
+  years_below_lifestyle: null
+  consecutive_years_below_lifestyle: null
+  consecutive_years_below_essential: null
+  lifestyle_stress_flag: null
+  essential_spending_breach: null
+inflation:
+  final_factor: null
+timeseries:
+  inflation:
+    factor_by_year: null
+  assets:
+    future_by_year: null
+    today_by_year: null
+  spending:
+    future_by_year: null
+    today_by_year: null

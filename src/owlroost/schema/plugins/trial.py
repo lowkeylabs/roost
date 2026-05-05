@@ -6,6 +6,11 @@ from ..utils import unwrap_annotation, walk_model
 class TrialPlugin:
     def register(self, registry):
         for name, field in walk_model("", TrialConfig):
+            full_name = f"trial.{name}"
+
+            if full_name in registry._fields:
+                continue
+
             registry.register(
                 FieldSpec(
                     name=f"trial.{name}",

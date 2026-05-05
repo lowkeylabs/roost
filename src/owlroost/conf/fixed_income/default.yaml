@@ -23,3 +23,5 @@ social_security_pia_amounts:
 - 0
 social_security_ages:
 - 67.0
+social_security_trim_pct: null
+social_security_trim_year: null

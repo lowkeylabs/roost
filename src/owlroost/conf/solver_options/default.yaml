@@ -1,8 +1,38 @@
 solver_options:
   solver: default
+  startRothConversions: 2026
+  bequest: 0.0
   withMedicare: loop
   withSSTaxability: loop
+  withSCLoop: true
   withLTCG: loop
   withNIIT: loop
-  withSCLoop: true
-  startRothConversions: 2026
+solver: default
+startRothConversions: 2026
+bequest: 0.0
+withMedicare: loop
+withSSTaxability: loop
+withSCLoop: true
+withLTCG: loop
+withNIIT: loop
+noRothConversions: null
+noLateSurplus: null
+amoSurplus: null
+previousMAGIs: null
+withSSAges: null
+oppCostX: null
+amoConstraints: null
+maxRothConversion: null
+withACA: null
+netSpending: null
+spendingSlack: null
+maxIter: null
+maxTime: null
+withDecomposition: null
+gap: null
+bigMamo: null
+amoRoth: null
+absTol: null
+relTol: null
+timePreference: null
+minTaxableBalance: null

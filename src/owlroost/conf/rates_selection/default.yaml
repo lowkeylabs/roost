@@ -13,6 +13,20 @@ effective_tax_rate: 20.0
 dividend_rate: 1.8000000000000003
 obbba_expiration_year: 2032
 method: historical average
+from_: null
 to: 2020
+values: null
+standard_deviations: null
+correlations: null
+rate_seed: null
+reproducible_rates: null
 reverse_sequence: false
 roll_sequence: 0
+bootstrap_type: null
+block_size: null
+shrink: null
+from: 1960
+rates_seed: null
+long_term_capital_gains_rate: null
+state_tax: null
+net_investment_income_tax: null

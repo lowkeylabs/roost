@@ -1,25 +1,30 @@
 # src/owlroost/schema/plugins/longevity.py
 
 from ..registry import FieldSpec
+from ..system_models import LongevityConfig
+from ..utils import unwrap_annotation, walk_model
 
 
 class LongevityPlugin:
-    def register(self, registry):
-        registry.register(
-            FieldSpec(
-                name="longevity.sex",
-                dtype=list[str],
-                path=("longevity", "sex"),
-                source="input",
-                description="Sex for longevity modeling",
-            )
-        )
+    root = "longevity"
+    model = LongevityConfig
 
-        registry.register(
-            FieldSpec(
-                name="longevity.seed",
-                dtype=int,
-                path=("longevity", "seed"),
-                source="input",
+    def register(self, registry):
+        for name, field in walk_model("", LongevityConfig):
+            full_name = f"longevity.{name}"
+
+            # -------------------------------------------------
+            # Skip duplicates (important for merged schema)
+            # -------------------------------------------------
+            if full_name in registry._fields:
+                continue
+
+            registry.register(
+                FieldSpec(
+                    name=full_name,
+                    dtype=unwrap_annotation(field.annotation),
+                    path=("longevity",) + tuple(name.split(".")),
+                    source="roost",
+                    description=field.description or "",
+                )
             )
-        )

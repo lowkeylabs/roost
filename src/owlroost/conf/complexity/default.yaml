@@ -1,0 +1,10 @@
+complexity: null
+num_decision_variables: null
+num_constraints: null
+num_nonzeros: null
+matrix_density: null
+num_integer_variables: null
+integer_variable_ratio: null
+horizon: null
+nnz_per_variable: null
+nnz_per_constraint: null

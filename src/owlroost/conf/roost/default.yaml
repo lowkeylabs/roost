@@ -1,1 +1,5 @@
-{}
+roost: {}
+master_seed: null
+experiment_id: null
+description: null
+trials_per_run: null
