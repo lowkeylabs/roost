@@ -1,25 +1,60 @@
 # src/owlroost/display/discovery/cases.py
 
-import tomllib
+from __future__ import annotations
+
 from pathlib import Path
 
 
-def discover_cases(root: Path):
-    rows = []
+# =========================================================
+# Helpers
+# =========================================================
+def is_case_file(path: Path):
+    """
+    Return True if path is a user-authored
+    case TOML file.
 
-    for f in sorted(root.glob("*.toml")):
-        try:
-            data = tomllib.loads(f.read_text())
-        except Exception:
-            continue
+    Excludes generated artifacts.
+    """
 
-        rows.append(
-            {
-                "_path": f,
-                "_inputs": data,
-                "_metrics": None,
-                "_meta": {},
-            }
-        )
+    path = Path(path)
 
-    return rows
+    if not path.is_file():
+        return False
+
+    if path.suffix != ".toml":
+        return False
+
+    excluded = {
+        "run.toml",
+        "trial.toml",
+        "case.toml",
+    }
+
+    if path.name in excluded:
+        return False
+
+    return True
+
+
+# =========================================================
+# Discovery
+# =========================================================
+def find_case_files(root="."):
+    """
+    Find candidate case TOML files.
+
+    Excludes generated artifacts.
+    """
+
+    root = Path(root)
+
+    if not root.exists():
+        return []
+
+    out = []
+
+    for p in root.iterdir():
+        if is_case_file(p):
+            out.append(p.resolve())
+
+    return sorted(out)

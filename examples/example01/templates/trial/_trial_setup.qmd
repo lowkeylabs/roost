@@ -9,8 +9,8 @@ from owlplanner.config.toml_io import load_toml
 from owlplanner.config.plan_bridge import config_to_plan
 from owlplanner import mylogging as log
 
-from owlroost.domain.services.metadata_loader import load_bundle
-from owlroost.domain.reporting.utils import generate_table, render_relevant_table
+#from owlrost.domain.services.metadata_loader import load_bundle
+#from owlroost.domain.reporting.utils import generate_table, render_relevant_table
 
 # set up logging
 s = StringIO()
@@ -31,7 +31,7 @@ x = logger.add(sys.stderr, level="INFO")
 #trial = bundle["trial_rows"][0]
 #case = trial.get("_case")
 
-toml_path = str(next(Path.cwd().glob("*_effective.toml"), None))
+toml_path = str(next(Path.cwd().glob("trial.toml"), None))
 diconf, dirname, _ = load_toml(toml_path)
 plan = config_to_plan(diconf, dirname=dirname,logstreams=logstreams)
 x = plan.resolve()

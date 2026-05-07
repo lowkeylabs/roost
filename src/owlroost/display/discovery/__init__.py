@@ -1,13 +1,8 @@
-# src/owlroost/display/__init__.py
+# src/owlroost/display/discovery/__init__.py
 
-from .api import (
-    extract_view,
-    render,
-)
-from .dataset import Dataset
-from .discovery import (
+from .cases import find_case_files
+from .results_tree import (
     find_all_runs,
-    find_case_files,
     find_cases,
     find_experiments,
     find_first_trial,
@@ -17,20 +12,11 @@ from .discovery import (
     has_metrics,
     summarize_run,
 )
-from .loaders import (
-    load_cases,
-)
 
 __all__ = [
-    # API
-    "extract_view",
-    "render",
-    # dataset
-    "Dataset",
-    # loaders
-    "load_cases",
-    # discovery
+    # case discovery
     "find_case_files",
+    # results discovery
     "find_cases",
     "find_experiments",
     "find_runs",
