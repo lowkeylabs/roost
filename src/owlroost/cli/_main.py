@@ -43,7 +43,6 @@ def cli(
     # Reset loguru
     # ----------------------------------------
     logger.remove()
-
     logger.add(sys.stderr, level=log_level)
     # ----------------------------------------
     # Store on context

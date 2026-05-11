@@ -1,43 +1,15 @@
 # src/owlroost/display/__init__.py
 
-from .api import (
-    extract_view,
-    render,
+from .registry import DisplayRegistry
+from .specs import (
+    DisplayField,
+    DisplayGroup,
+    DisplayProfile,
+    ViewSpec,
 )
-from .dataset import Dataset
-from .discovery import (
-    find_all_runs,
-    find_case_files,
-    find_cases,
-    find_experiments,
-    find_first_trial,
-    find_pending_trials,
-    find_runs,
-    find_trials,
-    has_metrics,
-    summarize_run,
+from .sync import (
+    sync_display_registry,
 )
-from .loaders import (
-    load_cases,
+from .views import (
+    register_case_views,
 )
-
-__all__ = [
-    # API
-    "extract_view",
-    "render",
-    # dataset
-    "Dataset",
-    # loaders
-    "load_cases",
-    # discovery
-    "find_case_files",
-    "find_cases",
-    "find_experiments",
-    "find_runs",
-    "find_all_runs",
-    "find_trials",
-    "find_first_trial",
-    "find_pending_trials",
-    "has_metrics",
-    "summarize_run",
-]

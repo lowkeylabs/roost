@@ -11,16 +11,33 @@ import click
 from owlroost.core.run_owl_executor import (
     execute_runs,
 )
-from owlroost.display import (
-    load_cases,
-    render,
+from owlroost.display.bootstrap import (
+    build_display_registry,
 )
 from owlroost.display.discovery import (
     find_runs,
 )
+from owlroost.display.loaders import (
+    load_cases,
+)
+from owlroost.display.materialize import (
+    materialize_view,
+)
+from owlroost.display.renderers.latex_table import (
+    render_latex_table,
+)
+from owlroost.display.renderers.markdown_table import (
+    render_markdown_table,
+)
+from owlroost.display.renderers.rich_table import (
+    render_rich_table,
+)
 from owlroost.display.utils import (
     attach_row_ids,
     inject_id_column,
+)
+from owlroost.schema.bootstrap import (
+    build_registry,
 )
 
 
@@ -70,6 +87,23 @@ def resolve_case_selection(
     # Unknown selection
     # ----------------------------------------
     raise click.ClickException("Invalid case selection: " f"{arg}")
+
+
+def render_table(
+    table,
+    renderer,
+):
+    """
+    Dispatch table renderer.
+    """
+
+    if renderer == "markdown":
+        return render_markdown_table(table)
+
+    if renderer == "latex":
+        return render_latex_table(table)
+
+    return render_rich_table(table)
 
 
 def resolve_renderer(
@@ -251,9 +285,16 @@ def cmd_build(
     # ----------------------------------------
     ds = attach_row_ids(load_cases("."))
 
+    # ----------------------------------------
+    # Build schema/display registries
+    # ----------------------------------------
+
+    schema_registry = build_registry()
+
+    display_registry = build_display_registry(schema_registry)
+
     if not ds.rows:
         click.echo("No case TOML files found.")
-
         return
 
     # ----------------------------------------
@@ -268,14 +309,20 @@ def cmd_build(
     # List available cases
     # ----------------------------------------
     if not target:
-        table = ds.view(view)
+        table = materialize_view(
+            dataset=ds,
+            registry=display_registry,
+            level="case",
+            view_name=view,
+            mode="table",
+        )
 
         table = inject_id_column(
             table,
             ds,
         )
 
-        output = render(
+        output = render_table(
             table,
             renderer,
         )

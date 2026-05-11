@@ -1,3 +1,6 @@
+# src/owlroost/schema/registry.py
+
+
 class FieldSpec:
     def __init__(
         self,

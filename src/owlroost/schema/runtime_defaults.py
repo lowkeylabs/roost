@@ -1,3 +1,7 @@
+# src/owlroost/schema/runtime_defaults.py
+
+from io import StringIO
+
 from owlplanner.config.plan_bridge import config_to_plan, plan_to_config
 
 
@@ -88,7 +92,9 @@ def build_runtime_defaults():
         "roost": {},
     }
 
-    plan = config_to_plan(seed, loadHFP=False)
+    # toss logstreams when building defaults
+    logstreams = [StringIO(), StringIO()]
+    plan = config_to_plan(seed, loadHFP=False, logstreams=logstreams)
     defaults = plan_to_config(plan)
 
     defaults.setdefault("case_name", "default")
