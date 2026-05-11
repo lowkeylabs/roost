@@ -1,116 +1,322 @@
-src/owlroost/README.md
 
 # OWL-ROOST Architecture
 
 This directory contains the current implementation of OWL-ROOST.
 
-The roost system is a **clean, schema-driven, test-first design** with the goal of:
+The roost system is a **clean, schema-driven, layered, test-first design** with the goals of:
 
 - eliminating unnecessary module couplings
-- unifying inputs and outputs under a single schema model
+- unifying inputs, outputs, and derived values under a single semantic model
+- separating semantic meaning from presentation
 - simplifying reasoning about experiments, runs, and trials
-- enabling transparent analytics and reporting
+- enabling transparent analytics, display, and reporting
+- supporting reproducible and testable experiment pipelines
 
 
 # Core Principles
 
-## 1. Schema is the foundation
+## 1. Schema is the semantic foundation
 
-Everything in the system—inputs, outputs, derived values—is represented as **schema fields**.
+Everything in the system—inputs, outputs, derived values, runtime values—is represented as **schema fields**.
 
 There is no distinction between:
 
 - "input fields"
 - "metrics"
 - "computed values"
+- "runtime outputs"
 
 All are:
 
 > **Fields defined in a unified schema registry**
 
+The schema registry defines:
 
-## 2. Pure data pipeline
+- field identity
+- types
+- provenance
+- extraction paths
+- compute functions
+- defaults
+- semantic metadata
+
+The schema layer does **not** own rendering or presentation behavior.
+
+
+## 2. Display is layered on top of schema
+
+Display behavior is intentionally separated from schema semantics.
+
+The display subsystem:
+
+- references schema fields
+- adds presentation metadata
+- organizes fields into reusable groups and views
+- materializes tables/pivots
+- renders output for CLI and reports
+
+This separation prevents:
+
+- coupling semantic meaning to rendering
+- renderer-specific logic leaking into schema
+- duplication of schema metadata
+
+Architecture:
+
+```text
+SchemaRegistry
+    ↓
+DisplayRegistry
+    ↓
+Groups / Views
+    ↓
+Materialization
+    ↓
+RoostTable
+    ↓
+Renderers
+````
+
+## 3. Layer-aware data model
+
+Roost operates across multiple semantic layers:
+
+```text
+Case
+  ↓
+Experiment
+  ↓
+Run
+  ↓
+Trial
+```
+
+Each layer represents a different dataset abstraction:
+
+| Layer      | Row Represents            |
+| ---------- | ------------------------- |
+| case       | one TOML case file        |
+| experiment | one experiment directory  |
+| run        | one parameterized run     |
+| trial      | one stochastic simulation |
+
+Views are registered against a specific layer.
+
+## 4. Pure data pipeline
 
 The system is a pipeline:
 
 ```text
-Case → Experiment → Run → Trial → Outputs → Aggregation → Reporting
-````
+Case → Experiment → Run → Trial → Outputs → Aggregation → Display → Reporting
+```
 
 Each stage:
 
 * consumes structured data
 * produces structured data
-* does not depend on presentation
+* does not depend on presentation concerns
 
+## 5. Functional core, thin orchestration
 
-## 3. Functional core, thin orchestration
+* Core logic is pure and testable
+* Side effects (filesystem, CLI, Hydra, rendering) are isolated
+* CLI commands are orchestration layers only
 
-* Core logic is **pure and testable**
-* Side effects (filesystem, CLI, Hydra) are isolated
-
-
-## 4. Test-driven development (TDD)
+## 6. Test-driven development (TDD)
 
 All features are introduced via tests:
 
-* behavior first
-* implementation second
+1. write failing test
+2. implement minimal code
+3. make test pass
+4. refactor
+5. repeat
 
-Legacy tests (`tests_legacy/`) are used as reference only.
-
+Legacy tests are used as behavioral references only.
 
 # Top-Level Modules
 
 ```text
 owlroost/
-  schema/        ← unified schema system (foundation)
-  planner/       ← experiment/run/trial construction (Hydra-facing)
-  trial/         ← execution layer (OWL integration)
-  analytics/     ← metrics + aggregation
-  reporting/     ← tables, views, QMD generation
-  cli/           ← command-line interface (thin wrapper)
-  io/            ← filesystem + serialization utilities
+  schema/        ← semantic field system (foundation)
+  display/       ← views, groups, materialization, rendering
+  hydra/         ← Hydra-facing experiment generation
+  core/          ← execution + metrics extraction
+  cli/           ← command-line interface (thin wrappers)
+  tools/         ← validation and developer tooling
 ```
 
+Additional modules may emerge as the v2 architecture stabilizes.
+
+# Semantic vs Presentation Layers
+
+## Semantic Layer (`schema/`)
+
+Defines:
+
+```text
+FieldSpec
+```
+
+A schema field represents semantic meaning only.
+
+Responsibilities:
+
+* identity
+* typing
+* extraction
+* defaults
+* provenance
+* compute functions
+
+## Presentation Layer (`display/`)
+
+Defines:
+
+```text
+DisplayField
+DisplayProfile
+DisplayGroup
+ViewSpec
+```
+
+Presentation is layered on top of schema fields.
+
+Responsibilities:
+
+* labels
+* formatting
+* alignment
+* explanations
+* visibility
+* aggregation presentation
+* table/pivot behavior
 
 # Module Responsibilities
 
 ## schema/
 
-> The most important module in roost.
+> The semantic foundation of roost.
 
-Defines the **SchemaRegistry**, which unifies:
-
-* TOML input fields
-* OWL output fields
-* derived/computed fields
+Defines the `SchemaRegistry`.
 
 ### Responsibilities
 
 * register fields
-* define types and metadata
+* define semantic metadata
+* unify:
+
+  * TOML inputs
+  * runtime values
+  * OWL outputs
+  * derived/computed values
 * support:
 
   * compute functions
-  * aggregation behavior
-  * display semantics
+  * runtime defaults
+  * provenance tracking
 
-### Key concept
+### Key concepts
 
 ```text
-Field = {name, type, source, compute_fn, aggregates, display}
+FieldSpec
+    semantic definition of a field
 ```
 
+Example:
 
-## planner/
+```text
+FieldSpec = {
+  name,
+  dtype,
+  source,
+  path,
+  compute_fn,
+  default,
+}
+```
 
-> Responsible for constructing experiments.
+## display/
+
+> Presentation and dataset exploration system.
+
+Defines the `DisplayRegistry`.
+
+### Responsibilities
+
+* define display fields
+* define reusable display groups
+* define layer-aware views
+* support:
+
+  * table mode
+  * pivot mode
+* materialize:
+
+  * RoostTable
+* render:
+
+  * rich
+  * markdown
+  * latex
+  * html (future)
+
+### Key concepts
+
+```text
+DisplayField
+    presentation configuration for a schema field
+
+DisplayProfile
+    mode-specific presentation behavior
+
+DisplayGroup
+    reusable bundle of display fields
+
+ViewSpec
+    ordered composition of groups + fields
+```
+
+### Display modes
+
+Current display modes:
+
+* `table`
+* `pivot`
+
+Important:
+
+> "pivot" refers only to row/column orientation,
+> not OLAP/database pivot semantics.
+
+### Display profiles
+
+A field may render differently depending on mode.
+
+Example:
+
+| Mode  | Label                     |
+| ----- | ------------------------- |
+| table | `P90`                     |
+| pivot | `90th Percentile Runtime` |
+
+Profiles may define:
+
+* labels
+* formatting
+* alignment
+* wrapping
+* explanations
+* visibility
+
+## hydra/
+
+> Experiment/run/trial generation.
 
 Transforms:
 
 ```text
-case.toml + overrides → runs → trials
+case.toml + overrides → experiments → runs → trials
 ```
 
 ### Responsibilities
@@ -118,24 +324,24 @@ case.toml + overrides → runs → trials
 * interpret override space
 * expand experiments into runs
 * generate trial configurations
-* write `_effective.toml`
+* manage Hydra integration
+* write effective configuration artifacts
 
 ### Notes
 
-* replaces Hydra-dependent logic with a clean abstraction
-* Hydra may still be used internally, but is not the model
+Hydra is an implementation tool—not the core architecture model.
 
+## core/
 
-## trial/
-
-> Executes a single trial.
+> Trial execution and metrics extraction.
 
 ### Responsibilities
 
-* run OWL planner
-* capture outputs
-* normalize results into schema-aligned structure
-* handle failures consistently
+* execute OWL planner
+* normalize outputs
+* capture metrics
+* enforce consistent failure handling
+* produce structured outputs
 
 ### Output
 
@@ -147,98 +353,147 @@ trial_result = {
 }
 ```
 
-
-## analytics/
-
-> Computes values across trials and runs.
-
-### Responsibilities
-
-* apply schema `compute_fn`
-* aggregate trial results:
-
-  * mean
-  * median
-  * percentiles
-  * counts
-* enforce invariants
-
-### Output
-
-```text
-run_summary = {
-  field_name: aggregated_value
-}
-```
-
-
-
-## reporting/
-
-> Converts structured data into human-readable outputs.
-
-### Responsibilities
-
-* table generation
-* pivoting
-* view definitions
-* QMD generation
-
-### Key idea
-
-Reporting is:
-
-> **a projection of schema fields—not custom logic**
-
-
 ## cli/
 
-> Thin wrapper over the system.
+> Thin orchestration layer.
 
 ### Responsibilities
 
-* parse commands
-* call into planner / analytics / reporting
-* no business logic
+* parse commands/options
+* select datasets
+* select views
+* invoke display/materialization
+* invoke execution pipeline
 
+### No business logic
 
-## 💾 io/
+CLI commands should contain minimal logic.
 
-> Handles filesystem and serialization.
+# Display Architecture
 
-### Responsibilities
+## Views
 
-* read/write TOML
-* load/save JSON artifacts
-* manage results directory structure
+Views are:
 
+> ordered compositions of fields and groups
 
-# 🔄 Data Flow
+Views are registered against a specific layer:
+
+```text
+trial
+run
+experiment
+case
+```
+
+Examples:
+
+```text
+run/default
+run/timing
+trial/audit
+case/build
+```
+
+## Groups
+
+Groups are reusable display bundles.
+
+A group may define:
+
+* fields
+* aggregates
+* display hints
+* visibility rules
+
+Groups support different behavior in:
+
+* table mode
+* pivot mode
+
+## Materialization
+
+Materialization transforms:
+
+```text
+dataset + view + mode
+```
+
+into:
+
+```text
+RoostTable
+```
+
+This layer handles:
+
+* aggregate expansion
+* field resolution
+* pivot orientation
+* profile selection
+* visibility filtering
+
+## Renderers
+
+Renderers are intentionally dumb.
+
+Responsibilities:
+
+* render `RoostTable`
+* no schema logic
+* no aggregation logic
+* no dataset logic
+
+Current renderers:
+
+* rich
+* markdown
+* latex
+
+Future:
+
+* html
+* dashboard
+* API serializers
+
+# Data Flow
 
 ```text
 case.toml
    ↓
-planner
+hydra/planner
    ↓
-runs / trials
+experiments / runs / trials
    ↓
 trial execution
    ↓
-trial outputs (JSON + effective TOML)
+trial outputs + metrics
    ↓
-analytics
+aggregation
    ↓
-aggregated run data
+display materialization
    ↓
-reporting
+RoostTable
    ↓
-tables / reports / QMD
+renderers / reports / CLI
 ```
 
+# Command Model
+
+Commands naturally operate at different dataset layers.
+
+| Command       | Primary Layer            |
+| ------------- | ------------------------ |
+| `cmd_build`   | case                     |
+| `cmd_run`     | run                      |
+| `cmd_results` | run / trial / experiment |
+| `cmd_report`  | any                      |
+
+Each command defines default views appropriate for its layer.
 
 # Testing Strategy
 
-## New tests (active)
+## Active tests
 
 Located in:
 
@@ -248,9 +503,12 @@ tests/
 
 Focus on:
 
-* schema behavior
-* planner correctness
+* schema correctness
+* display materialization
 * aggregation correctness
+* renderer behavior
+* experiment generation
+* execution correctness
 * end-to-end golden tests
 
 ## Legacy tests
@@ -266,7 +524,6 @@ Used for:
 * behavioral reference only
 * not executed in CI
 
-
 # Legacy Code
 
 The v1 implementation is located in:
@@ -279,33 +536,28 @@ Rules:
 
 * do not import from it
 * do not modify it
-* use only for reference during migration
+* use only as migration reference
 
-This directory will be removed after stabilization.
+The directory will be removed after stabilization.
 
 # Development Workflow
 
-1. Write a failing test
-2. Implement minimal code
-3. Make test pass
-4. Refactor
-5. Repeat
+1. write failing test
+2. implement minimal code
+3. make test pass
+4. refactor
+5. repeat
 
-# 🎯 End State
+# End State
 
 * single clean codebase (`owlroost/`)
-* unified schema-driven model
+* unified semantic field model
+* layered display architecture
+* reusable views/groups/profiles
 * minimal coupling between layers
-* reproducible, testable results pipeline
+* reproducible and testable experiment pipeline
+* shared display engine for:
 
-
-```
-
-# Why this works
-
-This README:
-
-- locks in your **architecture direction**
-- prevents drifting back into v1 patterns
-- aligns perfectly with your goals (schema + metrics unification)
-- is actionable for every next module you build
+  * CLI
+  * reports
+  * future APIs
