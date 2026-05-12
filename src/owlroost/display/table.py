@@ -59,10 +59,11 @@ class RoostTable:
         self,
         columns,
         rows,
+        row_meta=None,
     ):
         self.columns = columns
-
         self.rows = rows
+        self.row_meta = row_meta or []
 
     # =====================================================
     # Diagnostics

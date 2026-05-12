@@ -81,8 +81,10 @@ def register_run_views(reg):
         DisplayGroup(
             key="run_identity",
             entries=[
-                "case_name",
-                "display.current_ages",
+                {"field": "compact_id", "show_if": ["is_table"]},
+                {"field": "case_id", "show_if": ["is_pivot"]},
+                {"field": "experiment_id", "show_if": ["is_pivot"]},
+                {"field": "run_id", "show_if": ["is_pivot"]},
             ],
             description="Run identity.",
         )

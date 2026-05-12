@@ -126,9 +126,9 @@ def test_expand_view_entries():
     )
 
     assert fields == [
-        "case_name",
-        "description",
-        "runtime.trial_jobs",
+        {"field": "case_name"},
+        {"field": "description"},
+        {"field": "runtime.trial_jobs"},
     ]
 
 

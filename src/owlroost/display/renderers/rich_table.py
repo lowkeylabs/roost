@@ -16,6 +16,13 @@ def render_rich_table(
 ):
     """
     Render RoostTable using Rich.
+
+    Supports:
+        - normal tables
+        - pivot tables
+
+    Pivot tables preserve formatting metadata
+    using table.row_meta.
     """
 
     rich_table = Table(
@@ -47,18 +54,58 @@ def render_rich_table(
     # Rows
     # =====================================================
 
-    for row in table.rows:
+    for row_idx, row in enumerate(table.rows):
         formatted = []
 
-        for value, column in zip(
-            row,
-            table.columns,
-            strict=False,
+        # -------------------------------------------------
+        # Optional row metadata (pivot support)
+        # -------------------------------------------------
+
+        row_meta = None
+
+        if hasattr(
+            table,
+            "row_meta",
         ):
+            if row_idx < len(table.row_meta):
+                row_meta = table.row_meta[row_idx]
+
+        # -------------------------------------------------
+        # Cells
+        # -------------------------------------------------
+
+        for col_idx, (
+            value,
+            column,
+        ) in enumerate(
+            zip(
+                row,
+                table.columns,
+                strict=False,
+            )
+        ):
+            # ---------------------------------------------
+            # Default column formatting
+            # ---------------------------------------------
+
+            fmt = column.fmt
+
+            # ---------------------------------------------
+            # Pivot formatting
+            #
+            # In pivot tables:
+            #   - column 0 is metric label
+            #   - remaining cells inherit formatting
+            #     from original source column
+            # ---------------------------------------------
+
+            if row_meta is not None and col_idx > 0:
+                fmt = row_meta.fmt
+
             formatted.append(
                 format_value(
                     value,
-                    column.fmt,
+                    fmt,
                 )
             )
 

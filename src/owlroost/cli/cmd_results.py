@@ -7,6 +7,7 @@ import click
 from owlroost.display.bootstrap import (
     build_display_registry,
 )
+from owlroost.display.dataset import Dataset
 from owlroost.display.loaders import (
     load_runs,
 )
@@ -73,6 +74,252 @@ def resolve_renderer(
 
 
 # =========================================================
+# Row Value Resolution
+# =========================================================
+
+
+def resolve_row_value(
+    row,
+    key,
+):
+    """
+    Resolve value from dataset row.
+
+    Search order:
+        _meta
+        _metrics
+        _inputs (dotted path)
+    """
+
+    # -----------------------------------------------------
+    # _meta
+    # -----------------------------------------------------
+
+    if key in row.get("_meta", {}):
+        return row["_meta"][key]
+
+    # -----------------------------------------------------
+    # _metrics
+    # -----------------------------------------------------
+
+    if key in row.get("_metrics", {}):
+        return row["_metrics"][key]
+
+    # -----------------------------------------------------
+    # _inputs dotted path
+    # -----------------------------------------------------
+
+    current = row.get("_inputs", {})
+
+    for part in key.split("."):
+        if not isinstance(current, dict):
+            return None
+
+        if part not in current:
+            return None
+
+        current = current[part]
+
+    return current
+
+
+# =========================================================
+# Filtering
+# =========================================================
+
+
+def parse_filter_expression(
+    expr,
+):
+    """
+    Parse expressions like:
+
+        case_id=0
+        trial.completed>50
+        success_rate>=0.9
+    """
+
+    operators = [
+        ">=",
+        "<=",
+        "!=",
+        ">",
+        "<",
+        "=",
+    ]
+
+    for op in operators:
+        if op in expr:
+            left, right = expr.split(op, 1)
+
+            return (
+                left.strip(),
+                op,
+                right.strip(),
+            )
+
+    raise click.ClickException(f"Invalid filter expression: {expr}")
+
+
+def coerce_value(
+    value,
+):
+    """
+    Attempt numeric coercion.
+    """
+
+    if value is None:
+        return None
+
+    if isinstance(
+        value,
+        (
+            int,
+            float,
+        ),
+    ):
+        return value
+
+    s = str(value)
+
+    try:
+        if "." in s:
+            return float(s)
+
+        return int(s)
+
+    except Exception:
+        return s
+
+
+def compare_values(
+    lhs,
+    op,
+    rhs,
+):
+    """
+    Compare values using operator.
+    """
+
+    lhs = coerce_value(lhs)
+
+    rhs = coerce_value(rhs)
+
+    if op == "=":
+        return lhs == rhs
+
+    if op == "!=":
+        return lhs != rhs
+
+    if op == ">":
+        return lhs > rhs
+
+    if op == "<":
+        return lhs < rhs
+
+    if op == ">=":
+        return lhs >= rhs
+
+    if op == "<=":
+        return lhs <= rhs
+
+    raise ValueError(f"Unsupported operator: {op}")
+
+
+def apply_filters(
+    rows,
+    filters,
+):
+    """
+    Apply CLI filters.
+    """
+
+    if not filters:
+        return rows
+
+    out = []
+
+    parsed = [parse_filter_expression(f) for f in filters]
+
+    for row in rows:
+        keep = True
+
+        for key, op, rhs in parsed:
+            lhs = resolve_row_value(
+                row,
+                key,
+            )
+
+            if not compare_values(lhs, op, rhs):
+                keep = False
+                break
+
+        if keep:
+            out.append(row)
+
+    return out
+
+
+# =========================================================
+# Sorting
+# =========================================================
+
+
+def apply_sort(
+    rows,
+    sort_key,
+):
+    """
+    Sort rows by field.
+
+    Prefix '-' for descending.
+
+    Examples:
+        trial.completed
+        -trial.completed
+    """
+
+    if not sort_key:
+        return rows
+
+    descending = False
+
+    key = sort_key
+
+    if sort_key.startswith("-"):
+        descending = True
+        key = sort_key[1:]
+
+    return sorted(
+        rows,
+        key=lambda r: (
+            resolve_row_value(r, key) is None,
+            resolve_row_value(r, key),
+        ),
+        reverse=descending,
+    )
+
+
+# =========================================================
+# Top-N
+# =========================================================
+
+
+def apply_top(
+    rows,
+    top_n,
+):
+    """
+    Limit rows.
+    """
+
+    if top_n is None:
+        return rows
+
+    return rows[:top_n]
+
+
+# =========================================================
 # CLI
 # =========================================================
 
@@ -91,18 +338,51 @@ def resolve_renderer(
     "--latex",
     is_flag=True,
 )
+@click.option(
+    "--pivot",
+    is_flag=True,
+)
+@click.option(
+    "--filter",
+    "filters",
+    multiple=True,
+    help=("Filter rows. " "Examples: case_id=0 " "trial.completed>50"),
+)
+@click.option(
+    "--sort",
+    type=str,
+    help=("Sort by field. " "Prefix '-' for descending."),
+)
+@click.option(
+    "--top",
+    type=int,
+    help="Limit number of rows.",
+)
 def cmd_results(
     view,
     markdown,
     latex,
+    pivot,
+    filters,
+    sort,
+    top,
 ):
     """
     Display discovered runs from ./results.
 
     Examples:
+
       roost results
+
       roost results --view basic
-      roost results --markdown
+
+      roost results --pivot
+
+      roost results --filter case_id=0
+
+      roost results --sort -trial.completed
+
+      roost results --top 10
     """
 
     # =====================================================
@@ -135,6 +415,48 @@ def cmd_results(
         return
 
     # =====================================================
+    # Working Rows
+    # =====================================================
+
+    working_rows = ds.rows
+
+    # =====================================================
+    # Filters
+    # =====================================================
+
+    working_rows = apply_filters(
+        working_rows,
+        filters,
+    )
+
+    # =====================================================
+    # Sort
+    # =====================================================
+
+    working_rows = apply_sort(
+        working_rows,
+        sort,
+    )
+
+    # =====================================================
+    # Top-N
+    # =====================================================
+
+    working_rows = apply_top(
+        working_rows,
+        top,
+    )
+
+    # =====================================================
+    # Final Dataset
+    # =====================================================
+
+    final_ds = Dataset(
+        rows=working_rows,
+        level=ds.level,
+    )
+
+    # =====================================================
     # Resolve Renderer
     # =====================================================
 
@@ -148,21 +470,22 @@ def cmd_results(
     # =====================================================
 
     table = materialize_view(
-        dataset=ds,
+        dataset=final_ds,
         registry=display_registry,
         level="run",
         view_name=view,
-        mode="table",
+        mode="pivot" if pivot else "table",
     )
 
     # =====================================================
     # Add Row IDs
     # =====================================================
 
-    table = inject_id_column(
-        table,
-        ds,
-    )
+    if not pivot:
+        table = inject_id_column(
+            table,
+            final_ds,
+        )
 
     # =====================================================
     # Render

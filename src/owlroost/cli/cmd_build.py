@@ -36,6 +36,9 @@ from owlroost.display.utils import (
     attach_row_ids,
     inject_id_column,
 )
+from owlroost.metrics.registry.bootstrap import (
+    build_metrics_registry,
+)
 from owlroost.schema.bootstrap import (
     build_registry,
 )
@@ -280,19 +283,17 @@ def cmd_build(
       roost build 0 solver_options.maxSpending=145
     """
 
+    schema_registry = build_registry()
+    metrics_registry = build_metrics_registry()
+    display_registry = build_display_registry(
+        schema_registry=schema_registry,
+        metrics_registry=metrics_registry,
+    )
+
     # ----------------------------------------
     # Discover + load case dataset
     # ----------------------------------------
     ds = attach_row_ids(load_cases("."))
-
-    # ----------------------------------------
-    # Build schema/display registries
-    # ----------------------------------------
-
-    schema_registry = build_registry()
-
-    display_registry = build_display_registry(schema_registry)
-
     if not ds.rows:
         click.echo("No case TOML files found.")
         return

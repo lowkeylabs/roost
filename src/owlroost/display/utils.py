@@ -72,7 +72,9 @@ def resolve_field_value(
 
     Resolution order:
     - display_fn
+    - explicit path lookup
     - _metrics
+    - _meta
     - _inputs
     - top-level row
 
@@ -88,8 +90,21 @@ def resolve_field_value(
     # Display-derived value
     # -----------------------------------------------------
 
-    if display_field and display_field.display_fn:
+    if display_field is not None and display_field.display_fn:
         return display_field.display_fn(row)
+
+    # -----------------------------------------------------
+    # Explicit storage path
+    # -----------------------------------------------------
+
+    if display_field is not None and display_field.path is not None:
+        value = extract_path(
+            row,
+            display_field.path,
+        )
+
+        if value is not None:
+            return value
 
     # -----------------------------------------------------
     # Metrics
@@ -104,11 +119,23 @@ def resolve_field_value(
         return metrics[field_name]
 
     # -----------------------------------------------------
+    # Meta
+    # -----------------------------------------------------
+
+    meta = row.get(
+        "_meta",
+        {},
+    )
+
+    if field_name in meta:
+        return meta[field_name]
+
+    # -----------------------------------------------------
     # Inputs
     # -----------------------------------------------------
 
     value = extract_path(
-        row,
+        row.get("_inputs", {}),
         field_name,
     )
 

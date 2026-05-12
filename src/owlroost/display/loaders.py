@@ -27,6 +27,66 @@ from .discovery.results_tree import (
 # =========================================================
 
 # =========================================================
+# ID Helpers
+# =========================================================
+
+
+def extract_run_id(
+    run_dir: Path,
+):
+    """
+    run_0 -> 0
+    """
+
+    name = run_dir.name
+
+    if not name.startswith("run_"):
+        return None
+
+    try:
+        return int(name.split("_")[1])
+
+    except Exception:
+        return None
+
+
+def extract_trial_id(
+    trial_dir: Path,
+):
+    """
+    0007 -> 7
+    """
+
+    try:
+        return int(trial_dir.name)
+
+    except Exception:
+        return None
+
+
+def extract_experiment_key(
+    run_dir: Path,
+):
+    """
+    results/<case>/<date>/<time>/run_X
+
+    returns:
+        (<case>, <date>, <time>)
+    """
+
+    parts = run_dir.parts
+
+    if len(parts) < 4:
+        return None
+
+    return (
+        parts[-4],
+        parts[-3],
+        parts[-2],
+    )
+
+
+# =========================================================
 # Metric Normalization
 # =========================================================
 
@@ -77,6 +137,11 @@ def flatten_dict(
     return out
 
 
+# =========================================================
+# Case Loader
+# =========================================================
+
+
 def _load_case_file(
     path: Path,
 ):
@@ -109,6 +174,10 @@ def _load_case_file(
 
 def _load_trial_metrics(
     trial_dir: Path,
+    *,
+    case_id,
+    experiment_id,
+    run_id,
 ):
     """
     Load metrics.json from trial directory.
@@ -127,12 +196,18 @@ def _load_trial_metrics(
     except Exception:
         return None
 
+    trial_id = extract_trial_id(trial_dir)
+
     return {
         "_path": Path(trial_dir).resolve(),
         "_inputs": {},
         "_metrics": flatten_dict(metrics),
         "_meta": {
             "level": "trial",
+            "case_id": case_id,
+            "experiment_id": experiment_id,
+            "run_id": run_id,
+            "trial_id": trial_id,
         },
     }
 
@@ -145,6 +220,10 @@ def _load_trial_metrics(
 def _load_run_dir(
     path: Path,
     metrics_registry,
+    *,
+    case_id,
+    experiment_id,
+    run_id,
 ):
     """
     Load a single run directory.
@@ -193,7 +272,12 @@ def _load_run_dir(
     trial_rows = []
 
     for trial_dir in find_trials(path):
-        row = _load_trial_metrics(trial_dir)
+        row = _load_trial_metrics(
+            trial_dir,
+            case_id=case_id,
+            experiment_id=experiment_id,
+            run_id=run_id,
+        )
 
         if row is not None:
             trial_rows.append(row)
@@ -238,6 +322,9 @@ def _load_run_dir(
         "_meta": {
             "level": "run",
             "trial_count": total,
+            "case_id": case_id,
+            "experiment_id": experiment_id,
+            "run_id": run_id,
         },
     }
 
@@ -322,12 +409,54 @@ def load_runs(
         - runtime metadata (_meta)
     """
 
+    results_root = Path(results_root)
+
+    # =====================================================
+    # Discover Runs
+    # =====================================================
+
+    run_dirs = sorted(find_all_runs(results_root))
+
+    # =====================================================
+    # Build Case ID Map
+    # =====================================================
+
+    case_names = sorted(
+        {extract_experiment_key(r)[0] for r in run_dirs if extract_experiment_key(r) is not None}
+    )
+
+    case_id_map = {name: idx for idx, name in enumerate(case_names)}
+
+    # =====================================================
+    # Build Experiment ID Map
+    # =====================================================
+
+    experiment_keys = sorted(
+        {extract_experiment_key(r) for r in run_dirs if extract_experiment_key(r) is not None}
+    )
+
+    experiment_id_map = {key: idx for idx, key in enumerate(experiment_keys)}
+
+    # =====================================================
+    # Load Rows
+    # =====================================================
+
     rows = []
 
-    for run_dir in find_all_runs(Path(results_root)):
+    for run_dir in run_dirs:
+        exp_key = extract_experiment_key(run_dir)
+
+        if exp_key is None:
+            continue
+
+        case_name = exp_key[0]
+
         row = _load_run_dir(
             run_dir,
             metrics_registry=metrics_registry,
+            case_id=case_id_map[case_name],
+            experiment_id=experiment_id_map[exp_key],
+            run_id=extract_run_id(run_dir),
         )
 
         if row is not None:
