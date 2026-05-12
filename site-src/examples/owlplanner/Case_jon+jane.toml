@@ -1,4 +1,4 @@
-case_name = "Jon+Jane"
+case_name = "jon+jane"
 description = """
 Jon and Jane are close to retirement with a classic 60/40 split—he has the taxable and tax-deferred assets, she has the Roth. They've chosen an optimistic return assumption (10% equity, 3.5% inflation) and a 100% stock allocation to stress-test their plan. Roth conversions are disabled, so this case focuses on withdrawal sequencing and spending sustainability.
 
@@ -27,7 +27,7 @@ HFP_file_name = "HFP_jon+jane.xlsx"
 pension_monthly_amounts = [ 0, 0,]
 pension_ages = [ 65.0, 65.0,]
 pension_indexed = [ false, false,]
-social_security_pia_amounts = [ 1750, 1750,]
+social_security_pia_amounts = [ 1_750, 1_750,]
 social_security_ages = [ 65.0, 65.0,]
 
 [rates_selection]

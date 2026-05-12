@@ -6,15 +6,44 @@ import toml
 import yaml
 
 from owlroost.schema.bootstrap import build_registry
-from owlroost.schema.runtime_defaults import build_runtime_defaults
+from owlroost.schema.runtime_defaults import (
+    build_runtime_defaults,
+)
 
 CONF_ROOT = Path("src/owlroost/conf")
 CASE_ROOT = Path("examples")
 
 
-# ---------------------------------------------------------
+# =========================================================
 # Helpers
-# ---------------------------------------------------------
+# =========================================================
+
+
+def report_section(
+    title,
+    missing,
+    guidance=None,
+    limit=15,
+):
+    if not missing:
+        return
+
+    print(f"\n{title} " f"({len(missing)}):")
+
+    if guidance:
+        print()
+        for line in guidance:
+            print(f"  {line}")
+
+    print()
+
+    for m in sorted(missing)[:limit]:
+        print("   ", m)
+
+    if len(missing) > limit:
+        print(f"   ... +" f"{len(missing) - limit} more")
+
+
 def normalize_key(k: str) -> str:
     return k.replace("-", "_")
 
@@ -25,10 +54,16 @@ def flatten(d, prefix=()):
     if isinstance(d, dict):
         for k, v in d.items():
             k = normalize_key(k)
-            out |= flatten(v, prefix + (k,))
+
+            out |= flatten(
+                v,
+                prefix + (k,),
+            )
+
     elif isinstance(d, list):
         if prefix:
             out.add(".".join(prefix))
+
     else:
         if prefix:
             out.add(".".join(prefix))
@@ -39,24 +74,32 @@ def flatten(d, prefix=()):
 def pct(a, b):
     if not a:
         return 100.0
+
     return 100.0 * (len(a & b) / len(a))
 
 
-def report_diff(label, missing, limit=10):
+def report_diff(
+    label,
+    missing,
+    limit=15,
+):
     if not missing:
         return
 
-    print(f"\n{label} ({len(missing)} missing):")
+    print(f"\n{label} " f"({len(missing)}):")
+
     for m in sorted(missing)[:limit]:
-        print("  ", m)
+        print("   ", m)
 
     if len(missing) > limit:
-        print(f"  ... +{len(missing) - limit} more")
+        print(f"   ... +" f"{len(missing) - limit} more")
 
 
-# ---------------------------------------------------------
+# =========================================================
 # Loaders
-# ---------------------------------------------------------
+# =========================================================
+
+
 def load_hydra_fields():
     fields = set()
 
@@ -65,13 +108,18 @@ def load_hydra_fields():
             continue
 
         default_file = group_dir / "default.yaml"
+
         if not default_file.exists():
             continue
 
         data = yaml.safe_load(default_file.read_text()) or {}
 
         for path in flatten(data):
-            fields.add(f"{group_dir.name}.{path}")
+            if path.startswith(group_dir.name + "."):
+                fields.add(path)
+
+            else:
+                fields.add(f"{group_dir.name}.{path}")
 
     return fields
 
@@ -82,6 +130,7 @@ def load_toml_fields():
     for file in CASE_ROOT.rglob("*.toml"):
         try:
             data = toml.load(file)
+
         except Exception:
             continue
 
@@ -90,109 +139,325 @@ def load_toml_fields():
     return fields
 
 
-# ---------------------------------------------------------
+# =========================================================
 # Classification
-# ---------------------------------------------------------
+# =========================================================
+
+
 def classify_registry(reg):
-    owl_fields = set()
-    roost_fields = set()
+    canonical = set()
+    compatibility = set()
+    synthetic = set()
+
+    compatibility_solver = {
+        "solver_options.amoRoth",
+        "solver_options.amoSurplus",
+        "solver_options.maxRothConversion",
+        "solver_options.netSpending",
+        "solver_options.noLateSurplus",
+        "solver_options.noRothConversions",
+        "solver_options.spendingSlack",
+    }
+
+    synthetic_fields = {
+        "roost.run_name",
+        "roost.trial_id",
+        "runtime.owl_execution_mode",
+    }
+
+    output_prefixes = (
+        "financial.",
+        "risk.",
+        "timing.",
+        "complexity.",
+        "identity.",
+        "run_status.",
+        "schema_version.",
+        "score.",
+        "rates.",
+        "solver.",
+        "social_security.",
+    )
 
     for f in reg.all():
-        if f.source in ("input", "runtime", "owl"):
-            owl_fields.add(f.name)
-        else:
-            roost_fields.add(f.name)
+        # -------------------------------------------------
+        # Synthetic/runtime orchestration
+        # -------------------------------------------------
 
-    return owl_fields, roost_fields
+        if f.name in synthetic_fields:
+            synthetic.add(f.name)
+            continue
+
+        # -------------------------------------------------
+        # Compatibility/legacy fields
+        # -------------------------------------------------
+
+        if f.name in compatibility_solver:
+            compatibility.add(f.name)
+            continue
+
+        # -------------------------------------------------
+        # Output prefixes
+        # -------------------------------------------------
+
+        if f.name.startswith(output_prefixes):
+            continue
+
+        # -------------------------------------------------
+        # Canonical schema/runtime
+        # -------------------------------------------------
+
+        canonical.add(f.name)
+
+    return (
+        canonical,
+        compatibility,
+        synthetic,
+    )
 
 
 def classify_toml_fields(toml_fields):
-    excluded_prefixes = ("case.", "cache.", "runtime_environment.")
+    excluded_prefixes = (
+        "case.",
+        "cache.",
+        "runtime_environment.",
+    )
 
     toml_fields = {f for f in toml_fields if not any(f.startswith(p) for p in excluded_prefixes)}
 
-    extra_prefixes = (
-        "longevity.",
-        "spending_policy.",
+    compatibility_prefixes = ("solver_options.",)
+
+    synthetic_prefixes = (
         "roost.",
         "runtime.",
         "trial.",
-        "metrics.",
     )
 
-    extra = {f for f in toml_fields if f.startswith(extra_prefixes)}
-    core = toml_fields - extra
+    compatibility = {f for f in toml_fields if f.startswith(compatibility_prefixes)}
 
-    return core, extra
+    synthetic = {f for f in toml_fields if f.startswith(synthetic_prefixes)}
+
+    canonical = toml_fields - compatibility - synthetic
+
+    return (
+        canonical,
+        compatibility,
+        synthetic,
+    )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # Main
-# ---------------------------------------------------------
+# =========================================================
+
+
 def main():
     reg = build_registry()
+
     runtime = build_runtime_defaults()
 
     registry_fields = {f.name for f in reg.all()}
+
     runtime_fields = flatten(runtime)
+
     hydra_fields = load_hydra_fields()
+
     toml_fields_raw = load_toml_fields()
 
     # -----------------------------------------------------
-    # Classify
+    # Classification
     # -----------------------------------------------------
-    registry_owl, registry_roost = classify_registry(reg)
-    toml_core, toml_extra = classify_toml_fields(toml_fields_raw)
 
-    runtime_owl = runtime_fields  # runtime already OWL
+    (
+        registry_canonical,
+        registry_compat,
+        registry_synthetic,
+    ) = classify_registry(reg)
+
+    (
+        toml_canonical,
+        toml_compat,
+        toml_synthetic,
+    ) = classify_toml_fields(toml_fields_raw)
 
     # -----------------------------------------------------
     # Coverage
     # -----------------------------------------------------
-    runtime_missing = runtime_owl - registry_owl
-    toml_missing = toml_core - registry_owl
-    extra_missing = toml_extra - registry_fields
+
+    runtime_missing = runtime_fields - registry_canonical
 
     # -----------------------------------------------------
-    # Ignore root-level fields for Hydra comparison
+    # Hydra comparison scope
+    #
+    # Hydra only represents:
+    # - leaf config fields
+    # - dotted paths
     # -----------------------------------------------------
-    registry_owl_leaf = {f for f in registry_owl if "." in f}
 
-    hydra_missing = registry_owl_leaf - hydra_fields
+    registry_hydra_scope = {f for f in registry_canonical if "." in f}
+
+    hydra_missing = registry_hydra_scope - hydra_fields
+
+    canonical_missing = toml_canonical - registry_canonical
+
+    compatibility_missing = toml_compat - registry_fields
+
+    synthetic_missing = toml_synthetic - registry_fields
+
+    # -----------------------------------------------------
+    # Report
+    # -----------------------------------------------------
 
     print("\nSchema Coverage Report")
-    print("-" * 30)
+    print("=" * 60)
 
-    print(f"OWL runtime fields:     {len(runtime_owl)}")
-    print(f"Registry OWL fields:    {len(registry_owl)}")
-    print(f"Registry ROOST fields:  {len(registry_roost)}")
-    print(f"Hydra config fields:    {len(hydra_fields)}")
-    print(f"TOML corpus fields:     {len(toml_fields_raw)}")
-    print(f"TOML extra fields:      {len(toml_extra)}")
+    # =====================================================
+    # Registry Summary
+    # =====================================================
 
-    print("\nCoverage (OWL scope):")
+    print("\nRegistry Summary")
+    print("-" * 60)
+
+    print(f"Canonical registry fields:      " f"{len(registry_canonical)}")
+
+    print(f"Compatibility fields:           " f"{len(registry_compat)}")
+
+    print(f"Synthetic/runtime fields:       " f"{len(registry_synthetic)}")
+
+    print(f"Hydra config fields:            " f"{len(hydra_fields)}")
+
+    print(f"TOML corpus fields:             " f"{len(toml_fields_raw)}")
+
+    # =====================================================
+    # Canonical Coverage
+    # =====================================================
+
+    print("\nCanonical Coverage")
+    print("-" * 60)
+
     print(
-        f"  runtime → registry:   {pct(runtime_owl, registry_owl):6.1f}%  ({len(runtime_missing)} missing)"
-    )
-    print(
-        f"  registry → hydra:     {pct(registry_owl_leaf, hydra_fields):6.1f}%  ({len(hydra_missing)} missing)"
-    )
-    print(
-        f"  toml → registry:      {pct(toml_core, registry_owl):6.1f}%  ({len(toml_missing)} missing)"
+        f"runtime → registry:             "
+        f"{pct(runtime_fields, registry_canonical):6.1f}%"
+        f"  ({len(runtime_missing)} missing)"
     )
 
-    print("\nCoverage (ROOST extensions):")
     print(
-        f"  extra → registry:     {pct(toml_extra, registry_fields):6.1f}%  ({len(extra_missing)} missing)"
+        f"registry → hydra:               "
+        f"{pct(registry_hydra_scope,hydra_fields):6.1f}%"
+        f"  ({len(hydra_missing)} missing)"
     )
 
-    # -----------------------------------------------------
+    print(
+        f"toml → registry:                "
+        f"{pct(toml_canonical, registry_canonical):6.1f}%"
+        f"  ({len(canonical_missing)} missing)"
+    )
+
+    # =====================================================
+    # Compatibility Coverage
+    # =====================================================
+
+    print("\nCompatibility Coverage")
+    print("-" * 60)
+
+    print(
+        f"compatibility → registry:       "
+        f"{pct(toml_compat, registry_fields):6.1f}%"
+        f"  ({len(compatibility_missing)} missing)"
+    )
+
+    # =====================================================
+    # Synthetic Coverage
+    # =====================================================
+
+    print("\nSynthetic / Runtime Coverage")
+    print("-" * 60)
+
+    print(
+        f"synthetic → registry:           "
+        f"{pct(toml_synthetic, registry_fields):6.1f}%"
+        f"  ({len(synthetic_missing)} missing)"
+    )
+
+    # =====================================================
     # Details
-    # -----------------------------------------------------
-    report_diff("Registry missing OWL runtime fields", runtime_missing)
-    report_diff("Hydra missing registry fields (OWL scope)", hydra_missing)
-    report_diff("Registry missing TOML fields (OWL scope)", toml_missing)
-    report_diff("Registry missing EXTRA section fields", extra_missing)
+    # =====================================================
+
+    print("\nDetailed Diagnostics")
+    print("-" * 60)
+
+    report_diff(
+        "Registry missing runtime fields",
+        runtime_missing,
+    )
+
+    report_section(
+        "Hydra missing canonical fields",
+        hydra_missing,
+        guidance=[
+            "Canonical registry fields missing from Hydra config.",
+            "",
+            "Typical fixes:",
+            "  - regenerate Hydra config",
+            "  - or add manual overrides",
+            "",
+            "Primary locations:",
+            "  src/owlroost/tools/generate_hydra_conf.py",
+            "  src/owlroost/conf/",
+        ],
+    )
+
+    report_section(
+        "Registry missing canonical TOML fields",
+        canonical_missing,
+        guidance=[
+            "These fields exist in example TOMLs",
+            "but are not represented in canonical schema.",
+            "",
+            "Typical fixes:",
+            "  - add field to Owl schema plugin",
+            "  - add compatibility translation",
+            "  - or migrate old TOMLs",
+            "",
+            "Primary locations:",
+            "  src/owlroost/schema/plugins/owl.py",
+            "  src/owlplanner/config/schema.py",
+        ],
+    )
+
+    report_section(
+        "Registry missing compatibility fields",
+        compatibility_missing,
+        guidance=[
+            "These are legacy/compatibility fields",
+            "observed in real TOMLs.",
+            "",
+            "Typical fixes:",
+            "  - add compatibility registration",
+            "  - add legacy translation",
+            "  - or migrate old TOMLs",
+            "",
+            "Primary locations:",
+            "  src/owlroost/schema/plugins/owl_solver.py",
+            "  src/owlplanner/config/legacy.py",
+        ],
+    )
+
+    report_section(
+        "Registry missing synthetic/runtime fields",
+        synthetic_missing,
+        guidance=[
+            "These are orchestration/runtime metadata fields.",
+            "",
+            "Typical fixes:",
+            "  - add synthetic runtime registration",
+            "  - or intentionally ignore",
+            "",
+            "Primary locations:",
+            "  src/owlroost/schema/plugins/roost.py",
+            "  src/owlroost/schema/plugins/runtime.py",
+        ],
+    )
 
     print("\nDone.\n")
 

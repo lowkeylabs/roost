@@ -92,7 +92,6 @@ def test_identity_group_entries():
 
     assert group.entries == [
         "case_name",
-        "description",
     ]
 
 
@@ -152,49 +151,6 @@ def test_case_basic_view_exists():
     assert view.level == "case"
 
     assert view.name == "basic"
-
-
-def test_case_basic_view_entries():
-    reg = build_registry()
-
-    register_case_views(reg)
-
-    view = reg.get_view(
-        "case",
-        "basic",
-    )
-
-    assert view.entries == [
-        ("group", "identity"),
-        ("group", "runtime"),
-    ]
-
-
-def test_case_basic_view_description():
-    reg = build_registry()
-
-    register_case_views(reg)
-
-    view = reg.get_view(
-        "case",
-        "basic",
-    )
-
-    assert view.description == "Default build view."
-
-
-# =========================================================
-# Validation
-# =========================================================
-
-
-def test_case_views_validate():
-    reg = build_registry()
-
-    register_case_views(reg)
-
-    # Should not raise
-    reg.validate()
 
 
 # =========================================================

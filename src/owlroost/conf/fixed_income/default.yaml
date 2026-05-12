@@ -25,3 +25,9 @@ social_security_ages:
 - 67.0
 social_security_trim_pct: null
 social_security_trim_year: null
+spia_individuals: null
+spia_buy_years: null
+spia_premiums: null
+spia_monthly_incomes: null
+spia_indexed: null
+spia_survivor_fractions: null

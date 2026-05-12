@@ -69,7 +69,7 @@ def build_registry():
             profiles={
                 "table": DisplayProfile(
                     label="Trial Jobs",
-                    align="right",
+                    content_align="right",
                 )
             },
         )
@@ -161,9 +161,13 @@ def test_materialize_column_count():
     ds = FakeDataset(
         rows=[
             {
-                "case_name": "alpha",
-                "description": "First case",
-                "runtime.trial_jobs": 4,
+                "_inputs": {
+                    "case_name": "alpha",
+                    "description": "First case",
+                    "runtime": {
+                        "trial_jobs": 4,
+                    },
+                }
             }
         ]
     )
@@ -184,9 +188,13 @@ def test_materialize_column_labels():
     ds = FakeDataset(
         rows=[
             {
-                "case_name": "alpha",
-                "description": "First case",
-                "runtime.trial_jobs": 4,
+                "_inputs": {
+                    "case_name": "alpha",
+                    "description": "First case",
+                    "runtime": {
+                        "trial_jobs": 4,
+                    },
+                }
             }
         ]
     )
@@ -213,9 +221,13 @@ def test_materialize_column_alignment():
     ds = FakeDataset(
         rows=[
             {
-                "case_name": "alpha",
-                "description": "First case",
-                "runtime.trial_jobs": 4,
+                "_inputs": {
+                    "case_name": "alpha",
+                    "description": "First case",
+                    "runtime": {
+                        "trial_jobs": 4,
+                    },
+                }
             }
         ]
     )
@@ -227,7 +239,7 @@ def test_materialize_column_alignment():
         view_name="basic",
     )
 
-    aligns = [c.align for c in table.columns]
+    aligns = [c.content_align for c in table.columns]
 
     assert aligns == [
         "left",
@@ -242,14 +254,22 @@ def test_materialize_rows():
     ds = FakeDataset(
         rows=[
             {
-                "case_name": "alpha",
-                "description": "First case",
-                "runtime.trial_jobs": 4,
+                "_inputs": {
+                    "case_name": "alpha",
+                    "description": "First case",
+                    "runtime": {
+                        "trial_jobs": 4,
+                    },
+                }
             },
             {
-                "case_name": "beta",
-                "description": "Second case",
-                "runtime.trial_jobs": 8,
+                "_inputs": {
+                    "case_name": "beta",
+                    "description": "Second case",
+                    "runtime": {
+                        "trial_jobs": 8,
+                    },
+                }
             },
         ]
     )
@@ -296,7 +316,9 @@ def test_materialize_missing_value():
     ds = FakeDataset(
         rows=[
             {
-                "case_name": "alpha",
+                "_inputs": {
+                    "case_name": "alpha",
+                }
             }
         ]
     )
@@ -334,7 +356,15 @@ def test_materialize_missing_profile_uses_defaults():
         )
     )
 
-    ds = FakeDataset(rows=[{"x": 123}])
+    ds = FakeDataset(
+        rows=[
+            {
+                "_inputs": {
+                    "x": 123,
+                }
+            }
+        ]
+    )
 
     table = materialize_view(
         dataset=ds,
@@ -347,7 +377,7 @@ def test_materialize_missing_profile_uses_defaults():
 
     assert col.label == "x"
 
-    assert col.align == "left"
+    assert col.content_align == "left"
 
 
 def test_materialize_unknown_entry_raises():

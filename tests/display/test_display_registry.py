@@ -31,21 +31,21 @@ def test_register_display_field():
     assert loaded is field
 
 
-def test_duplicate_display_field_raises():
+def test_display_field_override():
     reg = DisplayRegistry()
 
-    field1 = DisplayField(
-        field_name="runtime.trial_jobs",
+    reg.register_display_field(DisplayField(field_name="x"))
+
+    reg.register_display_field(
+        DisplayField(
+            field_name="x",
+            description="override",
+        )
     )
 
-    field2 = DisplayField(
-        field_name="runtime.trial_jobs",
-    )
+    f = reg.get_display_field("x")
 
-    reg.register_display_field(field1)
-
-    with pytest.raises(ValueError):
-        reg.register_display_field(field2)
+    assert f.description == "override"
 
 
 def test_missing_display_field_raises():

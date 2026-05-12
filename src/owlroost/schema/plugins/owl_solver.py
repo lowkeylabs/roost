@@ -1,14 +1,103 @@
-from owlplanner.config.ui_bridge import SOLVER_OPT_KEYS
+from __future__ import annotations
 
-from ..registry import FieldSpec
+from owlplanner.config.defaults import (
+    default_config,
+)
+
+from ..registry import (
+    FieldSpec,
+)
+
+# =========================================================
+# Solver Key Discovery
+# =========================================================
+
+try:
+    import owlplanner.config.ui_bridge as ui_bridge
+
+    SOLVER_OPT_KEYS = getattr(
+        ui_bridge,
+        "SOLVER_OPT_KEYS",
+        [],
+    )
+
+except Exception:
+    SOLVER_OPT_KEYS = []
+
+
+# =========================================================
+# Helpers
+# =========================================================
+
+
+def infer_dtype(value):
+    """
+    Infer a stable dtype from a default value.
+
+    Lists are treated as list.
+    None becomes object.
+    """
+
+    if value is None:
+        return object
+
+    if isinstance(value, list):
+        return list
+
+    return type(value)
+
+
+# =========================================================
+# Plugin
+# =========================================================
 
 
 class OwlSolverPlugin:
-    def register(self, registry):
+    """
+    Register solver_options fields using:
+
+    - supported UI/config keys from SOLVER_OPT_KEYS
+    - defaults/dtypes from default_config()
+
+    This preserves:
+    - compatibility coverage
+    - canonical supported fields
+    - runtime defaults
+    - dynamic dtype inference
+
+    while avoiding:
+    - hardcoded duplicate lists
+    - stale manual metadata
+    """
+
+    def register(
+        self,
+        registry,
+    ):
+        config = default_config()
+
+        solver_defaults = config.get(
+            "solver_options",
+            {},
+        )
+
+        if not isinstance(
+            solver_defaults,
+            dict,
+        ):
+            solver_defaults = {}
+
         # -------------------------------------------------
-        # Extra solver fields NOT exposed in ui_bridge
+        # Additional compatibility fields
+        #
+        # These are supported by Owl but may not appear in:
+        # - SOLVER_OPT_KEYS
+        # - default_config()
+        #
+        # Keep small and intentional.
         # -------------------------------------------------
-        EXTRA_SOLVER_KEYS = {
+
+        extra_keys = {
             "gap",
             "minTaxableBalance",
             "previousMAGIs",
@@ -19,26 +108,38 @@ class OwlSolverPlugin:
         }
 
         # -------------------------------------------------
-        # Union of all solver keys
+        # Union of all supported keys
         # -------------------------------------------------
-        all_keys = set(SOLVER_OPT_KEYS) | EXTRA_SOLVER_KEYS
+
+        all_keys = set(SOLVER_OPT_KEYS) | set(solver_defaults.keys()) | extra_keys
 
         # -------------------------------------------------
-        # Register safely (idempotent)
+        # Register fields
         # -------------------------------------------------
-        for key in all_keys:
+
+        for key in sorted(all_keys):
             name = f"solver_options.{key}"
 
-            # Skip if already registered
+            # ---------------------------------------------
+            # Skip existing registrations
+            # ---------------------------------------------
+
             if name in registry._fields:
                 continue
+
+            default_value = solver_defaults.get(key)
 
             registry.register(
                 FieldSpec(
                     name=name,
-                    dtype=object,
-                    path=("solver_options", key),
+                    dtype=infer_dtype(default_value),
+                    path=(
+                        "solver_options",
+                        key,
+                    ),
                     source="owl",
-                    description="Derived from OWL solver configuration",
+                    default=default_value,
+                    default_source=("runtime" if key in solver_defaults else None),
+                    description=("Derived from OWL solver " "configuration support."),
                 )
             )
