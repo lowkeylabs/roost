@@ -28,6 +28,10 @@ def apply_display_overrides(
     For now, schema-generated defaults are used.
     """
 
+    # =====================================================
+    # Planning
+    # =====================================================
+
     reg.register_display_field(
         DisplayField(
             field_name="roost.trials_per_run",
@@ -39,6 +43,10 @@ def apply_display_overrides(
             },
         )
     )
+
+    # =====================================================
+    # Derived Display Fields
+    # =====================================================
 
     reg.register_display_field(
         DisplayField(
@@ -54,7 +62,51 @@ def apply_display_overrides(
         )
     )
 
-    return reg
+    # =====================================================
+    # Run Execution Metrics
+    # =====================================================
+
+    reg.register_display_field(
+        DisplayField(
+            field_name="trial.completed",
+            profiles={
+                "table": DisplayProfile(
+                    label="Done",
+                    content_align="right",
+                )
+            },
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField(
+            field_name="trial.pending",
+            profiles={
+                "table": DisplayProfile(
+                    label="Pending",
+                    content_align="right",
+                )
+            },
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField(
+            field_name="trial.completion_rate",
+            profiles={
+                "table": DisplayProfile(
+                    label="Complete\n%",
+                    fmt="percent",
+                    content_align="right",
+                )
+            },
+        )
+    )
+
+
+# =========================================================
+# Display Functions
+# =========================================================
 
 
 def current_ages_display(
@@ -69,23 +121,35 @@ def current_ages_display(
 
     try:
         inputs = row["_inputs"]
-
-        basic = inputs.get("basic_info", {})
-
-        dob_list = basic.get("date_of_birth", [])
-
+        basic = inputs.get(
+            "basic_info",
+            {},
+        )
+        dob_list = basic.get(
+            "date_of_birth",
+            [],
+        )
         if not dob_list:
             return None
 
         today = date.today()
-
         ages = []
-
         for dob_str in dob_list:
             dob = date.fromisoformat(dob_str)
-
-            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-
+            age = (
+                today.year
+                - dob.year
+                - (
+                    (
+                        today.month,
+                        today.day,
+                    )
+                    < (
+                        dob.month,
+                        dob.day,
+                    )
+                )
+            )
             ages.append(str(age))
 
         return "/".join(ages)

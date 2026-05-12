@@ -6,6 +6,10 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from owlroost.display.formatting import (
+    format_value,
+)
+
 
 def render_rich_table(
     table,
@@ -44,7 +48,21 @@ def render_rich_table(
     # =====================================================
 
     for row in table.rows:
-        rich_table.add_row(*["" if c is None else str(c) for c in row])
+        formatted = []
+
+        for value, column in zip(
+            row,
+            table.columns,
+            strict=False,
+        ):
+            formatted.append(
+                format_value(
+                    value,
+                    column.fmt,
+                )
+            )
+
+        rich_table.add_row(*formatted)
 
     # =====================================================
     # Render

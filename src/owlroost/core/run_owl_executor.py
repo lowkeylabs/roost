@@ -16,9 +16,6 @@ import owlplanner as owl
 import toml
 from loguru import logger
 
-from owlroost.core.metrics_from_plan import (
-    write_metrics_json,
-)
 from owlroost.core.progress_renderers import (
     create_renderer,
 )
@@ -26,6 +23,9 @@ from owlroost.display.discovery import (
     find_trials,
     has_metrics,
     summarize_run,
+)
+from owlroost.metrics.builders import (
+    write_metrics_json,
 )
 
 __all__ = [

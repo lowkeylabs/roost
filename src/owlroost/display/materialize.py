@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from owlroost.display.specs import DisplayProfile
 from owlroost.display.table import (
     RoostTable,
     TableColumn,
 )
 from owlroost.display.utils import (
-    extract_path,
+    resolve_field_value,
 )
 
 # =========================================================
@@ -97,12 +98,16 @@ def materialize_view(
     """
     Materialize dataset + view into RoostTable.
 
-    Current scope:
+    Responsibilities:
+    - expand view/group definitions
+    - resolve display fields
+    - resolve semantic values
+    - build renderer-facing tables
 
-    - case layer only
-    - no aggregates
-    - no pivot
-    - no explainability
+    Does NOT:
+    - aggregate datasets
+    - pivot tables
+    - render output
     """
 
     # =====================================================
@@ -132,47 +137,12 @@ def materialize_view(
     for field_name in field_names:
         display_field = registry.get_display_field(field_name)
 
-        profile = display_field.profiles.get(mode)
+        profile = display_field.profiles.get(mode) or DisplayProfile()
 
-        # -------------------------------------------------
-        # Label
-        # -------------------------------------------------
-
-        if profile and profile.label:
-            label = profile.label
-
-        else:
-            label = field_name
-
-        # -------------------------------------------------
-        # Label Alignment
-        # -------------------------------------------------
-
-        if profile:
-            label_align = profile.label_align
-
-        else:
-            label_align = "left"
-
-        # -------------------------------------------------
-        # Content Alignment
-        # -------------------------------------------------
-
-        if profile:
-            content_align = profile.content_align
-
-        else:
-            content_align = "left"
-
-        # -------------------------------------------------
-        # Format
-        # -------------------------------------------------
-
-        if profile:
-            fmt = profile.fmt
-
-        else:
-            fmt = None
+        label = profile.label or field_name
+        label_align = profile.label_align
+        content_align = profile.content_align
+        fmt = profile.fmt
 
         # -------------------------------------------------
         # Build Column
@@ -204,18 +174,11 @@ def materialize_view(
             # Display-derived value
             # =================================================
 
-            if display_field.display_fn:
-                value = display_field.display_fn(dataset_row)
-
-            # =================================================
-            # Standard extracted value
-            # =================================================
-
-            else:
-                value = extract_path(
-                    dataset_row,
-                    field_name,
-                )
+            value = resolve_field_value(
+                row=dataset_row,
+                field_name=field_name,
+                display_field=display_field,
+            )
 
             row.append(value)
 

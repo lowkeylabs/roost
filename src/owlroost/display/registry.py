@@ -33,9 +33,7 @@ class DisplayRegistry:
 
     def __init__(self):
         self._display_fields: dict[str, DisplayField] = {}
-
         self._groups: dict[str, DisplayGroup] = {}
-
         self._views: dict[tuple[str, str], ViewSpec] = {}
 
     # =====================================================

@@ -70,3 +70,96 @@ def register_case_views(reg):
             description="Default build view.",
         )
     )
+
+
+def register_run_views(reg):
+    # =====================================================
+    # Identity
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="run_identity",
+            entries=[
+                "case_name",
+                "display.current_ages",
+            ],
+            description="Run identity.",
+        )
+    )
+
+    # =====================================================
+    # Planning
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="run_planning",
+            entries=[
+                "optimization_parameters.objective",
+                "roost.trials_per_run",
+                "rates_selection.method",
+            ],
+            description="Planning configuration.",
+        )
+    )
+
+    # =====================================================
+    # Execution
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="run_execution",
+            entries=[
+                "trial.completed",
+                "trial.pending",
+                "trial.completion_rate",
+            ],
+            description="Run execution summary.",
+        )
+    )
+
+    # =====================================================
+    # Outcomes
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="run_outcomes",
+            entries=[
+                # -----------------------------------------
+                # Spending
+                # -----------------------------------------
+                "financial.spending.year0.today__median",
+                "financial.spending.total.today__median",
+                # -----------------------------------------
+                # Bequest
+                # -----------------------------------------
+                "financial.bequest.total.today__median",
+                # -----------------------------------------
+                # Timing
+                # -----------------------------------------
+                "timing.elapsed_seconds__median",
+            ],
+            description="Aggregated financial outcomes.",
+        )
+    )
+
+    # =====================================================
+    # Basic Run View
+    # =====================================================
+
+    reg.register_view(
+        ViewSpec(
+            level="run",
+            name="basic",
+            entries=[
+                ("group", "run_identity"),
+                ("group", "run_planning"),
+                ("group", "run_execution"),
+                ("group", "run_outcomes"),
+            ],
+            description="Default run results view.",
+        )
+    )
