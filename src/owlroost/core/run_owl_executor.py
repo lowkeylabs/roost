@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import importlib.util
+import json
+import os
 import time
 import tomllib
 from concurrent.futures import (
     ProcessPoolExecutor,
     as_completed,
 )
+from contextlib import contextmanager
+from datetime import datetime
 from io import StringIO
 from pathlib import Path
 
@@ -33,7 +38,8 @@ __all__ = [
     "index_runs",
     "resolve_run_selection",
     "load_run_config",
-    "extract_trial_jobs",
+    "resolve_workers_per_run",
+    "resolve_solver_name",
     "execute_trials",
     "execute_run",
     "execute_runs",
@@ -42,11 +48,34 @@ __all__ = [
 ]
 
 
+def mosek_available():
+    return (
+        importlib.util.find_spec("mosek") is not None
+        and os.environ.get("MOSEKLM_LICENSE_FILE") is not None
+    )
+
+
+def resolve_solver_name(run_cfg):
+    solver = run_cfg.get(
+        "solver_options",
+        {},
+    ).get(
+        "solver",
+        "default",
+    )
+
+    if solver == "default":
+        return "MOSEK" if mosek_available() else "HiGHS"
+
+    return solver
+
+
 # =========================================================
 # Trial execution
 # =========================================================
 def run_trial_from_toml(
     trial_dir: Path,
+    rerun: bool = False,
 ):
     """
     Execute a single trial.toml.
@@ -62,7 +91,8 @@ def run_trial_from_toml(
     # ----------------------------------------
     # Skip completed trials
     # ----------------------------------------
-    if has_metrics(trial_dir):
+    logger.debug(f"rerun={rerun}")
+    if has_metrics(trial_dir) and not rerun:
         return {
             "status": "skipped",
             "trial_dir": str(trial_dir),
@@ -182,25 +212,132 @@ def load_run_config(
         return tomllib.load(f)
 
 
-def extract_trial_jobs(
+def resolve_workers_per_run(
     run_cfg,
     default=1,
 ):
     """
-    Extract runtime.trial_jobs.
+    Resolve workers_per_run using either:
+
+    - explicit fixed value
+    - solver-aware auto tuning
     """
 
     runtime = run_cfg.get(
-        "runtime",
+        "roost_runtime",
         {},
     )
 
-    return int(
-        runtime.get(
-            "trial_jobs",
-            default,
-        )
+    solver = resolve_solver_name(run_cfg)
+
+    mode = runtime.get(
+        "workers_per_run_mode",
+        "fixed",
     )
+
+    # -----------------------------------------------------
+    # Fixed mode
+    # -----------------------------------------------------
+
+    if mode == "fixed":
+        return int(
+            runtime.get(
+                "workers_per_run",
+                default,
+            )
+        )
+
+    # -----------------------------------------------------
+    # Auto mode
+    # -----------------------------------------------------
+
+    if mode == "auto":
+        mapping = runtime.get(
+            "auto_workers_by_solver",
+            {},
+        )
+
+        if solver in mapping:
+            return int(mapping[solver])
+
+        return int(
+            runtime.get(
+                "workers_per_run",
+                default,
+            )
+        )
+
+    raise ValueError(f"Unknown workers_per_run_mode: {mode}")
+
+
+@contextmanager
+def runtime_environment_scope(
+    run_cfg,
+):
+    """
+    Temporarily apply runtime_environment
+    variables for a run.
+
+    Worker processes inherit this environment.
+
+    Original environment is restored afterward.
+    """
+
+    runtime_env = run_cfg.get(
+        "runtime_environment",
+        {},
+    )
+
+    managed_vars = set(runtime_env.keys())
+
+    # ----------------------------------------
+    # Save originals
+    # ----------------------------------------
+
+    original_env = {key: os.environ.get(key) for key in managed_vars}
+
+    try:
+        # ------------------------------------
+        # Clear managed vars first
+        # ------------------------------------
+
+        for key in managed_vars:
+            os.environ.pop(
+                key,
+                None,
+            )
+
+        # ------------------------------------
+        # Apply run-specific vars
+        # ------------------------------------
+
+        if runtime_env:
+            for key, value in runtime_env.items():
+                if value is None:
+                    continue
+                os.environ[key] = str(value)
+                logger.debug(f"RUNTIME ENV: {key}={value}")
+
+        yield
+
+    finally:
+        # ------------------------------------
+        # Remove run-specific values
+        # ------------------------------------
+
+        for key in managed_vars:
+            os.environ.pop(
+                key,
+                None,
+            )
+
+        # ------------------------------------
+        # Restore originals
+        # ------------------------------------
+
+        for key, value in original_env.items():
+            if value is not None:
+                os.environ[key] = value
 
 
 # =========================================================
@@ -253,9 +390,10 @@ def render_execution_summary(
 # =========================================================
 def execute_trials(
     pending_trials,
-    trial_jobs=1,
+    workers_per_run: int = 1,
     progress="rich",
     desc="Trials",
+    rerun: bool = False,
 ):
     """
     Execute pending trials.
@@ -266,9 +404,13 @@ def execute_trials(
 
         return []
 
-    click.echo(
-        f"\nRunning " f"{len(pending_trials)} " f"pending trials " f"with {trial_jobs} workers...\n"
-    )
+    if 0:
+        click.echo(
+            f"\nRunning "
+            f"{len(pending_trials)} "
+            f"pending trials "
+            f"with {workers_per_run} workers...\n"
+        )
 
     results = []
 
@@ -283,10 +425,10 @@ def execute_trials(
         # ------------------------------------
         # Sequential
         # ------------------------------------
-        if trial_jobs == 1:
+        if workers_per_run == 1:
             for td in pending_trials:
                 try:
-                    r = run_trial_from_toml(td)
+                    r = run_trial_from_toml(td, rerun=rerun)
 
                 except Exception as exc:
                     logger.exception("Trial execution failed")
@@ -309,11 +451,12 @@ def execute_trials(
         # Parallel
         # ------------------------------------
         else:
-            with ProcessPoolExecutor(max_workers=trial_jobs) as ex:
+            with ProcessPoolExecutor(max_workers=workers_per_run) as ex:
                 futures = {
                     ex.submit(
                         run_trial_from_toml,
                         td,
+                        rerun=rerun,
                     ): td
                     for td in pending_trials
                 }
@@ -353,6 +496,7 @@ def execute_trials(
 def execute_run(
     run_dir,
     progress="rich",
+    rerun: bool = False,
 ):
     """
     Execute all pending trials
@@ -363,44 +507,124 @@ def execute_run(
 
     run_cfg = load_run_config(run_dir)
 
-    trial_jobs = extract_trial_jobs(
-        run_cfg,
-    )
+    workers_per_run = resolve_workers_per_run(run_cfg)
 
-    pending_trials = [td for td in find_trials(run_dir) if not has_metrics(td)]
+    all_trials = find_trials(run_dir)
 
-    click.echo()
+    pending_trials = [td for td in all_trials if rerun or not has_metrics(td)]
 
-    click.echo(f"Run: {run_dir.name}")
+    #    click.echo()
+    #    click.echo(f"Run: {run_dir.name}")
+    #    click.echo(f"workers_per_run={workers_per_run}")
+    #    click.echo(f"Rerun flag={rerun}")
+    #    click.echo(f"pending_trials={len(pending_trials)}")
 
-    click.echo(f"trial_jobs={trial_jobs}")
+    # ----------------------------------------
+    # Timing validity
+    # ----------------------------------------
 
-    click.echo(f"pending_trials={len(pending_trials)}")
+    timing_is_whole = rerun or len(pending_trials) == len(all_trials)
+
+    # ----------------------------------------
+    # Execute
+    # ----------------------------------------
+
+    started_at = datetime.now()
 
     start = time.time()
 
-    results = execute_trials(
-        pending_trials,
-        trial_jobs=trial_jobs,
-        progress=progress,
-        desc=(f"{run_dir.name} " f"({trial_jobs} workers)"),
-    )
+    with runtime_environment_scope(run_cfg):
+        solver = resolve_solver_name(run_cfg)
+
+        desc = f"{run_dir.name} " f"({workers_per_run} workers, {solver})"
+
+        results = execute_trials(
+            pending_trials,
+            workers_per_run=workers_per_run,
+            progress=progress,
+            desc=desc,
+            rerun=rerun,
+        )
 
     elapsed = time.time() - start
+
+    finished_at = datetime.now()
+
+    # ----------------------------------------
+    # Attach run_dir
+    # ----------------------------------------
 
     for r in results:
         r["run_dir"] = str(run_dir)
 
-    click.echo(f"run_elapsed={elapsed:.1f}s")
+    # ----------------------------------------
+    # Timing summary
+    # ----------------------------------------
 
-    render_execution_summary(results)
+    completed_trials = sum(1 for r in results if r.get("status") not in ("failed",))
+
+    failed_trials = sum(1 for r in results if r.get("status") == "failed")
+
+    skipped_trials = sum(1 for r in results if r.get("status") == "skipped")
+
+    timing_payload = {
+        "run_timing": {
+            "started_at": started_at.isoformat(),
+            "finished_at": finished_at.isoformat(),
+            "elapsed_seconds": elapsed,
+            "timing_is_whole": timing_is_whole,
+        },
+        "run_execution": {
+            "workers_per_run": workers_per_run,
+            "total_trials": len(all_trials),
+            "pending_trials": len(pending_trials),
+            "executed_trials": len(results),
+            "completed_trials": completed_trials,
+            "failed_trials": failed_trials,
+            "skipped_trials": skipped_trials,
+            "rerun": rerun,
+        },
+    }
+
+    # ----------------------------------------
+    # Save timing artifact
+    # ----------------------------------------
+
+    timing_path = run_dir / "run_timing.json"
+
+    with open(
+        timing_path,
+        "w",
+    ) as f:
+        json.dump(
+            timing_payload,
+            f,
+            indent=2,
+        )
+
+    # ----------------------------------------
+    # Console output
+    # ----------------------------------------
+
+    #   click.echo(vf"run_elapsed={elapsed:.1f}s" )
+
+    if not timing_is_whole:
+        click.echo("WARNING: run timing does not include all trials " "(partial execution)")
+
+    #    render_execution_summary(results)
 
     return results
+
+
+# =========================================================
+# Execute ALL runs
+# =========================================================
 
 
 def execute_runs(
     run_dirs,
     progress="rich",
+    rerun: bool = True,
 ):
     """
     Execute runs sequentially.
@@ -412,6 +636,7 @@ def execute_runs(
         results = execute_run(
             run_dir,
             progress=progress,
+            rerun=rerun,
         )
 
         all_results.extend(results)

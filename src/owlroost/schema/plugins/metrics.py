@@ -11,7 +11,8 @@ class MetricsSchemaPlugin:
                     name=name,
                     dtype=unwrap_annotation(field.annotation),
                     path=tuple(name.split(".")),
-                    source="output",
+                    source="metric",
+                    level="trial",
                     description=field.description,
                 )
             )

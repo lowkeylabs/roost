@@ -124,11 +124,24 @@ def apply_display_overrides(
 
     reg.register_display_field(
         DisplayField(
-            field_name="roost.trials_per_run",
+            field_name="roost_runtime.trials_per_run",
             profiles={
                 "table": DisplayProfile(
                     label="Trials\nPer\nRun",
                     content_align="center",
+                ),
+            },
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField(
+            field_name="roost_runtime.workers_per_run",
+            profiles={
+                "table": DisplayProfile(
+                    label="Workers\nPer Run",
+                    content_align="right",
+                    label_align="right",
                 ),
             },
         )
@@ -189,6 +202,60 @@ def apply_display_overrides(
                     fmt="percent",
                     content_align="right",
                 )
+            },
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField(
+            field_name="run_timing.elapsed_seconds",
+            profiles={
+                "table": DisplayProfile(
+                    label="Run\nSeconds",
+                    fmt="float3",
+                    content_align="right",
+                ),
+                "pivot": DisplayProfile(
+                    label="Run Seconds",
+                    fmt="float3",
+                    content_align="right",
+                ),
+            },
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField(
+            field_name="timing.elapsed_seconds__median",
+            profiles={
+                "table": DisplayProfile(
+                    label="Trial\nMedian\nSec",
+                    fmt="float3",
+                    content_align="right",
+                ),
+                "pivot": DisplayProfile(
+                    label="Trial Median Sec",
+                    fmt=".2f",
+                    content_align="right",
+                ),
+            },
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField(
+            field_name="timing.elapsed_seconds__mean",
+            profiles={
+                "table": DisplayProfile(
+                    label="Trial\nMean\nSec",
+                    fmt="float3",
+                    content_align="right",
+                ),
+                "pivot": DisplayProfile(
+                    label="Trial Mean Sec",
+                    fmt="float3",
+                    content_align="right",
+                ),
             },
         )
     )

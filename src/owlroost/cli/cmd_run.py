@@ -12,35 +12,20 @@ from owlroost.core.run_owl_executor import (
     render_run_summary,
     resolve_run_selection,
 )
-from owlroost.display.discovery import (
-    find_all_runs,
-)
+from owlroost.display.discovery import find_all_runs
 
 
 # =========================================================
 # CLI
 # =========================================================
 @click.command("run")
-@click.argument(
-    "run_ids",
-    nargs=-1,
-)
+@click.argument("run_ids", nargs=-1)
+@click.option("--root", default="results", type=click.Path(exists=True))
 @click.option(
-    "--root",
-    default="results",
-    type=click.Path(exists=True),
+    "--progress", default="rich", show_default=True, help="Progress renderer: rich, dot, dot2, none"
 )
-@click.option(
-    "--progress",
-    default="rich",
-    show_default=True,
-    help=("Progress renderer: " "rich, dot, dot2, none"),
-)
-def cmd_run(
-    run_ids,
-    root,
-    progress,
-):
+@click.option("--rerun", is_flag=True, default=False)
+def cmd_run(run_ids, root, progress, rerun):
     """
     List runs and execute pending trials.
 
@@ -84,15 +69,17 @@ def cmd_run(
     )
 
     click.echo()
-
     click.echo(f"Executing " f"{len(selected_runs)} runs.")
 
     # ----------------------------------------
     # Execute runs sequentially
     # ----------------------------------------
+
+    # selected runs is a list of run_X folders.
     execute_runs(
         selected_runs,
         progress=progress,
+        rerun=rerun,
     )
 
 

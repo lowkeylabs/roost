@@ -11,7 +11,7 @@ def test_longevity_plugin_registers_fields():
     field = reg.get("longevity.sex")
 
     assert field.name == "longevity.sex"
-    assert field.source == "roost"
+    assert field.source == "input"
 
 
 def test_spending_policy_plugin_registers_fields():
@@ -31,6 +31,5 @@ def test_system_models_registered():
 
     reg = build_registry()
 
-    assert reg.get("roost.trials_per_run")
-    assert reg.get("runtime.trial_jobs")
-    assert reg.get("roost.master_seed")
+    assert reg.get("roost_runtime.trials_per_run")
+    assert reg.get("roost_runtime.master_seed")

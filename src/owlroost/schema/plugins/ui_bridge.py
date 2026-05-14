@@ -32,7 +32,8 @@ class OwlUiBridgePlugin:
                     name=name,
                     dtype=dtype,
                     path=path,
-                    source="owl",
+                    source="input",
+                    level="case",
                     description=description,
                 )
             )

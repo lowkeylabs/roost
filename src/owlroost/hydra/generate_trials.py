@@ -13,6 +13,11 @@ from hydra.core.hydra_config import HydraConfig
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 
+from owlroost.schema.system_models import (
+    RoostRuntimeConfig,
+    RuntimeEnvironmentConfig,
+)
+
 
 # ---------------------------------------------------------
 # Helpers
@@ -120,26 +125,34 @@ def generate_trials(cfg: DictConfig):
     # Runtime / roost config
     # ----------------------------------------
 
-    cfg_dict = OmegaConf.to_container(cfg, resolve=True)
-
-    roost_cfg = cfg_dict.get("roost", {})
-
-    master_seed = int(roost_cfg.get("master_seed", 0) or 0)
-
-    trial_count = roost_cfg.get("trials_per_run")
-    if trial_count is None:
-        trial_count = 1
-    trial_count = int(trial_count)
-
-    run_dict.setdefault("roost", {})
-    run_dict["roost"].update(
-        {
-            "run_id": run_idx,
-            "experiment_id": experiment_id,
-            "master_seed": master_seed,
-            "trials_per_run": trial_count,
-        }
+    cfg_dict = OmegaConf.to_container(
+        cfg,
+        resolve=True,
     )
+
+    SECTION_MODELS = {
+        "roost_runtime": RoostRuntimeConfig,
+        "runtime_environment": RuntimeEnvironmentConfig,
+    }
+
+    section_models = {}
+
+    for section_name, model_cls in SECTION_MODELS.items():
+        model = model_cls(
+            **cfg_dict.get(
+                section_name,
+                {},
+            )
+        )
+
+        section_models[section_name] = model
+
+        section_dict = model.model_dump(
+            exclude_none=True,
+        )
+
+        if section_dict:
+            run_dict[section_name] = section_dict
 
     # ----------------------------------------
     # Copy HFP to run folder
@@ -166,9 +179,56 @@ def generate_trials(cfg: DictConfig):
     (run_path / "run.toml").write_text(toml.dumps(run_dict))
 
     # ----------------------------------------
+    # Save Hydra provenance / effective config
+    # ----------------------------------------
+
+    resolved_cfg = OmegaConf.to_container(
+        cfg,
+        resolve=True,
+    )
+
+    # Full resolved Hydra config
+    effective_cfg_path = run_path / "effective_config.yaml"
+
+    with open(effective_cfg_path, "w") as f:
+        yaml.safe_dump(
+            resolved_cfg,
+            f,
+            sort_keys=False,
+        )
+
+    # Compact override provenance
+    hc = HydraConfig.get()
+
+    overrides_payload = {
+        "task_overrides": list(getattr(hc.overrides, "task", []) or []),
+        "hydra_overrides": list(getattr(hc.overrides, "hydra", []) or []),
+        "runtime": {
+            "job_num": hc.job.num,
+            "output_dir": hc.runtime.output_dir,
+            "cwd": hc.runtime.cwd,
+            "choices": dict(hc.runtime.choices),
+        },
+    }
+
+    overrides_path = run_path / "hydra_overrides.yaml"
+
+    with open(overrides_path, "w") as f:
+        yaml.safe_dump(
+            overrides_payload,
+            f,
+            sort_keys=False,
+        )
+
+    # ----------------------------------------
     # Trial setup
     # ----------------------------------------
-    trial_ids = list(range(trial_count))
+
+    roost_runtime = section_models["roost_runtime"]
+    trials_per_run = roost_runtime.trials_per_run
+    master_seed = roost_runtime.master_seed or 0
+
+    trial_ids = list(range(trials_per_run))
     seed_map = spawn_trial_seeds(master_seed, trial_ids)
 
     trial_root = run_path / "trials"
@@ -183,18 +243,21 @@ def generate_trials(cfg: DictConfig):
 
         trial_dict = deepcopy(run_dict)
 
-        rates_seed, longevity_seed = seed_map[tid]
+        # build longevity and other trial-specific stuff here!
 
-        if trial_count > 1:
-            trial_dict.setdefault("rates_selection", {})["rates_seed"] = rates_seed
+        rate_seed, longevity_seed = seed_map[tid]
+
+        if trials_per_run > 1:
+            trial_dict.setdefault("rates_selection", {})["rate_seed"] = rate_seed
+            trial_dict.setdefault("rates_selection", {})["reproducible_rates"] = True
             trial_dict.setdefault("longevity", {})["seed"] = longevity_seed
 
-        trial_dict.setdefault("roost", {}).update(
+        trial_dict.setdefault("trial_runtime", {}).update(
             {
                 "trial_id": tid,
                 "run_id": run_idx,
                 "experiment_id": experiment_id,
-                "rates_seed": rates_seed,
+                "rate_seed": rate_seed,
                 "longevity_seed": longevity_seed,
             }
         )
@@ -209,14 +272,14 @@ def generate_trials(cfg: DictConfig):
         meta = {
             "trial_id": tid,
             "run_id": run_idx,
-            "rates_seed": rates_seed,
+            "rate_seed": rate_seed,
             "longevity_seed": longevity_seed,
             "created_at": datetime.now().isoformat(),
         }
 
         (tdir / "trial_meta.yaml").write_text(yaml.dump(meta))
 
-    logger.debug(f"Generated run_{run_idx} with {trial_count} trials at {exp_path}")
+    logger.debug(f"Generated run_{run_idx} with {trials_per_run} trials at {exp_path}")
 
 
 # ---------------------------------------------------------

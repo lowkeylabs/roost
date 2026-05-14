@@ -1,12 +1,16 @@
 case_name = "john+sally"
-description = "John and Sally are identical-age twins who retired together with substantial tax-deferred balances. John has a corporate pension with a 75% joint-and-survivor election—so when he passes, Sally will receive three-quarters of his benefit for life. Both have been maxing out their HSAs in their final working years.\n\nThis case, inspired by Eric Sajdak's work, compares the heuristic of \"surfing a tax bracket\" for Roth conversions to a solution optimized by linear programming.  With constant rates, bracket-surfing works well; when rates vary and markets drop, the optimizer may recommend converting between brackets. Run with different rate assumptions to explore the effects on Roth conversion strategy.\n"
+description = """
+John and Sally are identical-age twins who retired together with substantial tax-deferred balances. John has a corporate pension with a 75% joint-and-survivor election—so when he passes, Sally will receive three-quarters of his benefit for life. Both have been maxing out their HSAs in their final working years.
+
+This case, inspired by Eric Sajdak's work, compares the heuristic of \"surfing a tax bracket\" for Roth conversions to a solution optimized by linear programming.  With constant rates, bracket-surfing works well; when rates vary and markets drop, the optimizer may recommend converting between brackets. Run with different rate assumptions to explore the effects on Roth conversion strategy.
+"""
 
 [basic_info]
 status = "married"
 names = [ "John", "Sally",]
+sexes = [ "M", "F",]
 date_of_birth = [ "1963-01-15", "1963-01-15",]
 life_expectancy = [ 92, 92,]
-sexes = [ "M", "F",]
 start_date = "2026-01-01"
 
 [savings_assets]
@@ -21,25 +25,20 @@ spousal_surplus_deposit_fraction = 0.5
 HFP_file_name = "HFP_john+sally.xlsx"
 
 [fixed_income]
-pension_monthly_amounts = [ 2500.0, 0.0,]
+pension_monthly_amounts = [ 2_500.0, 0.0,]
 pension_ages = [ 65.0, 65.0,]
 pension_indexed = [ true, false,]
 pension_survivor_fraction = [ 0.75, 0.0,]
-social_security_pia_amounts = [ 3000, 1800,]
+social_security_pia_amounts = [ 3_000, 1_800,]
 social_security_ages = [ 67.0, 67.0,]
-social_security_trim_pct = 0
 
 [rates_selection]
 heirs_rate_on_tax_deferred_estate = 30.0
-effective_tax_rate = 20.0
-dividend_rate = 1.8
+dividend_rate = 1.80
 obbba_expiration_year = 2032
 method = "historical average"
 from = 1990
 to = 2023
-reproducible_rates = false
-reverse_sequence = false
-roll_sequence = 0
 
 [asset_allocation]
 interpolation_method = "linear"
@@ -52,9 +51,6 @@ generic = [ [ [ 60, 40, 0, 0,], [ 60, 40, 0, 0,],], [ [ 60, 40, 0, 0,], [ 60, 40
 spending_profile = "flat"
 surviving_spouse_spending_percent = 60
 objective = "maxBequest"
-smile_dip = 15
-smile_increase = 12
-smile_delay = 0
 
 [solver_options]
 netSpending = 100
@@ -68,40 +64,3 @@ spendingSlack = 0
 
 [results]
 default_plots = "today"
-worksheet_show_ages = false
-worksheet_hide_zero_columns = false
-worksheet_real_dollars = false
-
-[longevity]
-apply_to_plan = false
-use_stochastic_model = false
-life_expectancy_seed = 1234567890
-model_name = "default"
-partnered = true
-lifetime_percentile = [ 0.8, 0.8,]
-sex = [ "male", "female",]
-health = [ "average", "average",]
-smoker = [ false, false,]
-
-[roost]
-master_seed = 2028203589
-trials_per_run = 1
-
-[runtime_environment]
-OMP_NUM_THREADS = 1
-MKL_NUM_THREADS = 1
-OPENBLAS_NUM_THREADS = 1
-MSK_IPAR_NUM_THREADS = 1
-
-[spending_policy]
-essential_spending = 0
-lifestyle_spending = 0
-baseline_years = 3
-max_years_below_threshhold = 5
-max_consecutive_years_below_threshhold = 5
-
-[cache]
-generated_at = "2026-04-22T13:21:31.759331"
-retirement_horizon = 1
-max_spending = 190764.54
-first_year_total_withdrawals = 152563.24

@@ -1,6 +1,12 @@
-trial_jobs: null
-run_jobs: null
+experiment_id: null
+experiment_description: null
+run_id: null
+run_description: null
+trial_id: null
+master_seed: null
+rates_seed: null
+longevity_seed: null
+trials_per_run: null
+workers_per_run: null
 worker_timeout: null
-cpu_reserve: null
-oversubscribe_factor: null
-enforce_single_axis: null
+run_owl_as_subprocess: null

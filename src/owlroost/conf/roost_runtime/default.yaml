@@ -1,0 +1,14 @@
+experiment_id: null
+experiment_description: null
+run_id: null
+run_description: null
+trial_id: null
+master_seed: 987654321
+rate_seed: null
+longevity_seed: null
+trials_per_run: 1
+workers_per_run: 4
+worker_timeout: 120
+run_owl_as_subprocess: false
+workers_per_run_mode: auto
+auto_workers_by_solver: PydanticUndefined

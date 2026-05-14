@@ -13,13 +13,15 @@ def test_register_and_get_field():
         name="foo",
         dtype=int,
         path=("foo",),
+        source="input",
+        level="trial",
     )
 
     reg.register(field)
 
     result = reg.get("foo")
 
-    assert result.name == "foo"
+    assert str(result.name) == "foo"
     assert result.dtype == int
     assert result.path == ("foo",)
 
@@ -29,7 +31,7 @@ def test_registry_rejects_duplicate_field():
 
     reg = SchemaRegistry()
 
-    reg.register(FieldSpec("a", int))
+    reg.register(FieldSpec("a", int, path="path", source="input", level="trial"))
 
     with pytest.raises(ValueError):
-        reg.register(FieldSpec("a", float))
+        reg.register(FieldSpec("a", int, path="path", source="input", level="trial"))

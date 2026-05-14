@@ -10,8 +10,8 @@ start_date = "2026-01-01"
 
 [savings_assets]
 taxable_savings_balances = [ 100.0, 50.0,]
-tax_deferred_savings_balances = [ 700.0, 150.0,]
-tax_free_savings_balances = [ 70.0, 40.0,]
+tax_deferred_savings_balances = [ 700.0, 237.0,]
+tax_free_savings_balances = [ 70.0, 30.0,]
 hsa_savings_balances = [ 0.0, 0.0,]
 beneficiary_fractions = [ 1.0, 1.0, 1.0, 1.0,]
 spousal_surplus_deposit_fraction = 0.5
@@ -24,7 +24,7 @@ pension_monthly_amounts = [ 0, 0,]
 pension_ages = [ 65.0, 65.0,]
 pension_indexed = [ false, false,]
 pension_survivor_fraction = [ 0.0, 0.0,]
-social_security_pia_amounts = [ 2000, 1400,]
+social_security_pia_amounts = [ 2_000, 1_400,]
 social_security_ages = [ 70.0, 62.083333,]
 
 [rates_selection]
@@ -72,37 +72,3 @@ default_plots = "today"
 worksheet_show_ages = false
 worksheet_hide_zero_columns = false
 worksheet_real_dollars = false
-
-[longevity]
-apply_to_plan = false
-use_stochastic_model = false
-life_expectancy_seed = 1234567890
-model_name = "default"
-partnered = true
-lifetime_percentile = [ 0.8, 0.8,]
-sex = [ "female", "female",]
-health = [ "average", "average",]
-smoker = [ false, false,]
-
-[roost]
-master_seed = 172816263
-trials_per_run = 1
-
-[runtime_environment]
-OMP_NUM_THREADS = 1
-MKL_NUM_THREADS = 1
-OPENBLAS_NUM_THREADS = 1
-MSK_IPAR_NUM_THREADS = 1
-
-[spending_policy]
-essential_spending = 0
-lifestyle_spending = 0
-baseline_years = 3
-max_years_below_threshhold = 5
-max_consecutive_years_below_threshhold = 5
-
-[cache]
-generated_at = "2026-04-22T13:21:28.676232"
-retirement_horizon = 3
-max_spending = 132435.17
-first_year_total_withdrawals = 0.0

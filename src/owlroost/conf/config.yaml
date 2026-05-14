@@ -12,11 +12,11 @@ defaults:
 - rates_selection: default
 - results: default
 - roost: default
-- runtime: default
+- roost_runtime: default
+- runtime_environment: default
 - savings_assets: default
 - solver_options: default
 - spending_policy: default
-- trial: default
 - hydra/sweep: basic
 - override hydra/sweep: flat
 - override hydra/hydra_logging: disabled

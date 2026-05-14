@@ -8,40 +8,17 @@ from pathlib import Path
 
 import click
 
-from owlroost.core.run_owl_executor import (
-    execute_runs,
-)
-from owlroost.display.bootstrap import (
-    build_display_registry,
-)
-from owlroost.display.discovery import (
-    find_runs,
-)
-from owlroost.display.loaders import (
-    load_cases,
-)
-from owlroost.display.materialize import (
-    materialize_view,
-)
-from owlroost.display.renderers.latex_table import (
-    render_latex_table,
-)
-from owlroost.display.renderers.markdown_table import (
-    render_markdown_table,
-)
-from owlroost.display.renderers.rich_table import (
-    render_rich_table,
-)
-from owlroost.display.utils import (
-    attach_row_ids,
-    inject_id_column,
-)
-from owlroost.metrics.registry.bootstrap import (
-    build_metrics_registry,
-)
-from owlroost.schema.bootstrap import (
-    build_registry,
-)
+from owlroost.core.run_owl_executor import execute_runs
+from owlroost.display.bootstrap import build_display_registry
+from owlroost.display.discovery import find_runs
+from owlroost.display.loaders import load_cases
+from owlroost.display.materialize import materialize_view
+from owlroost.display.renderers.latex_table import render_latex_table
+from owlroost.display.renderers.markdown_table import render_markdown_table
+from owlroost.display.renderers.rich_table import render_rich_table
+from owlroost.display.utils import attach_row_ids, inject_id_column
+from owlroost.metrics.registry.bootstrap import build_metrics_registry
+from owlroost.schema.bootstrap import build_registry
 
 
 # ---------------------------------------------------------

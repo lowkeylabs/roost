@@ -4,35 +4,16 @@ from __future__ import annotations
 
 import click
 
-from owlroost.display.bootstrap import (
-    build_display_registry,
-)
+from owlroost.display.bootstrap import build_display_registry
 from owlroost.display.dataset import Dataset
-from owlroost.display.loaders import (
-    load_runs,
-)
-from owlroost.display.materialize import (
-    materialize_view,
-)
-from owlroost.display.renderers.latex_table import (
-    render_latex_table,
-)
-from owlroost.display.renderers.markdown_table import (
-    render_markdown_table,
-)
-from owlroost.display.renderers.rich_table import (
-    render_rich_table,
-)
-from owlroost.display.utils import (
-    attach_row_ids,
-    inject_id_column,
-)
-from owlroost.metrics.registry.bootstrap import (
-    build_metrics_registry,
-)
-from owlroost.schema.bootstrap import (
-    build_registry,
-)
+from owlroost.display.loaders import load_runs
+from owlroost.display.materialize import apply_derived_metrics, materialize_view
+from owlroost.display.renderers.latex_table import render_latex_table
+from owlroost.display.renderers.markdown_table import render_markdown_table
+from owlroost.display.renderers.rich_table import render_rich_table
+from owlroost.display.utils import attach_row_ids, inject_id_column
+from owlroost.metrics.registry.bootstrap import build_metrics_registry
+from owlroost.schema.bootstrap import build_registry
 
 # =========================================================
 # Renderer Helpers
@@ -265,6 +246,71 @@ def apply_filters(
 # =========================================================
 
 
+def canonical_sort_key(
+    row,
+):
+    """
+    Canonical default ordering.
+
+    Order:
+        case_id
+        experiment_id
+        run_id
+        trial_id
+    """
+
+    meta = row.get(
+        "_meta",
+        {},
+    )
+
+    case_id = meta.get(
+        "case_id",
+        -1,
+    )
+
+    experiment_id = meta.get(
+        "experiment_id",
+        "",
+    )
+
+    run_id = meta.get(
+        "run_id",
+        -1,
+    )
+
+    trial_id = meta.get(
+        "trial_id",
+        -1,
+    )
+
+    return (
+        case_id,
+        experiment_id,
+        run_id,
+        trial_id,
+    )
+
+
+def apply_canonical_sort(
+    rows,
+):
+    """
+    Apply canonical hierarchical ordering.
+
+    Order:
+        case_id
+        experiment_id
+        run_id
+        trial_id
+    """
+
+    return sorted(
+        rows,
+        key=canonical_sort_key,
+    )
+
+
 def apply_sort(
     rows,
     sort_key,
@@ -390,9 +436,7 @@ def cmd_results(
     # =====================================================
 
     schema_registry = build_registry()
-
     metrics_registry = build_metrics_registry()
-
     display_registry = build_display_registry(
         schema_registry=schema_registry,
         metrics_registry=metrics_registry,
@@ -402,17 +446,26 @@ def cmd_results(
     # Discover + Load Runs
     # =====================================================
 
-    ds = attach_row_ids(
-        load_runs(
-            metrics_registry=metrics_registry,
-            results_root="results",
-        )
+    ds = load_runs(
+        metrics_registry=metrics_registry,
+        results_root="results",
     )
 
     if not ds.rows:
         click.echo("No runs found.")
-
         return
+
+    for row in ds.rows:
+        apply_derived_metrics(
+            row,
+            display_registry,
+        )
+
+    ds.rows = apply_canonical_sort(
+        ds.rows,
+    )
+
+    ds = attach_row_ids(ds)
 
     # =====================================================
     # Working Rows

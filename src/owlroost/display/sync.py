@@ -115,6 +115,7 @@ def _register_field_if_missing(
     field_name: str,
     description: str | None,
     display_registry: DisplayRegistry,
+    display_profiles=None,
 ):
     """
     Register DisplayField only if missing.
@@ -136,14 +137,17 @@ def _register_field_if_missing(
     display_field = DisplayField(
         field_name=field_name,
         description=description,
-        profiles={
-            "table": DisplayProfile(
-                label=path_to_table_label(field_name),
-            ),
-            "pivot": DisplayProfile(
-                label=path_to_pivot_label(field_name),
-            ),
-        },
+        profiles=(
+            display_profiles
+            or {
+                "table": DisplayProfile(
+                    label=path_to_table_label(field_name),
+                ),
+                "pivot": DisplayProfile(
+                    label=path_to_pivot_label(field_name),
+                ),
+            }
+        ),
     )
 
     display_registry.register_display_field(display_field)
@@ -183,6 +187,11 @@ def sync_schema_registry(
             field_name=schema_field.name,
             description=schema_field.description,
             display_registry=display_registry,
+            display_profiles=getattr(
+                schema_field,
+                "display_profiles",
+                None,
+            ),
         )
 
 

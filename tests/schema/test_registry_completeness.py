@@ -9,81 +9,171 @@ def test_registry_covers_all_owl_fields():
     )
     from owlroost.schema.utils import unwrap_annotation
 
-    # ----------------------------------------
+    # =====================================================
+    # Constants
+    # =====================================================
+
+    VALID_SOURCES = {
+        "input",
+        "discovered",
+        "derived",
+        "metric",
+        "internal",
+    }
+
+    VALID_LEVELS = {
+        "case",
+        "experiment",
+        "run",
+        "trial",
+    }
+
+    # =====================================================
     # Helper: walk pydantic model
-    # ----------------------------------------
+    # =====================================================
+
     def walk_model(prefix, model):
         for name, field in model.model_fields.items():
             full_name = f"{prefix}.{name}" if prefix else name
+
             yield full_name, field
 
-            annotation = unwrap_annotation(field.annotation)
-            if hasattr(annotation, "model_fields"):
-                yield from walk_model(full_name, annotation)
+            annotation = unwrap_annotation(
+                field.annotation,
+            )
 
-    # ----------------------------------------
-    # Helper: walk runtime dict
-    # ----------------------------------------
-    def walk_dict(prefix, d):
-        for k, v in d.items():
-            full = f"{prefix}.{k}" if prefix else k
-            yield full
-            if isinstance(v, dict):
-                yield from walk_dict(full, v)
+            if hasattr(
+                annotation,
+                "model_fields",
+            ):
+                yield from walk_model(
+                    full_name,
+                    annotation,
+                )
 
-    # ----------------------------------------
-    # Expected (schema)
-    # ----------------------------------------
-    expected = {name for name, _ in walk_model("", CaseConfig)}
+    # =====================================================
+    # Expected schema fields
+    # =====================================================
 
-    # ----------------------------------------
-    # Runtime defaults (OWL truth)
-    # ----------------------------------------
+    expected = {
+        name
+        for name, _ in walk_model(
+            "",
+            CaseConfig,
+        )
+    }
+
+    # =====================================================
+    # Runtime defaults
+    # =====================================================
+
     runtime_defaults = build_runtime_defaults()
-    runtime_fields = set(walk_dict("", runtime_defaults))
 
-    # ----------------------------------------
+    # =====================================================
     # Registry
-    # ----------------------------------------
+    # =====================================================
+
     reg = SchemaRegistry()
-    OwlSchemaPlugin().register(reg)
 
-    registered = {field.name for field in reg.all()}
+    OwlSchemaPlugin().register(
+        reg,
+    )
 
-    assert len(registered) == len(list(reg.all()))
+    fields = list(
+        reg.all(),
+    )
 
-    # ----------------------------------------
-    # 1. Schema coverage (must still hold)
-    # ----------------------------------------
+    registered = {field.name for field in fields}
+
+    # =====================================================
+    # 1. No duplicate names
+    # =====================================================
+
+    assert len(registered) == len(fields)
+
+    # =====================================================
+    # 2. OWL schema coverage
+    # =====================================================
+
     missing = expected - registered
-    assert not missing, f"Missing fields in registry: {missing}"
 
-    # ----------------------------------------
-    # 2. Runtime coverage (NEW)
-    # ----------------------------------------
-    missing_runtime = runtime_fields - registered
+    assert not missing, "Missing fields in registry: " f"{missing}"
 
-    allowed_missing = set()  # keep empty unless needed
-    unexpected_runtime = missing_runtime - allowed_missing
+    # =====================================================
+    # 3. Field semantic integrity
+    # =====================================================
 
-    assert not unexpected_runtime, f"Runtime fields missing from registry: {unexpected_runtime}"
+    invalid_sources = []
+    invalid_levels = []
 
-    # ----------------------------------------
-    # 3. Registry → runtime resolvability (NEW)
-    # ----------------------------------------
+    for field in fields:
+        if field.source not in VALID_SOURCES:
+            invalid_sources.append(
+                (
+                    field.name,
+                    field.source,
+                )
+            )
+
+        if field.level not in VALID_LEVELS:
+            invalid_levels.append(
+                (
+                    field.name,
+                    field.level,
+                )
+            )
+
+    assert not invalid_sources, "Invalid field sources: " f"{invalid_sources}"
+
+    assert not invalid_levels, "Invalid field levels: " f"{invalid_levels}"
+
+    # =====================================================
+    # 4. Derived fields must define compute_fn
+    # =====================================================
+
+    missing_compute_fn = []
+
+    for field in fields:
+        if field.source == "derived":
+            if field.compute_fn is None:
+                missing_compute_fn.append(
+                    field.name,
+                )
+
+    assert not missing_compute_fn, "Derived fields missing compute_fn: " f"{missing_compute_fn}"
+
+    # =====================================================
+    # 5. Registry → runtime resolvability
+    # =====================================================
+
     unresolved = []
 
-    for f in reg.all():
-        if not f.path:
+    for field in fields:
+        if not field.path:
             continue
 
-        val = get_from_path(runtime_defaults, f.path)
+        parent = get_from_path(
+            runtime_defaults,
+            field.path[:-1],
+        )
 
-        # Only flag if parent exists but child does not
-        parent = get_from_path(runtime_defaults, f.path[:-1])
+        if not isinstance(
+            parent,
+            dict,
+        ):
+            continue
 
-        if isinstance(parent, dict) and f.path[-1] in parent:
-            if val is None:
-                unresolved.append(".".join(f.path))
+        if field.path[-1] not in parent:
+            continue
 
-    assert not unresolved, f"Registry paths not found in runtime defaults: {unresolved}"
+        val = get_from_path(
+            runtime_defaults,
+            field.path,
+        )
+
+        if val is None:
+            unresolved.append(
+                ".".join(field.path),
+            )
+
+    assert not unresolved, "Registry paths not found " "in runtime defaults: " f"{unresolved}"

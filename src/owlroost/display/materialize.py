@@ -219,6 +219,52 @@ def pivot_table(
 
 
 # =========================================================
+# Derived Metrics
+# =========================================================
+
+
+def apply_derived_metrics(
+    row,
+    registry,
+):
+    """
+    Materialize derived metrics into row["_metrics"].
+
+    Derived metrics are computed dynamically
+    from:
+    - inputs
+    - metrics
+    - metadata
+    """
+
+    metrics = row.setdefault(
+        "_metrics",
+        {},
+    )
+
+    for field in registry.schema_registry.all():
+        # -------------------------------------------------
+        # Derived only
+        # -------------------------------------------------
+
+        if field.source != "derived":
+            continue
+
+        if field.compute_fn is None:
+            continue
+
+        try:
+            value = field.compute_fn(
+                row,
+            )
+
+        except Exception:
+            value = None
+
+        metrics[field.name] = value
+
+
+# =========================================================
 # Materialization
 # =========================================================
 

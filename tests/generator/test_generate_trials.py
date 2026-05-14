@@ -1,9 +1,14 @@
 import pytest
 import toml
 import yaml
+from loguru import logger
 from omegaconf import OmegaConf
 
 from owlroost.hydra.generate_trials import generate_trials
+
+# =========================================================
+# Fixtures
+# =========================================================
 
 
 @pytest.fixture
@@ -19,29 +24,55 @@ life_expectancy = [65, 67]
 apply_to_plan = true
 
 [rates_selection]
+rate_seed=987_654_321
 
 [household_financial_profile]
 HFP_file_name = "hfp.csv"
 """
     )
 
-    # fake HFP file
+    # -----------------------------------------------------
+    # Fake HFP file
+    # -----------------------------------------------------
+
     (tmp_path / "hfp.csv").write_text("dummy")
 
     return case
 
 
 @pytest.fixture
-def hydra_cfg(tmp_case, tmp_path, monkeypatch):
+def hydra_cfg(
+    tmp_case,
+    tmp_path,
+    monkeypatch,
+):
     cfg = OmegaConf.create(
         {
-            "case": {"file": str(tmp_case)},
-            "roost": {"master_seed": 123, "trials_per_run": 3},
+            "case": {
+                "file": str(tmp_case),
+            },
+            "roost_runtime": {
+                "master_seed": 123,
+                "trials_per_run": 3,
+                "workers_per_run": 4,
+            },
         }
     )
 
+    # =====================================================
+    # Fake Hydra Runtime
+    # =====================================================
+
     class FakeRuntime:
         output_dir = str(tmp_path / "results/case/2026-01-01/00-00-00/run_0")
+
+        cwd = str(tmp_path)
+
+        choices = {}
+
+    # =====================================================
+    # Fake Hydra Config
+    # =====================================================
 
     class FakeHydraConfig:
         runtime = FakeRuntime()
@@ -51,6 +82,7 @@ def hydra_cfg(tmp_case, tmp_path, monkeypatch):
 
         class overrides:
             task = []
+            hydra = []
 
         @staticmethod
         def get():
@@ -64,58 +96,113 @@ def hydra_cfg(tmp_case, tmp_path, monkeypatch):
     return cfg
 
 
-def test_generate_trials_creates_structure(hydra_cfg, tmp_path):
+# =========================================================
+# Structure
+# =========================================================
+
+
+def test_generate_trials_creates_structure(
+    hydra_cfg,
+    tmp_path,
+):
     generate_trials(hydra_cfg)
 
     root = tmp_path / "results/case/2026-01-01/00-00-00/run_0"
 
     assert root.exists()
 
-    # run-level file
+    # -----------------------------------------------------
+    # Run-level files
+    # -----------------------------------------------------
+
     assert (root / "run.toml").exists()
 
+    assert (root / "effective_config.yaml").exists()
+
+    assert (root / "hydra_overrides.yaml").exists()
+
+    # -----------------------------------------------------
+    # Trials
+    # -----------------------------------------------------
+
     trials = root / "trials"
+
     assert trials.exists()
 
     trial_dirs = sorted(trials.glob("*"))
+
     assert len(trial_dirs) == 3
 
     for tdir in trial_dirs:
         assert (tdir / "trial.toml").exists()
+
         assert (tdir / "trial_meta.yaml").exists()
 
 
-def test_trial_toml_contains_seeds(hydra_cfg, tmp_path):
+# =========================================================
+# Seeds
+# =========================================================
+
+
+def test_trial_toml_contains_seeds(
+    hydra_cfg,
+    tmp_path,
+):
     generate_trials(hydra_cfg)
 
     trial0 = tmp_path / "results/case/2026-01-01/00-00-00/run_0/trials/0000/trial.toml"
 
     data = toml.load(trial0)
 
-    # seeds exist in both locations
-    assert "rates_seed" in data["roost"]
-    assert "longevity_seed" in data["roost"]
+    # -----------------------------------------------------
+    # roost_runtime seeds
+    # -----------------------------------------------------
 
-    assert "rates_seed" in data["rates_selection"]
-    assert "seed" in data["longevity"]
+    logger.debug(data)
+    assert "rate_seed" in data["trial_runtime"]
+
+    assert "longevity_seed" in data["trial_runtime"]
 
 
-def test_hfp_copied_once_and_rewritten(hydra_cfg, tmp_path):
+# =========================================================
+# HFP Handling
+# =========================================================
+
+
+def test_hfp_copied_once_and_rewritten(
+    hydra_cfg,
+    tmp_path,
+):
     generate_trials(hydra_cfg)
 
     run_dir = tmp_path / "results/case/2026-01-01/00-00-00/run_0"
 
-    # copied to run dir
+    # -----------------------------------------------------
+    # Copied once to run dir
+    # -----------------------------------------------------
+
     assert (run_dir / "hfp.csv").exists()
 
-    # rewritten relative path inside trial
+    # -----------------------------------------------------
+    # Relative rewrite inside trial
+    # -----------------------------------------------------
+
     trial0 = run_dir / "trials/0000/trial.toml"
+
     data = toml.load(trial0)
 
     assert data["household_financial_profile"]["HFP_file_name"] == "../../hfp.csv"
 
 
-def test_trial_meta_yaml(hydra_cfg, tmp_path):
+# =========================================================
+# Trial Meta
+# =========================================================
+
+
+def test_trial_meta_yaml(
+    hydra_cfg,
+    tmp_path,
+):
     generate_trials(hydra_cfg)
 
     meta_file = tmp_path / "results/case/2026-01-01/00-00-00/run_0/trials/0000/trial_meta.yaml"
@@ -123,14 +210,75 @@ def test_trial_meta_yaml(hydra_cfg, tmp_path):
     meta = yaml.safe_load(meta_file.read_text())
 
     assert meta["trial_id"] == 0
+
     assert meta["run_id"] == 0
-    assert "rates_seed" in meta
+
+    assert "rate_seed" in meta
+
     assert "longevity_seed" in meta
+
     assert "created_at" in meta
 
 
-def test_experiment_case_written_once(hydra_cfg, tmp_path):
+# =========================================================
+# Experiment Case
+# =========================================================
+
+
+def test_experiment_case_written_once(
+    hydra_cfg,
+    tmp_path,
+):
     generate_trials(hydra_cfg)
 
     exp_dir = tmp_path / "results/case/2026-01-01/00-00-00"
+
     assert (exp_dir / "case.toml").exists()
+
+
+# =========================================================
+# Hydra Provenance
+# =========================================================
+
+
+def test_hydra_overrides_written(
+    hydra_cfg,
+    tmp_path,
+):
+    generate_trials(hydra_cfg)
+
+    path = tmp_path / "results/case/2026-01-01/00-00-00/run_0/hydra_overrides.yaml"
+
+    assert path.exists()
+
+    data = yaml.safe_load(path.read_text())
+
+    assert "runtime" in data
+
+    assert data["runtime"]["job_num"] == 0
+
+    assert "cwd" in data["runtime"]
+
+    assert "output_dir" in data["runtime"]
+
+
+# =========================================================
+# Effective Config
+# =========================================================
+
+
+def test_effective_config_written(
+    hydra_cfg,
+    tmp_path,
+):
+    generate_trials(hydra_cfg)
+
+    path = tmp_path / "results/case/2026-01-01/00-00-00/run_0/effective_config.yaml"
+
+    assert path.exists()
+
+    data = yaml.safe_load(path.read_text())
+
+    assert "case" in data
+
+    assert "roost_runtime" in data

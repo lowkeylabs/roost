@@ -1,102 +1,165 @@
 from pydantic import BaseModel, ConfigDict, Field
 
+# =========================================================
+# Base
+# =========================================================
+
 
 class BaseSystemConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
 # =========================================================
-# TRIAL
+# ROOST RUNTIME
 # =========================================================
 
 
-class TrialConfig(BaseSystemConfig):
-    """Configuration for trial execution."""
+class RoostRuntimeConfig(BaseSystemConfig):
+    """
+    ROOST execution/orchestration configuration.
 
-    id: int = Field(
-        default=0,
-        description="Trial index within a run.",
-    )
+    These settings define HOW ROOST executes
+    experiments and trials, separate from the
+    retirement scenario itself.
+    """
 
-    n_jobs: int = Field(
-        default=5,
-        ge=1,
-        description="Parallel jobs for trial execution.",
-    )
-
-
-# =========================================================
-# RUNTIME
-# =========================================================
-
-
-class RuntimeConfig(BaseSystemConfig):
-    """Runtime parallelization and execution controls."""
-
-    trial_jobs: int = Field(
-        default=4,
-        ge=1,
-        description="Number of parallel trial workers.",
-    )
-
-    run_jobs: int = Field(
-        default=1,
-        ge=1,
-        description="Number of parallel runs.",
-    )
-
-    worker_timeout: int = Field(
-        default=120,
-        ge=1,
-        description="Timeout in seconds for each trial worker.",
-    )
-
-    cpu_reserve: int = Field(
-        default=1,
-        ge=0,
-        description="Number of CPU cores to reserve.",
-    )
-
-    oversubscribe_factor: float = Field(
-        default=1.0,
-        gt=0,
-        description="Oversubscription factor for parallelism.",
-    )
-
-    enforce_single_axis: bool = Field(
-        default=True,
-        description="Force single-axis parallelization.",
-    )
-
-
-# =========================================================
-# ROOST
-# =========================================================
-
-
-class RoostConfig(BaseSystemConfig):
-    """Global Roost configuration."""
-
-    master_seed: int | None = Field(
-        default=None,
-        description="Master seed for deterministic runs.",
-    )
+    # -----------------------------------------------------
+    # Experiment provenance
+    # -----------------------------------------------------
 
     experiment_id: str | None = Field(
         default=None,
         description="Experiment identifier.",
     )
 
-    description: str | None = Field(
+    experiment_description: str | None = Field(
         default=None,
-        description="Optional description of experiment.",
+        description="Optional experiment description.",
     )
+
+    run_id: int | None = Field(
+        default=None,
+        ge=0,
+        description="Run index within experiment.",
+    )
+
+    run_description: str | None = Field(
+        default=None,
+        description="Optional run description.",
+    )
+
+    trial_id: int | None = Field(
+        default=None,
+        ge=0,
+        description="Trial index within run.",
+    )
+
+    # -----------------------------------------------------
+    # Deterministic execution
+    # -----------------------------------------------------
+
+    master_seed: int | None = Field(
+        default=987_654_321,
+        description="Master seed for deterministic execution.",
+    )
+
+    rate_seed: int | None = Field(
+        default=None,
+        description="Seed used for stochastic rates generation.",
+    )
+
+    longevity_seed: int | None = Field(
+        default=None,
+        description="Seed used for stochastic longevity generation.",
+    )
+
+    # -----------------------------------------------------
+    # Trial generation
+    # -----------------------------------------------------
 
     trials_per_run: int = Field(
         default=1,
         ge=1,
-        description="Number of trials per run.",
+        description="Number of trials generated for each run.",
     )
+
+    # -----------------------------------------------------
+    # Parallel execution
+    # -----------------------------------------------------
+
+    workers_per_run: int = Field(
+        default=4,
+        ge=1,
+        description=("Number of parallel workers used to execute trials within a run."),
+    )
+
+    worker_timeout: int = Field(
+        default=120,
+        ge=1,
+        description="Timeout in seconds for each trial.",
+    )
+
+    run_owl_as_subprocess: bool = Field(
+        default=False,
+        description="Execute OWL in a subprocess.",
+    )
+
+    workers_per_run_mode: str = Field(
+        default="auto",
+        description=("Worker allocation strategy: " "'fixed' or 'auto'."),
+    )
+
+    auto_workers_by_solver: dict[str, int] = Field(
+        default_factory=lambda: {
+            "MOSEK": 6,
+            "HiGHS": 14,
+        },
+        description=("Recommended workers_per_run by solver."),
+    )
+
+
+# =========================================================
+# RUNTIME ENVIRONMENT
+# =========================================================
+
+
+class RuntimeEnvironmentConfig(BaseSystemConfig):
+    """
+    Process-level runtime environment variables.
+
+    These settings control BLAS/OpenMP/MOSEK/etc.
+    threading and low-level runtime behavior.
+    """
+
+    OMP_NUM_THREADS: int | None = Field(
+        default=1,
+        ge=1,
+        description="OpenMP thread count.",
+    )
+
+    OPENBLAS_NUM_THREADS: int | None = Field(
+        default=1,
+        ge=1,
+        description="OpenBLAS thread count.",
+    )
+
+    MKL_NUM_THREADS: int | None = Field(
+        default=1,
+        ge=1,
+        description="Intel MKL thread count.",
+    )
+
+    MSK_IPAR_NUM_THREADS: int | None = Field(
+        default=1,
+        ge=1,
+        description="MOSEK thread count.",
+    )
+
+
+# =========================================================
+# ROOST LONGEVITY MODEL
+# Separate from OWL longevity settings
+# =========================================================
 
 
 class LongevityConfig(BaseSystemConfig):
@@ -146,6 +209,11 @@ class LongevityConfig(BaseSystemConfig):
     )
 
 
+# =========================================================
+# SPENDING POLICY
+# =========================================================
+
+
 class SpendingPolicyConfig(BaseSystemConfig):
     essential_spending: float = Field(
         default=0.0,
@@ -182,7 +250,9 @@ class SpendingPolicyConfig(BaseSystemConfig):
 
 
 class CaseConfig(BaseSystemConfig):
-    """Hydra-level case selection configuration."""
+    """
+    Hydra-level case selection configuration.
+    """
 
     file: str | None = Field(
         default=None,

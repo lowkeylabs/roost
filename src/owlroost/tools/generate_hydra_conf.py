@@ -133,40 +133,17 @@ def normalize_value(v):
 # Hydra Field Selection
 # =========================================================
 
-HYDRA_ROOTS = {
-    "case",
-    "case_name",
-    "description",
-    "basic_info",
-    "savings_assets",
-    "household_financial_profile",
-    "fixed_income",
-    "rates_selection",
-    "asset_allocation",
-    "optimization_parameters",
-    "solver_options",
-    "results",
-    "aca_settings",
-    "roost",
-    "longevity",
-    "spending_policy",
-    "trial",
-    "runtime",
-}
+HYDRA_SOURCES = {"input", "discovered"}
 
 
-def hydra_fields(
-    reg,
-):
+def hydra_fields(reg):
     out = []
 
     for f in reg.all():
         if not f.path:
             continue
 
-        root = f.path[0]
-
-        if root not in HYDRA_ROOTS:
+        if f.source not in HYDRA_SOURCES:
             continue
 
         out.append(f)

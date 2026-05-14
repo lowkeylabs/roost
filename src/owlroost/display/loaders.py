@@ -213,6 +213,32 @@ def _load_trial_metrics(
 
 
 # =========================================================
+# Run timing
+# =========================================================
+
+
+def _load_run_timing(
+    run_dir: Path,
+):
+    """
+    Load run_timing.json.
+    """
+
+    timing_file = Path(run_dir) / "run_timing.json"
+
+    if not timing_file.exists():
+        return {}
+
+    try:
+        timing = json.loads(timing_file.read_text())
+
+    except Exception:
+        return {}
+
+    return flatten_dict(timing)
+
+
+# =========================================================
 # Run Loader
 # =========================================================
 
@@ -300,6 +326,12 @@ def _load_run_dir(
         )
 
     # =====================================================
+    # Run timing metrics
+    # =====================================================
+
+    run_timing_metrics = _load_run_timing(path)
+
+    # =====================================================
     # Dataset Row
     # =====================================================
 
@@ -318,6 +350,7 @@ def _load_run_dir(
             # Aggregated metrics
             # -------------------------------------------------
             **agg_metrics,
+            **run_timing_metrics,
         },
         "_meta": {
             "level": "run",

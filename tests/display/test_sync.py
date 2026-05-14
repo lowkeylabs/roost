@@ -27,9 +27,11 @@ def build_schema_registry():
 
     reg.register(
         FieldSpec(
-            name="runtime.trial_jobs",
+            name="roost_runtime.workers_per_run",
             dtype=int,
-            description="Number of parallel trial workers.",
+            description="Number of parallel workers used for a run.",
+            source="input",
+            level="run",
         )
     )
 
@@ -38,6 +40,8 @@ def build_schema_registry():
             name="solver.elapsed_seconds",
             dtype=float,
             description="Elapsed runtime in seconds.",
+            source="metric",
+            level="trial",
         )
     )
 
@@ -50,15 +54,35 @@ def build_schema_registry():
 
 
 def test_path_to_table_label():
-    assert path_to_table_label("runtime.trial_jobs") == "Trial Jobs"
+    assert (
+        path_to_table_label(
+            "roost_runtime.workers_per_run",
+        )
+        == "Workers Per Run"
+    )
 
-    assert path_to_table_label("solver.elapsed_seconds") == "Elapsed Seconds"
+    assert (
+        path_to_table_label(
+            "solver.elapsed_seconds",
+        )
+        == "Elapsed Seconds"
+    )
 
 
 def test_path_to_pivot_label():
-    assert path_to_pivot_label("runtime.trial_jobs") == "Runtime Trial Jobs"
+    assert (
+        path_to_pivot_label(
+            "roost_runtime.workers_per_run",
+        )
+        == "Roost Runtime Workers Per Run"
+    )
 
-    assert path_to_pivot_label("solver.elapsed_seconds") == "Solver Elapsed Seconds"
+    assert (
+        path_to_pivot_label(
+            "solver.elapsed_seconds",
+        )
+        == "Solver Elapsed Seconds"
+    )
 
 
 # =========================================================
@@ -76,7 +100,7 @@ def test_sync_creates_display_fields():
         display_reg,
     )
 
-    assert display_reg.has_display_field("runtime.trial_jobs")
+    assert display_reg.has_display_field("roost_runtime.workers_per_run")
 
     assert display_reg.has_display_field("solver.elapsed_seconds")
 
@@ -91,9 +115,9 @@ def test_sync_copies_description():
         display_reg,
     )
 
-    field = display_reg.get_display_field("runtime.trial_jobs")
+    field = display_reg.get_display_field("roost_runtime.workers_per_run")
 
-    assert field.description == "Number of parallel trial workers."
+    assert field.description == "Number of parallel workers used for a run."
 
 
 def test_sync_creates_profiles():
@@ -106,7 +130,7 @@ def test_sync_creates_profiles():
         display_reg,
     )
 
-    field = display_reg.get_display_field("runtime.trial_jobs")
+    field = display_reg.get_display_field("roost_runtime.workers_per_run")
 
     assert "table" in field.profiles
 
@@ -123,9 +147,9 @@ def test_sync_creates_table_label():
         display_reg,
     )
 
-    field = display_reg.get_display_field("runtime.trial_jobs")
+    field = display_reg.get_display_field("roost_runtime.workers_per_run")
 
-    assert field.profiles["table"].label == "Trial Jobs"
+    assert field.profiles["table"].label == "Workers Per Run"
 
 
 def test_sync_creates_pivot_label():
@@ -138,9 +162,9 @@ def test_sync_creates_pivot_label():
         display_reg,
     )
 
-    field = display_reg.get_display_field("runtime.trial_jobs")
+    field = display_reg.get_display_field("roost_runtime.workers_per_run")
 
-    assert field.profiles["pivot"].label == "Runtime Trial Jobs"
+    assert field.profiles["pivot"].label == "Roost Runtime Workers Per Run"
 
 
 def test_sync_preserves_existing_display_field():
@@ -149,11 +173,11 @@ def test_sync_preserves_existing_display_field():
     display_reg = DisplayRegistry()
 
     existing = DisplayField(
-        field_name="runtime.trial_jobs",
+        field_name="roost_runtime.workers_per_run",
         description="Custom description",
         profiles={
             "table": DisplayProfile(
-                label="Jobs",
+                label="Workers",
             ),
         },
     )
@@ -165,17 +189,19 @@ def test_sync_preserves_existing_display_field():
         display_reg,
     )
 
-    field = display_reg.get_display_field("runtime.trial_jobs")
+    field = display_reg.get_display_field("roost_runtime.workers_per_run")
 
     # ----------------------------------------
     # Ensure object preserved
     # ----------------------------------------
+
     assert field is existing
 
     # ----------------------------------------
     # Ensure override preserved
     # ----------------------------------------
-    assert field.profiles["table"].label == "Jobs"
+
+    assert field.profiles["table"].label == "Workers"
 
     assert field.description == "Custom description"
 
@@ -224,7 +250,7 @@ def test_sync_multiple_fields():
     names = {f.field_name for f in display_reg.all_display_fields()}
 
     assert names == {
-        "runtime.trial_jobs",
+        "roost_runtime.workers_per_run",
         "solver.elapsed_seconds",
     }
 

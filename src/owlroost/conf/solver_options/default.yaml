@@ -15,10 +15,3 @@ withSSTaxability: loop
 withSCLoop: true
 withLTCG: loop
 withNIIT: loop
-gap: null
-minTaxableBalance: null
-previousMAGIs: null
-timePreference: null
-withACA: null
-withDecomposition: null
-withSSAges: null

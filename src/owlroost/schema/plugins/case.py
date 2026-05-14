@@ -12,6 +12,7 @@ class CasePlugin:
                     dtype=unwrap_annotation(field.annotation),
                     path=("case",) + tuple(name.split(".")),
                     source="input",
+                    level="case",
                     description=field.description or "",
                 )
             )

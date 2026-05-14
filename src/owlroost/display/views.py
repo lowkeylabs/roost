@@ -33,21 +33,9 @@ def register_case_views(reg):
 
     reg.register_group(
         DisplayGroup(
-            key="runtime",
-            entries=[
-                "runtime.trial_jobs",
-                "runtime.run_jobs",
-            ],
-            description="Runtime configuration.",
-        )
-    )
-
-    reg.register_group(
-        DisplayGroup(
             key="planning",
             entries=[
                 "optimization_parameters.objective",
-                "roost.trials_per_run",
                 "rates_selection.method",
             ],
             description="Planning configuration.",
@@ -99,7 +87,7 @@ def register_run_views(reg):
             key="run_planning",
             entries=[
                 "optimization_parameters.objective",
-                "roost.trials_per_run",
+                "roost_runtime.trials_per_run",
                 "rates_selection.method",
             ],
             description="Planning configuration.",
@@ -148,6 +136,44 @@ def register_run_views(reg):
         )
     )
 
+    reg.register_group(
+        DisplayGroup(
+            key="run_timing",
+            entries=[
+                # -----------------------------------------
+                # Execution configuration
+                # -----------------------------------------
+                "solver_options.solver",
+                "roost_runtime.workers_per_run",
+                # -----------------------------------------
+                # Completion
+                # -----------------------------------------
+                "trial.completion_rate",
+                # -----------------------------------------
+                # Run wall-clock timing
+                # -----------------------------------------
+                "run_timing.elapsed_seconds",
+                # -----------------------------------------
+                # Trial timing aggregates
+                # -----------------------------------------
+                "timing.elapsed_seconds__median",
+                "timing.elapsed_seconds__mean",
+                "timing.elapsed_seconds__p90",
+                # -----------------------------------------
+                # Derived execution metrics
+                # -----------------------------------------
+                "run_execution.trials_per_second",
+                "run_execution.effective_parallelism",
+                "run_execution.worker_utilization",
+                # -----------------------------------------
+                # Derived timing diagnostics
+                # -----------------------------------------
+                "run_timing.trial_latency_skew",
+            ],
+            description=("Run-level execution, throughput, " "and timing diagnostics."),
+        )
+    )
+
     # =====================================================
     # Basic Run View
     # =====================================================
@@ -163,5 +189,17 @@ def register_run_views(reg):
                 ("group", "run_outcomes"),
             ],
             description="Default run results view.",
+        )
+    )
+
+    reg.register_view(
+        ViewSpec(
+            level="run",
+            name="timing",
+            entries=[
+                ("group", "run_identity"),
+                ("group", "run_timing"),
+            ],
+            description="Default run timing.",
         )
     )

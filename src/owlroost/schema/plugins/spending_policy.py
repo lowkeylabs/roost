@@ -24,7 +24,8 @@ class SpendingPolicyPlugin:
                     name=full_name,
                     dtype=unwrap_annotation(field.annotation),
                     path=("spending_policy",) + tuple(name.split(".")),
-                    source="roost",
+                    source="input",
+                    level="case",
                     description=field.description or "",
                 )
             )

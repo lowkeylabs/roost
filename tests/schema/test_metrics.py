@@ -15,7 +15,7 @@ def test_metrics_fields_marked_as_output():
 
     field = reg.get("financial.spending.year0.future")
 
-    assert field.source == "output"
+    assert field.source == "metric"
 
 
 def test_input_and_output_coexist():

@@ -1,17 +1,17 @@
-# src/owlroost/schema/plugins/longevity.py
+# src/owlroost/schema/plugins/roost_runtime.py
 
 from ..registry import FieldSpec
-from ..system_models import LongevityConfig
+from ..system_models import RoostRuntimeConfig
 from ..utils import unwrap_annotation, walk_model
 
 
-class LongevityPlugin:
-    root = "longevity"
-    model = LongevityConfig
+class RoostRuntimePlugin:
+    root = "roost_runtime"
+    model = RoostRuntimeConfig
 
     def register(self, registry):
-        for name, field in walk_model("", LongevityConfig):
-            full_name = f"longevity.{name}"
+        for name, field in walk_model("", RoostRuntimeConfig):
+            full_name = f"roost_runtime.{name}"
 
             # -------------------------------------------------
             # Skip duplicates (important for merged schema)
@@ -23,7 +23,7 @@ class LongevityPlugin:
                 FieldSpec(
                     name=full_name,
                     dtype=unwrap_annotation(field.annotation),
-                    path=("longevity",) + tuple(name.split(".")),
+                    path=("roost_runtime",) + tuple(name.split(".")),
                     source="input",
                     level="case",
                     description=field.description or "",

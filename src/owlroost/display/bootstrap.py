@@ -64,6 +64,13 @@ def build_display_registry(
     reg = DisplayRegistry()
 
     # =====================================================
+    # Attach semantic registries
+    # =====================================================
+
+    reg.schema_registry = schema_registry
+    reg.metrics_registry = metrics_registry
+
+    # =====================================================
     # Input Schema → Display Sync
     # =====================================================
 

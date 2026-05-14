@@ -12,6 +12,8 @@ def test_register_and_get_field():
         name="test.field",
         dtype=int,
         path=("test", "field"),
+        source="input",
+        level="trial",
     )
 
     reg.register(field)
@@ -28,10 +30,24 @@ def test_registry_rejects_duplicate_field():
 
     reg = SchemaRegistry()
 
-    reg.register(FieldSpec("a", int))
+    reg.register(
+        FieldSpec(
+            "a",
+            int,
+            source="input",
+            level="trial",
+        )
+    )
 
     with pytest.raises(ValueError):
-        reg.register(FieldSpec("a", float))
+        reg.register(
+            FieldSpec(
+                "a",
+                int,
+                source="input",
+                level="trial",
+            )
+        )
 
 
 def test_duplicate_field_error_message():
@@ -40,9 +56,23 @@ def test_duplicate_field_error_message():
     from owlroost.schema.registry import FieldSpec, SchemaRegistry
 
     reg = SchemaRegistry()
-    reg.register(FieldSpec("a", int))
+    reg.register(
+        FieldSpec(
+            "a",
+            int,
+            source="input",
+            level="trial",
+        )
+    )
 
     with pytest.raises(ValueError) as exc:
-        reg.register(FieldSpec("a", float))
+        reg.register(
+            FieldSpec(
+                "a",
+                int,
+                source="input",
+                level="trial",
+            )
+        )
 
     assert "Duplicate field registered: a" in str(exc.value)
