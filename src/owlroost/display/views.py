@@ -87,7 +87,6 @@ def register_run_views(reg):
             key="run_planning",
             entries=[
                 "optimization_parameters.objective",
-                "roost_runtime.trials_per_run",
                 "rates_selection.method",
             ],
             description="Planning configuration.",
@@ -102,9 +101,10 @@ def register_run_views(reg):
         DisplayGroup(
             key="run_execution",
             entries=[
-                "trial.completed",
-                "trial.pending",
-                "trial.completion_rate",
+                {"field": "completion_ratio", "show_if": ["is_table"]},
+                {"field": "trial.completed", "show_if": ["is_pivot"]},
+                {"field": "roost_runtime.trials_per_run", "show_if": ["is_pivot"]},
+                {"field": "trial.completion_rate", "show_if": ["is_pivot"]},
             ],
             description="Run execution summary.",
         )
@@ -163,7 +163,7 @@ def register_run_views(reg):
                 # Derived execution metrics
                 # -----------------------------------------
                 "run_execution.trials_per_second",
-                "run_execution.effective_parallelism",
+                "run_execution.concurrency_equivalent",
                 "run_execution.worker_utilization",
                 # -----------------------------------------
                 # Derived timing diagnostics
@@ -199,8 +199,8 @@ def register_run_views(reg):
             name="results",
             entries=[
                 ("group", "run_identity"),
-                ("group", "run_planning"),
                 ("group", "run_execution"),
+                ("group", "run_planning"),
                 ("group", "run_outcomes"),
             ],
             description="Default run results view.",

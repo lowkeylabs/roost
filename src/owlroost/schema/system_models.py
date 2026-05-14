@@ -87,8 +87,8 @@ class RoostRuntimeConfig(BaseSystemConfig):
     # Parallel execution
     # -----------------------------------------------------
 
-    workers_per_run: int = Field(
-        default=4,
+    workers_per_run: int | None = Field(
+        default=None,
         ge=1,
         description=("Number of parallel workers used to execute trials within a run."),
     )

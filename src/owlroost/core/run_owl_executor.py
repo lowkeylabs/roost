@@ -64,6 +64,7 @@ def resolve_solver_name(run_cfg):
         "default",
     )
 
+    logger.debug(f"Solver={solver}")
     if solver == "default":
         return "MOSEK" if mosek_available() else "HiGHS"
 
@@ -217,10 +218,11 @@ def resolve_workers_per_run(
     default=1,
 ):
     """
-    Resolve workers_per_run using either:
+    Resolve workers_per_run using precedence:
 
-    - explicit fixed value
-    - solver-aware auto tuning
+    1. Explicit workers_per_run override
+    2. Solver-aware auto tuning
+    3. Default
     """
 
     runtime = run_cfg.get(
@@ -230,44 +232,41 @@ def resolve_workers_per_run(
 
     solver = resolve_solver_name(run_cfg)
 
-    mode = runtime.get(
-        "workers_per_run_mode",
-        "fixed",
-    )
-
     # -----------------------------------------------------
-    # Fixed mode
+    # Explicit override ALWAYS wins
     # -----------------------------------------------------
 
-    if mode == "fixed":
-        return int(
-            runtime.get(
-                "workers_per_run",
-                default,
-            )
-        )
+    explicit = runtime.get("workers_per_run")
+
+    print(f"Explicit workers_per_run={explicit}")
+    if explicit is not None:
+        return int(explicit)
 
     # -----------------------------------------------------
     # Auto mode
     # -----------------------------------------------------
 
+    mode = runtime.get(
+        "workers_per_run_mode",
+        "auto",
+    )
+
+    logger.debug(f"Mode={mode}")
+
     if mode == "auto":
         mapping = runtime.get(
             "auto_workers_by_solver",
-            {},
+            {"MOSEK": 6, "HiGHS": 14},
         )
 
         if solver in mapping:
             return int(mapping[solver])
 
-        return int(
-            runtime.get(
-                "workers_per_run",
-                default,
-            )
-        )
+    # -----------------------------------------------------
+    # Fallback
+    # -----------------------------------------------------
 
-    raise ValueError(f"Unknown workers_per_run_mode: {mode}")
+    return int(default)
 
 
 @contextmanager
@@ -507,8 +506,6 @@ def execute_run(
 
     run_cfg = load_run_config(run_dir)
 
-    workers_per_run = resolve_workers_per_run(run_cfg)
-
     all_trials = find_trials(run_dir)
 
     pending_trials = [td for td in all_trials if rerun or not has_metrics(td)]
@@ -535,6 +532,7 @@ def execute_run(
 
     with runtime_environment_scope(run_cfg):
         solver = resolve_solver_name(run_cfg)
+        workers_per_run = resolve_workers_per_run(run_cfg)
 
         desc = f"{run_dir.name} " f"({workers_per_run} workers, {solver})"
 

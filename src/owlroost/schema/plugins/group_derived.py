@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
+from owlroost.display.dataset import Dataset
 from owlroost.display.specs import DisplayProfile
 
 from ..registry import FieldSpec
@@ -138,7 +139,7 @@ def apply_group_derived_metrics(
     ds,
     *,
     use_working_set=False,
-):
+) -> Dataset:
     """
     Apply group-derived analytical metrics.
 
@@ -188,6 +189,8 @@ def apply_group_derived_metrics(
         _assign_group_override_metrics(
             group_rows,
         )
+
+    return ds
 
 
 # =========================================================

@@ -123,18 +123,14 @@ def resolve_renderer(
     is_flag=True,
     default=False,
 )
+@click.option(
+    "--run-all",
+    is_flag=True,
+    default=False,
+    help="Execute all runs in the current working dataset.",
+)
 def cmd_run(
-    run_ids,
-    root,
-    view,
-    markdown,
-    latex,
-    pivot,
-    filters,
-    sort,
-    top,
-    progress,
-    rerun,
+    run_ids, root, view, markdown, latex, pivot, filters, sort, top, progress, rerun, run_all
 ):
     """
     List runs and execute pending trials.
@@ -175,7 +171,7 @@ def cmd_run(
 
     ds = load_runs(
         metrics_registry=metrics_registry,
-        results_root=root,
+        results_root=str(root),
     )
 
     if not ds.rows:
@@ -258,27 +254,28 @@ def cmd_run(
         click.echo(output)
 
     # =====================================================
-    # No run ids -> display only
+    # No selection -> display only
     # =====================================================
 
-    if not run_ids:
+    if not run_ids and not run_all:
         return
 
     # =====================================================
     # Resolve selected runs from displayed dataset
     # =====================================================
 
-    selected_rows = []
+    if run_all:
+        selected_rows = ds.rows
 
-    row_id_set = {str(rid) for rid in run_ids}
+    else:
+        selected_rows = []
 
-    for row in ds.rows:
-        meta = row.get("_meta", {})
+        row_id_set = {str(rid) for rid in run_ids}
 
-        row_id = str(meta.get("row_id"))
-
-        if row_id in row_id_set:
-            selected_rows.append(row)
+        for row in ds.rows:
+            row_id = str(row.get("_row_id", {}))
+            if row_id in row_id_set:
+                selected_rows.append(row)
 
     if not selected_rows:
         raise click.ClickException("No matching run IDs selected.")
@@ -290,10 +287,7 @@ def cmd_run(
     selected_runs = []
 
     for row in selected_rows:
-        meta = row.get("_meta", {})
-
-        run_dir = meta.get("run_dir")
-
+        run_dir = row.get("_path")
         if run_dir:
             selected_runs.append(Path(run_dir))
 

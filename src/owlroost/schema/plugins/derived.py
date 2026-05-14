@@ -295,11 +295,11 @@ class DerivedMetricsPlugin:
 
         registry.register(
             FieldSpec(
-                name="run_execution.effective_parallelism",
+                name="run_execution.concurrency_equivalent",
                 dtype=float,
                 path=(
                     "run_execution",
-                    "parallel_efficiency",
+                    "concurrency_equivalent",
                 ),
                 source="derived",
                 level="run",
@@ -310,15 +310,19 @@ class DerivedMetricsPlugin:
                     "min",
                     "max",
                 ],
-                description=("Effective parallel " "execution efficiency."),
+                description=(
+                    "Throughput-equivalent concurrency estimate "
+                    "computed as total completed trial runtime "
+                    "divided by wall-clock runtime."
+                ),
                 display_profiles={
                     "table": DisplayProfile(
-                        label="Effective\nParallelism",
+                        label="Concurrency\nEquivalent",
                         fmt="float3",
                         content_align="right",
                     ),
                     "pivot": DisplayProfile(
-                        label="Effective Parallelism",
+                        label="Concurrency Equivalent",
                         fmt="float3",
                         content_align="right",
                     ),

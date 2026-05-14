@@ -13,6 +13,9 @@ from owlroost.display.renderers.rich_table import render_rich_table
 from owlroost.display.utils import attach_row_ids, inject_id_column
 from owlroost.metrics.registry.bootstrap import build_metrics_registry
 from owlroost.schema.bootstrap import build_registry
+from owlroost.schema.plugins.group_derived import (
+    apply_group_derived_metrics,
+)
 
 # =========================================================
 # Renderer Helpers
@@ -168,6 +171,11 @@ def cmd_results(
     ds = ds.sort(sort)
 
     ds = ds.top(top)
+
+    ds = apply_group_derived_metrics(
+        ds,
+        use_working_set=(bool(filters) or top is not None),
+    )
 
     # =====================================================
     # Resolve Renderer

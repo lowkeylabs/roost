@@ -260,10 +260,39 @@ def apply_display_overrides(
         )
     )
 
+    reg.register_display_field(
+        DisplayField(
+            field_name="completion_ratio",
+            display_fn=completion_ratio_display,
+            description=("Completed trials relative " "to configured trials per run."),
+            profiles={
+                "table": DisplayProfile(
+                    label="Trials",
+                    content_align="center",
+                ),
+                "pivot": DisplayProfile(
+                    label="Completion Ratio",
+                    content_align="center",
+                ),
+            },
+        )
+    )
+
 
 # =========================================================
 # Display Functions
 # =========================================================
+
+
+def completion_ratio_display(row):
+    completed = row.get("_metrics", {}).get("trial.completed")
+
+    total = row.get("_inputs", {}).get("roost_runtime", {}).get("trials_per_run")
+
+    if completed is None or total is None:
+        return "."
+
+    return f"{completed}/{total}"
 
 
 def current_ages_display(

@@ -75,6 +75,29 @@ def filter_case_overrides(overrides: list[str]) -> list[str]:
     return keep
 
 
+def clean_pydantic_undefined(obj):
+    """
+    Recursively remove/normalize
+    stringified PydanticUndefined values.
+    """
+
+    if isinstance(obj, dict):
+        out = {}
+
+        for k, v in obj.items():
+            if v == "PydanticUndefined":
+                continue
+
+            out[k] = clean_pydantic_undefined(v)
+
+        return out
+
+    if isinstance(obj, list):
+        return [clean_pydantic_undefined(v) for v in obj]
+
+    return obj
+
+
 # ---------------------------------------------------------
 # Main
 # ---------------------------------------------------------
@@ -130,6 +153,13 @@ def generate_trials(cfg: DictConfig):
         resolve=True,
     )
 
+    cfg_dict = clean_pydantic_undefined(
+        OmegaConf.to_container(
+            cfg,
+            resolve=True,
+        )
+    )
+
     SECTION_MODELS = {
         "roost_runtime": RoostRuntimeConfig,
         "runtime_environment": RuntimeEnvironmentConfig,
@@ -138,12 +168,14 @@ def generate_trials(cfg: DictConfig):
     section_models = {}
 
     for section_name, model_cls in SECTION_MODELS.items():
-        model = model_cls(
-            **cfg_dict.get(
+        section_cfg = clean_pydantic_undefined(
+            cfg_dict.get(
                 section_name,
                 {},
             )
         )
+
+        model = model_cls(**section_cfg)
 
         section_models[section_name] = model
 

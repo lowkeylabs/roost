@@ -1,6 +1,8 @@
 import types
 from typing import Union, get_args, get_origin
 
+from pydantic_core import PydanticUndefined
+
 
 def is_pydantic_model(annotation):
     return hasattr(annotation, "model_fields")
@@ -35,3 +37,19 @@ def unwrap_annotation(annotation):
         return args[0] if args else annotation
 
     return annotation
+
+
+def resolve_field_default(
+    field,
+):
+    """
+    Resolve normalized default from Pydantic v2 field.
+    """
+
+    if field.default_factory is not None:
+        return field.default_factory()
+
+    if field.default is PydanticUndefined:
+        return None
+
+    return field.default

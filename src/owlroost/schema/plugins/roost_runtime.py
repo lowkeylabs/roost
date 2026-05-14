@@ -2,7 +2,7 @@
 
 from ..registry import FieldSpec
 from ..system_models import RoostRuntimeConfig
-from ..utils import unwrap_annotation, walk_model
+from ..utils import resolve_field_default, unwrap_annotation, walk_model
 
 
 class RoostRuntimePlugin:
@@ -27,5 +27,6 @@ class RoostRuntimePlugin:
                     source="input",
                     level="case",
                     description=field.description or "",
+                    default=resolve_field_default(field),
                 )
             )
