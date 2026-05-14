@@ -59,29 +59,72 @@ def format_value(value, fmt: str | None):
 
             def normalize_key(k):
                 if isinstance(k, str):
-                    k = k.replace("fixed_income.social_security_ages", "ss_ages")
-                    k = k.replace("solver_options.spendingSlack", "spendSlack")
-                    k = k.replace("rates_selection.", "")
+                    k = k.replace(
+                        "fixed_income.social_security_ages",
+                        "ss_ages",
+                    )
+
+                    k = k.replace(
+                        "solver_options.spendingSlack",
+                        "spendSlack",
+                    )
+
+                    k = k.replace(
+                        "rates_selection.",
+                        "",
+                    )
+
                 return k
 
-            def sort_key(item):
-                k, _ = item
+            # ---------------------------------------------
+            # Normalize keys
+            # ---------------------------------------------
+
+            cleaned = {}
+
+            for k, v in value.items():
                 k_clean = normalize_key(k)
-                return (PREFERRED_ORDER.get(k_clean, 99), k_clean)
+
+                k_display = ALIASES.get(
+                    k_clean,
+                    k_clean.split(".")[-1],
+                )
+
+                cleaned[k_display] = v
+
+            # ---------------------------------------------
+            # Compact from/to special case
+            # ---------------------------------------------
 
             lines = []
 
-            for k, v in sorted(value.items(), key=sort_key):
-                k_clean = normalize_key(k)
-                k_display = ALIASES.get(k_clean, k_clean)
+            if "from" in cleaned and "to" in cleaned:
+                lines.append(f"from-to=" f"{cleaned['from']}" f"-" f"{cleaned['to']}")
 
-                v_str = format_value(v, None)
+                del cleaned["from"]
+                del cleaned["to"]
 
-                lines.append(f"{k_display}\n{v_str}")
+            # ---------------------------------------------
+            # Remaining fields
+            # ---------------------------------------------
 
-            return "\n".join(lines)
+            for k in sorted(
+                cleaned,
+                key=lambda x: (
+                    PREFERRED_ORDER.get(x, 99),
+                    x,
+                ),
+            ):
+                v = cleaned[k]
 
-        return str(value)
+                v_str = format_value(
+                    v,
+                    None,
+                )
+
+                lines.append(f"{k}={v_str}")
+
+            return " ".join(lines)
 
     # -------------------------------------------------
     # DEFAULT FLOAT NORMALIZATION (when no explicit fmt)

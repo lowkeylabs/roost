@@ -175,13 +175,28 @@ def register_run_views(reg):
     )
 
     # =====================================================
+    # Overrides
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="run_overrides",
+            entries=[
+                "run_execution.run_specific_overrides",
+                "run_execution.common_overrides",
+            ],
+            description="Run comparison overrides.",
+        )
+    )
+
+    # =====================================================
     # Basic Run View
     # =====================================================
 
     reg.register_view(
         ViewSpec(
             level="run",
-            name="basic",
+            name="results",
             entries=[
                 ("group", "run_identity"),
                 ("group", "run_planning"),
@@ -201,5 +216,18 @@ def register_run_views(reg):
                 ("group", "run_timing"),
             ],
             description="Default run timing.",
+        )
+    )
+
+    reg.register_view(
+        ViewSpec(
+            level="run",
+            name="run",
+            entries=[
+                ("group", "run_identity"),
+                ("group", "run_execution"),
+                ("group", "run_overrides"),
+            ],
+            description="Compact run execution view.",
         )
     )

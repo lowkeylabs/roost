@@ -219,3 +219,314 @@ def inject_id_column(
     table.rows = new_rows
 
     return table
+
+
+# =========================================================
+# Row Value Resolution
+# =========================================================
+
+
+def resolve_row_value(
+    row,
+    key,
+):
+    """
+    Resolve value from dataset row.
+
+    Search order:
+        _meta
+        _metrics
+        _inputs (dotted path)
+    """
+
+    # -----------------------------------------------------
+    # _meta
+    # -----------------------------------------------------
+
+    if key in row.get("_meta", {}):
+        return row["_meta"][key]
+
+    # -----------------------------------------------------
+    # _metrics
+    # -----------------------------------------------------
+
+    if key in row.get("_metrics", {}):
+        return row["_metrics"][key]
+
+    # -----------------------------------------------------
+    # _inputs dotted path
+    # -----------------------------------------------------
+
+    current = row.get("_inputs", {})
+
+    for part in key.split("."):
+        if not isinstance(current, dict):
+            return None
+
+        if part not in current:
+            return None
+
+        current = current[part]
+
+    return current
+
+
+# =========================================================
+# Filtering
+# =========================================================
+
+
+def parse_filter_expression(
+    expr,
+):
+    """
+    Parse expressions like:
+
+        case_id=0
+        trial.completed>50
+        success_rate>=0.9
+    """
+
+    operators = [
+        ">=",
+        "<=",
+        "!=",
+        ">",
+        "<",
+        "=",
+    ]
+
+    for op in operators:
+        if op in expr:
+            left, right = expr.split(op, 1)
+
+            return (
+                left.strip(),
+                op,
+                right.strip(),
+            )
+
+    raise ValueError(f"Invalid filter expression: {expr}")
+
+
+def coerce_value(
+    value,
+):
+    """
+    Attempt numeric coercion.
+    """
+
+    if value is None:
+        return None
+
+    if isinstance(
+        value,
+        (
+            int,
+            float,
+        ),
+    ):
+        return value
+
+    s = str(value)
+
+    try:
+        if "." in s:
+            return float(s)
+
+        return int(s)
+
+    except Exception:
+        return s
+
+
+def compare_values(
+    lhs,
+    op,
+    rhs,
+):
+    """
+    Compare values using operator.
+    """
+
+    lhs = coerce_value(lhs)
+
+    rhs = coerce_value(rhs)
+
+    if op == "=":
+        return lhs == rhs
+
+    if op == "!=":
+        return lhs != rhs
+
+    if op == ">":
+        return lhs > rhs
+
+    if op == "<":
+        return lhs < rhs
+
+    if op == ">=":
+        return lhs >= rhs
+
+    if op == "<=":
+        return lhs <= rhs
+
+    raise ValueError(f"Unsupported operator: {op}")
+
+
+def apply_filters(
+    rows,
+    filters,
+):
+    """
+    Apply CLI filters.
+    """
+
+    if not filters:
+        return rows
+
+    out = []
+
+    parsed = [parse_filter_expression(f) for f in filters]
+
+    for row in rows:
+        keep = True
+
+        for key, op, rhs in parsed:
+            lhs = resolve_row_value(
+                row,
+                key,
+            )
+
+            if not compare_values(lhs, op, rhs):
+                keep = False
+                break
+
+        if keep:
+            out.append(row)
+
+    return out
+
+
+# =========================================================
+# Sorting
+# =========================================================
+
+
+def canonical_sort_key(
+    row,
+):
+    """
+    Canonical default ordering.
+
+    Order:
+        case_id
+        experiment_id
+        run_id
+        trial_id
+    """
+
+    meta = row.get(
+        "_meta",
+        {},
+    )
+
+    case_id = meta.get(
+        "case_id",
+        -1,
+    )
+
+    experiment_id = meta.get(
+        "experiment_id",
+        "",
+    )
+
+    run_id = meta.get(
+        "run_id",
+        -1,
+    )
+
+    trial_id = meta.get(
+        "trial_id",
+        -1,
+    )
+
+    return (
+        case_id,
+        experiment_id,
+        run_id,
+        trial_id,
+    )
+
+
+def apply_canonical_sort(
+    rows,
+):
+    """
+    Apply canonical hierarchical ordering.
+
+    Order:
+        case_id
+        experiment_id
+        run_id
+        trial_id
+    """
+
+    return sorted(
+        rows,
+        key=canonical_sort_key,
+    )
+
+
+def apply_sort(
+    rows,
+    sort_key,
+):
+    """
+    Sort rows by field.
+
+    Prefix '-' for descending.
+
+    Examples:
+        trial.completed
+        -trial.completed
+    """
+
+    if not sort_key:
+        return rows
+
+    descending = False
+
+    key = sort_key
+
+    if sort_key.startswith("-"):
+        descending = True
+        key = sort_key[1:]
+
+    return sorted(
+        rows,
+        key=lambda r: (
+            resolve_row_value(r, key) is None,
+            resolve_row_value(r, key),
+        ),
+        reverse=descending,
+    )
+
+
+# =========================================================
+# Top-N
+# =========================================================
+
+
+def apply_top(
+    rows,
+    top_n,
+):
+    """
+    Limit rows.
+    """
+
+    if top_n is None:
+        return rows
+
+    return rows[:top_n]

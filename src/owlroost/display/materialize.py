@@ -353,6 +353,8 @@ def materialize_view(
         label_align = profile.label_align
         content_align = profile.content_align
         fmt = profile.fmt
+        width = profile.width
+        wrap = profile.wrap
 
         columns.append(
             TableColumn(
@@ -361,6 +363,8 @@ def materialize_view(
                 label_align=label_align,
                 content_align=content_align,
                 fmt=fmt,
+                width=width,
+                wrap=wrap,
             )
         )
 

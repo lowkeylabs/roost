@@ -48,6 +48,8 @@ def render_rich_table(
         rich_table.add_column(
             col.label,
             justify=justify,
+            width=col.width,
+            no_wrap=not col.wrap,
         )
 
     # =====================================================

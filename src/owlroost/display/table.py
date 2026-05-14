@@ -9,6 +9,11 @@ from dataclasses import dataclass
 # =========================================================
 
 
+# =========================================================
+# Column
+# =========================================================
+
+
 @dataclass
 class TableColumn:
     """
@@ -21,6 +26,7 @@ class TableColumn:
     - alignment
     - formatting
     - visibility
+    - wrapping metadata
 
     Renderers should not perform semantic lookups.
     """
@@ -32,7 +38,15 @@ class TableColumn:
     label_align: str = "left"
     content_align: str = "left"
 
+    wrap: bool = False
+
     fmt: str | None = None
+
+    # =====================================================
+    # Layout
+    # =====================================================
+
+    width: int | None = None
 
 
 # =========================================================

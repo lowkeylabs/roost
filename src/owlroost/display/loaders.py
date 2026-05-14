@@ -273,6 +273,7 @@ def _load_run_dir(
 
     try:
         content = tomllib.loads(run_toml.read_text())
+        task_overrides = load_hydra_overrides(path)
 
     except Exception:
         return None
@@ -358,6 +359,7 @@ def _load_run_dir(
             "case_id": case_id,
             "experiment_id": experiment_id,
             "run_id": run_id,
+            "task_overrides": task_overrides,
         },
     }
 
@@ -365,6 +367,30 @@ def _load_run_dir(
 # =========================================================
 # Public Loaders
 # =========================================================
+
+
+def load_hydra_overrides(
+    run_dir: Path,
+):
+    """
+    Load hydra_overrides.yaml from run directory.
+    """
+
+    path = Path(run_dir) / "hydra_overrides.yaml"
+
+    if not path.exists():
+        return []
+
+    try:
+        data = yaml.safe_load(path.read_text())
+
+    except Exception:
+        return []
+
+    return data.get(
+        "task_overrides",
+        [],
+    )
 
 
 def load_cases(
