@@ -140,8 +140,8 @@ def apply_display_overrides(
             profiles={
                 "table": DisplayProfile(
                     label="Workers\nPer Run",
-                    content_align="right",
-                    label_align="right",
+                    content_align="center",
+                    label_align="center",
                 ),
             },
         )
@@ -273,6 +273,36 @@ def apply_display_overrides(
                 "pivot": DisplayProfile(
                     label="Completion Ratio",
                     content_align="center",
+                ),
+            },
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField(
+            field_name="roost_runtime.math_library_threads",
+            description=("math library threads used to set ENV strings."),
+            profiles={
+                "table": DisplayProfile(
+                    label="Math\nThreads", content_align="center", label_align="center"
+                ),
+                "pivot": DisplayProfile(
+                    label="Math library threads", content_align="center", label_align="center"
+                ),
+            },
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField(
+            field_name="runtime_environment.MSK_IPAR_NUM_THREADS",
+            description=("MOSEK-specific environment setting."),
+            profiles={
+                "table": DisplayProfile(
+                    label="MSK IPAR\nTHREADS", content_align="center", label_align="center"
+                ),
+                "pivot": DisplayProfile(
+                    label="MSK IPAR NUM THREADS", content_align="center", label_align="center"
                 ),
             },
         )

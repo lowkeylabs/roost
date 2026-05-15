@@ -25,8 +25,8 @@ roll_sequence: 0
 bootstrap_type: null
 block_size: null
 shrink: null
+long_term_capital_gains_rate: null
 net_investment_income_tax: null
 state_tax: null
 rates_seed: null
-long_term_capital_gains_rate: null
 from: 1960

@@ -288,6 +288,7 @@ def parse_filter_expression(
     """
 
     operators = [
+        "=in:",
         ">=",
         "<=",
         "!=",
@@ -350,6 +351,19 @@ def compare_values(
     """
 
     lhs = coerce_value(lhs)
+
+    # =====================================================
+    # Membership
+    # =====================================================
+
+    if op == "=in:":
+        values = [coerce_value(x.strip()) for x in str(rhs).split(",") if x.strip()]
+
+        return lhs in values
+
+    # =====================================================
+    # Standard coercion
+    # =====================================================
 
     rhs = coerce_value(rhs)
 

@@ -136,7 +136,7 @@ def _assign_group_override_metrics(
 
 
 def apply_group_derived_metrics(
-    ds,
+    ds: Dataset,
     *,
     use_working_set=False,
 ) -> Dataset:
@@ -153,7 +153,7 @@ def apply_group_derived_metrics(
     rows = ds.rows
 
     if not rows:
-        return
+        return ds
 
     # =====================================================
     # Working-set mode
@@ -164,7 +164,7 @@ def apply_group_derived_metrics(
             rows,
         )
 
-        return
+        return ds
 
     # =====================================================
     # Experiment-group mode

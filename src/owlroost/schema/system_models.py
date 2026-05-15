@@ -117,6 +117,11 @@ class RoostRuntimeConfig(BaseSystemConfig):
         description=("Recommended workers_per_run by solver."),
     )
 
+    math_library_threads: int | None = Field(
+        default=None,
+        description="Default value applied to all ENV math library threads.",
+    )
+
 
 # =========================================================
 # RUNTIME ENVIRONMENT
@@ -132,25 +137,25 @@ class RuntimeEnvironmentConfig(BaseSystemConfig):
     """
 
     OMP_NUM_THREADS: int | None = Field(
-        default=1,
+        default=None,
         ge=1,
         description="OpenMP thread count.",
     )
 
     OPENBLAS_NUM_THREADS: int | None = Field(
-        default=1,
+        default=None,
         ge=1,
         description="OpenBLAS thread count.",
     )
 
     MKL_NUM_THREADS: int | None = Field(
-        default=1,
+        default=None,
         ge=1,
         description="Intel MKL thread count.",
     )
 
     MSK_IPAR_NUM_THREADS: int | None = Field(
-        default=1,
+        default=None,
         ge=1,
         description="MOSEK thread count.",
     )

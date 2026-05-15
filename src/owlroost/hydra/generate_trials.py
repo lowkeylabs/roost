@@ -206,6 +206,44 @@ def generate_trials(cfg: DictConfig):
         run_dict.setdefault("household_financial_profile", {})["HFP_file_name"] = hfp_dst_name
 
     # ----------------------------------------
+    # Add environment vars if math_library_threads <> None
+    # ----------------------------------------
+
+    runtime_cfg = section_models.get("roost_runtime")
+    env_cfg = section_models.get("runtime_environment")
+
+    if runtime_cfg and env_cfg:
+        threads = runtime_cfg.math_library_threads
+
+        if threads not in (None, 0):
+            thread_fields = [
+                "OMP_NUM_THREADS",
+                "OPENBLAS_NUM_THREADS",
+                "MKL_NUM_THREADS",
+                "MSK_IPAR_NUM_THREADS",
+            ]
+
+            for field_name in thread_fields:
+                current = getattr(
+                    env_cfg,
+                    field_name,
+                    None,
+                )
+
+                # Explicit env_cfg value wins
+                if current is None:
+                    setattr(
+                        env_cfg,
+                        field_name,
+                        threads,
+                    )
+
+            # Re-sync updated model back into run_dict
+            run_dict["runtime_environment"] = env_cfg.model_dump(
+                exclude_none=True,
+            )
+
+    # ----------------------------------------
     # Save run.toml
     # ----------------------------------------
     (run_path / "run.toml").write_text(toml.dumps(run_dict))

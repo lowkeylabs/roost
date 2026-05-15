@@ -14,3 +14,4 @@ workers_per_run_mode: auto
 auto_workers_by_solver:
   MOSEK: 6
   HiGHS: 14
+math_library_threads: null
