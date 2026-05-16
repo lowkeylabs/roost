@@ -12,8 +12,44 @@ class DisplayProfile:
     content_align: str = "left"
     width: int | None = None
     wrap: bool = False
-    explanation: str | None = None
     visible: bool = True
+
+
+@dataclass
+class ExplainSpec:
+    # =====================================================
+    # Variable Definition
+    #
+    # What is this variable?
+    # =====================================================
+
+    variable: str | None = None
+
+    # =====================================================
+    # Value Interpretation
+    #
+    # What does the displayed value mean?
+    # =====================================================
+
+    value: str | None = None
+
+    # =====================================================
+    # Provenance / Lineage
+    # =====================================================
+
+    sources: list[str] = field(default_factory=list)
+
+    # =====================================================
+    # Units / Semantic Scale
+    # =====================================================
+
+    units: str | None = None
+
+    # =====================================================
+    # Notes / Caveats
+    # =====================================================
+
+    notes: str | None = None
 
 
 @dataclass
@@ -46,8 +82,6 @@ class DisplayField:
 
     path: str | None = None
 
-    description: str | None = None
-
     profiles: dict[str, DisplayProfile] = field(default_factory=dict)
 
     default_aggregates: list[str] = field(default_factory=list)
@@ -55,6 +89,9 @@ class DisplayField:
     show_if: list[str] = field(default_factory=list)
 
     display_fn: Callable[[dict], object] | None = None
+
+    description: str | None = None
+    explain: ExplainSpec | None = None
 
     # =====================================================
     # Post Init

@@ -324,6 +324,7 @@ def build_compare_entries(
 def materialize_compare_table(
     dataset,
     diff_only=False,
+    explain=None,
 ):
     """
     Materialize structural compare/diff table.

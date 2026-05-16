@@ -217,6 +217,13 @@ def run_hydra_build(
     help="Show only differing structural fields.",
 )
 @click.option(
+    "--explain",
+    type=str,
+    help=(
+        "Explanation facets. " "Comma-separated list from: " "variables,values,sources,debug,all"
+    ),
+)
+@click.option(
     "--filter",
     "filters",
     multiple=True,
@@ -257,6 +264,7 @@ def cmd_build(
     pivot,
     compare,
     diff,
+    explain,
     filters,
     sort,
     top,
@@ -400,8 +408,21 @@ def cmd_build(
     )
 
     # =====================================================
-    # Structural compare/diff mode
+    # Normalize explain facets
     # =====================================================
+
+    explain_facets = set()
+
+    if explain:
+        explain_facets = {x.strip() for x in explain.split(",") if x.strip()}
+
+        if "all" in explain_facets:
+            explain_facets = {
+                "variables",
+                "values",
+                "sources",
+                "debug",
+            }
 
     # =====================================================
     # Structural compare/diff mode
@@ -426,6 +447,7 @@ def cmd_build(
         table = materialize_compare_table(
             dataset=ds,
             diff_only=diff,
+            explain=explain_facets,
         )
 
         output = render_table(
@@ -448,6 +470,7 @@ def cmd_build(
             level="case",
             view_name=view,
             mode="pivot" if pivot else "table",
+            explain=explain_facets,
         )
 
         if not pivot:

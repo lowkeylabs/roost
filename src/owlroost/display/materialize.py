@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from owlroost.display.explain import (
+    build_field_explanation,
+    normalize_explain_facets,
+)
 from owlroost.display.specs import DisplayProfile
 from owlroost.display.table import (
     RoostTable,
@@ -167,10 +171,15 @@ def expand_view_entries(
 
 def pivot_table(
     table,
+    registry=None,
+    explain_facets=None,
 ):
     """
     Flip rows/columns for pivot display.
     """
+    explain_enabled = bool(explain_facets)
+
+    field_names = [c.key for c in table.columns]
 
     # -----------------------------------------------------
     # New Columns
@@ -193,6 +202,21 @@ def pivot_table(
         )
 
     # -----------------------------------------------------
+    # Optional Explanation Column
+    # -----------------------------------------------------
+
+    if explain_enabled:
+        new_columns.append(
+            TableColumn(
+                key="explanation",
+                label="Explanation",
+                content_align="left",
+                width=50,
+                wrap=True,
+            )
+        )
+
+    # -----------------------------------------------------
     # New Rows
     # -----------------------------------------------------
 
@@ -206,10 +230,40 @@ def pivot_table(
         for original_row in table.rows:
             row.append(original_row[col_idx])
 
+        # -------------------------------------------------
+        # Explanation Cell
+        # -------------------------------------------------
+
+        if explain_enabled:
+            explanation = ""
+
+            try:
+                field_name = field_names[col_idx]
+
+                display_field = registry.get_display_field(field_name)
+
+                explanation = build_field_explanation(
+                    display_field,
+                    explain_facets,
+                )
+
+            except KeyError:
+                explanation = ""
+
+            except Exception as ex:
+                explanation = f"[explain error: {ex}]"
+
+            row.append(explanation)
+
         new_rows.append(row)
 
         # Preserve original column metadata
-        new_row_meta.append(column)
+        new_row_meta.append(
+            {
+                "column": column,
+                "field_name": column.key,
+            }
+        )
 
     return RoostTable(
         columns=new_columns,
@@ -275,6 +329,7 @@ def materialize_view(
     level,
     view_name,
     mode="table",
+    explain=None,
 ):
     """
     Materialize dataset + view into RoostTable.
@@ -290,6 +345,9 @@ def materialize_view(
     - pivot tables
     - render output
     """
+    explain_facets = normalize_explain_facets(
+        explain,
+    )
 
     # =====================================================
     # Resolve View
@@ -305,6 +363,13 @@ def materialize_view(
     # =====================================================
 
     visibility = build_visibility_context(mode)
+
+    # =====================================================
+    # Explain Requires Pivot
+    # =====================================================
+
+    if explain_facets and mode != "pivot":
+        raise ValueError("--explain requires pivot mode")
 
     # =====================================================
     # Expand Groups
@@ -404,6 +469,10 @@ def materialize_view(
     # =====================================================
 
     if mode == "pivot":
-        table = pivot_table(table)
+        table = pivot_table(
+            table,
+            registry=registry,
+            explain_facets=explain_facets,
+        )
 
     return table

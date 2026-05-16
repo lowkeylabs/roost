@@ -50,6 +50,8 @@ def render_rich_table(
             justify=justify,
             width=col.width,
             no_wrap=not col.wrap,
+            overflow="fold",
+            vertical="top",
         )
 
     # =====================================================
@@ -124,7 +126,22 @@ def render_rich_table(
             # ---------------------------------------------
 
             if row_meta is not None and col_idx > 0:
-                fmt = row_meta.fmt
+                # -------------------------------------------------
+                # New structured row_meta support
+                # -------------------------------------------------
+
+                if isinstance(row_meta, dict):
+                    meta_column = row_meta.get("column")
+
+                    if meta_column is not None:
+                        fmt = meta_column.fmt
+
+                # -------------------------------------------------
+                # Backward compatibility
+                # -------------------------------------------------
+
+                else:
+                    fmt = row_meta.fmt
 
             formatted.append(
                 format_value(
