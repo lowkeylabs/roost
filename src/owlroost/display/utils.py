@@ -240,6 +240,13 @@ def resolve_row_value(
     """
 
     # -----------------------------------------------------
+    # Synthetic aliases
+    # -----------------------------------------------------
+
+    if key == "id":
+        return row.get("_row_id")
+
+    # -----------------------------------------------------
     # _meta
     # -----------------------------------------------------
 
@@ -544,3 +551,211 @@ def apply_top(
         return rows
 
     return rows[:top_n]
+
+
+# =========================================================
+# Units Normalization
+# =========================================================
+
+
+def get_input_units(
+    inputs,
+):
+    """
+    Resolve solver input units.
+
+    Valid values:
+        "1" = dollars
+        "k" = thousands
+        "M" = millions
+
+    Default:
+        "k"
+    """
+
+    return inputs.get("solver_options", {}).get("units", "k")
+
+
+def get_units_multiplier(
+    units,
+):
+    """
+    Convert OWL units into dollar multiplier.
+    """
+
+    mapping = {
+        "1": 1.0,
+        "k": 1_000.0,
+        "M": 1_000_000.0,
+    }
+
+    return mapping.get(
+        units,
+        1_000.0,
+    )
+
+
+def normalize_input_money(
+    inputs,
+    value,
+):
+    """
+    Convert TOML-scaled money value into
+    canonical dollars.
+    """
+
+    if value is None:
+        return 0.0
+
+    units = get_input_units(inputs)
+
+    multiplier = get_units_multiplier(units)
+
+    return float(value) * multiplier
+
+
+# =========================================================
+# Field Discovery
+# =========================================================
+
+
+def discover_view_fields(
+    registry,
+    level,
+    view_name,
+):
+    """
+    Return fully-expanded fields defined by a view.
+    """
+
+    return registry.expand_view_fields(
+        level,
+        view_name,
+    )
+
+
+def discover_queryable_fields(
+    dataset,
+):
+    """
+    Discover queryable fields from dataset rows.
+
+    Includes:
+        - _meta
+        - _metrics
+        - dotted _inputs paths
+    """
+
+    fields = set()
+
+    # =====================================================
+    # Recursive dotted-path walker
+    # =====================================================
+
+    def walk(
+        obj,
+        prefix="",
+    ):
+        if not isinstance(obj, dict):
+            return
+
+        for key, value in obj.items():
+            full = key if not prefix else f"{prefix}.{key}"
+
+            fields.add(full)
+
+            if isinstance(value, dict):
+                walk(
+                    value,
+                    full,
+                )
+
+    # =====================================================
+    # Scan rows
+    # =====================================================
+
+    for row in dataset.rows:
+        walk(
+            row.get("_inputs", {}),
+        )
+
+        walk(
+            row.get("_metrics", {}),
+        )
+
+        walk(
+            row.get("_meta", {}),
+        )
+
+    return sorted(fields)
+
+
+def render_field_help(
+    dataset,
+    registry,
+    level,
+    view_name,
+    mode="view",
+    title="Available fields",
+    examples=None,
+):
+    """
+    Render CLI field help.
+    """
+
+    import click
+
+    click.echo()
+    click.echo(f"{title}:")
+    click.echo()
+
+    # =====================================================
+    # View-only fields
+    # =====================================================
+
+    if mode == "view":
+        fields = discover_view_fields(
+            registry,
+            level,
+            view_name,
+        )
+
+    # =====================================================
+    # All queryable fields
+    # =====================================================
+
+    else:
+        fields = discover_queryable_fields(
+            dataset,
+        )
+
+    # =====================================================
+    # Synthetic CLI fields
+    # =====================================================
+
+    synthetic_fields = [
+        "id",
+    ]
+
+    fields = list(fields)
+
+    for sf in reversed(synthetic_fields):
+        if sf not in fields:
+            fields.insert(0, sf)
+
+    # =====================================================
+    # Render
+    # =====================================================
+
+    for field in sorted(fields):
+        click.echo(f"  {field}")
+
+    if examples:
+        click.echo()
+        click.echo("Examples:")
+        click.echo()
+
+        for ex in examples:
+            click.echo(f"  {ex}")
+
+    click.echo()

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import yaml
 
+from owlroost.core.hfp import summarize_hfp
 from owlroost.metrics.aggregation.service import (
     aggregate_dataset,
 )
@@ -144,12 +145,25 @@ def flatten_dict(
 
 def _load_case_file(
     path: Path,
+    *,
+    load_hfp=True,
 ):
     """
     Load a single TOML case file into dataset row format.
+
+    Parameters
+    ----------
+    load_hfp
+        If True, load summarized HFP metadata.
+
+        If False, skip workbook loading entirely.
     """
 
     path = Path(path)
+
+    # =====================================================
+    # Load TOML
+    # =====================================================
 
     try:
         content = tomllib.loads(path.read_text())
@@ -157,10 +171,41 @@ def _load_case_file(
     except Exception:
         return None
 
+    # =====================================================
+    # Case name
+    # =====================================================
+
+    case_name = content.get(
+        "case_name",
+        path.stem,
+    )
+
+    # =====================================================
+    # HFP summary
+    # =====================================================
+
+    if load_hfp:
+        hfp_summary = summarize_hfp(
+            path,
+            content,
+        )
+
+    else:
+        hfp_summary = {
+            "has_hfp": False,
+            "hfp_status": "disabled",
+        }
+
+    # =====================================================
+    # Dataset row
+    # =====================================================
+
     return {
         "_path": path.resolve(),
+        "_case_name": case_name,
         "_inputs": content,
         "_metrics": {},
+        "_hfp": hfp_summary,
         "_meta": {
             "level": "case",
         },
@@ -395,12 +440,21 @@ def load_hydra_overrides(
 
 def load_cases(
     source=".",
+    *,
+    load_hfp=True,
 ):
     """
     Load case dataset from:
 
         - directory of TOML case files
         - YAML list of TOML paths
+
+    Parameters
+    ----------
+    load_hfp
+        If True, load summarized HFP metadata.
+
+        If False, skip workbook loading entirely.
     """
 
     source = Path(source)
@@ -413,7 +467,10 @@ def load_cases(
         rows = []
 
         for path in find_case_files(source):
-            row = _load_case_file(path)
+            row = _load_case_file(
+                path,
+                load_hfp=load_hfp,
+            )
 
             if row is not None:
                 rows.append(row)
@@ -436,7 +493,10 @@ def load_cases(
         rows = []
 
         for p in data:
-            row = _load_case_file(Path(p))
+            row = _load_case_file(
+                Path(p),
+                load_hfp=load_hfp,
+            )
 
             if row is not None:
                 rows.append(row)
@@ -445,6 +505,10 @@ def load_cases(
             rows,
             level="case",
         )
+
+    # =====================================================
+    # Unsupported source
+    # =====================================================
 
     raise ValueError(f"Unsupported source: {source}")
 

@@ -52,10 +52,67 @@ def register_case_views(reg):
             name="basic",
             entries=[
                 ("group", "identity"),
+                # =========================================
+                # Household Demographics
+                # =========================================
                 "display.current_ages",
+                "display.life_expectancy",
+                # =========================================
+                # High-Level Financial Structure
+                # =========================================
+                "display.net_worth",
+                "display.total_savings",
+                "display.net_hfp_assets",
+                "display.fixed_income",
+                # =========================================
+                # Planning Configuration
+                # =========================================
                 ("group", "planning"),
             ],
-            description="Default build view.",
+            description=(
+                "Default case dashboard showing "
+                "household demographics, high-level "
+                "financial structure, and planning "
+                "configuration."
+            ),
+        )
+    )
+
+    reg.register_view(
+        ViewSpec(
+            level="case",
+            name="balances",
+            entries=[
+                ("group", "identity"),
+                # =========================================
+                # Household Scale
+                # =========================================
+                "display.net_worth",
+                # =========================================
+                # Retirement Portfolio
+                # =========================================
+                "display.total_savings",
+                "display.taxable_savings",
+                "display.tax_deferred_savings",
+                "display.tax_free_savings",
+                # =========================================
+                # Household Balance Sheet
+                # =========================================
+                "display.net_hfp_assets",
+                "display.fixed_assets",
+                "display.total_debts",
+                # =========================================
+                # Guaranteed Income
+                # =========================================
+                "display.social_security_income",
+                "display.pension_income",
+            ],
+            description=(
+                "Household balance sheet summary "
+                "including retirement savings structure, "
+                "fixed assets, debts, net worth, "
+                "and guaranteed retirement income."
+            ),
         )
     )
 

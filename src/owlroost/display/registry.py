@@ -211,6 +211,95 @@ class DisplayRegistry:
         return list(self._views.values())
 
     # =====================================================
+    # View Expansion
+    # =====================================================
+
+    def expand_view_fields(
+        self,
+        level: str,
+        name: str,
+    ) -> list[str]:
+        """
+        Return fully-expanded field list for a view.
+
+        Expands:
+            - direct fields
+            - groups
+            - nested groups
+        """
+
+        view = self.get_view(
+            level,
+            name,
+        )
+
+        out = []
+
+        # -------------------------------------------------
+        # Recursive expansion
+        # -------------------------------------------------
+
+        def expand_entries(
+            entries,
+        ):
+            for entry in entries:
+                # -----------------------------------------
+                # Raw field string
+                # -----------------------------------------
+
+                if isinstance(entry, str):
+                    out.append(entry)
+
+                # -----------------------------------------
+                # Tuple reference
+                # -----------------------------------------
+
+                elif isinstance(entry, tuple):
+                    if len(entry) != 2:
+                        continue
+
+                    kind, value = entry
+
+                    # -------------------------------------
+                    # Field
+                    # -------------------------------------
+
+                    if kind == "field":
+                        out.append(value)
+
+                    # -------------------------------------
+                    # Group
+                    # -------------------------------------
+
+                    elif kind == "group":
+                        if not self.has_group(value):
+                            continue
+
+                        group = self.get_group(value)
+
+                        expand_entries(group.entries)
+
+        expand_entries(view.entries)
+
+        # -------------------------------------------------
+        # Stable de-duplication
+        # -------------------------------------------------
+
+        seen = set()
+
+        unique = []
+
+        for x in out:
+            if x in seen:
+                continue
+
+            seen.add(x)
+
+            unique.append(x)
+
+        return unique
+
+    # =====================================================
     # Diagnostics
     # =====================================================
 

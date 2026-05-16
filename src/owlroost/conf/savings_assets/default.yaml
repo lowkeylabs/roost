@@ -15,5 +15,6 @@ tax_free_savings_balances:
 - 0.0
 hsa_savings_balances:
 - 0.0
+taxable_cost_basis: null
 beneficiary_fractions: null
 spousal_surplus_deposit_fraction: null

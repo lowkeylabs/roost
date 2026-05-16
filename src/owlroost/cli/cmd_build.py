@@ -17,10 +17,11 @@ from owlroost.cli.utils import (
 )
 from owlroost.core.run_owl_executor import execute_runs
 from owlroost.display.bootstrap import build_display_registry
+from owlroost.display.compare import materialize_compare_table
 from owlroost.display.discovery import find_runs
 from owlroost.display.loaders import load_cases
 from owlroost.display.materialize import materialize_view
-from owlroost.display.utils import inject_id_column
+from owlroost.display.utils import attach_row_ids, inject_id_column, render_field_help
 from owlroost.metrics.registry.bootstrap import build_metrics_registry
 from owlroost.schema.bootstrap import build_registry
 
@@ -201,6 +202,42 @@ def run_hydra_build(
     is_flag=True,
 )
 @click.option(
+    "--pivot",
+    is_flag=True,
+    help="Render transposed pivot layout.",
+)
+@click.option(
+    "--compare",
+    is_flag=True,
+    help="Structural side-by-side comparison.",
+)
+@click.option(
+    "--diff",
+    is_flag=True,
+    help="Show only differing structural fields.",
+)
+@click.option(
+    "--filter",
+    "filters",
+    multiple=True,
+    help=(
+        "Filter rows. "
+        "Examples: "
+        "display.total_savings>1000000 "
+        "optimization_parameters.objective=maxBequest"
+    ),
+)
+@click.option(
+    "--sort",
+    type=str,
+    help="Sort by field. Prefix '-' for descending.",
+)
+@click.option(
+    "--top",
+    type=int,
+    help="Limit number of rows.",
+)
+@click.option(
     "--progress",
     default="rich",
     show_default=True,
@@ -217,6 +254,12 @@ def cmd_build(
     view,
     markdown,
     latex,
+    pivot,
+    compare,
+    diff,
+    filters,
+    sort,
+    top,
     progress,
     run,
 ):
@@ -235,6 +278,7 @@ def cmd_build(
     _invoked_as = ctx.info_name
 
     selectors, overrides = split_build_args(args)
+    is_cases_command = _invoked_as == "cases"
 
     #    if overrides_request_trials(overrides):
     #        if run:
@@ -249,13 +293,98 @@ def cmd_build(
         metrics_registry=metrics_registry,
     )
 
+    # =====================================================
+    # Context-sensitive CLI help
+    # =====================================================
+
+    ds = load_cases(".")
+    ds = attach_row_ids(ds)
+
+    if "help" in (filters or ()):
+        render_field_help(
+            dataset=ds,
+            registry=display_registry,
+            level="case",
+            view_name=view,
+            mode="view",
+            title="Available filter fields",
+            examples=[
+                "--filter id=in:1,2,3",
+                "--filter display.total_savings>2000000",
+                "--filter optimization_parameters.objective=maxBequest",
+                "--filter rates_selection.method=user",
+            ],
+        )
+
+        return
+
+    if "help-all" in (filters or ()):
+        render_field_help(
+            dataset=ds,
+            registry=display_registry,
+            level="case",
+            view_name=view,
+            mode="all",
+            title="All queryable fields",
+        )
+
+        return
+
+    if sort == "help":
+        render_field_help(
+            dataset=ds,
+            registry=display_registry,
+            level="case",
+            view_name=view,
+            mode="view",
+            title="Available filter fields",
+            examples=[
+                "--sort display.total_savings",
+                "--sort -display.total_savings",
+                "--sort display.fixed_income",
+            ],
+        )
+
+        return
+
+    if sort == "help-all":
+        render_field_help(
+            dataset=ds,
+            registry=display_registry,
+            level="case",
+            view_name=view,
+            mode="all",
+            title="Available filter fields",
+            examples=[
+                "--sort display.total_savings",
+                "--sort -display.total_savings",
+                "--sort display.fixed_income",
+            ],
+        )
+
+        return
+
+    if str(top).lower() == "help":
+        click.echo()
+        click.echo("Limit displayed rows.")
+        click.echo()
+        click.echo("Examples:")
+        click.echo()
+        click.echo("  --top 5")
+        click.echo("  --top 10")
+        click.echo()
+
+        return
+
     # ----------------------------------------
     # Discover + load case dataset
     # ----------------------------------------
-    ds = load_cases(".")
     ds = prepare_dataset(
         ds,
         selectors=selectors,
+        filters=filters,
+        sort=sort,
+        top=top,
     )
 
     if not ds.rows:
@@ -270,22 +399,62 @@ def cmd_build(
         latex,
     )
 
+    # =====================================================
+    # Structural compare/diff mode
+    # =====================================================
+
+    # =====================================================
+    # Structural compare/diff mode
+    #
+    # Also automatically enabled when:
+    #   roost cases <single-id>
+    #
+    # because user intent is usually:
+    #   "show me full case contents"
+    # =====================================================
+
+    auto_compare = (
+        is_cases_command
+        and len(ds.rows) == 1
+        and not compare
+        and not diff
+        and not pivot
+        and view == "basic"
+    )
+
+    if compare or diff or auto_compare:
+        table = materialize_compare_table(
+            dataset=ds,
+            diff_only=diff,
+        )
+
+        output = render_table(
+            table,
+            renderer,
+        )
+
+        if output:
+            click.echo(output)
+
+        return
+
     # ----------------------------------------
     # List available cases
     # ----------------------------------------
-    if not selectors:
+    if is_cases_command or (not selectors and not overrides):
         table = materialize_view(
             dataset=ds,
             registry=display_registry,
             level="case",
             view_name=view,
-            mode="table",
+            mode="pivot" if pivot else "table",
         )
 
-        table = inject_id_column(
-            table,
-            ds,
-        )
+        if not pivot:
+            table = inject_id_column(
+                table,
+                ds,
+            )
 
         output = render_table(
             table,

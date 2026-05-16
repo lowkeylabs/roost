@@ -8,7 +8,7 @@ from owlroost.cli.utils import prepare_dataset, render_table, resolve_renderer
 from owlroost.display.bootstrap import build_display_registry
 from owlroost.display.loaders import load_runs
 from owlroost.display.materialize import apply_derived_metrics
-from owlroost.display.utils import inject_id_column
+from owlroost.display.utils import inject_id_column, render_field_help
 from owlroost.metrics.registry.bootstrap import build_metrics_registry
 from owlroost.schema.bootstrap import build_registry
 from owlroost.schema.plugins.group_derived import (
@@ -71,6 +71,48 @@ def cmd_results(
         schema_registry=schema_registry,
         metrics_registry=metrics_registry,
     )
+
+    # =====================================================
+    # Context-sensitive CLI help
+    # =====================================================
+
+    if "help" in (filters or ()):
+        render_field_help(
+            display_registry,
+            title="Available filter fields",
+            examples=[
+                "--filter display.total_savings>2000000",
+                "--filter optimization_parameters.objective=maxBequest",
+                "--filter rates_selection.method=user",
+            ],
+        )
+
+        return
+
+    if sort == "help":
+        render_field_help(
+            display_registry,
+            title="Available sort fields",
+            examples=[
+                "--sort display.total_savings",
+                "--sort -display.total_savings",
+                "--sort display.fixed_income",
+            ],
+        )
+
+        return
+
+    if str(top).lower() == "help":
+        click.echo()
+        click.echo("Limit displayed rows.")
+        click.echo()
+        click.echo("Examples:")
+        click.echo()
+        click.echo("  --top 5")
+        click.echo("  --top 10")
+        click.echo()
+
+        return
 
     # =====================================================
     # Discover + Load Runs

@@ -57,6 +57,33 @@ def render_rich_table(
     # =====================================================
 
     for row_idx, row in enumerate(table.rows):
+        # -------------------------------------------------
+        # Blank spacer rows
+        # -------------------------------------------------
+
+        if all((c is None or c == "") for c in row):
+            rich_table.add_row(*["" for _ in row])
+
+            continue
+
+        # -------------------------------------------------
+        # Compare section headers
+        # -------------------------------------------------
+
+        if (
+            len(row) > 0
+            and isinstance(row[0], str)
+            and row[0].startswith("[")
+            and row[0].endswith("]")
+        ):
+            rich_table.add_row(
+                row[0],
+                *["" for _ in row[1:]],
+                style="bold cyan",
+            )
+
+            continue
+
         formatted = []
 
         # -------------------------------------------------
@@ -94,11 +121,6 @@ def render_rich_table(
 
             # ---------------------------------------------
             # Pivot formatting
-            #
-            # In pivot tables:
-            #   - column 0 is metric label
-            #   - remaining cells inherit formatting
-            #     from original source column
             # ---------------------------------------------
 
             if row_meta is not None and col_idx > 0:
