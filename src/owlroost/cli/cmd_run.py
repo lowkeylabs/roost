@@ -2,20 +2,37 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import click
 
-from owlroost.cli.utils import prepare_dataset, render_table, resolve_renderer
-from owlroost.core.run_owl_executor import execute_runs
-from owlroost.display.bootstrap import build_display_registry
-from owlroost.display.loaders import load_runs
-from owlroost.display.materialize import apply_derived_metrics
-from owlroost.display.utils import inject_id_column
+from owlroost.cli.utils import (
+    prepare_dataset,
+    render_table,
+    resolve_renderer,
+)
+from owlroost.core.run_owl_executor import (
+    execute_runs,
+)
+from owlroost.display.bootstrap import (
+    build_display_registry,
+)
+from owlroost.display.loaders import (
+    load_runs,
+)
+from owlroost.display.materialize import (
+    apply_derived_metrics,
+)
+from owlroost.display.utils import (
+    inject_id_column,
+)
 from owlroost.metrics.registry.bootstrap import (
     build_metrics_registry,
 )
-from owlroost.schema.bootstrap import build_registry
+from owlroost.schema.bootstrap import (
+    build_registry,
+)
 from owlroost.schema.plugins.group_derived import (
     apply_group_derived_metrics,
 )
@@ -26,32 +43,89 @@ from owlroost.schema.plugins.group_derived import (
 
 
 @click.command("run")
-@click.argument("selectors", nargs=-1)
-@click.option("--root", default="results", type=click.Path(exists=True))
-@click.option("--view", default="run", show_default=True)
-@click.option("--markdown", is_flag=True)
-@click.option("--latex", is_flag=True)
-@click.option("--pivot", is_flag=True)
-@click.option(
-    "--filter", "filters", multiple=True, help="Filter rows. Examples: case_id=0 trial.completed>50"
+@click.argument(
+    "selectors",
+    nargs=-1,
 )
-@click.option("--sort", type=str, help="Sort by field. Prefix '-' for descending.")
-@click.option("--top", type=int, help="Limit number of rows.")
 @click.option(
-    "--progress", default="rich", show_default=True, help="Progress renderer: rich, dot, dot2, none"
+    "--root",
+    default="results",
+    type=click.Path(exists=True),
 )
-@click.option("--rerun", is_flag=True, default=False)
 @click.option(
-    "--run-all",
+    "--view",
+    default="run",
+    show_default=True,
+)
+@click.option(
+    "--markdown",
+    is_flag=True,
+)
+@click.option(
+    "--latex",
+    is_flag=True,
+)
+@click.option(
+    "--pivot",
+    is_flag=True,
+)
+@click.option(
+    "--filter",
+    "filters",
+    multiple=True,
+    help="Filter rows. Examples: case_id=0 trial.pending>0",
+)
+@click.option(
+    "--sort",
+    type=str,
+    help="Sort by field. Prefix '-' for descending.",
+)
+@click.option(
+    "--top",
+    type=int,
+    help="Limit number of rows.",
+)
+@click.option(
+    "--progress",
+    default="rich",
+    show_default=True,
+    help="Progress renderer: rich, dot, dot2, none",
+)
+@click.option(
+    "--rerun",
     is_flag=True,
     default=False,
-    help="Execute all runs in the current working dataset.",
+    help="Rerun completed trials.",
+)
+@click.option(
+    "--list-only",
+    is_flag=True,
+    default=False,
+    help="Display matching runs but do not execute.",
 )
 def cmd_run(
-    selectors, root, view, markdown, latex, pivot, filters, sort, top, progress, rerun, run_all
+    selectors,
+    root,
+    view,
+    markdown,
+    latex,
+    pivot,
+    filters,
+    sort,
+    top,
+    progress,
+    rerun,
+    list_only,
 ):
     """
-    Display runs and execute selected runs.
+    Display and execute runs.
+
+    Default behavior:
+
+    - discover runs
+    - filter to runs with pending trials
+    - display matching runs
+    - execute pending trials
 
     Execution uses hybrid scheduling:
 
@@ -98,13 +172,22 @@ def cmd_run(
         )
 
     # =====================================================
+    # Default Pending Filter
+    # =====================================================
+
+    filter_list = list(filters)
+
+    if not rerun:
+        filter_list.append("trial.pending>0")
+
+    # =====================================================
     # Dataset Pipeline
     # =====================================================
 
     ds = prepare_dataset(
         ds,
         selectors=selectors,
-        filters=filters,
+        filters=filter_list,
         sort=sort,
         top=top,
     )
@@ -115,8 +198,20 @@ def cmd_run(
 
     ds = apply_group_derived_metrics(
         ds,
-        use_working_set=(bool(filters) or top is not None),
+        use_working_set=(bool(filter_list) or top is not None),
     )
+
+    # =====================================================
+    # No Matching Runs
+    # =====================================================
+
+    if not ds.rows:
+        if rerun:
+            click.echo("No matching runs found.")
+        else:
+            click.echo("No pending runs found.")
+
+        return
 
     # =====================================================
     # Resolve Renderer
@@ -161,37 +256,55 @@ def cmd_run(
         click.echo(output)
 
     # =====================================================
-    # No selection -> display only
+    # List-only Exit
     # =====================================================
 
-    if not selectors and not run_all:
+    if list_only:
         return
 
     # =====================================================
-    # Resolve selected runs from displayed dataset
-    # =====================================================
-
-    selected_rows = ds.rows
-
-    if not selected_rows:
-        raise click.ClickException("No matching run IDs selected.")
-
-    # =====================================================
-    # Extract run directories
+    # Resolve Selected Runs
     # =====================================================
 
     selected_runs = []
 
-    for row in selected_rows:
+    for row in ds.rows:
         run_dir = row.get("_path")
+
         if run_dir:
             selected_runs.append(Path(run_dir))
+
+    # =====================================================
+    # No Executable Runs
+    # =====================================================
+
+    if not selected_runs:
+        click.echo("No runs available for execution.")
+        return
 
     # =====================================================
     # Execute
     # =====================================================
 
-    click.echo()
+    # =====================================================
+    # Progress Label Width
+    # =====================================================
+
+    labels = []
+
+    for run_dir in selected_runs:
+        try:
+            run_name = f"{run_dir.parent.parent.parent.name}/{run_dir.name}"
+            labels.append(run_name)
+
+        except Exception:
+            labels.append(run_dir.name)
+
+    if labels:
+        max_label_width = max(len(x) for x in labels)
+
+        os.environ["OWLROOST_PROGRESS_LABEL_WIDTH"] = str(max_label_width)
+
     click.echo(f"Scheduling {len(selected_runs)} runs.")
 
     execute_runs(

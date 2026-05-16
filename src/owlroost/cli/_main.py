@@ -67,7 +67,10 @@ def info(ctx):
 
 
 cli.add_command(cmd_schema)
-cli.add_command(cmd_build)
+
+cli.add_command(cmd_build, name="cases")
+cli.add_command(cmd_build, name="build")
+
 cli.add_command(cmd_run)
 cli.add_command(cmd_reports)
 cli.add_command(cmd_results)

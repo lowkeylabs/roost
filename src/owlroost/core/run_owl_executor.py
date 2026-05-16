@@ -540,7 +540,18 @@ def execute_run(
         if not case_name:
             case_name = run_dir.parent.name
 
-        desc = f"{case_name}/{run_dir.name} " f"({workers_per_run} workers, {solver})"
+        label = f"{case_name}/{run_dir.name}"
+
+        label_width = int(
+            os.environ.get(
+                "OWLROOST_PROGRESS_LABEL_WIDTH",
+                len(label),
+            )
+        )
+
+        label = f"{label:<{label_width}}"
+
+        desc = f"{label} " f"({workers_per_run} workers, {solver})"
 
         results = execute_trials(
             pending_trials,
@@ -683,11 +694,11 @@ def execute_runs(
     # Summary
     # =====================================================
 
-    logger.info(
-        "Execution plan: "
-        f"{len(single_trial_runs)} bundled single-trial runs, "
-        f"{len(multi_trial_runs)} multi-trial runs"
-    )
+    # logger.info(
+    #    "Execution plan: "
+    #    f"{len(single_trial_runs)} bundled single-trial runs, "
+    #    f"{len(multi_trial_runs)} multi-trial runs"
+    # )
 
     all_results = []
 
@@ -703,7 +714,7 @@ def execute_runs(
             first_cfg,
         )
 
-        logger.info("Executing bundled single-trial runs " f"with {bundled_workers} workers")
+        # logger.info("Executing bundled single-trial runs " f"with {bundled_workers} workers")
 
         renderer = create_renderer(
             progress,
@@ -763,7 +774,7 @@ def execute_runs(
     # =====================================================
 
     for run_dir in multi_trial_runs:
-        logger.info(f"Executing multi-trial run: {run_dir.name}")
+        # logger.info(f"Executing multi-trial run: {run_dir.name}")
 
         results = execute_run(
             run_dir,

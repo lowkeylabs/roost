@@ -10,7 +10,6 @@ from pathlib import Path
 import click
 
 from owlroost.cli.utils import (
-    overrides_request_trials,
     prepare_dataset,
     render_table,
     resolve_renderer,
@@ -184,6 +183,7 @@ def run_hydra_build(
 # CLI
 # ---------------------------------------------------------
 @click.command("build")
+@click.pass_context
 @click.argument(
     "args",
     nargs=-1,
@@ -207,17 +207,18 @@ def run_hydra_build(
     help=("Progress renderer: " "rich, dot, dot2, none"),
 )
 @click.option(
-    "--build-only",
+    "--run",
     is_flag=True,
     help="Generate experiments only; do not execute runs.",
 )
 def cmd_build(
+    ctx,
     args,
     view,
     markdown,
     latex,
     progress,
-    build_only,
+    run,
 ):
     """
     Display available cases and build experiments.
@@ -229,13 +230,17 @@ def cmd_build(
       roost build 0 solver_options.maxSpending=145
     """
 
+    # was this function invoked as "cases" or "build"
+
+    _invoked_as = ctx.info_name
+
     selectors, overrides = split_build_args(args)
 
-    if overrides_request_trials(overrides):
-        if not build_only:
-            click.echo("INFO: trials_per_run > 0 detected; " "enabling --build-only automatically.")
-
-        build_only = True
+    #    if overrides_request_trials(overrides):
+    #        if run:
+    #            click.echo("INFO: trials_per_run > 0 detected; " "enabling --build-only automatically.")
+    #
+    #        build_only = True
 
     schema_registry = build_registry()
     metrics_registry = build_metrics_registry()
@@ -330,7 +335,7 @@ def cmd_build(
     # Build-only exit
     # ----------------------------------------
 
-    if build_only:
+    if not run:
         click.echo(f"Generated {len(generated_runs)} experiments.")
 
         click.echo("Experiment generation complete.")
