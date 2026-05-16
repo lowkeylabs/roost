@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 from copy import deepcopy
 from datetime import datetime
@@ -10,9 +11,11 @@ import numpy as np
 import toml
 import yaml
 from hydra.core.hydra_config import HydraConfig
-from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 
+from owlroost.core.progress_renderers import (
+    create_renderer,
+)
 from owlroost.schema.system_models import (
     RoostRuntimeConfig,
     RuntimeEnvironmentConfig,
@@ -189,21 +192,38 @@ def generate_trials(cfg: DictConfig):
     # ----------------------------------------
     # Copy HFP to run folder
     # ----------------------------------------
-    hfp_file = case_dict.get("household_financial_profile", {}).get("HFP_file_name")
 
-    hfp_dst_name = None
-    if hfp_file:
+    hfp_section = run_dict.setdefault(
+        "household_financial_profile",
+        {},
+    )
+
+    hfp_file = hfp_section.get("HFP_file_name")
+
+    # ----------------------------------------
+    # Explicit sentinel: no HFP file
+    # ----------------------------------------
+
+    if hfp_file == "None":
+        # Preserve literal sentinel
+        hfp_section["HFP_file_name"] = "None"
+
+    # ----------------------------------------
+    # Real HFP file
+    # ----------------------------------------
+
+    elif hfp_file:
         src = (case_file.parent / hfp_file).resolve()
+
         if not src.exists():
             raise FileNotFoundError(f"HFP file not found: {src}")
 
         dst = run_path / src.name
+
         if not dst.exists():
             shutil.copy2(src, dst)
 
-        hfp_dst_name = src.name
-
-        run_dict.setdefault("household_financial_profile", {})["HFP_file_name"] = hfp_dst_name
+        hfp_section["HFP_file_name"] = src.name
 
     # ----------------------------------------
     # Add environment vars if math_library_threads <> None
@@ -307,6 +327,29 @@ def generate_trials(cfg: DictConfig):
     # ----------------------------------------
     # Generate trials
     # ----------------------------------------
+
+    case_name = run_dict.get("case", {}).get("name")
+
+    if not case_name:
+        case_name = case_file.stem
+
+    label_width = int(
+        os.environ.get(
+            "OWLROOST_PROGRESS_LABEL_WIDTH",
+            len(case_name),
+        )
+    )
+
+    label = f"{case_name}/{run_path.name}"
+    desc = f"{label:<{label_width}}: " f"generating {trials_per_run} trials"
+
+    renderer = create_renderer(
+        "rich",
+        desc=desc,
+    )
+
+    renderer.start(trials_per_run)
+
     for tid in trial_ids:
         tdir = trial_root / f"{tid:04d}"
         tdir.mkdir(parents=True, exist_ok=True)
@@ -332,10 +375,12 @@ def generate_trials(cfg: DictConfig):
             }
         )
 
-        if hfp_dst_name:
-            trial_dict.setdefault("household_financial_profile", {})["HFP_file_name"] = str(
-                Path("../../") / hfp_dst_name
-            )
+        hfp_src = "None"
+        if hfp_file:
+            if hfp_file != "None":
+                hfp_src = Path("../../") / hfp_file
+
+        trial_dict.setdefault("household_financial_profile", {})["HFP_file_name"] = str(hfp_src)
 
         (tdir / "trial.toml").write_text(toml.dumps(trial_dict))
 
@@ -349,7 +394,15 @@ def generate_trials(cfg: DictConfig):
 
         (tdir / "trial_meta.yaml").write_text(yaml.dump(meta))
 
-    logger.debug(f"Generated run_{run_idx} with {trials_per_run} trials at {exp_path}")
+        renderer.advance(
+            1,
+            tid + 1,
+            trials_per_run,
+        )
+
+    renderer.finish()
+
+    # logger.debug(f"Generated run_{run_idx} with {trials_per_run} trials at {exp_path}")
 
 
 # ---------------------------------------------------------

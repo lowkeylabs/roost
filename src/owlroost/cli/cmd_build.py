@@ -2,21 +2,26 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 import click
 
+from owlroost.cli.utils import (
+    overrides_request_trials,
+    prepare_dataset,
+    render_table,
+    resolve_renderer,
+    split_build_args,
+)
 from owlroost.core.run_owl_executor import execute_runs
 from owlroost.display.bootstrap import build_display_registry
 from owlroost.display.discovery import find_runs
 from owlroost.display.loaders import load_cases
 from owlroost.display.materialize import materialize_view
-from owlroost.display.renderers.latex_table import render_latex_table
-from owlroost.display.renderers.markdown_table import render_markdown_table
-from owlroost.display.renderers.rich_table import render_rich_table
-from owlroost.display.utils import attach_row_ids, inject_id_column
+from owlroost.display.utils import inject_id_column
 from owlroost.metrics.registry.bootstrap import build_metrics_registry
 from owlroost.schema.bootstrap import build_registry
 
@@ -67,40 +72,6 @@ def resolve_case_selection(
     # Unknown selection
     # ----------------------------------------
     raise click.ClickException("Invalid case selection: " f"{arg}")
-
-
-def render_table(
-    table,
-    renderer,
-):
-    """
-    Dispatch table renderer.
-    """
-
-    if renderer == "markdown":
-        return render_markdown_table(table)
-
-    if renderer == "latex":
-        return render_latex_table(table)
-
-    return render_rich_table(table)
-
-
-def resolve_renderer(
-    markdown=False,
-    latex=False,
-):
-    """
-    Resolve renderer name from CLI flags.
-    """
-
-    if markdown:
-        return "markdown"
-
-    if latex:
-        return "latex"
-
-    return "rich"
 
 
 def build_hydra_command(
@@ -173,18 +144,18 @@ def run_hydra_build(
 ):
     """
     Execute Hydra generator in multirun mode.
-    """
 
+    Returns:
+        list[Path] of generated run directories
+    """
     cmd = build_hydra_command(
         case_path,
         overrides,
     )
 
-    click.echo("Running Hydra:")
-
-    click.echo(" ".join(cmd))
-
-    click.echo()
+    #    click.echo("Running Hydra:")
+    #    logger.debug(f"Hydra CLI: {(" ".join(cmd))}")
+    #    click.echo()
 
     try:
         subprocess.run(
@@ -200,7 +171,10 @@ def run_hydra_build(
         if exp_dir is None:
             raise click.ClickException("Unable to locate " "generated experiment.")
 
-        return exp_dir
+        runs = find_runs(exp_dir)
+        if not runs:
+            raise click.ClickException(f"No runs discovered in {exp_dir}")
+        return runs
 
     except subprocess.CalledProcessError as exc:
         raise click.ClickException("Hydra run failed " f"({exc.returncode})") from exc
@@ -211,11 +185,7 @@ def run_hydra_build(
 # ---------------------------------------------------------
 @click.command("build")
 @click.argument(
-    "target",
-    required=False,
-)
-@click.argument(
-    "overrides",
+    "args",
     nargs=-1,
 )
 @click.option(
@@ -237,18 +207,17 @@ def run_hydra_build(
     help=("Progress renderer: " "rich, dot, dot2, none"),
 )
 @click.option(
-    "--dry-run",
+    "--build-only",
     is_flag=True,
-    help=("Generate trials only; " "do not execute."),
+    help="Generate experiments only; do not execute runs.",
 )
 def cmd_build(
-    target,
-    overrides,
+    args,
     view,
     markdown,
     latex,
     progress,
-    dry_run,
+    build_only,
 ):
     """
     Display available cases and build experiments.
@@ -260,6 +229,14 @@ def cmd_build(
       roost build 0 solver_options.maxSpending=145
     """
 
+    selectors, overrides = split_build_args(args)
+
+    if overrides_request_trials(overrides):
+        if not build_only:
+            click.echo("INFO: trials_per_run > 0 detected; " "enabling --build-only automatically.")
+
+        build_only = True
+
     schema_registry = build_registry()
     metrics_registry = build_metrics_registry()
     display_registry = build_display_registry(
@@ -270,7 +247,12 @@ def cmd_build(
     # ----------------------------------------
     # Discover + load case dataset
     # ----------------------------------------
-    ds = attach_row_ids(load_cases("."))
+    ds = load_cases(".")
+    ds = prepare_dataset(
+        ds,
+        selectors=selectors,
+    )
+
     if not ds.rows:
         click.echo("No case TOML files found.")
         return
@@ -286,7 +268,7 @@ def cmd_build(
     # ----------------------------------------
     # List available cases
     # ----------------------------------------
-    if not target:
+    if not selectors:
         table = materialize_view(
             dataset=ds,
             registry=display_registry,
@@ -313,51 +295,58 @@ def cmd_build(
     # ----------------------------------------
     # Resolve selected case
     # ----------------------------------------
-    selected_row = resolve_case_selection(
-        target,
-        ds,
-    )
+    selected_rows = ds.rows
 
-    case_path = Path(selected_row["_path"]).resolve()
+    if not selected_rows:
+        raise click.ClickException("No matching case selections.")
 
-    click.echo(f"ID   : {selected_row['_row_id']}")
+    labels = []
 
-    click.echo(f"Path : {case_path}\n")
+    for row in selected_rows:
+        case_path = Path(row["_path"]).resolve()
+
+        labels.append(f"{case_path.stem}/run_0")
+
+    max_label_width = max(len(x) for x in labels)
+
+    os.environ["OWLROOST_PROGRESS_LABEL_WIDTH"] = str(max_label_width)
+
+    generated_runs = []
+
+    for row in selected_rows:
+        case_path = Path(row["_path"]).resolve()
+
+        # ----------------------------------------
+        # Launch Hydra build
+        # ----------------------------------------
+        runs = run_hydra_build(
+            case_path,
+            list(overrides),
+        )
+
+        generated_runs.extend(runs)
 
     # ----------------------------------------
-    # Launch Hydra build
+    # Build-only exit
     # ----------------------------------------
-    exp_dir = run_hydra_build(
-        case_path,
-        list(overrides),
-    )
 
-    # ----------------------------------------
-    # Dry-run exit
-    # ----------------------------------------
-    if dry_run:
-        click.echo("\nDry run complete.\n")
+    if build_only:
+        click.echo(f"Generated {len(generated_runs)} experiments.")
+
+        click.echo("Experiment generation complete.")
 
         return
 
     # ----------------------------------------
-    # Discover generated runs
+    # Execute all runs
     # ----------------------------------------
-    runs = find_runs(exp_dir)
 
-    if not runs:
-        click.echo("No runs discovered " "after Hydra build.")
+    if not generated_runs:
+        click.echo("No runs available for execution.")
 
         return
 
-    click.echo()
-
-    click.echo(f"Discovered " f"{len(runs)} runs.")
-
-    # ----------------------------------------
-    # Execute runs sequentially
-    # ----------------------------------------
     execute_runs(
-        runs,
+        generated_runs,
         progress=progress,
     )

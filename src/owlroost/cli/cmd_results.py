@@ -4,13 +4,11 @@ from __future__ import annotations
 
 import click
 
+from owlroost.cli.utils import prepare_dataset, render_table, resolve_renderer
 from owlroost.display.bootstrap import build_display_registry
 from owlroost.display.loaders import load_runs
 from owlroost.display.materialize import apply_derived_metrics
-from owlroost.display.renderers.latex_table import render_latex_table
-from owlroost.display.renderers.markdown_table import render_markdown_table
-from owlroost.display.renderers.rich_table import render_rich_table
-from owlroost.display.utils import attach_row_ids, inject_id_column
+from owlroost.display.utils import inject_id_column
 from owlroost.metrics.registry.bootstrap import build_metrics_registry
 from owlroost.schema.bootstrap import build_registry
 from owlroost.schema.plugins.group_derived import (
@@ -18,84 +16,23 @@ from owlroost.schema.plugins.group_derived import (
 )
 
 # =========================================================
-# Renderer Helpers
-# =========================================================
-
-
-def render_table(
-    table,
-    renderer,
-):
-    """
-    Dispatch table renderer.
-    """
-
-    if renderer == "markdown":
-        return render_markdown_table(table)
-
-    if renderer == "latex":
-        return render_latex_table(table)
-
-    return render_rich_table(table)
-
-
-def resolve_renderer(
-    markdown=False,
-    latex=False,
-):
-    """
-    Resolve renderer name from CLI flags.
-    """
-
-    if markdown:
-        return "markdown"
-
-    if latex:
-        return "latex"
-
-    return "rich"
-
-
-# =========================================================
 # CLI
 # =========================================================
 
 
 @click.command("results")
+@click.argument("selectors", nargs=-1)
+@click.option("--view", default="results", show_default=True)
+@click.option("--markdown", is_flag=True)
+@click.option("--latex", is_flag=True)
+@click.option("--pivot", is_flag=True)
 @click.option(
-    "--view",
-    default="results",
-    show_default=True,
+    "--filter", "filters", multiple=True, help="Filter rows. Examples: case_id=0 trial.completed>50"
 )
-@click.option(
-    "--markdown",
-    is_flag=True,
-)
-@click.option(
-    "--latex",
-    is_flag=True,
-)
-@click.option(
-    "--pivot",
-    is_flag=True,
-)
-@click.option(
-    "--filter",
-    "filters",
-    multiple=True,
-    help=("Filter rows. " "Examples: case_id=0 " "trial.completed>50"),
-)
-@click.option(
-    "--sort",
-    type=str,
-    help=("Sort by field. " "Prefix '-' for descending."),
-)
-@click.option(
-    "--top",
-    type=int,
-    help="Limit number of rows.",
-)
+@click.option("--sort", type=str, help="Sort by field. Prefix '-' for descending.")
+@click.option("--top", type=int, help="Limit number of rows.")
 def cmd_results(
+    selectors,
     view,
     markdown,
     latex,
@@ -162,15 +99,13 @@ def cmd_results(
     # Dataset Pipeline
     # =====================================================
 
-    ds = ds.canonical_sort()
-
-    ds = attach_row_ids(ds)
-
-    ds = ds.filter(*filters)
-
-    ds = ds.sort(sort)
-
-    ds = ds.top(top)
+    ds = prepare_dataset(
+        ds,
+        selectors=selectors,
+        filters=filters,
+        sort=sort,
+        top=top,
+    )
 
     ds = apply_group_derived_metrics(
         ds,

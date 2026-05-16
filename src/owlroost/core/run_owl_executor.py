@@ -238,7 +238,6 @@ def resolve_workers_per_run(
 
     explicit = runtime.get("workers_per_run")
 
-    print(f"Explicit workers_per_run={explicit}")
     if explicit is not None:
         return int(explicit)
 
@@ -367,7 +366,7 @@ def render_run_summary(
             f"/{summary['total']}"
         )
 
-    click.echo()
+    # click.echo()
 
 
 def render_execution_summary(
@@ -379,9 +378,10 @@ def render_execution_summary(
 
     solved = sum(1 for r in results if r["status"] == "solved")
 
-    failed = len(results) - solved
+    _failed = len(results) - solved
 
-    click.echo(f"\nDone: " f"{solved} solved, " f"{failed} failed\n")
+
+#    click.echo(f"\nDone: " f"{solved} solved, " f"{failed} failed\n")
 
 
 # =========================================================
@@ -413,12 +413,10 @@ def execute_trials(
 
     results = []
 
-    renderer = create_renderer(
-        progress,
-        desc=desc,
-    )
+    renderer = create_renderer(progress, desc=desc) if progress != "none" else None
 
-    renderer.start(len(pending_trials))
+    if renderer:
+        renderer.start(len(pending_trials))
 
     try:
         # ------------------------------------
@@ -440,11 +438,12 @@ def execute_trials(
 
                 results.append(r)
 
-                renderer.advance(
-                    1,
-                    len(results),
-                    len(pending_trials),
-                )
+                if renderer:
+                    renderer.advance(
+                        1,
+                        len(results),
+                        len(pending_trials),
+                    )
 
         # ------------------------------------
         # Parallel
@@ -477,14 +476,16 @@ def execute_trials(
 
                     results.append(r)
 
-                    renderer.advance(
-                        1,
-                        len(results),
-                        len(pending_trials),
-                    )
+                    if renderer:
+                        renderer.advance(
+                            1,
+                            len(results),
+                            len(pending_trials),
+                        )
 
     finally:
-        renderer.finish()
+        if renderer:
+            renderer.finish()
 
     return results
 
@@ -534,7 +535,12 @@ def execute_run(
         solver = resolve_solver_name(run_cfg)
         workers_per_run = resolve_workers_per_run(run_cfg)
 
-        desc = f"{run_dir.name} " f"({workers_per_run} workers, {solver})"
+        case_name = run_cfg.get("case", {}).get("name")
+
+        if not case_name:
+            case_name = run_dir.parent.name
+
+        desc = f"{case_name}/{run_dir.name} " f"({workers_per_run} workers, {solver})"
 
         results = execute_trials(
             pending_trials,
@@ -622,15 +628,143 @@ def execute_run(
 def execute_runs(
     run_dirs,
     progress="rich",
-    rerun: bool = True,
+    rerun: bool = False,
 ):
     """
-    Execute runs sequentially.
+    Execute runs using hybrid scheduling:
+
+    - runs with trials_per_run == 1
+      are bundled and executed in parallel
+
+    - runs with trials_per_run > 1
+      are executed sequentially because
+      they already internally parallelize
+
+    Bundled single-trial runs use the
+    workers_per_run value resolved from
+    the first bundled run.
     """
+
+    run_dirs = [Path(r) for r in run_dirs]
+
+    if not run_dirs:
+        return []
+
+    # =====================================================
+    # Classify runs
+    # =====================================================
+
+    single_trial_runs = []
+
+    multi_trial_runs = []
+
+    for run_dir in run_dirs:
+        run_cfg = load_run_config(run_dir)
+
+        runtime = run_cfg.get(
+            "roost_runtime",
+            {},
+        )
+
+        trials_per_run = int(
+            runtime.get(
+                "trials_per_run",
+                1,
+            )
+        )
+
+        if trials_per_run == 1:
+            single_trial_runs.append(run_dir)
+
+        else:
+            multi_trial_runs.append(run_dir)
+
+    # =====================================================
+    # Summary
+    # =====================================================
+
+    logger.info(
+        "Execution plan: "
+        f"{len(single_trial_runs)} bundled single-trial runs, "
+        f"{len(multi_trial_runs)} multi-trial runs"
+    )
 
     all_results = []
 
-    for run_dir in run_dirs:
+    # =====================================================
+    # Phase 1:
+    # Bundled single-trial runs
+    # =====================================================
+
+    if single_trial_runs:
+        first_cfg = load_run_config(single_trial_runs[0])
+
+        bundled_workers = resolve_workers_per_run(
+            first_cfg,
+        )
+
+        logger.info("Executing bundled single-trial runs " f"with {bundled_workers} workers")
+
+        renderer = create_renderer(
+            progress,
+            desc="Bundled single-trial runs",
+        )
+
+        renderer.start(len(single_trial_runs))
+
+        try:
+            with ProcessPoolExecutor(
+                max_workers=bundled_workers,
+            ) as ex:
+                futures = {
+                    ex.submit(
+                        execute_run,
+                        run_dir,
+                        progress="none",
+                        rerun=rerun,
+                    ): run_dir
+                    for run_dir in single_trial_runs
+                }
+
+                completed = 0
+
+                for future in as_completed(futures):
+                    run_dir = futures[future]
+
+                    try:
+                        results = future.result()
+
+                    except Exception:
+                        logger.exception(f"Run failed: {run_dir}")
+
+                        results = [
+                            {
+                                "status": "failed",
+                                "run_dir": str(run_dir),
+                            }
+                        ]
+
+                    all_results.extend(results)
+
+                    completed += 1
+
+                    renderer.advance(
+                        1,
+                        completed,
+                        len(single_trial_runs),
+                    )
+
+        finally:
+            renderer.finish()
+
+    # =====================================================
+    # Phase 2:
+    # Multi-trial runs
+    # =====================================================
+
+    for run_dir in multi_trial_runs:
+        logger.info(f"Executing multi-trial run: {run_dir.name}")
+
         results = execute_run(
             run_dir,
             progress=progress,
@@ -639,9 +773,9 @@ def execute_runs(
 
         all_results.extend(results)
 
-    click.echo()
-
-    click.echo(f"Completed {len(run_dirs)} runs.")
+    # =====================================================
+    # Summary
+    # =====================================================
 
     render_execution_summary(all_results)
 
