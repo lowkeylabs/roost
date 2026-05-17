@@ -116,6 +116,44 @@ def register_case_views(reg):
         )
     )
 
+    reg.register_view(
+        ViewSpec(
+            level="run",
+            name="balances",
+            entries=[
+                ("group", "identity"),
+                # =========================================
+                # Household Scale
+                # =========================================
+                "display.net_worth",
+                # =========================================
+                # Retirement Portfolio
+                # =========================================
+                "display.total_savings",
+                "display.taxable_savings",
+                "display.tax_deferred_savings",
+                "display.tax_free_savings",
+                # =========================================
+                # Household Balance Sheet
+                # =========================================
+                "display.net_hfp_assets",
+                "display.fixed_assets",
+                "display.total_debts",
+                # =========================================
+                # Guaranteed Income
+                # =========================================
+                "display.social_security_income",
+                "display.pension_income",
+            ],
+            description=(
+                "Household balance sheet summary "
+                "including retirement savings structure, "
+                "fixed assets, debts, net worth, "
+                "and guaranteed retirement income."
+            ),
+        )
+    )
+
 
 def register_run_views(reg):
     # =====================================================

@@ -4,11 +4,21 @@ from __future__ import annotations
 
 import click
 
-from owlroost.cli.utils import prepare_dataset, render_table, resolve_renderer
+from owlroost.cli.utils import (
+    prepare_dataset,
+    render_table,
+    resolve_renderer,
+    split_build_args,
+)
 from owlroost.display.bootstrap import build_display_registry
+from owlroost.display.compare import materialize_compare_table
 from owlroost.display.loaders import load_runs
 from owlroost.display.materialize import apply_derived_metrics
-from owlroost.display.utils import inject_id_column, render_field_help
+from owlroost.display.utils import (
+    attach_row_ids,
+    inject_id_column,
+    render_field_help,
+)
 from owlroost.metrics.registry.bootstrap import build_metrics_registry
 from owlroost.schema.bootstrap import build_registry
 from owlroost.schema.plugins.group_derived import (
@@ -21,22 +31,70 @@ from owlroost.schema.plugins.group_derived import (
 
 
 @click.command("results")
-@click.argument("selectors", nargs=-1)
-@click.option("--view", default="results", show_default=True)
-@click.option("--markdown", is_flag=True)
-@click.option("--latex", is_flag=True)
-@click.option("--pivot", is_flag=True)
-@click.option(
-    "--filter", "filters", multiple=True, help="Filter rows. Examples: case_id=0 trial.completed>50"
+@click.argument(
+    "args",
+    nargs=-1,
 )
-@click.option("--sort", type=str, help="Sort by field. Prefix '-' for descending.")
-@click.option("--top", type=int, help="Limit number of rows.")
+@click.option(
+    "--view",
+    default="results",
+    show_default=True,
+)
+@click.option(
+    "--markdown",
+    is_flag=True,
+)
+@click.option(
+    "--latex",
+    is_flag=True,
+)
+@click.option(
+    "--pivot",
+    is_flag=True,
+    help="Render transposed pivot layout.",
+)
+@click.option(
+    "--compare",
+    is_flag=True,
+    help="Structural side-by-side comparison.",
+)
+@click.option(
+    "--diff",
+    is_flag=True,
+    help="Show only differing structural fields.",
+)
+@click.option(
+    "--explain",
+    type=str,
+    help=(
+        "Explanation facets. " "Comma-separated list from: " "variables,values,sources,debug,all"
+    ),
+)
+@click.option(
+    "--filter",
+    "filters",
+    multiple=True,
+    help=("Filter rows. " "Examples: " "trial.completed>50 " "metrics.success_rate>0.9"),
+)
+@click.option(
+    "--sort",
+    type=str,
+    help="Sort by field. Prefix '-' for descending.",
+)
+@click.option(
+    "--top",
+    type=int,
+    help="Limit number of rows.",
+)
 def cmd_results(
-    selectors,
+    args,
     view,
     markdown,
     latex,
     pivot,
+    compare,
+    diff,
+    explain,
     filters,
     sort,
     top,
@@ -48,16 +106,35 @@ def cmd_results(
 
       roost results
 
+      roost results 0
+
+      roost results 0,1,2
+
       roost results --view basic
 
       roost results --pivot
+
+      roost results --compare
+
+      roost results --diff
 
       roost results --filter case_id=0
 
       roost results --sort -trial.completed
 
       roost results --top 10
+
+      roost results 0 --explain=all
     """
+
+    # =====================================================
+    # Parse CLI args
+    # =====================================================
+
+    selectors, overrides = split_build_args(args)
+
+    if overrides:
+        raise click.ClickException("Hydra-style overrides are not supported in " "'roost results'.")
 
     # =====================================================
     # Build Registries
@@ -73,30 +150,79 @@ def cmd_results(
     )
 
     # =====================================================
+    # Discover + Load Runs
+    # =====================================================
+
+    ds = load_runs(
+        metrics_registry=metrics_registry,
+        results_root="results",
+    )
+
+    ds = attach_row_ids(ds)
+
+    # =====================================================
     # Context-sensitive CLI help
     # =====================================================
 
     if "help" in (filters or ()):
         render_field_help(
-            display_registry,
+            dataset=ds,
+            registry=display_registry,
+            level="run",
+            view_name=view,
+            mode="view",
             title="Available filter fields",
             examples=[
-                "--filter display.total_savings>2000000",
-                "--filter optimization_parameters.objective=maxBequest",
-                "--filter rates_selection.method=user",
+                "--filter id=in:1,2,3",
+                "--filter trial.completed>50",
+                "--filter metrics.success_rate>0.9",
+                "--filter status=success",
             ],
+        )
+
+        return
+
+    if "help-all" in (filters or ()):
+        render_field_help(
+            dataset=ds,
+            registry=display_registry,
+            level="run",
+            view_name=view,
+            mode="all",
+            title="All queryable fields",
         )
 
         return
 
     if sort == "help":
         render_field_help(
-            display_registry,
+            dataset=ds,
+            registry=display_registry,
+            level="run",
+            view_name=view,
+            mode="view",
             title="Available sort fields",
             examples=[
-                "--sort display.total_savings",
-                "--sort -display.total_savings",
-                "--sort display.fixed_income",
+                "--sort throughput",
+                "--sort -throughput",
+                "--sort elapsed",
+            ],
+        )
+
+        return
+
+    if sort == "help-all":
+        render_field_help(
+            dataset=ds,
+            registry=display_registry,
+            level="run",
+            view_name=view,
+            mode="all",
+            title="All queryable fields",
+            examples=[
+                "--sort throughput",
+                "--sort -throughput",
+                "--sort elapsed",
             ],
         )
 
@@ -115,13 +241,8 @@ def cmd_results(
         return
 
     # =====================================================
-    # Discover + Load Runs
+    # No Results
     # =====================================================
-
-    ds = load_runs(
-        metrics_registry=metrics_registry,
-        results_root="results",
-    )
 
     if not ds.rows:
         click.echo("No runs found.")
@@ -154,6 +275,10 @@ def cmd_results(
         use_working_set=(bool(filters) or top is not None),
     )
 
+    if not ds.rows:
+        click.echo("No matching runs found.")
+        return
+
     # =====================================================
     # Resolve Renderer
     # =====================================================
@@ -164,6 +289,44 @@ def cmd_results(
     )
 
     # =====================================================
+    # Normalize explain facets
+    # =====================================================
+
+    explain_facets = set()
+
+    if explain:
+        explain_facets = {x.strip() for x in explain.split(",") if x.strip()}
+
+        if "all" in explain_facets:
+            explain_facets = {
+                "variables",
+                "values",
+                "sources",
+                "debug",
+            }
+
+    # =====================================================
+    # Structural compare/diff mode
+    # =====================================================
+
+    if compare or diff:
+        table = materialize_compare_table(
+            dataset=ds,
+            diff_only=diff,
+            explain=explain_facets,
+        )
+
+        output = render_table(
+            table,
+            renderer,
+        )
+
+        if output:
+            click.echo(output)
+
+        return
+
+    # =====================================================
     # Materialize View
     # =====================================================
 
@@ -172,6 +335,7 @@ def cmd_results(
         level="run",
         name=view,
         layout="pivot" if pivot else "table",
+        explain=explain_facets,
     )
 
     # =====================================================

@@ -61,6 +61,7 @@ class Dataset:
         level=None,
         name="default",
         layout="table",
+        explain=None,
     ):
         from .materialize import materialize_view
 
@@ -70,6 +71,7 @@ class Dataset:
             level=level or self.level,
             view_name=name,
             mode=layout,
+            explain=explain,
         )
 
     def pipe(self):
