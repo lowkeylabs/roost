@@ -349,3 +349,89 @@ def build_field_explanation(
     # =====================================================
 
     return "\n\n".join(parts)
+
+
+# =========================================================
+# Raw Field Explanation
+# =========================================================
+
+
+def build_raw_field_explanation(
+    field_name,
+    explain_facets,
+):
+    """
+    Build explanation text for raw TOML/schema field.
+
+    Used by:
+        compare.py
+
+    Unlike build_field_explanation(), this operates
+    directly on raw parameter names rather than
+    DisplayField definitions.
+    """
+
+    if not explain_facets:
+        return ""
+
+    generated = get_generated_explain_data(
+        field_name,
+    )
+
+    if not generated:
+        if "debug" in explain_facets:
+            return "[missing generated metadata]"
+
+        return ""
+
+    parts = []
+
+    # =====================================================
+    # Variables
+    # =====================================================
+
+    if "variables" in explain_facets:
+        variable = generated.get("variable")
+
+        if variable:
+            parts.append(variable)
+
+        elif "debug" in explain_facets:
+            parts.append("[missing variable explanation]")
+
+    # =====================================================
+    # Values / Units
+    # =====================================================
+
+    if "values" in explain_facets:
+        units = generated.get("units")
+
+        if units:
+            parts.append(f"Units: {units}")
+
+        elif "debug" in explain_facets:
+            parts.append("[missing units]")
+
+    # =====================================================
+    # Notes
+    # =====================================================
+
+    notes = generated.get("notes")
+
+    if notes:
+        parts.append(notes)
+
+    # =====================================================
+    # Sources
+    # =====================================================
+
+    if "sources" in explain_facets:
+        section = generated.get("section")
+
+        if section:
+            parts.append(f"Section: {section}")
+
+        elif "debug" in explain_facets:
+            parts.append("[missing section]")
+
+    return "\n\n".join(parts)

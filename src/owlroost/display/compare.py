@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from owlroost.display.explain import (
+    build_raw_field_explanation,
+    normalize_explain_facets,
+)
 from owlroost.display.table import (
     RoostTable,
     TableColumn,
@@ -67,7 +71,9 @@ def format_nested_list(
     return "\n".join(lines)
 
 
-def format_compare_value(value):
+def format_compare_value(
+    value,
+):
     """
     Format arbitrary TOML value for comparison display.
     """
@@ -125,7 +131,12 @@ def flatten_structure(
 
         if isinstance(value, dict):
             if full not in seen_sections:
-                out.append(("section", full))
+                out.append(
+                    (
+                        "section",
+                        full,
+                    )
+                )
 
                 seen_sections.add(full)
 
@@ -141,7 +152,12 @@ def flatten_structure(
         # -------------------------------------------------
 
         else:
-            out.append(("field", full))
+            out.append(
+                (
+                    "field",
+                    full,
+                )
+            )
 
     return out
 
@@ -170,7 +186,9 @@ def resolve_path(
     return current
 
 
-def values_differ(values):
+def values_differ(
+    values,
+):
     """
     Return True if values differ across rows.
     """
@@ -219,7 +237,6 @@ def build_compare_entries(
 
     materialized = []
 
-    current_section = None
     emitted_sections = set()
 
     # =====================================================
@@ -228,12 +245,10 @@ def build_compare_entries(
 
     for kind, value in ordered_entries:
         # -------------------------------------------------
-        # Section marker from TOML structure
+        # Section marker
         # -------------------------------------------------
 
         if kind == "section":
-            current_section = value
-            _placeholder = current_section
             continue
 
         # -------------------------------------------------
@@ -332,6 +347,10 @@ def materialize_compare_table(
     Returns RoostTable.
     """
 
+    explain_facets = normalize_explain_facets(
+        explain,
+    )
+
     rows = dataset.rows
 
     entries = build_compare_entries(
@@ -366,24 +385,33 @@ def materialize_compare_table(
         )
 
     # =====================================================
+    # Optional Explanation Column
+    # =====================================================
+
+    if explain_facets:
+        columns.append(
+            TableColumn(
+                key="explanation",
+                label="Explanation",
+                content_align="left",
+                width=70,
+                wrap=True,
+            )
+        )
+
+    # =====================================================
     # Rows
     # =====================================================
 
     table_rows = []
-
-    current_section = None
 
     for entry in entries:
         # -------------------------------------------------
         # Section row
         # -------------------------------------------------
 
-        # -------------------------------------------------
-        # Section row
-        # -------------------------------------------------
-
         if entry["kind"] == "section":
-            current_section = entry["label"]
+            section_name = entry["label"]
 
             # ---------------------------------------------
             # Spacer row between sections
@@ -396,11 +424,14 @@ def materialize_compare_table(
             # Visible section header row
             # ---------------------------------------------
 
-            section_label = f"[bold cyan]{current_section}[/bold cyan]"
+            section_label = f"[bold cyan]{section_name}[/bold cyan]"
 
             row = [section_label]
 
             row.extend([" " for _ in rows])
+
+            if explain_facets:
+                row.append(" ")
 
             table_rows.append(row)
 
@@ -426,7 +457,20 @@ def materialize_compare_table(
             vals = [format_compare_value(v) for v in entry["values"]]
 
             row = [f"  {field_name}"]
+
             row.extend(vals)
+
+            # -------------------------------------------------
+            # Explanation Cell
+            # -------------------------------------------------
+
+            if explain_facets:
+                explanation = build_raw_field_explanation(
+                    field_name,
+                    explain_facets,
+                )
+
+                row.append(explanation)
 
             table_rows.append(row)
 
