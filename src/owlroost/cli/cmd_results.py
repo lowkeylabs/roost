@@ -41,6 +41,15 @@ from owlroost.schema.plugins.group_derived import (
     show_default=True,
 )
 @click.option(
+    "--level",
+    type=click.Choice(
+        ["case", "session", "run", "trial"],
+        case_sensitive=False,
+    ),
+    default="run",
+    show_default=True,
+)
+@click.option(
     "--markdown",
     is_flag=True,
 )
@@ -89,6 +98,7 @@ from owlroost.schema.plugins.group_derived import (
 def cmd_results(
     args,
     view,
+    level,
     markdown,
     latex,
     pivot,
@@ -100,7 +110,7 @@ def cmd_results(
     top,
 ):
     """
-    Display discovered runs from ./results.
+    Display discovered results from the operational tree.
 
     Examples:
 
@@ -168,7 +178,7 @@ def cmd_results(
         render_field_help(
             dataset=ds,
             registry=display_registry,
-            level="run",
+            level=level,
             view_name=view,
             mode="view",
             title="Available filter fields",
@@ -186,7 +196,7 @@ def cmd_results(
         render_field_help(
             dataset=ds,
             registry=display_registry,
-            level="run",
+            level=level,
             view_name=view,
             mode="all",
             title="All queryable fields",
@@ -198,7 +208,7 @@ def cmd_results(
         render_field_help(
             dataset=ds,
             registry=display_registry,
-            level="run",
+            level=level,
             view_name=view,
             mode="view",
             title="Available sort fields",
@@ -215,7 +225,7 @@ def cmd_results(
         render_field_help(
             dataset=ds,
             registry=display_registry,
-            level="run",
+            level=level,
             view_name=view,
             mode="all",
             title="All queryable fields",
@@ -245,7 +255,7 @@ def cmd_results(
     # =====================================================
 
     if not ds.rows:
-        click.echo("No runs found.")
+        click.echo(f"No {level}s found.")
         return
 
     # =====================================================
@@ -276,7 +286,7 @@ def cmd_results(
     )
 
     if not ds.rows:
-        click.echo("No matching runs found.")
+        click.echo(f"No matching {level}s found.")
         return
 
     # =====================================================
@@ -332,7 +342,7 @@ def cmd_results(
 
     table = ds.view(
         registry=display_registry,
-        level="run",
+        level=level,
         name=view,
         layout="pivot" if pivot else "table",
         explain=explain_facets,

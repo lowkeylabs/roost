@@ -65,7 +65,7 @@ def extract_trial_id(
         return None
 
 
-def extract_experiment_key(
+def extract_session_key(
     run_dir: Path,
 ):
     """
@@ -221,7 +221,7 @@ def _load_trial_metrics(
     trial_dir: Path,
     *,
     case_id,
-    experiment_id,
+    session_id,
     run_id,
 ):
     """
@@ -250,7 +250,7 @@ def _load_trial_metrics(
         "_meta": {
             "level": "trial",
             "case_id": case_id,
-            "experiment_id": experiment_id,
+            "session_id": session_id,
             "run_id": run_id,
             "trial_id": trial_id,
         },
@@ -293,7 +293,7 @@ def _load_run_dir(
     metrics_registry,
     *,
     case_id,
-    experiment_id,
+    session_id,
     run_id,
 ):
     """
@@ -347,7 +347,7 @@ def _load_run_dir(
         row = _load_trial_metrics(
             trial_dir,
             case_id=case_id,
-            experiment_id=experiment_id,
+            session_id=session_id,
             run_id=run_id,
         )
 
@@ -402,7 +402,7 @@ def _load_run_dir(
             "level": "run",
             "trial_count": total,
             "case_id": case_id,
-            "experiment_id": experiment_id,
+            "session_id": session_id,
             "run_id": run_id,
             "task_overrides": task_overrides,
         },
@@ -545,20 +545,20 @@ def load_runs(
     # =====================================================
 
     case_names = sorted(
-        {extract_experiment_key(r)[0] for r in run_dirs if extract_experiment_key(r) is not None}
+        {extract_session_key(r)[0] for r in run_dirs if extract_session_key(r) is not None}
     )
 
     case_id_map = {name: idx for idx, name in enumerate(case_names)}
 
     # =====================================================
-    # Build Experiment ID Map
+    # Build session ID Map
     # =====================================================
 
-    experiment_keys = sorted(
-        {extract_experiment_key(r) for r in run_dirs if extract_experiment_key(r) is not None}
+    session_keys = sorted(
+        {extract_session_key(r) for r in run_dirs if extract_session_key(r) is not None}
     )
 
-    experiment_id_map = {key: idx for idx, key in enumerate(experiment_keys)}
+    session_id_map = {key: idx for idx, key in enumerate(session_keys)}
 
     # =====================================================
     # Load Rows
@@ -567,18 +567,18 @@ def load_runs(
     rows = []
 
     for run_dir in run_dirs:
-        exp_key = extract_experiment_key(run_dir)
+        session_key = extract_session_key(run_dir)
 
-        if exp_key is None:
+        if session_key is None:
             continue
 
-        case_name = exp_key[0]
+        case_name = session_key[0]
 
         row = _load_run_dir(
             run_dir,
             metrics_registry=metrics_registry,
             case_id=case_id_map[case_name],
-            experiment_id=experiment_id_map[exp_key],
+            session_id=session_id_map[session_key],
             run_id=extract_run_id(run_dir),
         )
 
