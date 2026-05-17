@@ -17,9 +17,7 @@ from owlroost.display.table import (
 # Constants
 # =========================================================
 
-STRUCTURAL_COMPARE_EXCLUDES = {
-    "description",
-}
+STRUCTURAL_COMPARE_EXCLUDES = {"description", "case.file"}
 
 # =========================================================
 # Helpers
@@ -217,6 +215,11 @@ def build_compare_entries(
     Build ordered comparison entry structure.
 
     Preserves TOML ordering and section layout.
+
+    In diff mode:
+      - fields with identical values are omitted
+      - section headers are emitted ONLY if at least
+        one field in that section survives filtering
     """
 
     rows = dataset.rows
@@ -276,20 +279,6 @@ def build_compare_entries(
                 section_name = "_root"
 
             # ---------------------------------------------
-            # Emit section header before first field
-            # ---------------------------------------------
-
-            if section_name != "_root" and section_name not in emitted_sections:
-                emitted_sections.add(section_name)
-
-                materialized.append(
-                    {
-                        "kind": "section",
-                        "label": section_name,
-                    }
-                )
-
-            # ---------------------------------------------
             # Collect values
             # ---------------------------------------------
 
@@ -312,9 +301,22 @@ def build_compare_entries(
             # Diff filtering
             # ---------------------------------------------
 
-            if diff_only:
-                if not values_differ(vals):
-                    continue
+            if diff_only and not values_differ(vals):
+                continue
+
+            # ---------------------------------------------
+            # Emit section header ONLY if field survives
+            # ---------------------------------------------
+
+            if section_name != "_root" and section_name not in emitted_sections:
+                emitted_sections.add(section_name)
+
+                materialized.append(
+                    {
+                        "kind": "section",
+                        "label": section_name,
+                    }
+                )
 
             # ---------------------------------------------
             # Emit field row
