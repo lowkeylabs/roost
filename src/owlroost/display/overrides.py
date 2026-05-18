@@ -72,15 +72,15 @@ def apply_display_overrides(
 
     reg.register_display_field(
         DisplayField(
-            field_name="experiment_id",
-            path="_meta.experiment_id",
+            field_name="session_id",
+            path="_meta.session_id",
             profiles={
                 "table": DisplayProfile(
-                    label="Exp",
+                    label="Sess",
                     content_align="right",
                 ),
                 "pivot": DisplayProfile(
-                    label="Experiment",
+                    label="Session",
                     content_align="right",
                 ),
             },
@@ -125,7 +125,7 @@ def apply_display_overrides(
         DisplayField(
             field_name="compact_id",
             display_fn=compact_id_display,
-            description=("Compact hierarchical identifier " "case/experiment/run."),
+            description=("Compact hierarchical identifier " "case/session/run."),
             profiles={
                 "table": DisplayProfile(
                     label="ID",
@@ -844,7 +844,7 @@ def compact_id_display(
         )
 
         case_id = meta.get("case_id")
-        experiment_id = meta.get("experiment_id")
+        session_id = meta.get("session_id")
         run_id = meta.get("run_id")
         trial_id = meta.get("trial_id")
 
@@ -852,7 +852,7 @@ def compact_id_display(
         # Missing core IDs
         # -------------------------------------------------
 
-        if case_id is None or experiment_id is None or run_id is None:
+        if case_id is None or session_id is None or run_id is None:
             return None
 
         # -------------------------------------------------
@@ -860,13 +860,13 @@ def compact_id_display(
         # -------------------------------------------------
 
         if trial_id is None:
-            return f"{case_id}/" f"{experiment_id}/" f"{run_id}"
+            return f"{case_id}/" f"{session_id}/" f"{run_id}"
 
         # -------------------------------------------------
         # Trial-level
         # -------------------------------------------------
 
-        return f"{case_id}/" f"{experiment_id}/" f"{run_id}/" f"{trial_id}"
+        return f"{case_id}/" f"{session_id}/" f"{run_id}/" f"{trial_id}"
 
     except Exception:
         return None

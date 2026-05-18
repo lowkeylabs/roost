@@ -167,7 +167,7 @@ def register_run_views(reg):
                 "case_name",
                 {"field": "compact_id", "show_if": ["is_table"]},
                 {"field": "case_id", "show_if": ["is_pivot"]},
-                {"field": "experiment_id", "show_if": ["is_pivot"]},
+                {"field": "session_id", "show_if": ["is_pivot"]},
                 {"field": "run_id", "show_if": ["is_pivot"]},
             ],
             description="Run identity.",
