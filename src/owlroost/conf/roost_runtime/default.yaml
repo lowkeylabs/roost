@@ -12,6 +12,12 @@ worker_timeout: 120
 run_owl_as_subprocess: false
 workers_per_run_mode: auto
 auto_workers_by_solver:
-  MOSEK: 6
-  HiGHS: 14
-math_library_threads: null
+  MOSEK: 8
+  HiGHS: 12
+auto_runtime_environment_by_solver:
+  MOSEK:
+    OMP_NUM_THREADS: 1
+    OPENBLAS_NUM_THREADS: 1
+    MKL_NUM_THREADS: 1
+    MSK_IPAR_NUM_THREADS: 1
+  HiGHS: {}
