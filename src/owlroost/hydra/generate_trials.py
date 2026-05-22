@@ -170,7 +170,7 @@ def resolve_workers_per_run(
     if mode == "auto":
         mapping = runtime.get(
             "auto_workers_by_solver",
-            {"MOSEK": 6, "HiGHS": 14},
+            {},
         )
 
         if solver in mapping:
@@ -349,45 +349,76 @@ def generate_trials(cfg: DictConfig):
         hfp_section["HFP_file_name"] = src.name
 
     # ----------------------------------------
-    # Add environment vars if math_library_threads <> None
+    # Auto-materialize execution topology
     # ----------------------------------------
 
     run_dict = materialize_execution_plan(run_dict)
 
     runtime_cfg = section_models.get("roost_runtime")
-
     env_cfg = section_models.get("runtime_environment")
 
     if runtime_cfg and env_cfg:
-        threads = runtime_cfg.math_library_threads
+        runtime_section = run_dict.get(
+            "roost_runtime",
+            {},
+        )
 
-        if threads not in (None, 0):
-            thread_fields = [
-                "OMP_NUM_THREADS",
-                "OPENBLAS_NUM_THREADS",
-                "MKL_NUM_THREADS",
-                "MSK_IPAR_NUM_THREADS",
-            ]
+        resolved_solver = runtime_section.get("resolved_solver")
 
-            for field_name in thread_fields:
-                current = getattr(
+        workers_mode = runtime_section.get("workers_per_run_mode")
+
+        # -------------------------------------------------
+        # Solver-aware auto execution topology
+        # -------------------------------------------------
+
+        auto_env = {}
+
+        if workers_mode == "auto":
+            auto_env = runtime_section.get(
+                "auto_runtime_environment_by_solver",
+                {},
+            ).get(
+                resolved_solver,
+                {},
+            )
+
+        # -------------------------------------------------
+        # Apply defaults ONLY where unset
+        # -------------------------------------------------
+
+        for field_name, value in auto_env.items():
+            current = getattr(
+                env_cfg,
+                field_name,
+                None,
+            )
+
+            # Explicit user override wins
+            if current is None:
+                setattr(
                     env_cfg,
                     field_name,
-                    None,
+                    value,
                 )
 
-                # Explicit env_cfg value wins
-                if current is None:
-                    setattr(
-                        env_cfg,
-                        field_name,
-                        threads,
-                    )
+        # -------------------------------------------------
+        # Persist topology provenance
+        # -------------------------------------------------
 
+        if auto_env:
+            runtime_section["auto_thread_policy"] = {
+                "solver": resolved_solver,
+                "environment": auto_env,
+                "workers_per_run": runtime_section.get("resolved_workers_per_run"),
+            }
+
+            # ---------------------------------------------
             # Re-sync updated model back into run_dict
-            run_dict["runtime_environment"] = env_cfg.model_dump(
-                exclude_none=True,
-            )
+            # ---------------------------------------------
+
+        run_dict["runtime_environment"] = env_cfg.model_dump(
+            exclude_none=True,
+        )
 
     # ----------------------------------------
     # Save run.toml

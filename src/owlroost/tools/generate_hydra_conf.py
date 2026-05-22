@@ -232,7 +232,7 @@ def generate_config_yaml(groups):
 
     config = {
         "defaults": defaults,
-        "experiment": {"id": "${now:%Y-%m-%d}_${now:%H-%M-%S}"},
+        "session": {"id": "${now:%Y-%m-%d}_${now:%H-%M-%S}"},
         "hydra": {
             "job": {
                 "chdir": True,

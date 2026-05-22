@@ -90,7 +90,7 @@ class RoostRuntimeConfig(BaseSystemConfig):
     workers_per_run: int | None = Field(
         default=None,
         ge=1,
-        description=("Number of parallel workers used to execute trials within a run."),
+        description=("Number of parallel workers used " "to execute trials within a run."),
     )
 
     worker_timeout: int = Field(
@@ -109,17 +109,65 @@ class RoostRuntimeConfig(BaseSystemConfig):
         description=("Worker allocation strategy: " "'fixed' or 'auto'."),
     )
 
+    # -----------------------------------------------------
+    # Solver-aware execution topology policies
+    # -----------------------------------------------------
+
     auto_workers_by_solver: dict[str, int] = Field(
         default_factory=lambda: {
-            "MOSEK": 6,
-            "HiGHS": 14,
+            # -----------------------------------------
+            # MOSEK:
+            #
+            # Fewer heavier workers.
+            # Strong evidence that many
+            # single-threaded workers perform best.
+            # -----------------------------------------
+            "MOSEK": 8,
+            # -----------------------------------------
+            # HiGHS:
+            #
+            # More lighter-weight workers.
+            # -----------------------------------------
+            "HiGHS": 12,
         },
-        description=("Recommended workers_per_run by solver."),
+        description=(
+            "Recommended workers_per_run " "by solver when " "workers_per_run_mode='auto'."
+        ),
     )
 
-    math_library_threads: int | None = Field(
-        default=None,
-        description="Default value applied to all ENV math library threads.",
+    auto_runtime_environment_by_solver: dict[str, dict[str, int]] = Field(
+        default_factory=lambda: {
+            # -----------------------------------------
+            # MOSEK:
+            #
+            # Strong evidence that nested threading
+            # hurts throughput.
+            #
+            # Prefer many independent
+            # single-threaded solves.
+            # -----------------------------------------
+            "MOSEK": {
+                "OMP_NUM_THREADS": 1,
+                "OPENBLAS_NUM_THREADS": 1,
+                "MKL_NUM_THREADS": 1,
+                "MSK_IPAR_NUM_THREADS": 1,
+            },
+            # -----------------------------------------
+            # HiGHS:
+            #
+            # Current evidence suggests explicit
+            # thread forcing is unnecessary and
+            # sometimes harmful.
+            #
+            # Leave runtime environment unset.
+            # -----------------------------------------
+            "HiGHS": {},
+        },
+        description=(
+            "Recommended runtime environment "
+            "variables by solver when "
+            "workers_per_run_mode='auto'."
+        ),
     )
 
 

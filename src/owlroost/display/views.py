@@ -241,8 +241,7 @@ def register_run_views(reg):
                 # -----------------------------------------
                 "solver_options.solver",
                 "roost_runtime.workers_per_run",
-                "roost_runtime.math_library_threads",
-                "runtime_environment.MSK_IPAR_NUM_THREADS",
+                "compact_threads",
                 # -----------------------------------------
                 # Completion
                 # -----------------------------------------

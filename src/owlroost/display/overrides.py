@@ -709,13 +709,76 @@ def apply_display_overrides(
     reg.register_display_field(
         DisplayField(
             field_name="runtime_environment.MSK_IPAR_NUM_THREADS",
-            description=("MOSEK-specific environment setting."),
+            description=("MOSEK specific environment setting."),
             profiles={
                 "table": DisplayProfile(
                     label="MSK IPAR\nTHREADS", content_align="center", label_align="center"
                 ),
                 "pivot": DisplayProfile(
                     label="MSK IPAR NUM THREADS", content_align="center", label_align="center"
+                ),
+            },
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField(
+            field_name="runtime_environment.MKL_NUM_THREADS",
+            description=("MOSEK specific environment setting."),
+            profiles={
+                "table": DisplayProfile(
+                    label="MKL\nThreads", content_align="center", label_align="center"
+                ),
+                "pivot": DisplayProfile(
+                    label="MKL NUM THREADS", content_align="center", label_align="center"
+                ),
+            },
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField(
+            field_name="runtime_environment.OMP_NUM_THREADS",
+            description=("Math library environment setting."),
+            profiles={
+                "table": DisplayProfile(
+                    label="OMP\nTHREADS", content_align="center", label_align="center"
+                ),
+                "pivot": DisplayProfile(
+                    label="OMP NUM THREADS", content_align="center", label_align="center"
+                ),
+            },
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField(
+            field_name="runtime_environment.OPENBLAS_NUM_THREADS",
+            description=("OPENBLAS environment setting."),
+            profiles={
+                "table": DisplayProfile(
+                    label="OPENBLAS\nTHREADS", content_align="center", label_align="center"
+                ),
+                "pivot": DisplayProfile(
+                    label="OPENBLAS NUM THREADS", content_align="center", label_align="center"
+                ),
+            },
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField(
+            field_name="compact_threads",
+            display_fn=compact_threads_display,
+            description=("Compact math library threads: MSK/MKL/OMP/BLAS"),
+            profiles={
+                "table": DisplayProfile(
+                    label="MSK/MKL/\nOMP/BLAS",
+                    content_align="center",
+                ),
+                "pivot": DisplayProfile(
+                    label="MSK MKL OMP BLAS",
+                    content_align="center",
                 ),
             },
         )
@@ -817,6 +880,32 @@ def current_ages_display(
             ages.append(str(age))
 
         return "/".join(ages)
+
+    except Exception:
+        return None
+
+
+def compact_threads_display(
+    row,
+):
+    """
+    Return compact threads identifier.
+
+    MSK/MKL/OMP/BLAS
+
+    """
+
+    try:
+        run_env = row.get("_inputs", {}).get(
+            "runtime_environment",
+            {},
+        )
+        msk = run_env.get("MSK_IPAR_NUM_THREADS", "-")
+        mkl = run_env.get("MKL_NUM_THREADS", "-")
+        omp = run_env.get("OMP_NUM_THREADS", "-")
+        blas = run_env.get("OPENBLAS_NUM_THREADS", "-")
+
+        return f"{msk}/" f"{mkl}/" f"{omp}/" f"{blas}"
 
     except Exception:
         return None
