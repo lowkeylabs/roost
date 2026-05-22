@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import os
 import shutil
 from copy import deepcopy
@@ -11,6 +12,7 @@ import numpy as np
 import toml
 import yaml
 from hydra.core.hydra_config import HydraConfig
+from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 
 from owlroost.core.progress_renderers import (
@@ -101,6 +103,127 @@ def clean_pydantic_undefined(obj):
     return obj
 
 
+def mosek_available():
+    return (
+        importlib.util.find_spec("mosek") is not None
+        and os.environ.get("MOSEKLM_LICENSE_FILE") is not None
+    )
+
+
+def resolve_solver_name(run_cfg):
+    solver = run_cfg.get(
+        "solver_options",
+        {},
+    ).get(
+        "solver",
+        "default",
+    )
+
+    logger.debug(f"Solver={solver}")
+    if solver == "default":
+        return "MOSEK" if mosek_available() else "HiGHS"
+
+    return solver
+
+
+def resolve_workers_per_run(
+    run_cfg,
+    solver=None,
+    default=1,
+):
+    """
+    Resolve workers_per_run using precedence:
+
+    1. Explicit workers_per_run override
+    2. Solver-aware auto tuning
+    3. Default
+    """
+
+    runtime = run_cfg.get(
+        "roost_runtime",
+        {},
+    )
+
+    if solver is None:
+        solver = resolve_solver_name(run_cfg)
+
+    # -----------------------------------------------------
+    # Explicit override ALWAYS wins
+    # -----------------------------------------------------
+
+    explicit = runtime.get("workers_per_run")
+
+    if explicit is not None:
+        return int(explicit)
+
+    # -----------------------------------------------------
+    # Auto mode
+    # -----------------------------------------------------
+
+    mode = runtime.get(
+        "workers_per_run_mode",
+        "auto",
+    )
+
+    logger.debug(f"Mode={mode}")
+
+    if mode == "auto":
+        mapping = runtime.get(
+            "auto_workers_by_solver",
+            {"MOSEK": 6, "HiGHS": 14},
+        )
+
+        if solver in mapping:
+            return int(mapping[solver])
+
+    # -----------------------------------------------------
+    # Fallback
+    # -----------------------------------------------------
+
+    return int(default)
+
+
+def materialize_execution_plan(run_dict):
+    solver_options = run_dict.setdefault(
+        "solver_options",
+        {},
+    )
+
+    runtime_section = run_dict.setdefault(
+        "roost_runtime",
+        {},
+    )
+
+    original_solver = solver_options.get(
+        "solver",
+        "default",
+    )
+
+    resolved_solver = resolve_solver_name(run_dict)
+    resolved_workers = resolve_workers_per_run(run_dict, solver=resolved_solver)
+
+    workers_mode = runtime_section.get(
+        "workers_per_run_mode",
+    )
+
+    explicit_workers = runtime_section.get("workers_per_run")
+
+    if original_solver == "default" and workers_mode == "auto" and explicit_workers is None:
+        logger.warning(
+            "Materializing "
+            "solver_options.solver "
+            f"from 'default' -> '{resolved_solver}' "
+            "because workers_per_run_mode='auto'."
+        )
+
+        solver_options["solver"] = resolved_solver
+
+    runtime_section["resolved_solver"] = resolved_solver
+    runtime_section["resolved_workers_per_run"] = resolved_workers
+
+    return run_dict
+
+
 # ---------------------------------------------------------
 # Main
 # ---------------------------------------------------------
@@ -115,7 +238,7 @@ def generate_trials(cfg: DictConfig):
     exp_path.mkdir(parents=True, exist_ok=True)
 
     # results/<case>/<date>/<time>
-    experiment_id = f"{exp_path.parent.name}/{exp_path.name}"
+    session_id = f"{exp_path.parent.name}/{exp_path.name}"
 
     # ----------------------------------------
     # Hydra context
@@ -131,9 +254,9 @@ def generate_trials(cfg: DictConfig):
     case_overrides = filter_case_overrides(raw_overrides)
 
     # ----------------------------------------
-    # Save experiment-level case.toml (once)
+    # Save session-level session.toml (once)
     # ----------------------------------------
-    exp_case_path = exp_path / "case.toml"
+    exp_case_path = exp_path / "session.toml"
     if not exp_case_path.exists():
         shutil.copy2(case_file, exp_case_path)
 
@@ -229,7 +352,10 @@ def generate_trials(cfg: DictConfig):
     # Add environment vars if math_library_threads <> None
     # ----------------------------------------
 
+    run_dict = materialize_execution_plan(run_dict)
+
     runtime_cfg = section_models.get("roost_runtime")
+
     env_cfg = section_models.get("runtime_environment")
 
     if runtime_cfg and env_cfg:
@@ -369,7 +495,7 @@ def generate_trials(cfg: DictConfig):
             {
                 "trial_id": tid,
                 "run_id": run_idx,
-                "experiment_id": experiment_id,
+                "session_id": session_id,
                 "rate_seed": rate_seed,
                 "longevity_seed": longevity_seed,
             }

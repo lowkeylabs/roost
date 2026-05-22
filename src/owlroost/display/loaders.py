@@ -554,11 +554,23 @@ def load_runs(
     # Build session ID Map
     # =====================================================
 
-    session_keys = sorted(
-        {extract_session_key(r) for r in run_dirs if extract_session_key(r) is not None}
-    )
+    sessions_by_case = {}
 
-    session_id_map = {key: idx for idx, key in enumerate(session_keys)}
+    for run_dir in run_dirs:
+        session_key = extract_session_key(run_dir)
+
+        if session_key is None:
+            continue
+
+        case_name = session_key[0]
+
+        sessions_by_case.setdefault(case_name, set()).add(session_key)
+
+    session_id_map = {}
+
+    for _case_name, keys in sessions_by_case.items():
+        for idx, key in enumerate(sorted(keys)):
+            session_id_map[key] = idx
 
     # =====================================================
     # Load Rows

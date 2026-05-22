@@ -11,7 +11,7 @@ VALID_SOURCES = {
 
 VALID_LEVELS = {
     "case",
-    "experiment",
+    "session",
     "run",
     "trial",
 }

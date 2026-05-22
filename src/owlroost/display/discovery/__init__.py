@@ -4,10 +4,10 @@ from .cases import find_case_files
 from .results_tree import (
     find_all_runs,
     find_cases,
-    find_experiments,
     find_first_trial,
     find_pending_trials,
     find_runs,
+    find_sessions,
     find_trials,
     has_metrics,
     summarize_run,
@@ -18,7 +18,7 @@ __all__ = [
     "find_case_files",
     # results discovery
     "find_cases",
-    "find_experiments",
+    "find_sessions",
     "find_runs",
     "find_all_runs",
     "find_trials",

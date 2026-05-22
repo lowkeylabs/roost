@@ -158,7 +158,7 @@ def cmd_reports(
         click.echo(f"{label:<12} " f"{c['total']:>6} " f"(missing: {c['missing']})")
 
     line("Cases:", "case")
-    line("Experiments:", "experiment")
+    line("Sessions:", "session")
     line("Runs:", "run")
     line("Trials:", "trial")
 

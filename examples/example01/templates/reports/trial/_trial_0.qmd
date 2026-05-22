@@ -10,7 +10,7 @@
 # plan :
 #
 -->
-{{< include ../../../../../../../templates/trial/_trial_setup.qmd >}}
+{{< include ../../../../../../../templates/reports/trial/_trial_setup.qmd >}}
 
 
 # Description
@@ -26,7 +26,7 @@ The following figures are generated from the data in the bundle. They provide in
 into various aspects the retirement plan, including asset growth, withdrawal patterns,
 and risk assessments.
 
-{{< include ../../../../../../../templates/trial/_all_figures_h2_titles.qmd >}}
+{{< include ../../../../../../../templates/reports/trial/_all_figures_h2_titles.qmd >}}
 
 ```python
 #| output: asis

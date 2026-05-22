@@ -5,10 +5,10 @@ from pathlib import Path
 from owlroost.display.discovery import (
     find_all_runs,
     find_cases,
-    find_experiments,
     find_first_trial,
     find_pending_trials,
     find_runs,
+    find_sessions,
     find_trials,
     has_metrics,
     summarize_run,
@@ -50,7 +50,7 @@ def make_run(exp_dir: Path, run_name="run_0", completed=2, pending=1):
     return run_dir
 
 
-def make_experiment(case_dir: Path, date, time):
+def make_session(case_dir: Path, date, time):
     exp_dir = case_dir / date / time
     exp_dir.mkdir(parents=True)
 
@@ -79,39 +79,39 @@ def test_find_cases(tmp_path):
 
 
 # =========================================================
-# find_experiments
+# find_sessions
 # =========================================================
-def test_find_experiments(tmp_path):
+def test_find_sessions(tmp_path):
     results = tmp_path / "results"
     results.mkdir()
 
     case_dir = results / "case_a"
     case_dir.mkdir()
 
-    exp1 = make_experiment(case_dir, "2026-05-05", "08-00-00")
-    exp2 = make_experiment(case_dir, "2026-05-05", "09-00-00")
+    exp1 = make_session(case_dir, "2026-05-05", "08-00-00")
+    exp2 = make_session(case_dir, "2026-05-05", "09-00-00")
 
-    experiments = find_experiments(results)
+    sessions = find_sessions(results)
 
-    assert len(experiments) == 2
+    assert len(sessions) == 2
 
-    assert exp1.resolve() in experiments
-    assert exp2.resolve() in experiments
+    assert exp1.resolve() in sessions
+    assert exp2.resolve() in sessions
 
 
-def test_find_experiments_ignores_non_experiments(tmp_path):
+def test_find_sessions_ignores_non_sessions(tmp_path):
     results = tmp_path / "results"
     results.mkdir()
 
     case_dir = results / "case_a"
     case_dir.mkdir()
 
-    junk = case_dir / "2026-05-05" / "not_an_experiment"
+    junk = case_dir / "2026-05-05" / "not_an_session"
     junk.mkdir(parents=True)
 
-    experiments = find_experiments(results)
+    sessions = find_sessions(results)
 
-    assert experiments == []
+    assert sessions == []
 
 
 # =========================================================
@@ -124,7 +124,7 @@ def test_find_runs(tmp_path):
     case_dir = results / "case_a"
     case_dir.mkdir()
 
-    exp_dir = make_experiment(case_dir, "2026-05-05", "08-00-00")
+    exp_dir = make_session(case_dir, "2026-05-05", "08-00-00")
 
     run0 = exp_dir / "run_0"
     run1 = exp_dir / "run_1"
@@ -150,7 +150,7 @@ def test_find_trials(tmp_path):
     case_dir = results / "case_a"
     case_dir.mkdir()
 
-    exp_dir = make_experiment(case_dir, "2026-05-05", "08-00-00")
+    exp_dir = make_session(case_dir, "2026-05-05", "08-00-00")
 
     run_dir = make_run(exp_dir, completed=2, pending=1)
 
@@ -173,7 +173,7 @@ def test_find_first_trial(tmp_path):
     case_dir = results / "case_a"
     case_dir.mkdir()
 
-    exp_dir = make_experiment(case_dir, "2026-05-05", "08-00-00")
+    exp_dir = make_session(case_dir, "2026-05-05", "08-00-00")
 
     run_dir = make_run(exp_dir, completed=3, pending=0)
 
@@ -223,7 +223,7 @@ def test_summarize_run(tmp_path):
     case_dir = results / "case_a"
     case_dir.mkdir()
 
-    exp_dir = make_experiment(case_dir, "2026-05-05", "08-00-00")
+    exp_dir = make_session(case_dir, "2026-05-05", "08-00-00")
 
     run_dir = make_run(
         exp_dir,
@@ -251,8 +251,8 @@ def test_find_all_runs(tmp_path):
     case_a.mkdir()
     case_b.mkdir()
 
-    exp1 = make_experiment(case_a, "2026-05-05", "08-00-00")
-    exp2 = make_experiment(case_b, "2026-05-06", "09-00-00")
+    exp1 = make_session(case_a, "2026-05-05", "08-00-00")
+    exp2 = make_session(case_b, "2026-05-06", "09-00-00")
 
     make_run(exp1, run_name="run_0")
     make_run(exp1, run_name="run_1")
@@ -273,7 +273,7 @@ def test_find_pending_trials(tmp_path):
     case_dir = results / "case_a"
     case_dir.mkdir()
 
-    exp_dir = make_experiment(case_dir, "2026-05-05", "08-00-00")
+    exp_dir = make_session(case_dir, "2026-05-05", "08-00-00")
 
     make_run(
         exp_dir,
@@ -297,7 +297,7 @@ def test_missing_results_dir(tmp_path):
     missing = tmp_path / "missing"
 
     assert find_cases(missing) == []
-    assert find_experiments(missing) == []
+    assert find_sessions(missing) == []
     assert find_all_runs(missing) == []
 
 

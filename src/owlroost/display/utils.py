@@ -442,7 +442,7 @@ def canonical_sort_key(
 
     Order:
         case_id
-        experiment_id
+        session_id
         run_id
         trial_id
     """
@@ -457,9 +457,9 @@ def canonical_sort_key(
         -1,
     )
 
-    experiment_id = meta.get(
-        "experiment_id",
-        "",
+    session_id = meta.get(
+        "session_id",
+        "-1",
     )
 
     run_id = meta.get(
@@ -474,7 +474,7 @@ def canonical_sort_key(
 
     return (
         case_id,
-        experiment_id,
+        session_id,
         run_id,
         trial_id,
     )
@@ -488,7 +488,7 @@ def apply_canonical_sort(
 
     Order:
         case_id
-        experiment_id
+        session_id
         run_id
         trial_id
     """

@@ -8,9 +8,9 @@ from pathlib import Path
 import yaml
 
 from owlroost.display.discovery import (
-    find_experiments,
     find_first_trial,
     find_runs,
+    find_sessions,
 )
 
 
@@ -96,7 +96,7 @@ def ensure_report_artifacts(
     # ----------------------------------------
     # QMD
     # ----------------------------------------
-    template_qmd = templates_root / level / f"{level}.qmd"
+    template_qmd = templates_root / "reports" / level / f"{level}.qmd"
 
     target_qmd = target_dir / f"{level}.qmd"
 
@@ -152,7 +152,7 @@ def initialize_templates(
 
     required = [
         "case",
-        "experiment",
+        "session",
         "run",
         "trial",
     ]
@@ -225,7 +225,7 @@ def resolve_template_status(
 
     required = [
         "case",
-        "experiment",
+        "session",
         "run",
         "trial",
     ]
@@ -261,7 +261,7 @@ def sync_reports(
 
     case_seen = set()
 
-    for exp_dir in find_experiments(results_dir):
+    for exp_dir in find_sessions(results_dir):
         exp_dir = Path(exp_dir).resolve()
 
         # results/<case>/<date>/<time>
@@ -283,14 +283,14 @@ def sync_reports(
             case_seen.add(case_dir)
 
         # ------------------------------------
-        # EXPERIMENT
+        # session
         # ------------------------------------
         ensure_report_artifacts(
             exp_dir,
-            "experiment",
+            "session",
             templates_dir,
             {
-                "experiment_dir": exp_dir,
+                "session_dir": exp_dir,
                 "case_dir": case_dir,
             },
         )
@@ -307,7 +307,7 @@ def sync_reports(
                 templates_dir,
                 {
                     "run_dir": run_dir,
-                    "experiment_dir": exp_dir,
+                    "session_dir": exp_dir,
                     "case_dir": case_dir,
                 },
             )
@@ -325,7 +325,7 @@ def sync_reports(
                     {
                         "trial_dir": trial_dir,
                         "run_dir": run_dir,
-                        "experiment_dir": exp_dir,
+                        "session_dir": exp_dir,
                         "case_dir": case_dir,
                     },
                 )
@@ -351,7 +351,7 @@ def collect_report_diagnostics(
             "total": 0,
             "missing": 0,
         },
-        "experiment": {
+        "session": {
             "total": 0,
             "missing": 0,
         },
@@ -381,7 +381,7 @@ def collect_report_diagnostics(
 
     case_seen = set()
 
-    for exp_dir in find_experiments(results_dir):
+    for exp_dir in find_sessions(results_dir):
         exp_dir = Path(exp_dir).resolve()
 
         case_dir = exp_dir.parent.parent
@@ -398,11 +398,11 @@ def collect_report_diagnostics(
             case_seen.add(case_dir)
 
         # ------------------------------------
-        # EXPERIMENT
+        # session
         # ------------------------------------
         check_and_count(
             exp_dir,
-            "experiment",
+            "session",
         )
 
         # ------------------------------------

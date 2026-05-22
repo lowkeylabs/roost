@@ -1,10 +1,15 @@
+from copy import deepcopy
+
 import pytest
 import toml
 import yaml
 from loguru import logger
 from omegaconf import OmegaConf
 
-from owlroost.hydra.generate_trials import generate_trials
+from owlroost.hydra.generate_trials import (
+    generate_trials,
+    materialize_execution_plan,
+)
 
 # =========================================================
 # Fixtures
@@ -154,11 +159,8 @@ def test_trial_toml_contains_seeds(
 
     data = toml.load(trial0)
 
-    # -----------------------------------------------------
-    # roost_runtime seeds
-    # -----------------------------------------------------
-
     logger.debug(data)
+
     assert "rate_seed" in data["trial_runtime"]
 
     assert "longevity_seed" in data["trial_runtime"]
@@ -233,7 +235,7 @@ def test_experiment_case_written_once(
 
     exp_dir = tmp_path / "results/case/2026-01-01/00-00-00"
 
-    assert (exp_dir / "case.toml").exists()
+    assert (exp_dir / "session.toml").exists()
 
 
 # =========================================================
@@ -282,3 +284,160 @@ def test_effective_config_written(
     assert "case" in data
 
     assert "roost_runtime" in data
+
+
+# =========================================================
+# Execution Plan Materialization
+# =========================================================
+
+
+def test_explicit_solver_is_preserved():
+    run_dict = {
+        "solver_options": {
+            "solver": "HiGHS",
+        },
+        "roost_runtime": {
+            "workers_per_run_mode": "auto",
+            "auto_workers_by_solver": {
+                "HiGHS": 14,
+            },
+        },
+    }
+
+    out = materialize_execution_plan(deepcopy(run_dict))
+
+    assert out["solver_options"]["solver"] == "HiGHS"
+
+    assert out["roost_runtime"]["resolved_solver"] == "HiGHS"
+
+    assert out["roost_runtime"]["resolved_workers_per_run"] == 14
+
+
+def test_default_solver_materialized_when_auto_workers(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "owlroost.hydra.generate_trials.mosek_available",
+        lambda: True,
+    )
+
+    run_dict = {
+        "solver_options": {
+            "solver": "default",
+        },
+        "roost_runtime": {
+            "workers_per_run_mode": "auto",
+            "auto_workers_by_solver": {
+                "MOSEK": 6,
+                "HiGHS": 14,
+            },
+        },
+    }
+
+    out = materialize_execution_plan(deepcopy(run_dict))
+
+    assert out["solver_options"]["solver"] == "MOSEK"
+
+    assert out["roost_runtime"]["resolved_solver"] == "MOSEK"
+
+    assert out["roost_runtime"]["resolved_workers_per_run"] == 6
+
+
+def test_default_solver_preserved_when_workers_explicit(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "owlroost.hydra.generate_trials.mosek_available",
+        lambda: True,
+    )
+
+    run_dict = {
+        "solver_options": {
+            "solver": "default",
+        },
+        "roost_runtime": {
+            "workers_per_run": 8,
+        },
+    }
+
+    out = materialize_execution_plan(deepcopy(run_dict))
+
+    assert out["solver_options"]["solver"] == "default"
+
+    assert out["roost_runtime"]["resolved_solver"] == "MOSEK"
+
+    assert out["roost_runtime"]["resolved_workers_per_run"] == 8
+
+
+def test_default_solver_materializes_to_highs(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "owlroost.hydra.generate_trials.mosek_available",
+        lambda: False,
+    )
+
+    run_dict = {
+        "solver_options": {
+            "solver": "default",
+        },
+        "roost_runtime": {
+            "workers_per_run_mode": "auto",
+            "auto_workers_by_solver": {
+                "HiGHS": 14,
+            },
+        },
+    }
+
+    out = materialize_execution_plan(deepcopy(run_dict))
+
+    assert out["solver_options"]["solver"] == "HiGHS"
+
+    assert out["roost_runtime"]["resolved_solver"] == "HiGHS"
+
+    assert out["roost_runtime"]["resolved_workers_per_run"] == 14
+
+
+def test_execution_metadata_always_materialized(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "owlroost.hydra.generate_trials.mosek_available",
+        lambda: False,
+    )
+
+    run_dict = {}
+
+    out = materialize_execution_plan(deepcopy(run_dict))
+
+    runtime = out["roost_runtime"]
+
+    assert "resolved_solver" in runtime
+
+    assert "resolved_workers_per_run" in runtime
+
+
+def test_explicit_workers_override_auto_mapping(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "owlroost.hydra.generate_trials.mosek_available",
+        lambda: True,
+    )
+
+    run_dict = {
+        "solver_options": {
+            "solver": "MOSEK",
+        },
+        "roost_runtime": {
+            "workers_per_run": 3,
+            "workers_per_run_mode": "auto",
+            "auto_workers_by_solver": {
+                "MOSEK": 6,
+            },
+        },
+    }
+
+    out = materialize_execution_plan(deepcopy(run_dict))
+
+    assert out["roost_runtime"]["resolved_workers_per_run"] == 3

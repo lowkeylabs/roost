@@ -31,17 +31,17 @@ def find_cases(results_root: Path):
 
 
 # =========================================================
-# Experiments
+# Sessions
 # =========================================================
-def find_experiments(results_root: Path):
+def find_sessions(results_root: Path):
     """
-    Find experiment directories.
+    Find session directories.
 
     Layout:
         results/<case>/<date>/<time>/
 
-    Experiment identification:
-        contains multirun.yaml
+    Session identification:
+        contains multirun.yaml and session.toml
     """
 
     out = []
@@ -69,7 +69,7 @@ def find_runs(exp_dir: Path):
     Find run directories.
 
     Layout:
-        experiment/run_*
+        session/run_*
     """
 
     exp_dir = Path(exp_dir)
@@ -96,7 +96,7 @@ def find_all_runs(results_root: Path):
 
     out = []
 
-    for exp_dir in find_experiments(results_root):
+    for exp_dir in find_sessions(results_root):
         out.extend(find_runs(exp_dir))
 
     return sorted(out)

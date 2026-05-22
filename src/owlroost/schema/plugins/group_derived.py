@@ -144,7 +144,7 @@ def apply_group_derived_metrics(
     Apply group-derived analytical metrics.
 
     Default behavior:
-        compute independently per experiment.
+        compute independently per session.
 
     Working-set mode:
         compute across the entire visible dataset.
@@ -167,7 +167,7 @@ def apply_group_derived_metrics(
         return ds
 
     # =====================================================
-    # Experiment-group mode
+    # Session-group mode
     # =====================================================
 
     groups = defaultdict(list)
@@ -180,7 +180,7 @@ def apply_group_derived_metrics(
 
         key = (
             meta.get("case_id"),
-            meta.get("experiment_id"),
+            meta.get("session_id"),
         )
 
         groups[key].append(row)
@@ -206,7 +206,7 @@ class GroupDerivedMetricsPlugin:
     - are NOT persisted
     - are computed dynamically
     - depend on groups of rows
-    - support experiment comparison analysis
+    - support session comparison analysis
     """
 
     def register(
@@ -226,7 +226,7 @@ class GroupDerivedMetricsPlugin:
                     "common_overrides",
                 ),
                 source="derived",
-                level="experiment",
+                level="session",
                 description=("Overrides shared across " "comparison group."),
                 display_profiles={
                     "table": DisplayProfile(
@@ -260,7 +260,7 @@ class GroupDerivedMetricsPlugin:
                     "run_specific_overrides",
                 ),
                 source="derived",
-                level="experiment",
+                level="session",
                 description=("Overrides unique within " "comparison group."),
                 display_profiles={
                     "table": DisplayProfile(

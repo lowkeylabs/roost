@@ -38,8 +38,6 @@ __all__ = [
     "index_runs",
     "resolve_run_selection",
     "load_run_config",
-    "resolve_workers_per_run",
-    "resolve_solver_name",
     "execute_trials",
     "execute_run",
     "execute_runs",
@@ -55,20 +53,32 @@ def mosek_available():
     )
 
 
-def resolve_solver_name(run_cfg):
-    solver = run_cfg.get(
-        "solver_options",
-        {},
-    ).get(
-        "solver",
-        "default",
-    )
+def validate_execution_plan(run_dirs):
+    required_solvers = set()
 
-    logger.debug(f"Solver={solver}")
-    if solver == "default":
-        return "MOSEK" if mosek_available() else "HiGHS"
+    for run_dir in run_dirs:
+        cfg = load_run_config(run_dir)
 
-    return solver
+        solver = cfg.get("roost_runtime", {}).get("resolved_solver")
+
+        if solver:
+            required_solvers.add(solver)
+
+    # -------------------------------------------------
+    # MOSEK validation
+    # -------------------------------------------------
+
+    if "MOSEK" in required_solvers:
+        if not mosek_available():
+            raise RuntimeError(
+                "\n"
+                "Execution plan requires MOSEK, but MOSEK "
+                "is unavailable.\n\n"
+                "Required by one or more runs.\n"
+                "Verify:\n"
+                "  - mosek Python package installed\n"
+                "  - MOSEKLM_LICENSE_FILE configured\n"
+            )
 
 
 # =========================================================
@@ -211,61 +221,6 @@ def load_run_config(
 
     with open(run_toml, "rb") as f:
         return tomllib.load(f)
-
-
-def resolve_workers_per_run(
-    run_cfg,
-    default=1,
-):
-    """
-    Resolve workers_per_run using precedence:
-
-    1. Explicit workers_per_run override
-    2. Solver-aware auto tuning
-    3. Default
-    """
-
-    runtime = run_cfg.get(
-        "roost_runtime",
-        {},
-    )
-
-    solver = resolve_solver_name(run_cfg)
-
-    # -----------------------------------------------------
-    # Explicit override ALWAYS wins
-    # -----------------------------------------------------
-
-    explicit = runtime.get("workers_per_run")
-
-    if explicit is not None:
-        return int(explicit)
-
-    # -----------------------------------------------------
-    # Auto mode
-    # -----------------------------------------------------
-
-    mode = runtime.get(
-        "workers_per_run_mode",
-        "auto",
-    )
-
-    logger.debug(f"Mode={mode}")
-
-    if mode == "auto":
-        mapping = runtime.get(
-            "auto_workers_by_solver",
-            {"MOSEK": 6, "HiGHS": 14},
-        )
-
-        if solver in mapping:
-            return int(mapping[solver])
-
-    # -----------------------------------------------------
-    # Fallback
-    # -----------------------------------------------------
-
-    return int(default)
 
 
 @contextmanager
@@ -532,8 +487,8 @@ def execute_run(
     start = time.time()
 
     with runtime_environment_scope(run_cfg):
-        solver = resolve_solver_name(run_cfg)
-        workers_per_run = resolve_workers_per_run(run_cfg)
+        solver = run_cfg["roost_runtime"]["resolved_solver"]
+        workers_per_run = run_cfg["roost_runtime"]["resolved_workers_per_run"]
 
         case_name = run_cfg.get("case", {}).get("name")
 
@@ -657,9 +612,14 @@ def execute_runs(
     """
 
     run_dirs = [Path(r) for r in run_dirs]
-
     if not run_dirs:
         return []
+
+    # =========================================================
+    # Global execution validation
+    # =========================================================
+
+    validate_execution_plan(run_dirs)
 
     # =====================================================
     # Classify runs
@@ -710,9 +670,7 @@ def execute_runs(
     if single_trial_runs:
         first_cfg = load_run_config(single_trial_runs[0])
 
-        bundled_workers = resolve_workers_per_run(
-            first_cfg,
-        )
+        bundled_workers = first_cfg.get("roost_runtime", {}).get("resolved_workers_per_run", 1)
 
         # logger.info("Executing bundled single-trial runs " f"with {bundled_workers} workers")
 

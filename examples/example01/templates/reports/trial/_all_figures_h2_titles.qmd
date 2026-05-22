@@ -2,11 +2,11 @@
 
 ## Net Spending
 
-{{< include ../../../../../../../templates/trial/_fig_net_spending_pair.qmd >}}
+{{< include ../../../../../../../templates/reports/trial/_fig_net_spending_pair.qmd >}}
 
 ## Gross Income
 
-{{< include ../../../../../../../templates/trial/_fig_gross_income_pair.qmd >}}
+{{< include ../../../../../../../templates/reports/trial/_fig_gross_income_pair.qmd >}}
 
 ## Taxes
 

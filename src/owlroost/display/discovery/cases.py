@@ -27,7 +27,7 @@ def is_case_file(path: Path):
     excluded = {
         "run.toml",
         "trial.toml",
-        "case.toml",
+        "session.toml",
     }
 
     if path.name in excluded:

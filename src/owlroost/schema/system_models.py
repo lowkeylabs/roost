@@ -19,28 +19,28 @@ class RoostRuntimeConfig(BaseSystemConfig):
     ROOST execution/orchestration configuration.
 
     These settings define HOW ROOST executes
-    experiments and trials, separate from the
+    sessions and trials, separate from the
     retirement scenario itself.
     """
 
     # -----------------------------------------------------
-    # Experiment provenance
+    # Session provenance
     # -----------------------------------------------------
 
-    experiment_id: str | None = Field(
+    session_id: str | None = Field(
         default=None,
-        description="Experiment identifier.",
+        description="Session identifier.",
     )
 
-    experiment_description: str | None = Field(
+    session_description: str | None = Field(
         default=None,
-        description="Optional experiment description.",
+        description="Optional session description.",
     )
 
     run_id: int | None = Field(
         default=None,
         ge=0,
-        description="Run index within experiment.",
+        description="Run index within session.",
     )
 
     run_description: str | None = Field(

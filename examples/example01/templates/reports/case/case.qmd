@@ -4,4 +4,4 @@ title: "{{< meta level >}} - {{< var var_report_title >}}"
 
 this is case.qmd
 
-{{< include ../../templates/case/_case_0.qmd >}}
+{{< include ../../templates/reports/case/_case_0.qmd >}}

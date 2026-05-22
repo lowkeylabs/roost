@@ -102,12 +102,12 @@ def build_hydra_command(
     return cmd
 
 
-def discover_latest_experiment(
+def discover_latest_session(
     results_root: Path,
     case_name: str,
 ):
     """
-    Return newest experiment directory
+    Return newest session directory
     for case.
     """
 
@@ -163,13 +163,13 @@ def run_hydra_build(
             check=True,
         )
 
-        exp_dir = discover_latest_experiment(
+        exp_dir = discover_latest_session(
             Path("results"),
             case_path.stem,
         )
 
         if exp_dir is None:
-            raise click.ClickException("Unable to locate " "generated experiment.")
+            raise click.ClickException("Unable to locate " "generated session.")
 
         runs = find_runs(exp_dir)
         if not runs:
@@ -253,7 +253,7 @@ def run_hydra_build(
 @click.option(
     "--run",
     is_flag=True,
-    help="Generate experiments only; do not execute runs.",
+    help="Generate sessions only; do not execute runs.",
 )
 def cmd_build(
     ctx,
@@ -272,7 +272,7 @@ def cmd_build(
     run,
 ):
     """
-    Display available cases and build experiments.
+    Display available cases and build sessions.
 
     Examples:
       roost build
@@ -528,9 +528,9 @@ def cmd_build(
     # ----------------------------------------
 
     if not run:
-        click.echo(f"Generated {len(generated_runs)} experiments.")
+        click.echo(f"Generated {len(generated_runs)} sessions.")
 
-        click.echo("Experiment generation complete.")
+        click.echo("session generation complete.")
 
         return
 
