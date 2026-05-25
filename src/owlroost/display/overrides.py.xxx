@@ -784,6 +784,92 @@ def apply_display_overrides(
         )
     )
 
+# =====================================================
+# Session Provenance Metrics
+# =====================================================
+
+reg.register_display_field(
+    DisplayField(
+        field_name="session.date",
+        path="_meta.session.date",
+        profiles={
+            "table": DisplayProfile(
+                label="Date",
+                content_align="center",
+            ),
+            "pivot": DisplayProfile(
+                label="Session Date",
+                content_align="center",
+            ),
+        },
+    )
+)
+
+reg.register_display_field(
+    DisplayField(
+        field_name="session.time",
+        path="_meta.session.time",
+        profiles={
+            "table": DisplayProfile(
+                label="Time",
+                content_align="center",
+            ),
+            "pivot": DisplayProfile(
+                label="Session Time",
+                content_align="center",
+            ),
+        },
+    )
+)
+
+reg.register_display_field(
+    DisplayField(
+        field_name="session.count",
+        profiles={
+            "table": DisplayProfile(
+                label="Sessions",
+                content_align="right",
+            ),
+            "pivot": DisplayProfile(
+                label="Session Count",
+                content_align="right",
+            ),
+        },
+    )
+)
+
+reg.register_display_field(
+    DisplayField(
+        field_name="run.count",
+        profiles={
+            "table": DisplayProfile(
+                label="Runs",
+                content_align="right",
+            ),
+            "pivot": DisplayProfile(
+                label="Run Count",
+                content_align="right",
+            ),
+        },
+    )
+)
+
+reg.register_display_field(
+    DisplayField(
+        field_name="trial.total",
+        profiles={
+            "table": DisplayProfile(
+                label="Trials",
+                content_align="right",
+            ),
+            "pivot": DisplayProfile(
+                label="Total Trials",
+                content_align="right",
+            ),
+        },
+    )
+)
+
 
 # =========================================================
 # Display Functions
@@ -918,12 +1004,18 @@ def compact_id_display(
     Return compact hierarchical identifier.
 
     Examples:
-        0/0/0
-        0/1/0
-        2/4/7
 
-    Trial rows:
-        0/1/0/12
+        Case:
+            0
+
+        Session:
+            0/1
+
+        Run:
+            0/1/0
+
+        Trial:
+            0/1/0/12
     """
 
     try:
@@ -941,21 +1033,47 @@ def compact_id_display(
         # Missing core IDs
         # -------------------------------------------------
 
-        if case_id is None or session_id is None or run_id is None:
+        if case_id is None:
             return None
+
+        # -------------------------------------------------
+        # Case-level
+        # -------------------------------------------------
+
+        if session_id is None:
+            return f"{case_id}"
+
+        # -------------------------------------------------
+        # Session-level
+        # -------------------------------------------------
+
+        if run_id is None:
+            return (
+                f"{case_id}/"
+                f"{session_id}"
+            )
 
         # -------------------------------------------------
         # Run-level
         # -------------------------------------------------
 
         if trial_id is None:
-            return f"{case_id}/" f"{session_id}/" f"{run_id}"
+            return (
+                f"{case_id}/"
+                f"{session_id}/"
+                f"{run_id}"
+            )
 
         # -------------------------------------------------
         # Trial-level
         # -------------------------------------------------
 
-        return f"{case_id}/" f"{session_id}/" f"{run_id}/" f"{trial_id}"
+        return (
+            f"{case_id}/"
+            f"{session_id}/"
+            f"{run_id}/"
+            f"{trial_id}"
+        )
 
     except Exception:
         return None

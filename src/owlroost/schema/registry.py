@@ -1,5 +1,6 @@
 # src/owlroost/schema/registry.py
 
+from dataclasses import dataclass, field
 
 VALID_SOURCES = {
     "input",
@@ -17,70 +18,62 @@ VALID_LEVELS = {
 }
 
 
+@dataclass
 class FieldSpec:
-    def __init__(
-        self,
-        name,
-        dtype,
-        *,
-        path=None,
-        source,
-        level,
-        compute_fn=None,
-        aggregates=None,
-        description=None,
-        default=None,
-        display_profiles=None,
-    ):
+    name: str
+    dtype: object
+
+    path: tuple = field(default_factory=tuple)
+
+    source: str = ""
+    level: str = ""
+
+    compute_fn: object | None = None
+    aggregates: list = field(default_factory=list)
+
+    # =================================================
+    # Semantic metadata
+    # =================================================
+
+    description: str = ""
+
+    variable: str = ""
+    units: str | None = None
+    notes: str | None = None
+
+    doc_section: str | None = None
+    doc_type: str | None = None
+
+    default: object | None = None
+
+    display_profiles: dict = field(default_factory=dict)
+
+    def __post_init__(self):
         # =================================================
         # Validation
         # =================================================
 
-        if source not in VALID_SOURCES:
+        if self.source not in VALID_SOURCES:
             raise ValueError(
-                f"Invalid source '{source}' "
-                f"for field '{name}'. "
+                f"Invalid source '{self.source}' "
+                f"for field '{self.name}'. "
                 f"Valid sources: "
                 f"{sorted(VALID_SOURCES)}"
             )
 
-        if level not in VALID_LEVELS:
+        if self.level not in VALID_LEVELS:
             raise ValueError(
-                f"Invalid level '{level}' "
-                f"for field '{name}'. "
+                f"Invalid level '{self.level}' "
+                f"for field '{self.name}'. "
                 f"Valid levels: "
                 f"{sorted(VALID_LEVELS)}"
             )
 
         # =================================================
-        # Core
+        # Normalize path
         # =================================================
 
-        self.name = name
-        self.dtype = dtype
-        self.path = tuple(path) if path is not None else ()
-
-        # =================================================
-        # Semantics
-        # =================================================
-
-        self.source = source
-        self.level = level
-
-        # =================================================
-        # Behavior
-        # =================================================
-
-        self.compute_fn = compute_fn
-        self.aggregates = aggregates or []
-
-        # =================================================
-        # Metadata
-        # =================================================
-
-        self.description = description or ""
-        self.default = default
-        self.display_profiles = display_profiles or {}
+        self.path = tuple(self.path) if self.path is not None else ()
 
 
 class SchemaRegistry:

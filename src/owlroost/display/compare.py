@@ -1,5 +1,3 @@
-# src/owlroost/display/compare.py
-
 from __future__ import annotations
 
 from copy import deepcopy
@@ -7,6 +5,9 @@ from copy import deepcopy
 from owlroost.display.explain import (
     build_raw_field_explanation,
     normalize_explain_facets,
+)
+from owlroost.display.fields.identity import (
+    compact_id_display,
 )
 from owlroost.display.table import (
     RoostTable,
@@ -17,7 +18,10 @@ from owlroost.display.table import (
 # Constants
 # =========================================================
 
-STRUCTURAL_COMPARE_EXCLUDES = {"description", "case.file"}
+STRUCTURAL_COMPARE_EXCLUDES = {
+    "description",
+    "case.file",
+}
 
 # =========================================================
 # Helpers
@@ -208,7 +212,7 @@ def values_differ(
 
 
 def build_compare_entries(
-    dataset,
+    rows,
     diff_only=False,
 ):
     """
@@ -222,8 +226,6 @@ def build_compare_entries(
         one field in that section survives filtering
     """
 
-    rows = dataset.rows
-
     if not rows:
         return []
 
@@ -236,7 +238,9 @@ def build_compare_entries(
         {},
     )
 
-    ordered_entries = flatten_structure(first_inputs)
+    ordered_entries = flatten_structure(
+        first_inputs,
+    )
 
     materialized = []
 
@@ -309,7 +313,9 @@ def build_compare_entries(
             # ---------------------------------------------
 
             if section_name != "_root" and section_name not in emitted_sections:
-                emitted_sections.add(section_name)
+                emitted_sections.add(
+                    section_name,
+                )
 
                 materialized.append(
                     {
@@ -331,6 +337,123 @@ def build_compare_entries(
             )
 
     return materialized
+
+
+# =========================================================
+# Equivalence / Supersession
+# =========================================================
+
+
+def rows_are_equivalent(
+    row_a,
+    row_b,
+):
+    """
+    Return True if two rows are structurally equivalent.
+
+    Uses EXACTLY the same semantics as --diff.
+    """
+
+    entries = build_compare_entries(
+        [row_a, row_b],
+        diff_only=True,
+    )
+
+    return len(entries) == 0
+
+
+def _row_timestamp(
+    row,
+):
+    return row.get("_meta", {}).get("session.timestamp", "")
+
+
+def find_superseded_rows(
+    dataset,
+):
+    """
+    Detect superseded equivalent runs.
+
+    Keeps newest equivalent run.
+
+    Returns:
+        [
+            {
+                "active": newest_row,
+                "superseded": older_row,
+            }
+        ]
+    """
+
+    rows = sorted(
+        dataset.rows,
+        key=_row_timestamp,
+        reverse=True,
+    )
+
+    superseded = []
+
+    obsolete_ids = set()
+
+    for i, row_a in enumerate(rows):
+        row_a_id = compact_id_display(row_a)
+
+        if row_a_id in obsolete_ids:
+            continue
+
+        for row_b in rows[i + 1 :]:
+            row_b_id = compact_id_display(row_b)
+
+            if row_b_id in obsolete_ids:
+                continue
+
+            # ---------------------------------------------
+            # Structural equivalence
+            # ---------------------------------------------
+
+            if not rows_are_equivalent(
+                row_a,
+                row_b,
+            ):
+                continue
+
+            # ---------------------------------------------
+            # Keep newest
+            # ---------------------------------------------
+
+            active = row_a
+            obsolete = row_b
+
+            superseded.append(
+                {
+                    "active": active,
+                    "superseded": obsolete,
+                }
+            )
+
+            obsolete.setdefault(
+                "_meta",
+                {},
+            )["is_superseded"] = True
+
+            obsolete["_meta"]["superseded_by"] = compact_id_display(active)
+            obsolete_ids.add(compact_id_display(obsolete))
+
+    return superseded
+
+
+def collect_superseded_rows(
+    dataset,
+):
+    """
+    Return rows safe to purge.
+    """
+
+    pairs = find_superseded_rows(
+        dataset,
+    )
+
+    return [p["superseded"] for p in pairs]
 
 
 # =========================================================
@@ -356,7 +479,7 @@ def materialize_compare_table(
     rows = dataset.rows
 
     entries = build_compare_entries(
-        dataset,
+        rows,
         diff_only=diff_only,
     )
 

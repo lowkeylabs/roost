@@ -10,17 +10,32 @@ class Dataset:
         self.rows = rows
         self.level = level
 
-    def clone(self, rows):
+    def __len__(self):
+        return len(self.rows)
+
+    def head(
+        self,
+        n=5,
+    ):
+        return self.clone(
+            rows=self.rows[:n],
+        )
+
+    def clone(
+        self,
+        rows=None,
+        level=None,
+    ):
         return Dataset(
-            rows=rows,
-            level=self.level,
+            rows=rows if rows is not None else self.rows,
+            level=level if level is not None else self.level,
         )
 
     def filter(self, *filters):
         from .utils import apply_filters
 
         return self.clone(
-            apply_filters(
+            rows=apply_filters(
                 self.rows,
                 filters,
             )
@@ -30,7 +45,7 @@ class Dataset:
         from .utils import apply_sort
 
         return self.clone(
-            apply_sort(
+            rows=apply_sort(
                 self.rows,
                 sort_key,
             )
@@ -40,7 +55,7 @@ class Dataset:
         from .utils import apply_canonical_sort
 
         return self.clone(
-            apply_canonical_sort(
+            rows=apply_canonical_sort(
                 self.rows,
             )
         )
@@ -49,16 +64,26 @@ class Dataset:
         from .utils import apply_top
 
         return self.clone(
-            apply_top(
+            rows=apply_top(
                 self.rows,
                 n,
             )
         )
 
+    def project(
+        self,
+        level,
+    ):
+        from .projection import project_dataset
+
+        return project_dataset(
+            self,
+            level,
+        )
+
     def view(
         self,
         registry,
-        level=None,
         name="default",
         layout="table",
         explain=None,
@@ -68,7 +93,7 @@ class Dataset:
         return materialize_view(
             dataset=self,
             registry=registry,
-            level=level or self.level,
+            level=self.level,
             view_name=name,
             mode=layout,
             explain=explain,

@@ -74,14 +74,14 @@ def test_path_to_pivot_label():
         path_to_pivot_label(
             "roost_runtime.workers_per_run",
         )
-        == "Roost Runtime Workers Per Run"
+        == "Workers Per Run"
     )
 
     assert (
         path_to_pivot_label(
             "solver.elapsed_seconds",
         )
-        == "Solver Elapsed Seconds"
+        == "Elapsed Seconds"
     )
 
 
@@ -164,7 +164,7 @@ def test_sync_creates_pivot_label():
 
     field = display_reg.get_display_field("roost_runtime.workers_per_run")
 
-    assert field.profiles["pivot"].label == "Roost Runtime Workers Per Run"
+    assert field.profiles["pivot"].label == "Workers Per Run"
 
 
 def test_sync_preserves_existing_display_field():

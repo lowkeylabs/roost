@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict, is_dataclass
+from pprint import pformat
+
 from owlroost.display.generated.owl_parameter_docs import (
     OWL_PARAMETER_DOCS,
 )
@@ -14,7 +17,9 @@ from owlroost.display.specs import DisplayField, ExplainSpec
 EXPLAIN_FACETS = {
     "variables",
     "values",
+    "units",
     "sources",
+    "notes",
     "debug",
     "all",
 }
@@ -31,6 +36,71 @@ def get_generated_explain_data(
         field_name,
         {},
     )
+
+
+def _build_debug_explanation(
+    display_field: DisplayField,
+    row_values=None,
+) -> str:
+    """
+    Build detailed debug/introspection output
+    for explanation resolution.
+    """
+
+    lines = []
+
+    # =====================================================
+    # DisplayField
+    # =====================================================
+
+    lines.append("DisplayField:")
+
+    if is_dataclass(display_field):
+        lines.append(
+            pformat(
+                asdict(display_field),
+                sort_dicts=False,
+            )
+        )
+    else:
+        lines.append(repr(display_field))
+
+    # =====================================================
+    # ExplainSpec
+    # =====================================================
+
+    explain = display_field.explain
+
+    lines.append("\nExplainSpec:")
+
+    if explain is None:
+        lines.append("None")
+
+    elif is_dataclass(explain):
+        lines.append(
+            pformat(
+                asdict(explain),
+                sort_dicts=False,
+            )
+        )
+
+    else:
+        lines.append(repr(explain))
+
+    # =====================================================
+    # Row Values
+    # =====================================================
+
+    lines.append("\nRow Values:")
+
+    lines.append(
+        pformat(
+            row_values,
+            sort_dicts=False,
+        )
+    )
+
+    return "\n".join(lines)
 
 
 def build_effective_explain_spec(
@@ -98,7 +168,7 @@ def render_explanation(
             chunks.append(spec.variable)
 
         elif "debug" in facets:
-            chunks.append("[missing variable explanation]")
+            chunks.append("[add variable= to ExplainSpec]")
 
     # =================================================
     # VALUES
@@ -120,7 +190,8 @@ def render_explanation(
 
     if "sources" in facets:
         if spec.sources:
-            chunks.append("Sources: " + ", ".join(spec.sources))
+            prefix = "Sources:" if len(spec.sources) > 1 else "Source:"
+            chunks.append(f"{prefix} " + ", ".join(spec.sources))
 
         elif "debug" in facets:
             chunks.append("[missing source metadata]")
@@ -132,7 +203,7 @@ def render_explanation(
     if spec.notes:
         chunks.append(spec.notes)
 
-    return "\n\n".join(chunks)
+    return "; ".join(chunks) + "\n"
 
 
 # =========================================================
@@ -162,7 +233,7 @@ def normalize_explain_facets(
         -> {"variables", "debug"}
 
     "all"
-        -> {"variables", "values", "sources", "debug"}
+        -> {"variables", "values", "sources", "debug", "units", "notes" }
     """
 
     # -----------------------------------------------------
@@ -189,13 +260,19 @@ def normalize_explain_facets(
     # Expand "all"
     # -----------------------------------------------------
 
+    debug = "debug" in explain
+
     if "all" in explain:
         explain = {
             "variables",
             "values",
+            "units",
             "sources",
-            "debug",
+            "notes",
         }
+
+    if debug:
+        explain.add("debug")
 
     # -----------------------------------------------------
     # Validate
@@ -216,31 +293,114 @@ def normalize_explain_facets(
 # =========================================================
 
 
+def _resolve_explain_facet(
+    display_field: DisplayField,
+    facet: str,
+    row_values=None,
+) -> list | str | None:
+    """
+    Resolve explanation facet using layered precedence.
+
+    Priority:
+        1. ExplainSpec override
+        2. FieldSpec metadata
+        3. Fallback heuristics
+    """
+
+    explain = display_field.explain
+    field_spec = getattr(display_field, "semantic_field", None)
+
+    # =====================================================
+    # ExplainSpec override
+    # =====================================================
+
+    if facet == "debug":
+        return _build_debug_explanation(
+            display_field,
+            row_values=row_values,
+        )
+
+    if explain is not None:
+        value = getattr(explain, facet, None)
+
+        if value:
+            # -------------------------------------------------
+            # Callable support
+            # -------------------------------------------------
+
+            if callable(value):
+                return value(
+                    display_field=display_field,
+                    row_values=row_values,
+                )
+
+            return value
+
+    # =====================================================
+    # FieldSpec fallback
+    # =====================================================
+
+    if field_spec is not None:
+        # -------------------------------------------------
+        # Variable
+        # -------------------------------------------------
+
+        if facet == "variables":
+            if field_spec.variable:
+                return field_spec.variable
+
+            result = field_spec.name
+            return result
+
+        # -------------------------------------------------
+        # Sources
+        # -------------------------------------------------
+
+        elif facet == "sources":
+            result = [field_spec.source]
+            return result
+
+        # -------------------------------------------------
+        # Units
+        # -------------------------------------------------
+
+        elif facet == "units":
+            # Future expansion point
+            result = facet
+            return result
+
+        # -------------------------------------------------
+        # Notes
+        # -------------------------------------------------
+
+        elif facet == "notes":
+            result = facet
+            return result
+
+    # =====================================================
+    # Final fallback heuristics
+    # =====================================================
+
+    if facet == "variables":
+        if display_field.description:
+            return display_field.description
+
+        return display_field.field_name
+
+    return None
+
+
 def build_field_explanation(
     display_field: DisplayField,
     explain_facets,
+    row_values: list | None = None,
 ):
     """
     Build explanation text for a display field.
-
-    Parameters
-    ----------
-    display_field
-        DisplayField specification.
-
-    explain_facets
-        Normalized explain facet set.
-
-    Returns
-    -------
-    str
-        Human-readable explanation text.
     """
 
     if not explain_facets:
         return ""
-
-    explain = display_field.explain
 
     parts = []
 
@@ -249,106 +409,93 @@ def build_field_explanation(
     # =====================================================
 
     if "variables" in explain_facets:
-        variable_text = None
-
-        # ---------------------------------------------
-        # Preferred v2 ExplainSpec
-        # ---------------------------------------------
-
-        if explain is not None and explain.variable:
-            variable_text = explain.variable
-
-        # ---------------------------------------------
-        # Backward-compatible description
-        # ---------------------------------------------
-
-        elif display_field.description:
-            variable_text = display_field.description
+        variable_text = _resolve_explain_facet(
+            display_field,
+            "variables",
+            row_values=row_values,
+        )
 
         if variable_text:
-            parts.append(variable_text)
+            parts.append(str(variable_text))
 
     # =====================================================
     # Values
     # =====================================================
 
-    if "values" in explain_facets and explain is not None and explain.value:
-        parts.append(f"Value: {explain.value}")
+    if "values" in explain_facets:
+        value_text = _resolve_explain_facet(
+            display_field,
+            "values",
+            row_values=row_values,
+        )
+
+        #        if value_text:
+        #            parts.append(str(value_text))
+
+        if row_values:
+            prefix = "Values:" if len(row_values) > 1 else "Value:"
+
+            parts.append(f"{prefix} {row_values}")
+        else:
+            parts.append(value_text)
 
     # =====================================================
     # Sources
     # =====================================================
 
-    if "sources" in explain_facets and explain is not None and explain.sources:
-        source_text = ", ".join(explain.sources)
+    if "sources" in explain_facets:
+        sources = _resolve_explain_facet(
+            display_field,
+            "sources",
+            row_values=row_values,
+        )
 
-        parts.append(f"Sources: {source_text}")
+        if sources:
+            parts.append(f"Sources: {sources}")
 
     # =====================================================
     # Units
     # =====================================================
 
-    if "values" in explain_facets and explain is not None and explain.units:
-        parts.append(f"Units: {explain.units}")
+    if "units" in explain_facets:
+        units_text = _resolve_explain_facet(
+            display_field,
+            "units",
+            row_values=row_values,
+        )
+
+        if units_text:
+            parts.append(f"Units: {units_text}")
 
     # =====================================================
     # Notes
     # =====================================================
 
-    if "values" in explain_facets and explain is not None and explain.notes:
-        parts.append(f"Notes: {explain.notes}")
+    if "notes" in explain_facets:
+        notes_text = _resolve_explain_facet(
+            display_field,
+            "notes",
+            row_values=row_values,
+        )
+
+        if notes_text:
+            parts.append(f"Notes: {notes_text}")
 
     # =====================================================
     # Debug
     # =====================================================
 
     if "debug" in explain_facets:
-        missing = []
+        debug_text = _resolve_explain_facet(
+            display_field,
+            "debug",
+            row_values=row_values,
+        )
 
-        # ---------------------------------------------
-        # Variable definition
-        # ---------------------------------------------
+        if debug_text:
+            parts.append(debug_text)
 
-        has_variable = False
-
-        if explain is not None and explain.variable:
-            has_variable = True
-
-        elif display_field.description:
-            has_variable = True
-
-        if not has_variable:
-            missing.append("variable")
-
-        # ---------------------------------------------
-        # Value explanation
-        # ---------------------------------------------
-
-        if explain is None or not explain.value:
-            missing.append("value")
-
-        # ---------------------------------------------
-        # Sources
-        # ---------------------------------------------
-
-        if explain is None or not explain.sources:
-            missing.append("sources")
-
-        # ---------------------------------------------
-        # Units
-        # ---------------------------------------------
-
-        if explain is None or not explain.units:
-            missing.append("units")
-
-        if missing:
-            parts.append("Missing: " + ", ".join(missing))
-
-    # =====================================================
-    # Final
-    # =====================================================
-
-    return "\n\n".join(parts)
+    return "\n".join(parts).strip()
 
 
 # =========================================================

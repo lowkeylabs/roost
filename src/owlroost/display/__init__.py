@@ -1,6 +1,11 @@
 # src/owlroost/display/__init__.py
 
-from .registry import DisplayRegistry
+from .groups import (
+    register_display_groups,
+)
+from .registry import (
+    DisplayRegistry,
+)
 from .specs import (
     DisplayField,
     DisplayGroup,
@@ -11,5 +16,5 @@ from .sync import (
     sync_display_registry,
 )
 from .views import (
-    register_case_views,
+    register_display_views,
 )

@@ -87,6 +87,114 @@ def extract_session_key(
     )
 
 
+def validate_results_path(
+    path: Path,
+    results_root: Path,
+):
+    """
+    Ensure path is contained inside results_root.
+    """
+
+    path = path.resolve()
+
+    results_root = results_root.resolve()
+
+    try:
+        path.relative_to(results_root)
+
+    except ValueError as err:
+        raise ValueError(f"Unsafe path outside results root: {path}") from err
+
+    return path
+
+
+# =========================================================
+# Path Helpers
+# =========================================================
+
+
+def build_result_paths(
+    run_dir: Path,
+    results_root: Path,
+):
+    """
+    Build canonical filesystem paths for a run.
+
+    Expected structure:
+
+        results/<case>/<date>/<time>/run_X
+
+    Where:
+        - <case>  = case directory
+        - <date>  = session date directory
+        - <time>  = session directory
+        - run_X   = run directory
+
+    Returns:
+        {
+            "results_root": ...,
+            "case_dir": ...,
+            "date_dir": ...,
+            "session_dir": ...,
+            "run_dir": ...,
+            "session_date": ...,
+            "session_time": ...,
+        }
+    """
+
+    # =====================================================
+    # Canonicalize + validate
+    # =====================================================
+
+    results_root = Path(results_root).resolve()
+
+    run_dir = validate_results_path(
+        Path(run_dir).resolve(),
+        results_root,
+    )
+
+    # =====================================================
+    # Hierarchy
+    # =====================================================
+
+    session_dir = validate_results_path(
+        run_dir.parent.resolve(),
+        results_root,
+    )
+
+    date_dir = validate_results_path(
+        session_dir.parent.resolve(),
+        results_root,
+    )
+
+    case_dir = validate_results_path(
+        date_dir.parent.resolve(),
+        results_root,
+    )
+
+    # =====================================================
+    # Derived labels
+    # =====================================================
+
+    session_date = date_dir.name
+    session_time = session_dir.name
+    session_timestamp = f"{session_date}T{session_time}"
+    # =====================================================
+    # Return structure
+    # =====================================================
+
+    return {
+        "results_root": results_root,
+        "case_dir": case_dir,
+        "date_dir": date_dir,
+        "session_dir": session_dir,
+        "run_dir": run_dir,
+        "session_date": session_date,
+        "session_time": session_time,
+        "session_timestamp": session_timestamp,
+    }
+
+
 # =========================================================
 # Metric Normalization
 # =========================================================
@@ -223,6 +331,7 @@ def _load_trial_metrics(
     case_id,
     session_id,
     run_id,
+    results_root,
 ):
     """
     Load metrics.json from trial directory.
@@ -241,10 +350,16 @@ def _load_trial_metrics(
     except Exception:
         return None
 
+    resolved_trial_dir = Path(trial_dir).resolve()
+    run_dir = resolved_trial_dir.parent.parent
     trial_id = extract_trial_id(trial_dir)
 
     return {
-        "_path": Path(trial_dir).resolve(),
+        "_path": resolved_trial_dir,
+        "_paths": {
+            **build_result_paths(run_dir, results_root),
+            "trial_dir": resolved_trial_dir,
+        },
         "_inputs": {},
         "_metrics": flatten_dict(metrics),
         "_meta": {
@@ -295,6 +410,7 @@ def _load_run_dir(
     case_id,
     session_id,
     run_id,
+    results_root,
 ):
     """
     Load a single run directory.
@@ -349,6 +465,7 @@ def _load_run_dir(
             case_id=case_id,
             session_id=session_id,
             run_id=run_id,
+            results_root=results_root,
         )
 
         if row is not None:
@@ -381,8 +498,16 @@ def _load_run_dir(
     # Dataset Row
     # =====================================================
 
+    resolved_run_dir = path.resolve()
+
+    result_paths = build_result_paths(
+        resolved_run_dir,
+        results_root,
+    )
+
     return {
-        "_path": path.resolve(),
+        "_path": resolved_run_dir,
+        "_paths": result_paths,
         "_inputs": content,
         "_metrics": {
             # -------------------------------------------------
@@ -405,6 +530,7 @@ def _load_run_dir(
             "session_id": session_id,
             "run_id": run_id,
             "task_overrides": task_overrides,
+            "session.timestamp": (result_paths["session_timestamp"]),
         },
     }
 
@@ -475,6 +601,10 @@ def load_cases(
             if row is not None:
                 rows.append(row)
 
+        for idx, row in enumerate(rows):
+            row.setdefault("_meta", {})
+            row["_meta"]["case_id"] = idx
+
         return Dataset(
             rows,
             level="case",
@@ -500,6 +630,10 @@ def load_cases(
 
             if row is not None:
                 rows.append(row)
+
+        for idx, row in enumerate(rows):
+            row.setdefault("_meta", {})
+            row["_meta"]["case_id"] = idx
 
         return Dataset(
             rows,
@@ -532,7 +666,7 @@ def load_runs(
         - runtime metadata (_meta)
     """
 
-    results_root = Path(results_root)
+    results_root = Path(results_root).resolve()
 
     # =====================================================
     # Discover Runs
@@ -592,6 +726,7 @@ def load_runs(
             case_id=case_id_map[case_name],
             session_id=session_id_map[session_key],
             run_id=extract_run_id(run_dir),
+            results_root=results_root,
         )
 
         if row is not None:

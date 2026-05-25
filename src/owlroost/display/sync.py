@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from owlroost.display.generated.owl_parameter_docs import (
+    OWL_PARAMETER_DOCS,
+)
 from owlroost.display.registry import (
     DisplayRegistry,
 )
@@ -93,17 +96,14 @@ def path_to_pivot_label(
     # Standard fields
     # -----------------------------------------------------
 
-    return (
-        field_name.replace(
-            ".",
-            " ",
-        )
-        .replace(
-            "_",
-            " ",
-        )
-        .title()
-    )
+    # if field_name (a path string) contains ".", then only keep part to right of "."
+    if "." in field_name:
+        field_name = field_name.split(".", 2)[1]
+
+    return field_name.replace(
+        "_",
+        " ",
+    ).title()
 
 
 # =========================================================
@@ -116,6 +116,7 @@ def _register_field_if_missing(
     description: str | None,
     display_registry: DisplayRegistry,
     display_profiles=None,
+    semantic_field=None,
 ):
     """
     Register DisplayField only if missing.
@@ -137,6 +138,7 @@ def _register_field_if_missing(
     display_field = DisplayField(
         field_name=field_name,
         description=description,
+        semantic_field=semantic_field,
         profiles=(
             display_profiles
             or {
@@ -183,10 +185,21 @@ def sync_schema_registry(
     """
 
     for schema_field in schema_registry.all():
+        leaf_name = schema_field.name.split(".")[-1]
+
+        docs = OWL_PARAMETER_DOCS.get(leaf_name)
+        if docs:
+            schema_field.variable = docs.get("variable")
+            schema_field.units = docs.get("units")
+            schema_field.notes = docs.get("notes")
+            schema_field.doc_section = docs.get("section")
+            schema_field.doc_type = docs.get("type")
+
         _register_field_if_missing(
             field_name=schema_field.name,
             description=schema_field.description,
             display_registry=display_registry,
+            semantic_field=schema_field,
             display_profiles=getattr(
                 schema_field,
                 "display_profiles",
@@ -225,6 +238,7 @@ def sync_metrics_registry(
                 "description",
                 None,
             ),
+            semantic_field=metrics_field,
             display_registry=display_registry,
         )
 

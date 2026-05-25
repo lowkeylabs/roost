@@ -5,25 +5,104 @@ from __future__ import annotations
 import click
 
 from owlroost.cli.utils import (
+    parse_id_selection,
     prepare_dataset,
     render_table,
     resolve_renderer,
+    select_dataset_rows,
     split_build_args,
 )
 from owlroost.display.bootstrap import build_display_registry
-from owlroost.display.compare import materialize_compare_table
+from owlroost.display.compare import (
+    collect_superseded_rows,
+    find_superseded_rows,
+    materialize_compare_table,
+)
+from owlroost.display.delete import (
+    collect_delete_targets,
+    delete_paths,
+)
+from owlroost.display.derived import apply_derived_metrics
 from owlroost.display.loaders import load_runs
-from owlroost.display.materialize import apply_derived_metrics
+from owlroost.display.projection import (
+    project_dataset,
+)
 from owlroost.display.utils import (
     attach_row_ids,
     inject_id_column,
     render_field_help,
 )
-from owlroost.metrics.registry.bootstrap import build_metrics_registry
-from owlroost.schema.bootstrap import build_registry
+from owlroost.metrics.registry.bootstrap import (
+    build_metrics_registry,
+)
+from owlroost.schema.bootstrap import (
+    build_registry,
+)
 from owlroost.schema.plugins.group_derived import (
     apply_group_derived_metrics,
 )
+
+# =========================================================
+# Helpers
+# =========================================================
+
+
+def build_filter_examples(
+    level,
+):
+    """
+    Context-sensitive filter examples.
+    """
+
+    if level == "session":
+        return [
+            "--filter run.count>5",
+            "--filter trial.total>100",
+            "--filter session.date=2026-05-22",
+        ]
+
+    if level == "case":
+        return [
+            "--filter session.count>2",
+            "--filter run.count>10",
+            "--filter trial.total>500",
+        ]
+
+    return [
+        "--filter id=in:1,2,3",
+        "--filter trial.completed>50",
+        "--filter metrics.success_rate>0.9",
+        "--filter status=success",
+    ]
+
+
+def build_sort_examples(
+    level,
+):
+    """
+    Context-sensitive sort examples.
+    """
+
+    if level == "session":
+        return [
+            "--sort run.count",
+            "--sort -trial.total",
+            "--sort session.date",
+        ]
+
+    if level == "case":
+        return [
+            "--sort session.count",
+            "--sort -run.count",
+            "--sort -trial.total",
+        ]
+
+    return [
+        "--sort throughput",
+        "--sort -throughput",
+        "--sort elapsed",
+    ]
+
 
 # =========================================================
 # CLI
@@ -80,6 +159,17 @@ from owlroost.schema.plugins.group_derived import (
     ),
 )
 @click.option(
+    "--delete",
+    "delete_selection",
+    type=str,
+    help=("Delete rows by displayed row IDs. " "Examples: 1,2,5-8"),
+)
+@click.option(
+    "--purge",
+    is_flag=True,
+    help=("Delete older superseded equivalent runs."),
+)
+@click.option(
     "--filter",
     "filters",
     multiple=True,
@@ -105,6 +195,8 @@ def cmd_results(
     compare,
     diff,
     explain,
+    delete_selection,
+    purge,
     filters,
     sort,
     top,
@@ -138,13 +230,37 @@ def cmd_results(
     """
 
     # =====================================================
+    # Validate unsupported combinations
+    # =====================================================
+
+    if level == "trial":
+        raise click.ClickException("Trial-level projection is not yet implemented.")
+
+    if purge and level != "run":
+        raise click.ClickException("--purge only supported at run level.")
+
+    if purge and delete_selection:
+        raise click.ClickException("--purge and --delete cannot be combined.")
+
+    if purge and (compare or diff or pivot):
+        raise click.ClickException("--purge is not compatible with " "--compare/--diff/--pivot.")
+
+    if (compare or diff) and level not in {
+        "case",
+        "run",
+    }:
+        raise click.ClickException("--compare/--diff only supported " "for case and run levels.")
+
+    # =====================================================
     # Parse CLI args
     # =====================================================
 
-    selectors, overrides = split_build_args(args)
+    selectors, overrides = split_build_args(
+        args,
+    )
 
     if overrides:
-        raise click.ClickException("Hydra-style overrides are not supported in " "'roost results'.")
+        raise click.ClickException("Hydra-style overrides are not supported " "in 'roost results'.")
 
     # =====================================================
     # Build Registries
@@ -168,7 +284,36 @@ def cmd_results(
         results_root="results",
     )
 
-    ds = attach_row_ids(ds)
+    # =====================================================
+    # No Results
+    # =====================================================
+
+    if not ds.rows:
+        click.echo("No runs found.")
+        return
+
+    # =====================================================
+    # Derived Metrics
+    # =====================================================
+
+    for row in ds.rows:
+        apply_derived_metrics(
+            row,
+            display_registry,
+        )
+
+    # =====================================================
+    # Project Dataset
+    # =====================================================
+
+    ds = project_dataset(
+        ds,
+        level=level,
+    )
+
+    ds = attach_row_ids(
+        ds,
+    )
 
     # =====================================================
     # Context-sensitive CLI help
@@ -182,12 +327,9 @@ def cmd_results(
             view_name=view,
             mode="view",
             title="Available filter fields",
-            examples=[
-                "--filter id=in:1,2,3",
-                "--filter trial.completed>50",
-                "--filter metrics.success_rate>0.9",
-                "--filter status=success",
-            ],
+            examples=build_filter_examples(
+                level,
+            ),
         )
 
         return
@@ -212,11 +354,9 @@ def cmd_results(
             view_name=view,
             mode="view",
             title="Available sort fields",
-            examples=[
-                "--sort throughput",
-                "--sort -throughput",
-                "--sort elapsed",
-            ],
+            examples=build_sort_examples(
+                level,
+            ),
         )
 
         return
@@ -229,11 +369,9 @@ def cmd_results(
             view_name=view,
             mode="all",
             title="All queryable fields",
-            examples=[
-                "--sort throughput",
-                "--sort -throughput",
-                "--sort elapsed",
-            ],
+            examples=build_sort_examples(
+                level,
+            ),
         )
 
         return
@@ -251,24 +389,6 @@ def cmd_results(
         return
 
     # =====================================================
-    # No Results
-    # =====================================================
-
-    if not ds.rows:
-        click.echo(f"No {level}s found.")
-        return
-
-    # =====================================================
-    # Derived Metrics
-    # =====================================================
-
-    for row in ds.rows:
-        apply_derived_metrics(
-            row,
-            display_registry,
-        )
-
-    # =====================================================
     # Dataset Pipeline
     # =====================================================
 
@@ -284,6 +404,18 @@ def cmd_results(
         ds,
         use_working_set=(bool(filters) or top is not None),
     )
+    # =====================================================
+    # Detect superseded runs
+    # =====================================================
+
+    if level == "run":
+        find_superseded_rows(
+            ds,
+        )
+
+    # =====================================================
+    # No Matching Results
+    # =====================================================
 
     if not ds.rows:
         click.echo(f"No matching {level}s found.")
@@ -316,6 +448,173 @@ def cmd_results(
             }
 
     # =====================================================
+    # Purge Superseded Runs
+    # =====================================================
+
+    if purge:
+        superseded_rows = collect_superseded_rows(
+            ds,
+        )
+
+        if not superseded_rows:
+            click.echo()
+
+            click.echo("No superseded runs found.")
+
+            click.echo()
+
+            return
+
+        purge_ds = ds.clone(
+            rows=superseded_rows,
+        )
+
+        purge_table = purge_ds.view(
+            registry=display_registry,
+            name=view,
+            layout="table",
+            explain=explain_facets,
+        )
+
+        purge_table = inject_id_column(
+            purge_table,
+            purge_ds,
+        )
+
+        preview = render_table(
+            purge_table,
+            renderer,
+        )
+
+        click.echo()
+
+        click.echo("The following superseded run(s) " "will be permanently deleted:")
+
+        click.echo()
+
+        if preview:
+            click.echo(preview)
+
+        click.echo()
+
+        confirmed = click.confirm(
+            "Proceed",
+            default=False,
+        )
+
+        if not confirmed:
+            click.echo("Purge cancelled.")
+
+            return
+
+        targets = collect_delete_targets(
+            superseded_rows,
+            "run",
+        )
+
+        deleted = delete_paths(
+            targets,
+        )
+
+        click.echo()
+
+        for path in deleted:
+            click.echo(f"Deleted: {path}")
+
+        click.echo()
+
+        click.echo(f"Purged {len(deleted)} run(s).")
+
+        return
+
+    # =====================================================
+    # Delete
+    # =====================================================
+
+    if delete_selection:
+        if pivot:
+            raise click.ClickException("--delete is not supported with --pivot.")
+
+        if compare or diff:
+            raise click.ClickException("--delete is not supported with " "--compare/--diff.")
+
+        if level == "trial":
+            raise click.ClickException("Trial deletion is not supported.")
+
+        selected_ids = parse_id_selection(
+            [delete_selection],
+        )
+
+        rows_to_delete = select_dataset_rows(
+            ds,
+            selected_ids,
+        )
+
+        if not rows_to_delete:
+            raise click.ClickException("No matching row IDs selected.")
+
+        delete_ds = ds.clone(
+            rows=rows_to_delete,
+        )
+
+        delete_table = delete_ds.view(
+            registry=display_registry,
+            name=view,
+            layout="table",
+            explain=explain_facets,
+        )
+
+        delete_table = inject_id_column(
+            delete_table,
+            delete_ds,
+        )
+
+        preview = render_table(
+            delete_table,
+            renderer,
+        )
+
+        click.echo()
+
+        click.echo(f"The following {level}(s) " f"will be permanently deleted:")
+
+        click.echo()
+
+        if preview:
+            click.echo(preview)
+
+        click.echo()
+
+        confirmed = click.confirm(
+            "Proceed",
+            default=False,
+        )
+
+        if not confirmed:
+            click.echo("Delete cancelled.")
+            return
+
+        targets = collect_delete_targets(
+            rows_to_delete,
+            level,
+        )
+
+        deleted = delete_paths(
+            targets,
+        )
+
+        click.echo()
+
+        for path in deleted:
+            click.echo(f"Deleted: {path}")
+
+        click.echo()
+
+        click.echo(f"Deleted {len(deleted)} item(s).")
+
+        return
+
+    # =====================================================
     # Structural compare/diff mode
     # =====================================================
 
@@ -332,7 +631,9 @@ def cmd_results(
         )
 
         if output:
-            click.echo(output)
+            click.echo(
+                output,
+            )
 
         return
 
@@ -342,7 +643,6 @@ def cmd_results(
 
     table = ds.view(
         registry=display_registry,
-        level=level,
         name=view,
         layout="pivot" if pivot else "table",
         explain=explain_facets,
@@ -368,4 +668,6 @@ def cmd_results(
     )
 
     if output:
-        click.echo(output)
+        click.echo(
+            output,
+        )

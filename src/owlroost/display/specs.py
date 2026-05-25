@@ -3,6 +3,8 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from ..schema.registry import FieldSpec
+
 
 @dataclass
 class DisplayProfile:
@@ -13,6 +15,9 @@ class DisplayProfile:
     width: int | None = None
     wrap: bool = False
     visible: bool = True
+
+
+ExplainValueCallable = Callable[..., str]
 
 
 @dataclass
@@ -50,6 +55,9 @@ class ExplainSpec:
     # =====================================================
 
     notes: str | None = None
+    # =====================================================
+    # Post Init
+    # =====================================================
 
 
 @dataclass
@@ -81,6 +89,7 @@ class DisplayField:
     # =====================================================
 
     path: str | None = None
+    semantic_field: FieldSpec | None = None
 
     profiles: dict[str, DisplayProfile] = field(default_factory=dict)
 

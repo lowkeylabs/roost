@@ -102,6 +102,16 @@ def render_rich_table(
                 row_meta = table.row_meta[row_idx]
 
         # -------------------------------------------------
+        # Row style
+        # -------------------------------------------------
+
+        row_style = None
+
+        if isinstance(row_meta, dict):
+            if row_meta.get("dim"):
+                row_style = "dim"
+
+        # -------------------------------------------------
         # Cells
         # -------------------------------------------------
 
@@ -150,7 +160,10 @@ def render_rich_table(
                 )
             )
 
-        rich_table.add_row(*formatted)
+        rich_table.add_row(
+            *formatted,
+            style=row_style,
+        )
 
     # =====================================================
     # Render

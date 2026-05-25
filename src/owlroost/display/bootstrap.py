@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from owlroost.display.overrides import (
-    apply_display_overrides,
+from owlroost.display.fields import (
+    register_all_display_fields,
+)
+from owlroost.display.groups import (
+    register_display_groups,
 )
 from owlroost.display.registry import (
     DisplayRegistry,
@@ -13,8 +16,7 @@ from owlroost.display.sync import (
     sync_schema_registry,
 )
 from owlroost.display.views import (
-    register_case_views,
-    register_run_views,
+    register_display_views,
 )
 from owlroost.metrics.aggregation.display_fields import (
     register_aggregate_display_fields,
@@ -37,9 +39,11 @@ def build_display_registry(
         1. input schema → display sync
         2. metrics schema → display sync
         3. aggregate display field synthesis
-        4. register groups/views
-        5. apply curated overrides
-        6. validate registry
+        4. register display fields
+        5. register display groups
+        6. register display views
+        7. validate registry
+
 
     The resulting registry is fully operational
     and ready for materialization.
@@ -98,22 +102,26 @@ def build_display_registry(
     )
 
     # =====================================================
-    # Register Views / Groups
+    # Register Display Fields
     # =====================================================
 
-    register_case_views(
-        reg,
-    )
-
-    register_run_views(
+    register_all_display_fields(
         reg,
     )
 
     # =====================================================
-    # Apply Curated Overrides
+    # Register Display Groups
     # =====================================================
 
-    apply_display_overrides(
+    register_display_groups(
+        reg,
+    )
+
+    # =====================================================
+    # Register Display Views
+    # =====================================================
+
+    register_display_views(
         reg,
     )
 

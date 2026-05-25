@@ -6,6 +6,7 @@ from owlroost.display.explain import (
     build_field_explanation,
     normalize_explain_facets,
 )
+from owlroost.display.registry import DisplayRegistry
 from owlroost.display.specs import DisplayProfile
 from owlroost.display.table import (
     RoostTable,
@@ -171,7 +172,7 @@ def expand_view_entries(
 
 def pivot_table(
     table,
-    registry=None,
+    registry: DisplayRegistry | None = None,
     explain_facets=None,
 ):
     """
@@ -225,30 +226,34 @@ def pivot_table(
     new_row_meta = []
 
     for col_idx, column in enumerate(table.columns):
+        print(column)
         row = [column.label]
 
+        row_values = []
+
         for original_row in table.rows:
-            row.append(original_row[col_idx])
+            value = original_row[col_idx]
+            row.append(value)
+            row_values.append(value)
 
         # -------------------------------------------------
         # Explanation Cell
         # -------------------------------------------------
-
         if explain_enabled:
             explanation = ""
 
             try:
                 field_name = field_names[col_idx]
-
                 display_field = registry.get_display_field(field_name)
 
-                explanation = build_field_explanation(
+                result = build_field_explanation(
                     display_field,
                     explain_facets,
+                    row_values=row_values,
                 )
-
+                explanation = result
             except KeyError:
-                explanation = ""
+                explanation = f"Key error: {col_idx}"
 
             except Exception as ex:
                 explanation = f"[explain error: {ex}]"
@@ -270,52 +275,6 @@ def pivot_table(
         rows=new_rows,
         row_meta=new_row_meta,
     )
-
-
-# =========================================================
-# Derived Metrics
-# =========================================================
-
-
-def apply_derived_metrics(
-    row,
-    registry,
-):
-    """
-    Materialize derived metrics into row["_metrics"].
-
-    Derived metrics are computed dynamically
-    from:
-    - inputs
-    - metrics
-    - metadata
-    """
-
-    metrics = row.setdefault(
-        "_metrics",
-        {},
-    )
-
-    for field in registry.schema_registry.all():
-        # -------------------------------------------------
-        # Derived only
-        # -------------------------------------------------
-
-        if field.source != "derived":
-            continue
-
-        if field.compute_fn is None:
-            continue
-
-        try:
-            value = field.compute_fn(
-                row,
-            )
-
-        except Exception:
-            value = None
-
-        metrics[field.name] = value
 
 
 # =========================================================
@@ -438,6 +397,7 @@ def materialize_view(
     # =====================================================
 
     rows = []
+    row_meta = []
 
     for dataset_row in dataset.rows:
         row = []
@@ -455,6 +415,19 @@ def materialize_view(
 
         rows.append(row)
 
+        meta = {
+            "dataset_row": dataset_row,
+        }
+
+        # -----------------------------------------------------
+        # Superseded rows
+        # -----------------------------------------------------
+
+        if dataset_row.get("_meta", {}).get("is_superseded"):
+            meta["dim"] = True
+
+        row_meta.append(meta)
+
     # =====================================================
     # Final Table
     # =====================================================
@@ -462,6 +435,7 @@ def materialize_view(
     table = RoostTable(
         columns=columns,
         rows=rows,
+        row_meta=row_meta,
     )
 
     # =====================================================

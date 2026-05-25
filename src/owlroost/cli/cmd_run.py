@@ -18,14 +18,11 @@ from owlroost.core.run_owl_executor import (
 from owlroost.display.bootstrap import (
     build_display_registry,
 )
-from owlroost.display.loaders import (
-    load_runs,
-)
-from owlroost.display.materialize import (
+from owlroost.display.derived import (
     apply_derived_metrics,
 )
-from owlroost.display.utils import (
-    inject_id_column,
+from owlroost.display.loaders import (
+    load_runs,
 )
 from owlroost.metrics.registry.bootstrap import (
     build_metrics_registry,
@@ -73,7 +70,7 @@ from owlroost.schema.plugins.group_derived import (
     "--filter",
     "filters",
     multiple=True,
-    help="Filter rows. Examples: case_id=0 trial.pending>0",
+    help=("Filter rows. " "Examples: " "case_id=0 " "trial.pending>0"),
 )
 @click.option(
     "--sort",
@@ -208,6 +205,7 @@ def cmd_run(
     if not ds.rows:
         if rerun:
             click.echo("No matching runs found.")
+
         else:
             click.echo("No pending runs found.")
 
@@ -228,20 +226,9 @@ def cmd_run(
 
     table = ds.view(
         registry=display_registry,
-        level="run",
         name=view,
         layout="pivot" if pivot else "table",
     )
-
-    # =====================================================
-    # Add Row IDs
-    # =====================================================
-
-    if not pivot:
-        table = inject_id_column(
-            table,
-            ds,
-        )
 
     # =====================================================
     # Render Table
@@ -280,11 +267,8 @@ def cmd_run(
 
     if not selected_runs:
         click.echo("No runs available for execution.")
-        return
 
-    # =====================================================
-    # Execute
-    # =====================================================
+        return
 
     # =====================================================
     # Progress Label Width
@@ -294,7 +278,8 @@ def cmd_run(
 
     for run_dir in selected_runs:
         try:
-            run_name = f"{run_dir.parent.parent.parent.name}/{run_dir.name}"
+            run_name = f"{run_dir.parent.parent.parent.name}/" f"{run_dir.name}"
+
             labels.append(run_name)
 
         except Exception:
@@ -304,6 +289,10 @@ def cmd_run(
         max_label_width = max(len(x) for x in labels)
 
         os.environ["OWLROOST_PROGRESS_LABEL_WIDTH"] = str(max_label_width)
+
+    # =====================================================
+    # Execute
+    # =====================================================
 
     click.echo(f"Scheduling {len(selected_runs)} runs.")
 

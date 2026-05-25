@@ -20,7 +20,6 @@ from owlroost.display.bootstrap import build_display_registry
 from owlroost.display.compare import materialize_compare_table
 from owlroost.display.discovery import find_runs
 from owlroost.display.loaders import load_cases
-from owlroost.display.materialize import materialize_view
 from owlroost.display.utils import attach_row_ids, inject_id_column, render_field_help
 from owlroost.metrics.registry.bootstrap import build_metrics_registry
 from owlroost.schema.bootstrap import build_registry
@@ -191,7 +190,7 @@ def run_hydra_build(
 )
 @click.option(
     "--view",
-    default="basic",
+    default=None,
 )
 @click.option(
     "--markdown",
@@ -284,6 +283,10 @@ def cmd_build(
     # was this function invoked as "cases" or "build"
 
     _invoked_as = ctx.info_name
+    # set default view to "build" or "cases"
+    # will automatically load as "case" view
+    if view is None:
+        view = ctx.info_name
 
     selectors, overrides = split_build_args(args)
     is_cases_command = _invoked_as == "cases"
@@ -464,12 +467,10 @@ def cmd_build(
     # List available cases
     # ----------------------------------------
     if is_cases_command or (not selectors and not overrides):
-        table = materialize_view(
-            dataset=ds,
+        table = ds.view(
             registry=display_registry,
-            level="case",
-            view_name=view,
-            mode="pivot" if pivot else "table",
+            name=view,
+            layout="pivot" if pivot else "table",
             explain=explain_facets,
         )
 
