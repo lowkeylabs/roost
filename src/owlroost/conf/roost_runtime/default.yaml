@@ -21,3 +21,4 @@ auto_runtime_environment_by_solver:
     MKL_NUM_THREADS: 1
     MSK_IPAR_NUM_THREADS: 1
   HiGHS: {}
+optimization_goal: null

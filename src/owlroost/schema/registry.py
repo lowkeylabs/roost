@@ -8,6 +8,7 @@ VALID_SOURCES = {
     "derived",
     "discovered",
     "internal",
+    "helper",
 }
 
 VALID_LEVELS = {

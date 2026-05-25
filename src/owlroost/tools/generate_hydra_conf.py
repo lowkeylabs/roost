@@ -133,7 +133,7 @@ def normalize_value(v):
 # Hydra Field Selection
 # =========================================================
 
-HYDRA_SOURCES = {"input", "discovered"}
+HYDRA_SOURCES = {"input", "discovered", "helper"}
 
 
 def hydra_fields(reg):

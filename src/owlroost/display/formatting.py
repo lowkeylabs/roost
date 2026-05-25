@@ -74,6 +74,11 @@ def format_value(value, fmt: str | None):
                         "",
                     )
 
+                    k = k.replace(
+                        "roost_runtime.optimization_goal",
+                        "goal",
+                    )
+
                 return k
 
             # ---------------------------------------------

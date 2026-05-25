@@ -3,6 +3,7 @@
 from .plugins.case import CasePlugin
 from .plugins.derived import DerivedMetricsPlugin
 from .plugins.group_derived import GroupDerivedMetricsPlugin
+from .plugins.hydra_helpers import HydraHelperPlugin
 from .plugins.longevity import LongevityPlugin
 from .plugins.metrics import MetricsSchemaPlugin
 from .plugins.owl import OwlSchemaPlugin
@@ -36,6 +37,7 @@ def build_registry(
         DerivedMetricsPlugin(),
         GroupDerivedMetricsPlugin(),
         OwlUiBridgePlugin(),
+        HydraHelperPlugin(),
         CasePlugin(),
     ]
 

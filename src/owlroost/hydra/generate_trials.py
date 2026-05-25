@@ -18,6 +18,9 @@ from omegaconf import DictConfig, OmegaConf
 from owlroost.core.progress_renderers import (
     create_renderer,
 )
+from owlroost.schema.hydra_expanders import (
+    expand_hydra_helpers,
+)
 from owlroost.schema.system_models import (
     RoostRuntimeConfig,
     RuntimeEnvironmentConfig,
@@ -119,7 +122,7 @@ def resolve_solver_name(run_cfg):
         "default",
     )
 
-    logger.debug(f"Solver={solver}")
+    #    logger.debug(f"Solver={solver}")
     if solver == "default":
         return "MOSEK" if mosek_available() else "HiGHS"
 
@@ -165,7 +168,7 @@ def resolve_workers_per_run(
         "auto",
     )
 
-    logger.debug(f"Mode={mode}")
+    #    logger.debug(f"Mode={mode}")
 
     if mode == "auto":
         mapping = runtime.get(
@@ -209,12 +212,13 @@ def materialize_execution_plan(run_dict):
     explicit_workers = runtime_section.get("workers_per_run")
 
     if original_solver == "default" and workers_mode == "auto" and explicit_workers is None:
-        logger.warning(
-            "Materializing "
-            "solver_options.solver "
-            f"from 'default' -> '{resolved_solver}' "
-            "because workers_per_run_mode='auto'."
-        )
+        if 0:
+            logger.warning(
+                "Materializing "
+                "solver_options.solver "
+                f"from 'default' -> '{resolved_solver}' "
+                "because workers_per_run_mode='auto'."
+            )
 
         solver_options["solver"] = resolved_solver
 
@@ -271,13 +275,16 @@ def generate_trials(cfg: DictConfig):
     run_dict = apply_override_list(case_dict, case_overrides)
 
     # ----------------------------------------
-    # Runtime / roost config
+    # Expand Hydra helper fields (e.g. rates_selection.from_to)
     # ----------------------------------------
 
-    cfg_dict = OmegaConf.to_container(
-        cfg,
-        resolve=True,
+    run_dict = expand_hydra_helpers(
+        run_dict,
     )
+
+    # -------------------------
+    # Runtime / roost config
+    # ----------------------------------------
 
     cfg_dict = clean_pydantic_undefined(
         OmegaConf.to_container(
@@ -285,6 +292,8 @@ def generate_trials(cfg: DictConfig):
             resolve=True,
         )
     )
+
+    cfg_dict = expand_hydra_helpers(cfg_dict)
 
     SECTION_MODELS = {
         "roost_runtime": RoostRuntimeConfig,

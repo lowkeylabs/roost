@@ -49,6 +49,8 @@ def build_registry():
     planning_fields = [
         "optimization_parameters.objective",
         "rates_selection.method",
+        "display.optimization_goal",
+        "display.rates_window",
     ]
 
     # =====================================================

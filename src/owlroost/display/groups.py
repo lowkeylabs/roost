@@ -45,8 +45,12 @@ def register_display_groups(
         DisplayGroup(
             key="planning",
             entries=[
-                "optimization_parameters.objective",
+                "display.optimization_goal",
                 "rates_selection.method",
+                "display.rates_window",
+                {"field": "optimization_parameters.objective", "show_if": ["is_pivot"]},
+                {"field": "solver_options.netSpending", "show_if": ["is_pivot"]},
+                {"field": "solver_options.bequest", "show_if": ["is_pivot"]},
             ],
             description="Planning configuration.",
         )
