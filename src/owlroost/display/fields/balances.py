@@ -122,7 +122,7 @@ def register_display_fields(
 
     reg.register_display_field(
         DisplayField(
-            field_name="display.total_balance_sheet",
+            field_name="display.total_assets",
             display_fn=total_balance_sheet_display,
             description=("Combined savings assets and HFP fixed assets."),
             explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
@@ -154,7 +154,7 @@ def register_display_fields(
             explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
-                    label="Savings",
+                    label="Total\nSavings",
                     fmt="currency_short",
                     content_align="right",
                 ),
@@ -175,7 +175,7 @@ def register_display_fields(
             explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
-                    label="Taxable",
+                    label="Taxable\nSavings",
                     fmt="currency_short",
                     content_align="right",
                 ),
@@ -196,7 +196,7 @@ def register_display_fields(
             explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
-                    label="Tax Def",
+                    label="Tax Def\nSavings",
                     fmt="currency_short",
                     content_align="right",
                 ),
@@ -217,7 +217,7 @@ def register_display_fields(
             explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
-                    label="Tax Free",
+                    label="Tax Free\nSavings",
                     fmt="currency_short",
                     content_align="right",
                 ),
@@ -350,7 +350,7 @@ def register_display_fields(
 
     reg.register_display_field(
         DisplayField(
-            field_name="display.total_debts",
+            field_name="display.total_liabilities",
             display_fn=total_debts_display,
             description="Total household liabilities.",
             explain=ExplainSpec(sources=["derived"], units="dollars - annual"),

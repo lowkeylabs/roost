@@ -18,10 +18,6 @@ from owlroost.display.compare import (
     find_superseded_rows,
     materialize_compare_table,
 )
-from owlroost.display.delete import (
-    collect_delete_targets,
-    delete_paths,
-)
 from owlroost.display.derived import apply_derived_metrics
 from owlroost.display.loaders import load_runs
 from owlroost.display.projection import (
@@ -34,6 +30,14 @@ from owlroost.display.utils import (
 )
 from owlroost.metrics.registry.bootstrap import (
     build_metrics_registry,
+)
+from owlroost.operations.delete import (
+    collect_delete_targets,
+    delete_paths,
+)
+from owlroost.operations.promote import (
+    collect_promote_targets,
+    promote_runs,
 )
 from owlroost.schema.bootstrap import (
     build_registry,
@@ -165,6 +169,12 @@ def build_sort_examples(
     help=("Delete rows by displayed row IDs. " "Examples: 1,2,5-8"),
 )
 @click.option(
+    "--promote",
+    "promote_selection",
+    type=str,
+    help=("Promote runs by displayed row IDs. " "Examples: 1,2,5-8"),
+)
+@click.option(
     "--purge",
     is_flag=True,
     help=("Delete older superseded equivalent runs."),
@@ -196,6 +206,7 @@ def cmd_results(
     diff,
     explain,
     delete_selection,
+    promote_selection,
     purge,
     filters,
     sort,
@@ -250,6 +261,15 @@ def cmd_results(
         "run",
     }:
         raise click.ClickException("--compare/--diff only supported " "for case and run levels.")
+
+    if promote_selection and pivot:
+        raise click.ClickException("--promote is not supported with --pivot.")
+
+    if promote_selection and (compare or diff):
+        raise click.ClickException("--promote is not supported with " "--compare/--diff.")
+
+    if promote_selection and level != "run":
+        raise click.ClickException("--promote only supported at run level.")
 
     # =====================================================
     # Parse CLI args
@@ -611,6 +631,106 @@ def cmd_results(
         click.echo()
 
         click.echo(f"Deleted {len(deleted)} item(s).")
+
+        return
+
+    # =====================================================
+    # Promote
+    # =====================================================
+
+    if promote_selection:
+        selected_ids = parse_id_selection(
+            [promote_selection],
+        )
+
+        rows_to_promote = select_dataset_rows(
+            ds,
+            selected_ids,
+        )
+
+        if not rows_to_promote:
+            raise click.ClickException("No matching row IDs selected.")
+
+        promote_ds = ds.clone(
+            rows=rows_to_promote,
+        )
+
+        promote_table = promote_ds.view(
+            registry=display_registry,
+            name=view,
+            layout="table",
+            explain=explain_facets,
+        )
+
+        promote_table = inject_id_column(
+            promote_table,
+            promote_ds,
+        )
+
+        preview = render_table(
+            promote_table,
+            renderer,
+        )
+
+        click.echo()
+
+        click.echo("The following run(s) " "will be promoted:")
+
+        click.echo()
+
+        if preview:
+            click.echo(preview)
+
+        click.echo()
+
+        confirmed = click.confirm(
+            "Proceed",
+            default=False,
+        )
+
+        if not confirmed:
+            click.echo("Promotion cancelled.")
+            return
+
+        targets = collect_promote_targets(
+            rows_to_promote,
+        )
+
+        promoted = promote_runs(
+            targets,
+            cwd=".",
+        )
+
+        click.echo()
+
+        empty_diff_count = 0
+
+        for item in promoted:
+            path = item["path"]
+
+            diff_is_empty = item.get(
+                "diff_is_empty",
+                False,
+            )
+
+            click.echo(f"Promoted: {path}")
+
+            if diff_is_empty:
+                empty_diff_count += 1
+
+        click.echo()
+
+        if empty_diff_count:
+            click.echo(
+                "Warning: "
+                f"{empty_diff_count} promoted run(s) "
+                "had no semantic differences from "
+                "their parent TOML."
+            )
+
+            click.echo()
+
+        click.echo(f"Promoted {len(promoted)} run(s).")
 
         return
 

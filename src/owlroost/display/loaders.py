@@ -27,10 +27,6 @@ from .discovery.results_tree import (
 # Helpers
 # =========================================================
 
-# =========================================================
-# ID Helpers
-# =========================================================
-
 
 def extract_run_id(
     run_dir: Path,
@@ -308,8 +304,13 @@ def _load_case_file(
     # Dataset row
     # =====================================================
 
+    resolved_path = path.resolve()
+
     return {
-        "_path": path.resolve(),
+        "_path": resolved_path,
+        "_paths": {
+            "case_file": resolved_path,
+        },
         "_case_name": case_name,
         "_inputs": content,
         "_metrics": {},
@@ -439,6 +440,14 @@ def _load_run_dir(
     except Exception:
         return None
 
+    try:
+        hfp_summary = summarize_hfp(
+            run_toml,
+            content,
+        )
+    except Exception:
+        return None
+
     # =====================================================
     # Completion Summary
     # =====================================================
@@ -504,6 +513,7 @@ def _load_run_dir(
         resolved_run_dir,
         results_root,
     )
+    result_paths["case_file"] = run_toml.resolve()
 
     return {
         "_path": resolved_run_dir,
@@ -523,6 +533,7 @@ def _load_run_dir(
             **agg_metrics,
             **run_timing_metrics,
         },
+        "_hfp": hfp_summary,
         "_meta": {
             "level": "run",
             "trial_count": total,

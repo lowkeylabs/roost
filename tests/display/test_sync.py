@@ -58,14 +58,14 @@ def test_path_to_table_label():
         path_to_table_label(
             "roost_runtime.workers_per_run",
         )
-        == "Workers Per Run"
+        == "Workers\nPer\nRun"
     )
 
     assert (
         path_to_table_label(
             "solver.elapsed_seconds",
         )
-        == "Elapsed Seconds"
+        == "Elapsed\nSeconds"
     )
 
 
@@ -149,7 +149,7 @@ def test_sync_creates_table_label():
 
     field = display_reg.get_display_field("roost_runtime.workers_per_run")
 
-    assert field.profiles["table"].label == "Workers Per Run"
+    assert field.profiles["table"].label == "Workers\nPer\nRun"
 
 
 def test_sync_creates_pivot_label():

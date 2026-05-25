@@ -199,8 +199,8 @@ def register_display_groups(
                 "display.current_ages",
                 "display.life_expectancy",
                 "display.net_worth",
-                "display.total_balance_sheet",
-                "display.total_debts",
+                "display.total_assets",
+                "display.total_liabilities",
                 "display.fixed_income",
             ],
             description="Top-level household metrics.",
@@ -216,15 +216,11 @@ def register_display_groups(
             key="balances",
             entries=[
                 # -----------------------------------------
-                # Household Demographics
-                # -----------------------------------------
-                "display.current_ages",
-                "display.life_expectancy",
-                # -----------------------------------------
                 # Household Scale
                 # -----------------------------------------
                 "display.net_worth",
-                "display.total_balance_sheet",
+                "display.total_assets",
+                "display.total_liabilities",
                 # -----------------------------------------
                 # Retirement Portfolio
                 # -----------------------------------------
@@ -243,7 +239,6 @@ def register_display_groups(
                 # -----------------------------------------
                 "display.net_hfp_assets",
                 "display.fixed_assets",
-                "display.total_debts",
                 "display.residence_value",
                 "display.mortgage_debt",
                 # -----------------------------------------

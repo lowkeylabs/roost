@@ -58,7 +58,7 @@ def path_to_table_label(
 
     return leaf.replace(
         "_",
-        " ",
+        "\n",
     ).title()
 
 

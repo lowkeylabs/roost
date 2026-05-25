@@ -20,8 +20,9 @@ def render_rich_table(
     Supports:
         - normal tables
         - pivot tables
+        - structural compare tables
 
-    Pivot tables preserve formatting metadata
+    Pivot/compare tables preserve formatting metadata
     using table.row_meta.
     """
 
@@ -60,36 +61,7 @@ def render_rich_table(
 
     for row_idx, row in enumerate(table.rows):
         # -------------------------------------------------
-        # Blank spacer rows
-        # -------------------------------------------------
-
-        if all((c is None or c == "") for c in row):
-            rich_table.add_row(*["" for _ in row])
-
-            continue
-
-        # -------------------------------------------------
-        # Compare section headers
-        # -------------------------------------------------
-
-        if (
-            len(row) > 0
-            and isinstance(row[0], str)
-            and row[0].startswith("[")
-            and row[0].endswith("]")
-        ):
-            rich_table.add_row(
-                row[0],
-                *["" for _ in row[1:]],
-                style="bold cyan",
-            )
-
-            continue
-
-        formatted = []
-
-        # -------------------------------------------------
-        # Optional row metadata (pivot support)
+        # Optional row metadata
         # -------------------------------------------------
 
         row_meta = None
@@ -100,6 +72,43 @@ def render_rich_table(
         ):
             if row_idx < len(table.row_meta):
                 row_meta = table.row_meta[row_idx]
+
+        # -------------------------------------------------
+        # Blank spacer rows
+        # -------------------------------------------------
+
+        if all((c is None or c == "") for c in row):
+            rich_table.add_row(*["" for _ in row])
+
+            continue
+
+        # -------------------------------------------------
+        # Structural section rows
+        # -------------------------------------------------
+
+        if isinstance(row_meta, dict) and row_meta.get("kind") == "section":
+            # ---------------------------------------------
+            # Visual spacer before section
+            # ---------------------------------------------
+
+            rich_table.add_row(*["" for _ in table.columns])
+
+            # ---------------------------------------------
+            # Section row
+            # ---------------------------------------------
+
+            cells = [row[0]]
+
+            cells.extend(["" for _ in table.columns[1:]])
+
+            rich_table.add_row(
+                *cells,
+                style="bold cyan",
+            )
+
+            continue
+
+        formatted = []
 
         # -------------------------------------------------
         # Row style
@@ -136,19 +145,24 @@ def render_rich_table(
             # ---------------------------------------------
 
             if row_meta is not None and col_idx > 0:
-                # -------------------------------------------------
-                # New structured row_meta support
-                # -------------------------------------------------
+                # -----------------------------------------
+                # Structured row_meta support
+                # -----------------------------------------
 
-                if isinstance(row_meta, dict):
-                    meta_column = row_meta.get("column")
+                if isinstance(
+                    row_meta,
+                    dict,
+                ):
+                    meta_column = row_meta.get(
+                        "column",
+                    )
 
                     if meta_column is not None:
                         fmt = meta_column.fmt
 
-                # -------------------------------------------------
+                # -----------------------------------------
                 # Backward compatibility
-                # -------------------------------------------------
+                # -----------------------------------------
 
                 else:
                     fmt = row_meta.fmt

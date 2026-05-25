@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from pathlib import Path
 
 from owlroost.display.explain import (
     build_raw_field_explanation,
@@ -20,7 +21,7 @@ from owlroost.display.table import (
 
 STRUCTURAL_COMPARE_EXCLUDES = {
     "description",
-    "case.file",
+    "promotion",
 }
 
 # =========================================================
@@ -88,6 +89,20 @@ def format_compare_value(
 
     if isinstance(value, float):
         return f"{value:g}"
+
+    # -----------------------------------------------------
+    # Path-like strings
+    # -----------------------------------------------------
+
+    if isinstance(value, str):
+        # ---------------------------------------------
+        # Show only basename for TOML files
+        # ---------------------------------------------
+
+        if value.endswith(".toml"):
+            return str(Path(value).name)
+
+        return value
 
     if isinstance(value, list):
         return format_nested_list(
@@ -218,36 +233,53 @@ def build_compare_entries(
     """
     Build ordered comparison entry structure.
 
-    Preserves TOML ordering and section layout.
+    Preserves full TOML hierarchy.
 
-    In diff mode:
-      - fields with identical values are omitted
-      - section headers are emitted ONLY if at least
-        one field in that section survives filtering
+    Produces:
+
+        section:
+            roost_runtime.auto_thread_policy
+
+        field:
+            solver
+            workers_per_run
     """
 
     if not rows:
         return []
 
     # =====================================================
-    # Use first file as canonical structure ordering
+    # Build ordered union structure
     # =====================================================
 
-    first_inputs = rows[0].get(
-        "_inputs",
-        {},
-    )
+    ordered_entries = []
 
-    ordered_entries = flatten_structure(
-        first_inputs,
-    )
+    seen_entries = set()
+
+    for row in rows:
+        inputs = row.get(
+            "_inputs",
+            {},
+        )
+
+        entries = flatten_structure(
+            inputs,
+        )
+
+        for entry in entries:
+            if entry in seen_entries:
+                continue
+
+            ordered_entries.append(entry)
+
+            seen_entries.add(entry)
 
     materialized = []
 
     emitted_sections = set()
 
     # =====================================================
-    # Walk canonical ordered structure
+    # Walk ordered structure
     # =====================================================
 
     for kind, value in ordered_entries:
@@ -264,23 +296,35 @@ def build_compare_entries(
 
         elif kind == "field":
             # ---------------------------------------------
-            # Ignore excluded fields
+            # Ignore excluded fields/sections
             # ---------------------------------------------
 
-            leaf = value.split(".")[-1]
+            parts = value.split(".")
 
-            if value in STRUCTURAL_COMPARE_EXCLUDES or leaf in STRUCTURAL_COMPARE_EXCLUDES:
+            if value in STRUCTURAL_COMPARE_EXCLUDES:
+                continue
+
+            if any(part in STRUCTURAL_COMPARE_EXCLUDES for part in parts):
                 continue
 
             # ---------------------------------------------
-            # Determine section
+            # Full TOML section
             # ---------------------------------------------
 
             if "." in value:
-                section_name = value.split(".")[0]
+                split = value.rsplit(
+                    ".",
+                    1,
+                )
+
+                section_name = split[0]
+
+                field_name = split[1]
 
             else:
                 section_name = "_root"
+
+                field_name = value
 
             # ---------------------------------------------
             # Collect values
@@ -309,7 +353,7 @@ def build_compare_entries(
                 continue
 
             # ---------------------------------------------
-            # Emit section header ONLY if field survives
+            # Emit section header
             # ---------------------------------------------
 
             if section_name != "_root" and section_name not in emitted_sections:
@@ -332,6 +376,8 @@ def build_compare_entries(
                 {
                     "kind": "field",
                     "path": value,
+                    "section": section_name,
+                    "field_name": field_name,
                     "values": vals,
                 }
             )
@@ -496,15 +542,26 @@ def materialize_compare_table(
     ]
 
     for i, row in enumerate(rows):
-        case_name = row.get(
-            "case_name",
-            f"{i}",
+        label = None
+
+        paths = row.get(
+            "_paths",
+            {},
         )
+
+        case_file = paths.get(
+            "case_file",
+        )
+
+        if case_file:
+            label = Path(case_file).name
+        else:
+            label = f"{i}"
 
         columns.append(
             TableColumn(
                 key=f"col_{i}",
-                label=case_name,
+                label=label,
                 content_align="left",
             )
         )
@@ -529,6 +586,7 @@ def materialize_compare_table(
     # =====================================================
 
     table_rows = []
+    row_meta = []
 
     for entry in entries:
         # -------------------------------------------------
@@ -539,26 +597,46 @@ def materialize_compare_table(
             section_name = entry["label"]
 
             # ---------------------------------------------
-            # Spacer row between sections
+            # Spacer row
             # ---------------------------------------------
 
             if table_rows:
                 table_rows.append(["" for _ in columns])
+                row_meta.append(
+                    {
+                        "kind": "spacer",
+                    }
+                )
 
             # ---------------------------------------------
-            # Visible section header row
+            # TOML-style section header
             # ---------------------------------------------
 
-            section_label = f"[bold cyan]{section_name}[/bold cyan]"
+            parts = section_name.upper().split(".")
 
+            section_lines = []
+
+            for depth, part in enumerate(parts):
+                indent = "  " * depth
+                if depth == 0:
+                    line = f"{indent}{part}"
+                else:
+                    line = f"{indent}.{part}"
+                section_lines.append(line)
+
+            section_label = "\n".join(section_lines)
             row = [section_label]
-
             row.extend([" " for _ in rows])
 
             if explain_facets:
                 row.append(" ")
 
             table_rows.append(row)
+            row_meta.append(
+                {
+                    "kind": "section",
+                }
+            )
 
             continue
 
@@ -567,17 +645,7 @@ def materialize_compare_table(
         # -------------------------------------------------
 
         elif entry["kind"] == "field":
-            full_path = entry["path"]
-
-            # ==============================================
-            # Render only leaf field name
-            # ==============================================
-
-            if "." in full_path:
-                field_name = full_path.split(".")[-1]
-
-            else:
-                field_name = full_path
+            field_name = entry["field_name"]
 
             vals = [format_compare_value(v) for v in entry["values"]]
 
@@ -585,9 +653,9 @@ def materialize_compare_table(
 
             row.extend(vals)
 
-            # -------------------------------------------------
-            # Explanation Cell
-            # -------------------------------------------------
+            # ---------------------------------------------
+            # Explanation column
+            # ---------------------------------------------
 
             if explain_facets:
                 explanation = build_raw_field_explanation(
@@ -598,6 +666,7 @@ def materialize_compare_table(
                 row.append(explanation)
 
             table_rows.append(row)
+            row_meta.append({})
 
     # =====================================================
     # Return table
@@ -606,4 +675,5 @@ def materialize_compare_table(
     return RoostTable(
         columns=columns,
         rows=table_rows,
+        row_meta=row_meta,
     )
