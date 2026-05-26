@@ -18,7 +18,7 @@ from owlroost.display.sync import (
 from owlroost.display.views import (
     register_display_views,
 )
-from owlroost.metrics.aggregation.display_fields import (
+from owlroost.metrics.aggregation.aggregate_metrics import (
     register_aggregate_display_fields,
 )
 

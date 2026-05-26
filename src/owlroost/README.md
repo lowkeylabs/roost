@@ -177,7 +177,7 @@ Defines:
 DisplayField
 DisplayProfile
 DisplayGroup
-ViewSpec
+DisplayView
 ```
 
 Presentation is layered on top of schema fields.
@@ -273,7 +273,7 @@ DisplayProfile
 DisplayGroup
     reusable bundle of display fields
 
-ViewSpec
+DisplayView
     ordered composition of groups + fields
 ```
 

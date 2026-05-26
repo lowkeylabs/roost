@@ -121,7 +121,7 @@ class DisplayGroup:
 
 
 @dataclass
-class ViewSpec:
+class DisplayView:
     level: str
     name: str
     entries: list

@@ -1,9 +1,9 @@
 # src/owlroost/metrics/registry/bootstrap.py
 
-from owlroost.metrics.registry.plugins.output_metrics import (
+from owlroost.metrics.plugins.output_metrics import (
     OutputMetricsPlugin,
 )
-from owlroost.metrics.registry.registry import (
+from owlroost.metrics.registry import (
     MetricsRegistry,
 )
 

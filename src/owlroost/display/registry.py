@@ -5,7 +5,7 @@ from __future__ import annotations
 from owlroost.display.specs import (
     DisplayField,
     DisplayGroup,
-    ViewSpec,
+    DisplayView,
 )
 
 
@@ -17,7 +17,7 @@ class DisplayRegistry:
 
     - DisplayField
     - DisplayGroup
-    - ViewSpec
+    - DisplayView
 
     This registry is intentionally separate from
     SchemaRegistry.
@@ -34,7 +34,7 @@ class DisplayRegistry:
     def __init__(self):
         self._display_fields: dict[str, DisplayField] = {}
         self._groups: dict[str, DisplayGroup] = {}
-        self._views: dict[tuple[str, str], ViewSpec] = {}
+        self._views: dict[tuple[str, str], DisplayView] = {}
 
     # =====================================================
     # Display Fields
@@ -150,10 +150,10 @@ class DisplayRegistry:
 
     def register_view(
         self,
-        view: ViewSpec,
+        view: DisplayView,
     ):
         """
-        Register ViewSpec.
+        Register DisplayView.
 
         Views are uniquely identified by:
 
@@ -169,7 +169,7 @@ class DisplayRegistry:
         key = (view.level, view.name)
 
         if key in self._views:
-            raise ValueError("Duplicate ViewSpec registered: " f"{view.level}/{view.name}")
+            raise ValueError("Duplicate DisplayView registered: " f"{view.level}/{view.name}")
 
         self._views[key] = view
 
@@ -177,7 +177,7 @@ class DisplayRegistry:
         self,
         level: str,
         name: str,
-    ) -> ViewSpec:
+    ) -> DisplayView:
         """
         Lookup view by (level, name).
         """
@@ -188,7 +188,7 @@ class DisplayRegistry:
             return self._views[key]
 
         except KeyError as err:
-            raise KeyError(f"ViewSpec not found: {level}/{name}") from err
+            raise KeyError(f"DisplayView not found: {level}/{name}") from err
 
     def has_view(
         self,
@@ -203,7 +203,7 @@ class DisplayRegistry:
 
     def all_views(
         self,
-    ) -> list[ViewSpec]:
+    ) -> list[DisplayView]:
         """
         Return all registered views.
         """

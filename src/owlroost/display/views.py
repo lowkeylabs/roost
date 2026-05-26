@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from owlroost.display.specs import (
-    ViewSpec,
+    DisplayView,
 )
 
 
@@ -32,7 +32,7 @@ def register_display_views(
     # =====================================================
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="case",
             name="cases",
             entries=[
@@ -50,7 +50,7 @@ def register_display_views(
     )
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="case",
             name="build",
             entries=[
@@ -68,7 +68,7 @@ def register_display_views(
     )
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="case",
             name="results",
             entries=[
@@ -84,7 +84,7 @@ def register_display_views(
     )
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="case",
             name="balances",
             entries=[
@@ -105,7 +105,7 @@ def register_display_views(
     # =====================================================
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="session",
             name="results",
             entries=[
@@ -125,7 +125,7 @@ def register_display_views(
     # =====================================================
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="run",
             name="results",
             entries=[
@@ -139,7 +139,7 @@ def register_display_views(
     )
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="run",
             name="timing",
             entries=[
@@ -151,7 +151,7 @@ def register_display_views(
     )
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="run",
             name="run",
             entries=[
@@ -164,7 +164,7 @@ def register_display_views(
     )
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="run",
             name="balances",
             entries=[
@@ -176,6 +176,49 @@ def register_display_views(
                 "including retirement savings structure, "
                 "fixed assets, debts, net worth, "
                 "and guaranteed retirement income."
+            ),
+        )
+    )
+
+    # =====================================================
+    # CATALOG VIEWS
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="catalog",
+            name="summary",
+            entries=[
+                "field_name",
+                "layer",
+                "source",
+                "path",
+                "description",
+            ],
+            description=(
+                "Catalog variable summary showing "
+                "ontology layer, runtime provenance "
+                "source, storage path, and semantic "
+                "description."
+            ),
+        )
+    )
+
+    reg.register_view(
+        DisplayView(
+            level="catalog",
+            name="provenance",
+            entries=[
+                "field_name",
+                "layer",
+                "semantic_owner",
+                "source",
+                "path",
+            ],
+            description=(
+                "Catalog provenance summary showing "
+                "semantic ownership and runtime "
+                "materialization domains."
             ),
         )
     )

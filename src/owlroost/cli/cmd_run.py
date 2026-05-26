@@ -24,7 +24,7 @@ from owlroost.display.derived import (
 from owlroost.display.loaders import (
     load_runs,
 )
-from owlroost.metrics.registry.bootstrap import (
+from owlroost.metrics.bootstrap import (
     build_metrics_registry,
 )
 from owlroost.schema.bootstrap import (

@@ -9,7 +9,7 @@ from owlroost.display.specs import (
     DisplayField,
     DisplayGroup,
     DisplayProfile,
-    ViewSpec,
+    DisplayView,
 )
 
 # =========================================================
@@ -162,7 +162,7 @@ def test_has_group():
 def test_register_view():
     reg = DisplayRegistry()
 
-    view = ViewSpec(
+    view = DisplayView(
         level="case",
         name="basic",
         entries=[],
@@ -181,13 +181,13 @@ def test_register_view():
 def test_duplicate_view_raises():
     reg = DisplayRegistry()
 
-    v1 = ViewSpec(
+    v1 = DisplayView(
         level="case",
         name="basic",
         entries=[],
     )
 
-    v2 = ViewSpec(
+    v2 = DisplayView(
         level="case",
         name="basic",
         entries=[],
@@ -213,7 +213,7 @@ def test_has_view():
     reg = DisplayRegistry()
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="case",
             name="basic",
             entries=[],
@@ -253,7 +253,7 @@ def test_registry_summary_counts():
     )
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="case",
             name="basic",
             entries=[],
@@ -322,7 +322,7 @@ def test_validate_view_group_reference():
     )
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="case",
             name="basic",
             entries=[
@@ -338,7 +338,7 @@ def test_validate_missing_view_group_raises():
     reg = DisplayRegistry()
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="case",
             name="basic",
             entries=[
@@ -361,7 +361,7 @@ def test_validate_view_field_reference():
     )
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="case",
             name="basic",
             entries=[
@@ -377,7 +377,7 @@ def test_validate_missing_view_field_raises():
     reg = DisplayRegistry()
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="case",
             name="basic",
             entries=[

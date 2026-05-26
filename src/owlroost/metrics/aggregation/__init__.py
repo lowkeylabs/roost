@@ -15,11 +15,11 @@ This subsystem intentionally does NOT own:
     - rendering
 """
 
-from .context import AggregationContext
-from .display_fields import (
+from .aggregate_metrics import (
     build_aggregate_field_name,
     register_aggregate_display_fields,
 )
+from .context import AggregationContext
 from .registry import (
     AGG_DEFAULT_FMT,
     AGG_FUNCS,

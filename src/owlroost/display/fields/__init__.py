@@ -3,8 +3,8 @@
 from .balances import (
     register_display_fields as register_balance_fields,
 )
-from .balances2 import (
-    register_display_fields as register_balance2_fields,
+from .catalog import (
+    register_display_fields as register_catalog_fields,
 )
 from .identity import (
     register_display_fields as register_identity_fields,
@@ -48,19 +48,9 @@ def register_all_display_fields(
     """
 
     register_identity_fields(reg)
-
     register_methodology_fields(reg)
-
     register_runtime_fields(reg)
-
     register_scaling_fields(reg)
-
     register_provenance_fields(reg)
-
     register_balance_fields(reg)
-
-    # =====================================================
-    # Supplemental migration fields
-    # =====================================================
-
-    register_balance2_fields(reg)
+    register_catalog_fields(reg)

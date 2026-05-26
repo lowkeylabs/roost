@@ -28,7 +28,7 @@ from owlroost.display.utils import (
     inject_id_column,
     render_field_help,
 )
-from owlroost.metrics.registry.bootstrap import (
+from owlroost.metrics.bootstrap import (
     build_metrics_registry,
 )
 from owlroost.operations.delete import (

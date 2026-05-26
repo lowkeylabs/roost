@@ -21,7 +21,7 @@ from owlroost.display.compare import materialize_compare_table
 from owlroost.display.discovery import find_runs
 from owlroost.display.loaders import load_cases
 from owlroost.display.utils import attach_row_ids, inject_id_column, render_field_help
-from owlroost.metrics.registry.bootstrap import build_metrics_registry
+from owlroost.metrics.bootstrap import build_metrics_registry
 from owlroost.schema.bootstrap import build_registry
 
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from owlroost.metrics.aggregation.display_fields import (
+from owlroost.metrics.aggregation.aggregate_metrics import (
     build_aggregate_field_name,
 )
 from owlroost.metrics.aggregation.registry import (

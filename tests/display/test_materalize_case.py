@@ -13,7 +13,7 @@ from owlroost.display.specs import (
     DisplayField,
     DisplayGroup,
     DisplayProfile,
-    ViewSpec,
+    DisplayView,
 )
 from owlroost.display.table import (
     RoostTable,
@@ -94,7 +94,7 @@ def build_registry():
     # -----------------------------------------------------
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="case",
             name="basic",
             entries=[
@@ -349,7 +349,7 @@ def test_materialize_missing_profile_uses_defaults():
     )
 
     reg.register_view(
-        ViewSpec(
+        DisplayView(
             level="case",
             name="basic",
             entries=["x"],

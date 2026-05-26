@@ -10,7 +10,7 @@ from .specs import (
     DisplayField,
     DisplayGroup,
     DisplayProfile,
-    ViewSpec,
+    DisplayView,
 )
 from .sync import (
     sync_display_registry,

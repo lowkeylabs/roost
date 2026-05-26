@@ -5,7 +5,7 @@ from __future__ import annotations
 from owlroost.display.specs import (
     DisplayProfile,
 )
-from owlroost.metrics.registry.specs import (
+from owlroost.metrics.specs import (
     MetricFieldSpec,
 )
 
