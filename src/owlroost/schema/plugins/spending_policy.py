@@ -16,6 +16,7 @@ class SpendingPolicyPlugin:
             # -------------------------------------------------
             # Skip duplicates (important for merged schema)
             # -------------------------------------------------
+
             if full_name in registry._fields:
                 continue
 
@@ -25,7 +26,7 @@ class SpendingPolicyPlugin:
                     dtype=unwrap_annotation(field.annotation),
                     path=("spending_policy",) + tuple(name.split(".")),
                     source="input",
-                    level="case",
+                    materialization_level="case",
                     description=field.description or "",
                 )
             )

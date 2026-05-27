@@ -1,8 +1,9 @@
 # src/owlroost/metrics/registry/bootstrap.py
 
-from owlroost.metrics.plugins.output_metrics import (
-    OutputMetricsPlugin,
-)
+from .plugins.output_metrics import OutputMetricsPlugin
+from .plugins.execution_metrics import ExecutionMetricsPlugin
+from .plugins.hydra_overrides import HydraOverridesPlugin
+
 from owlroost.metrics.registry import (
     MetricsRegistry,
 )
@@ -41,8 +42,8 @@ def build_metrics_registry():
     # Register canonical output metrics
     # =====================================================
 
-    OutputMetricsPlugin().register(
-        reg,
-    )
+    OutputMetricsPlugin().register(reg)
+    ExecutionMetricsPlugin().register(reg)
+    HydraOverridesPlugin().register(reg)
 
     return reg

@@ -91,7 +91,7 @@ class FieldSpec(
     # Typing
     # =====================================================
 
-    dtype: type = object
+    dtype: type | None = object
 
     # =====================================================
     # Runtime Realization

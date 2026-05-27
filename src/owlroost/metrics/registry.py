@@ -7,7 +7,7 @@ from collections.abc import (
 )
 
 from owlroost.metrics.specs import (
-    MetricFieldSpec,
+    MetricSpec,
 )
 
 # =========================================================
@@ -39,7 +39,7 @@ class MetricsRegistry:
     Canonical semantic ownership belongs
     to:
 
-        - MetricFieldSpec
+        - MetricSpec
         - OntologySpec
 
     Architectural Invariant
@@ -60,7 +60,7 @@ class MetricsRegistry:
     ):
         self._fields: dict[
             str,
-            MetricFieldSpec,
+            MetricSpec,
         ] = {}
 
     # =====================================================
@@ -69,7 +69,7 @@ class MetricsRegistry:
 
     def register(
         self,
-        field: MetricFieldSpec,
+        field: MetricSpec,
     ):
         """
         Register canonical metric ontology.
@@ -102,7 +102,7 @@ class MetricsRegistry:
     def get(
         self,
         name: str,
-    ) -> MetricFieldSpec:
+    ) -> MetricSpec:
         """
         Retrieve metric specification by
         canonical semantic identity.
@@ -134,7 +134,7 @@ class MetricsRegistry:
 
     def all(
         self,
-    ) -> list[MetricFieldSpec]:
+    ) -> list[MetricSpec]:
         """
         Return all metric specifications.
 
@@ -209,7 +209,7 @@ class MetricsRegistry:
     def __iter__(
         self,
     ) -> Iterator[
-        MetricFieldSpec
+        MetricSpec
     ]:
         """
         Iterate metric specifications in

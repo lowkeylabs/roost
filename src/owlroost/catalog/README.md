@@ -36,7 +36,7 @@ ROOST distinguishes between multiple ontology layers:
 | ---------- | ------------------------------------------------ |
 | `schema/`  | Executable configuration ontology                |
 | `metrics/` | Observable runtime ontology                      |
-| `display/` | Analytical projection ontology                   |
+| `display/` | presentation and rendering overlays              |
 | `catalog/` | Metadata, provenance, and introspection ontology |
 
 These registries intentionally remain separate.
@@ -48,90 +48,6 @@ Instead, the catalog provides:
 ```text
 cross-registry semantic metadata and provenance infrastructure
 ```
-
-layered on top of them.
-
-This README is now describing something much more sophisticated and coherent than a traditional “variable registry.” 
-
-The key conceptual advancement is this section:
-
-```text
-There should be only one catalog, not several.
-Ontology and provenance are layered.
-```
-
-That fundamentally changes the architecture from:
-
-```text
-registry catalog
-```
-
-to:
-
-```text
-semantic identity graph
-```
-
-And I think that is exactly right for ROOST.
-
-# The Most Important Architectural Consequence
-
-The catalog should no longer be thought of as:
-
-```text
-rows harvested from registries
-```
-
-Instead:
-
-```text
-canonical semantic entities
-```
-
-are progressively enriched by:
-
-* ontology
-* provenance
-* runtime realization
-* aggregation
-* projections
-* formatting overlays
-
-That is a fundamentally different architecture.
-
-# I Would Strengthen the README in One Specific Way
-
-Right now the document still subtly implies:
-
-```text
-schema/
-metrics/
-display/
-catalog/
-```
-
-are parallel ontology systems. 
-
-But your latest clarification establishes something stronger:
-
-```text
-The catalog is the unified semantic identity layer.
-The registries contribute layered metadata and provenance.
-```
-
-That distinction is extremely important.
-
-# I Would Add This New Section
-
-Immediately after:
-
-```text
-# Architectural Context
-```
-
-I would insert something like:
-
----
 
 ## Canonical Variable Identity
 
@@ -599,6 +515,190 @@ Examples include:
 
 ---
 
+
+# Analytical Kind
+
+The `analytic_kind` dimension identifies the type of analytical meaning represented by a variable.
+
+This dimension is intentionally distinct from:
+
+* provenance
+* projection mechanics
+* runtime materialization
+* storage hierarchy
+
+Instead, `analytic_kind` describes how a variable participates in analytical reasoning and interpretation workflows.
+
+Current taxonomy:
+
+| Analytic Kind    | Meaning                                  |
+| ---------------- | ---------------------------------------- |
+| `observed`       | Direct runtime observation               |
+| `synthetic`      | Row-local analytical synthesis           |
+| `comparative`    | Cross-row analytical comparison          |
+| `distributional` | Distribution-aware analytical comparison |
+| `inferential`    | Statistical or probabilistic inference   |
+| `aggregate`      | Statistical reduction over populations   |
+
+These analytical categories are expected to influence:
+
+* automatic table generation
+* report generation
+* visualization selection
+* explainability workflows
+* validation rules
+* compatibility analysis
+* analytical pipeline routing
+
+---
+
+## Observed Variables
+
+Observed variables represent direct runtime measurements or outcomes.
+
+Examples:
+
+| Variable                         |
+| -------------------------------- |
+| `timing.elapsed_seconds`         |
+| `financial.spending.total.today` |
+| `success_rate`                   |
+
+These are typically materialized directly from:
+
+```text
+metrics.json
+```
+
+or equivalent runtime execution outputs.
+
+---
+
+## Synthetic Variables
+
+Synthetic variables are computed analytically from a single row or runtime realization.
+
+Examples:
+
+| Variable                          |
+| --------------------------------- |
+| `run_execution.trials_per_second` |
+| `display.total_assets`            |
+| `display.net_worth`               |
+
+These variables are analytical helper projections derived from existing semantic variables.
+
+---
+
+## Comparative Variables
+
+Comparative variables describe similarities, differences, or structural relationships between multiple rows.
+
+These variables remain:
+
+```text
+row-level analytical observations
+```
+
+even though their computation may require neighboring rows, multirun context, or session-wide comparison structure.
+
+Examples:
+
+| Variable                            |
+| ----------------------------------- |
+| `comparison.common_overrides`       |
+| `comparison.run_specific_overrides` |
+| `comparison.spending_delta`         |
+| `comparison.percent_change`         |
+
+Comparative variables are especially important within:
+
+```text
+Hydra multirun sessions
+```
+
+where neighboring runs differ along one or more sweep dimensions.
+
+These variables support:
+
+* sweep interpretation
+* sensitivity analysis
+* automated comparison reports
+* structural equivalence analysis
+* comparative explainability
+
+---
+
+## Distributional Variables
+
+Distributional variables compare or characterize entire trial-level distributions rather than single-point summary statistics.
+
+Examples include:
+
+| Variable                                  |
+| ----------------------------------------- |
+| `comparison.spending.ks_distance`         |
+| `comparison.failure_distribution_overlap` |
+| `comparison.bequest_wasserstein_distance` |
+
+These variables help distinguish:
+
+```text
+true distributional differences
+```
+
+from:
+
+```text
+superficial point-estimate differences
+```
+
+and are expected to become increasingly important for:
+
+* Monte Carlo analysis
+* robustness evaluation
+* tail-risk analysis
+* probabilistic comparison workflows
+
+---
+
+## Inferential Variables
+
+Inferential variables represent statistical or probabilistic conclusions derived from analytical evidence.
+
+Examples include:
+
+| Variable                                 |
+| ---------------------------------------- |
+| `comparison.spending.p_value`            |
+| `comparison.mean_difference_significant` |
+| `comparison.superiority_probability`     |
+
+These variables support:
+
+* statistical significance analysis
+* uncertainty-aware reporting
+* probabilistic decision support
+* automated interpretation workflows
+
+---
+
+## Aggregate Variables
+
+Aggregate variables represent statistical reductions across populations, trials, sessions, or analytical cohorts.
+
+Examples:
+
+| Variable   |
+| ---------- |
+| `__mean`   |
+| `__median` |
+| `__p90`    |
+
+Aggregate variables remain analytical projections layered on top of canonical semantic variables.
+
+---
+
 # Materialization Level
 
 The `materialization_level` dimension identifies the operational granularity where a value exists.
@@ -690,6 +790,30 @@ Canonical runtime dataset structures currently distinguish between:
 | `_paths`          | Filesystem provenance                       |
 
 The catalog indexes runtime realization but does NOT replace it.
+
+
+Analytical metrics materialized into:
+
+```text
+_metrics
+```
+
+may include:
+
+* direct observations
+* synthetic analytical projections
+* comparative analytical projections
+* distributional analysis outputs
+* inferential statistical outputs
+* aggregate analytical reductions
+
+Once materialized, these analytical variables behave as first-class semantic runtime observations throughout:
+
+* reporting
+* explainability
+* aggregation
+* display
+* study-generation workflows
 
 ---
 

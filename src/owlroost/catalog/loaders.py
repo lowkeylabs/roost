@@ -132,7 +132,7 @@ def load_catalog_dataset(
             formatted
 
     node_type
-        Optional structural ontology filter.
+        Optional catalog graph filter.
 
         Examples:
             variable
@@ -228,7 +228,7 @@ def load_catalog_dataset(
             return False
 
         # -------------------------------------------------
-        # Structural Ontology
+        # Catalog Graph Structure
         # -------------------------------------------------
 
         if (

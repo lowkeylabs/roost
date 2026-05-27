@@ -1,30 +1,21 @@
 from __future__ import annotations
 
-from dataclasses import (
-    dataclass,
-    field,
-)
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any
 
-from owlroost.catalog.ontology import (
-    OntologySpec,
-)
-
-from owlroost.display.specs import (
-    DisplayProfile,
-)
+from owlroost.catalog.ontology import OntologySpec
 
 
 @dataclass
-class MetricFieldSpec(
-    OntologySpec,
-):
+class MetricSpec(OntologySpec):
     """
     Canonical semantic definition
     of an observable runtime metric.
 
     Notes
     -----
-    MetricFieldSpec defines semantic ontology
+    MetricSpec defines semantic ontology
     for values materialized through:
 
         - OWL execution
@@ -61,15 +52,19 @@ class MetricFieldSpec(
 
     defined_in: str | None = None
 
-    derived_from: list[str] = field(
-        default_factory=list,
-    )
+    derived_from: list[str] = field(default_factory=list)
 
     # =====================================================
     # Typing
     # =====================================================
 
-    dtype: type = object
+    dtype: type | None = object
+
+    # =====================================================
+    # Materialization
+    # =====================================================
+
+    compute_fn: Callable[[dict[str, Any]], Any] | None = None
 
     # =====================================================
     # Aggregation
@@ -77,26 +72,13 @@ class MetricFieldSpec(
 
     aggregatable: bool = True
 
-    default_aggregates: list[str] = field(
-        default_factory=list,
-    )
+    default_aggregates: list[str] = field(default_factory=list)
 
     # =====================================================
     # Aggregate Metadata
     # =====================================================
 
     aggregate_function: str | None = None
-
-    # =====================================================
-    # Default Display Profiles
-    # =====================================================
-
-    profiles: dict[
-        str,
-        DisplayProfile,
-    ] = field(
-        default_factory=dict,
-    )
 
     # =====================================================
     # Notes

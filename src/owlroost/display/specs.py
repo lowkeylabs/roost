@@ -1,104 +1,168 @@
 # src/owlroost/display/specs.py
 
-from collections.abc import Callable
-from dataclasses import dataclass, field
+from __future__ import annotations
+
+from collections.abc import (
+    Callable,
+)
+from dataclasses import (
+    dataclass,
+    field,
+)
+
+# =========================================================
+# Display Profile
+# =========================================================
 
 
 @dataclass
 class DisplayProfile:
+    """
+    Renderer-facing presentation profile.
+
+    Notes
+    -----
+    DisplayProfile intentionally owns only:
+
+        - labels
+        - formatting
+        - alignment
+        - visibility
+        - wrapping
+
+    It intentionally does NOT own:
+
+        - ontology semantics
+        - canonical identity
+        - provenance
+        - runtime materialization
+    """
+
+    # =====================================================
+    # Labeling
+    # =====================================================
+
     label: str | None = None
+
+    # =====================================================
+    # Formatting
+    # =====================================================
+
     fmt: str | None = None
+
+    # =====================================================
+    # Alignment
+    # =====================================================
+
     label_align: str = "left"
+
     content_align: str = "left"
+
+    # =====================================================
+    # Layout
+    # =====================================================
+
     width: int | None = None
+
     wrap: bool = False
+
     visible: bool = True
 
 
-ExplainValueCallable = Callable[..., str]
+# =========================================================
+# Display Value Function
+# =========================================================
 
+DisplayValueFn = Callable[
+    [dict],
+    object,
+]
 
-@dataclass
-class ExplainSpec:
-    # =====================================================
-    # Variable Definition
-    #
-    # What is this variable?
-    # =====================================================
-
-    variable: str | None = None
-
-    # =====================================================
-    # Value Interpretation
-    #
-    # What does the displayed value mean?
-    # =====================================================
-
-    value: str | None = None
-
-    # =====================================================
-    # Provenance / Lineage
-    # =====================================================
-
-    sources: list[str] = field(default_factory=list)
-
-    # =====================================================
-    # Units / Semantic Scale
-    # =====================================================
-
-    units: str | None = None
-
-    # =====================================================
-    # Notes / Caveats
-    # =====================================================
-
-    notes: str | None = None
-    # =====================================================
-    # Post Init
-    # =====================================================
+# =========================================================
+# Display Overlay Field
+# =========================================================
 
 
 @dataclass
 class DisplayField:
+    """
+    Renderer-facing presentation overlay.
+
+    Notes
+    -----
+    DisplayField represents presentation
+    overlays layered atop canonical ontology.
+
+    Canonical semantic ownership belongs to:
+
+        - schema fields
+        - metric fields
+        - catalog entities
+
+    DisplayField intentionally owns only:
+
+        - presentation overlays
+        - formatting
+        - labels
+        - view composition
+        - renderer-facing metadata
+
+    Architectural Invariant
+    -----------------------
+    DisplayField must never redefine
+    canonical ontology identity.
+    """
+
     # =====================================================
-    # Semantic Field Name
-    #
-    # Public identifier used by:
-    #   - views
-    #   - groups
-    #   - filters
-    #   - sorting
-    #   - reporting
+    # Overlay Identity
     # =====================================================
 
     field_name: str
 
     # =====================================================
-    # Storage Path
-    #
-    # Internal dotted lookup path.
-    #
-    # Examples:
-    #   "_meta.case_id"
-    #   "_metrics.elapsed_seconds"
-    #   "_inputs.optimization_parameters.objective"
-    #
-    # Defaults to field_name.
+    # Runtime Extraction Path
     # =====================================================
 
     path: str | None = None
-    semantic_field: object | None = None
 
-    profiles: dict[str, DisplayProfile] = field(default_factory=dict)
+    # =====================================================
+    # Canonical Ontology Linkage
+    # =====================================================
 
-    default_aggregates: list[str] = field(default_factory=list)
+    ontology_field: object | None = None
 
-    show_if: list[str] = field(default_factory=list)
+    # =====================================================
+    # Presentation Profiles
+    # =====================================================
 
-    display_fn: Callable[[dict], object] | None = None
+    profiles: dict[
+        str,
+        DisplayProfile,
+    ] = field(
+        default_factory=dict,
+    )
+
+    # =====================================================
+    # Conditional Visibility
+    # =====================================================
+
+    show_if: list[str] = field(
+        default_factory=list,
+    )
+
+    # =====================================================
+    # Computed Presentation Overlay
+    # =====================================================
+
+    display_fn: (
+        DisplayValueFn | None
+    ) = None
+
+    # =====================================================
+    # Lightweight Renderer Metadata
+    # =====================================================
 
     description: str | None = None
-    explain: ExplainSpec | None = None
 
     # =====================================================
     # Post Init
@@ -107,20 +171,50 @@ class DisplayField:
     def __post_init__(
         self,
     ):
+        """
+        Normalize lightweight defaults.
+        """
+
         if self.path is None:
             self.path = self.field_name
 
 
+# =========================================================
+# Display Groups
+# =========================================================
+
+
 @dataclass
 class DisplayGroup:
+    """
+    Named display composition group.
+    """
+
     key: str
-    entries: list[str | tuple | dict]
+
+    entries: list[
+        str | tuple | dict
+    ]
+
     description: str = ""
+
+
+# =========================================================
+# Display Views
+# =========================================================
 
 
 @dataclass
 class DisplayView:
+    """
+    Renderer-facing view specification.
+    """
+
     level: str
+
     name: str
+
     entries: list
+
     description: str = ""
+    

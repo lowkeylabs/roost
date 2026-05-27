@@ -6,6 +6,7 @@ from dataclasses import (
     dataclass,
     field,
 )
+
 from typing import (
     Any,
 )
@@ -88,6 +89,16 @@ class CatalogSpec(
     semantic identity tracked by the ROOST
     catalog subsystem.
 
+    OntologySpec intentionally acts as a
+    lightweight semantic mixin defining:
+
+        - ownership semantics
+        - workflow semantics
+        - analytical semantics
+        - projection semantics
+        - operational semantics
+        - catalog graph semantics
+
     The catalog intentionally acts as:
 
         - semantic integration infrastructure
@@ -106,7 +117,7 @@ class CatalogSpec(
     while preserving:
 
         - canonical semantic identity
-        - ownership
+        - ontology semantics
         - workflow semantics
         - projection lineage
         - provenance evolution
@@ -177,3 +188,4 @@ class CatalogSpec(
 
         if self.path == "":
             self.path = None
+    

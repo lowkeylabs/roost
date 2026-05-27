@@ -20,7 +20,7 @@ class RuntimeEnvironmentPlugin:
                     dtype=unwrap_annotation(field.annotation),
                     path=("runtime_environment",) + tuple(name.split(".")),
                     source="input",
-                    level="case",
+                    materialization_level="case",
                     description=field.description or "",
                 )
             )

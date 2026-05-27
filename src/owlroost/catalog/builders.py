@@ -2,6 +2,14 @@
 
 from __future__ import annotations
 
+from owlroost.catalog.ontology import (
+    AnalyticKind,
+    MaterializationLevel,
+    ProjectionKind,
+    SemanticDomain,
+    ValueOrigin,
+)
+
 from owlroost.catalog.rows import (
     build_catalog_row,
 )
@@ -9,6 +17,34 @@ from owlroost.catalog.rows import (
 from owlroost.catalog.specs import (
     CatalogSpec,
     ProvenanceEvent,
+)
+
+# =========================================================
+# Typed Defaults
+# =========================================================
+
+DEFAULT_SCHEMA_VALUE_ORIGIN: ValueOrigin = (
+    "user-specified"
+)
+
+DEFAULT_METRIC_VALUE_ORIGIN: ValueOrigin = (
+    "owl-computed"
+)
+
+DEFAULT_DISPLAY_VALUE_ORIGIN: ValueOrigin = (
+    "roost-computed"
+)
+
+DEFAULT_CANONICAL_PROJECTION: ProjectionKind = (
+    "canonical"
+)
+
+DEFAULT_RUN_LEVEL: MaterializationLevel = (
+    "run"
+)
+
+DEFAULT_TRIAL_LEVEL: MaterializationLevel = (
+    "trial"
 )
 
 # =========================================================
@@ -92,49 +128,66 @@ def build_schema_rows(
             # Canonical Identity
             # -------------------------------------------------
             field_name=field.name,
+
+            node_type="variable",
+
             # -------------------------------------------------
             # Ontology
             # -------------------------------------------------
             owner=field.owner,
+
             semantic_domain=(
                 field.semantic_domain
             ),
+
             value_origin=(
                 field.value_origin
-                or "user-specified"
+                or DEFAULT_SCHEMA_VALUE_ORIGIN
             ),
+
             projection_kind=(
                 field.projection_kind
-                or "canonical"
+                or DEFAULT_CANONICAL_PROJECTION
             ),
+
+            analytic_kind=getattr(
+                field,
+                "analytic_kind",
+                None,
+            ),
+
             materialization_level=(
                 field.materialization_level
-                or "run"
+                or DEFAULT_RUN_LEVEL
             ),
-            node_type=(
-                field.node_type
-            ),
+
             # -------------------------------------------------
             # Runtime Realization
             # -------------------------------------------------
             source="_inputs",
+
             path=_normalize_path(
                 field.path
             ),
+
             # -------------------------------------------------
             # Explainability
             # -------------------------------------------------
             description=(
                 field.description
             ),
+
             # -------------------------------------------------
-            # Lineage
+            # Analytical Lineage
             # -------------------------------------------------
-            derived_from=(
-                list(
-                    field.derived_from
+            derived_from=list(
+                getattr(
+                    field,
+                    "derived_from",
+                    [],
                 )
             ),
+
             # -------------------------------------------------
             # Provenance
             # -------------------------------------------------
@@ -190,47 +243,64 @@ def build_metric_rows(
             # Canonical Identity
             # -------------------------------------------------
             field_name=metric.name,
+
+            node_type="variable",
+
             # -------------------------------------------------
             # Ontology
             # -------------------------------------------------
             owner=metric.owner,
+
             semantic_domain=(
                 metric.semantic_domain
             ),
+
             value_origin=(
                 metric.value_origin
-                or "owl-computed"
+                or DEFAULT_METRIC_VALUE_ORIGIN
             ),
+
             projection_kind=(
                 metric.projection_kind
-                or "canonical"
+                or DEFAULT_CANONICAL_PROJECTION
             ),
+
+            analytic_kind=getattr(
+                metric,
+                "analytic_kind",
+                None,
+            ),
+
             materialization_level=(
                 metric.materialization_level
-                or "trial"
+                or DEFAULT_TRIAL_LEVEL
             ),
-            node_type=(
-                metric.node_type
-            ),
+
             # -------------------------------------------------
             # Runtime Realization
             # -------------------------------------------------
             source="_metrics",
+
             path=metric.name,
+
             # -------------------------------------------------
             # Explainability
             # -------------------------------------------------
             description=(
                 metric.description
             ),
+
             # -------------------------------------------------
-            # Lineage
+            # Analytical Lineage
             # -------------------------------------------------
-            derived_from=(
-                list(
-                    metric.derived_from
+            derived_from=list(
+                getattr(
+                    metric,
+                    "derived_from",
+                    [],
                 )
             ),
+
             # -------------------------------------------------
             # Provenance
             # -------------------------------------------------
@@ -306,7 +376,7 @@ def infer_display_source(
 
 def infer_display_projection_kind(
     field,
-):
+) -> ProjectionKind:
     """
     Infer analytical projection semantics
     for display overlays.
@@ -371,17 +441,21 @@ def build_display_rows(
 
         owner = None
 
-        semantic_domain = None
+        semantic_domain: (
+            SemanticDomain | None
+        ) = None
 
-        value_origin = (
-            "roost-computed"
+        analytic_kind: (
+            AnalyticKind | None
+        ) = None
+
+        value_origin: ValueOrigin = (
+            DEFAULT_DISPLAY_VALUE_ORIGIN
         )
 
-        materialization_level = (
-            "run"
-        )
-
-        node_type = "variable"
+        materialization_level: (
+            MaterializationLevel
+        ) = DEFAULT_RUN_LEVEL
 
         # -------------------------------------------------
         # Semantic inheritance
@@ -401,22 +475,28 @@ def build_display_rows(
                 None,
             )
 
-            value_origin = getattr(
+            analytic_kind = getattr(
                 semantic_field,
-                "value_origin",
-                value_origin,
+                "analytic_kind",
+                None,
             )
 
-            materialization_level = getattr(
-                semantic_field,
-                "materialization_level",
-                materialization_level,
+            value_origin = (
+                getattr(
+                    semantic_field,
+                    "value_origin",
+                    None,
+                )
+                or value_origin
             )
 
-            node_type = getattr(
-                semantic_field,
-                "node_type",
-                node_type,
+            materialization_level = (
+                getattr(
+                    semantic_field,
+                    "materialization_level",
+                    None,
+                )
+                or materialization_level
             )
 
         spec = CatalogSpec(
@@ -424,38 +504,52 @@ def build_display_rows(
             # Canonical Identity
             # -------------------------------------------------
             field_name=field.field_name,
+
+            node_type="variable",
+
             # -------------------------------------------------
             # Ontology
             # -------------------------------------------------
             owner=owner,
+
             semantic_domain=(
                 semantic_domain
             ),
+
             value_origin=(
                 value_origin
             ),
+
             projection_kind=(
                 infer_display_projection_kind(
                     field
                 )
             ),
+
+            analytic_kind=(
+                analytic_kind
+            ),
+
             materialization_level=(
                 materialization_level
             ),
-            node_type=node_type,
+
             # -------------------------------------------------
             # Runtime Realization
             # -------------------------------------------------
             source=infer_display_source(
                 field
             ),
+
             path=field.path,
+
             # -------------------------------------------------
             # Explainability
             # -------------------------------------------------
             description=(
                 field.description
             ),
+
             # -------------------------------------------------
             # Provenance
             # -------------------------------------------------

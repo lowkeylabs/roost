@@ -154,7 +154,13 @@ def build_catalog_row(
         # Canonical Ontology
         # -------------------------------------------------
         "_catalog": {
+            # ---------------------------------------------
+            # Canonical Identity
+            # ---------------------------------------------
             "field_name": spec.field_name,
+            # ---------------------------------------------
+            # Semantic Ontology
+            # ---------------------------------------------
             "owner": spec.owner,
             "semantic_domain": (
                 spec.semantic_domain
@@ -162,14 +168,29 @@ def build_catalog_row(
             "value_origin": (
                 spec.value_origin
             ),
+            # ---------------------------------------------
+            # Extended Ontology Semantics
+            # ---------------------------------------------
             "projection_kind": (
                 spec.projection_kind
+            ),
+            "analytic_kind": (
+                spec.analytic_kind
             ),
             "materialization_level": (
                 spec.materialization_level
             ),
+            "node_type": (
+                spec.node_type
+            ),
+            # ---------------------------------------------
+            # Runtime Realization
+            # ---------------------------------------------
             "source": spec.source,
             "path": spec.path,
+            # ---------------------------------------------
+            # Lineage / Provenance
+            # ---------------------------------------------
             "derived_from": (
                 spec.derived_from
             ),
@@ -221,17 +242,35 @@ def build_catalog_row(
         "value_origin": (
             spec.value_origin
         ),
+        # -------------------------------------------------
+        # Extended Ontology Semantics
+        # -------------------------------------------------
         "projection_kind": (
             spec.projection_kind
+        ),
+        "analytic_kind": (
+            spec.analytic_kind
         ),
         "materialization_level": (
             spec.materialization_level
         ),
+        "node_type": (
+            spec.node_type
+        ),
+        # -------------------------------------------------
+        # Runtime Realization
+        # -------------------------------------------------
         "source": spec.source,
         "path": spec.path,
+        # -------------------------------------------------
+        # Explainability
+        # -------------------------------------------------
         "description": (
             spec.description
         ),
+        # -------------------------------------------------
+        # Lineage
+        # -------------------------------------------------
         "derived_from": (
             ", ".join(
                 spec.derived_from
@@ -239,6 +278,9 @@ def build_catalog_row(
             if spec.derived_from
             else ""
         ),
+        # -------------------------------------------------
+        # Provenance
+        # -------------------------------------------------
         "provenance_depth": len(
             provenance_chain
         ),

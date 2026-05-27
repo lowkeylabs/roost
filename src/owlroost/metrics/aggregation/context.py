@@ -42,7 +42,7 @@ class AggregationContext:
     Canonical semantic ownership belongs to:
 
         - OntologySpec
-        - MetricFieldSpec
+        - MetricSpec
         - CatalogSpec
     """
 

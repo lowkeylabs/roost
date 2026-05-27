@@ -12,9 +12,8 @@ from owlplanner.socialsecurity import (
 from owlroost.display.specs import (
     DisplayField,
     DisplayProfile,
-    ExplainSpec,
 )
-from owlroost.display.utils import (
+from owlroost.display.operations.normalize import (
     normalize_input_money,
 )
 
@@ -54,7 +53,6 @@ def register_display_fields(
             field_name="display.current_ages",
             display_fn=current_ages_display,
             description="Current household ages.",
-            explain=ExplainSpec(sources=["derived"], units="years"),
             profiles={
                 "table": DisplayProfile(
                     label="Ages",
@@ -77,7 +75,6 @@ def register_display_fields(
             field_name="display.life_expectancy",
             display_fn=life_expectancy_display,
             description="Expected household longevity.",
-            explain=ExplainSpec(sources=["derived"], units="years"),
             profiles={
                 "table": DisplayProfile(
                     label="Life\nExp",
@@ -100,7 +97,6 @@ def register_display_fields(
             field_name="display.net_worth",
             display_fn=net_worth_display,
             description="Approximate household net worth.",
-            explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
                     label="Net\nWorth",
@@ -125,7 +121,6 @@ def register_display_fields(
             field_name="display.total_assets",
             display_fn=total_balance_sheet_display,
             description=("Combined savings assets and HFP fixed assets."),
-            explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
                     label="Total\nAssets",
@@ -151,7 +146,6 @@ def register_display_fields(
             field_name="display.total_savings",
             display_fn=total_savings_display,
             description="Total retirement savings.",
-            explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
                     label="Total\nSavings",
@@ -172,7 +166,6 @@ def register_display_fields(
             field_name="display.taxable_savings",
             display_fn=taxable_savings_display,
             description="Taxable retirement savings.",
-            explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
                     label="Taxable\nSavings",
@@ -193,7 +186,6 @@ def register_display_fields(
             field_name="display.tax_deferred_savings",
             display_fn=tax_deferred_savings_display,
             description="Tax-deferred retirement savings.",
-            explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
                     label="Tax Def\nSavings",
@@ -214,7 +206,6 @@ def register_display_fields(
             field_name="display.tax_free_savings",
             display_fn=tax_free_savings_display,
             description="Tax-free retirement savings.",
-            explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
                     label="Tax Free\nSavings",
@@ -239,9 +230,6 @@ def register_display_fields(
             field_name="display.has_hfp_file",
             display_fn=has_hfp_file_display,
             description="Whether an HFP spreadsheet is configured.",
-            explain=ExplainSpec(
-                sources=["derived"],
-            ),
             profiles={
                 "table": DisplayProfile(
                     label="HFP?",
@@ -261,9 +249,6 @@ def register_display_fields(
             field_name="display.has_fixed_assets",
             display_fn=has_fixed_assets_display,
             description="Whether HFP fixed assets exist.",
-            explain=ExplainSpec(
-                sources=["derived"],
-            ),
             profiles={
                 "table": DisplayProfile(
                     label="Fixed\nAst?",
@@ -283,9 +268,6 @@ def register_display_fields(
             field_name="display.has_debts",
             display_fn=has_debts_display,
             description="Whether HFP debts exist.",
-            explain=ExplainSpec(
-                sources=["derived"],
-            ),
             profiles={
                 "table": DisplayProfile(
                     label="Debt?",
@@ -309,9 +291,6 @@ def register_display_fields(
             field_name="display.net_hfp_assets",
             display_fn=net_hfp_assets_display,
             description="Net household financial profile assets.",
-            explain=ExplainSpec(
-                sources=["derived"],
-            ),
             profiles={
                 "table": DisplayProfile(
                     label="Net HFP",
@@ -332,7 +311,6 @@ def register_display_fields(
             field_name="display.fixed_assets",
             display_fn=fixed_assets_display,
             description="Fixed non-retirement assets.",
-            explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
                     label="Fixed\nAssets",
@@ -353,7 +331,6 @@ def register_display_fields(
             field_name="display.total_liabilities",
             display_fn=total_debts_display,
             description="Total household liabilities.",
-            explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
                     label="Total\nLiable",
@@ -374,7 +351,6 @@ def register_display_fields(
             field_name="display.residence_value",
             display_fn=residence_value_display,
             description="Residence value loaded from HFP.",
-            explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
                     label="Home",
@@ -394,7 +370,6 @@ def register_display_fields(
         DisplayField(
             field_name="display.mortgage_debt",
             display_fn=mortgage_debt_display,
-            explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             description="Mortgage debt loaded from HFP.",
             profiles={
                 "table": DisplayProfile(
@@ -420,7 +395,6 @@ def register_display_fields(
             field_name="display.social_security_income",
             display_fn=social_security_income_display,
             description="Estimated annual Social Security income.",
-            explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
                     label="SS\nIncome",
@@ -441,7 +415,6 @@ def register_display_fields(
             field_name="display.pension_income",
             display_fn=pension_income_display,
             description="Estimated annual pension income.",
-            explain=ExplainSpec(sources=["derived"], units="dollars - annual"),
             profiles={
                 "table": DisplayProfile(
                     label="Pension\nIncome",
@@ -462,7 +435,6 @@ def register_display_fields(
             field_name="display.fixed_income",
             display_fn=fixed_income_display,
             description="Combined guaranteed retirement income.",
-            explain=ExplainSpec(sources=["derived"], units="dollars - monthly"),
             profiles={
                 "table": DisplayProfile(
                     label="Fixed\nIncome",

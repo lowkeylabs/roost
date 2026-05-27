@@ -34,28 +34,19 @@ def build_display_registry(
     """
     Construct fully initialized DisplayRegistry.
 
-    Initialization order:
+    Notes
+    -----
+    DisplayRegistry is renderer-facing overlay
+    infrastructure layered atop canonical
+    ontology registries.
 
-        1. input schema → display sync
-        2. metrics schema → display sync
-        3. aggregate display field synthesis
-        4. register display fields
-        5. register display groups
-        6. register display views
-        7. validate registry
+    Canonical semantic ownership belongs to:
 
+        - schema_registry
+        - metrics_registry
 
-    The resulting registry is fully operational
-    and ready for materialization.
-
-    DisplayRegistry is intentionally renderer-facing.
-
-    Semantic ownership belongs to:
-
-        - schema_registry  -> input semantics
-        - metrics_registry -> output semantics
-
-    DisplayRegistry owns only presentation semantics:
+    DisplayRegistry owns only presentation
+    semantics:
 
         - labels
         - formatting
@@ -63,46 +54,69 @@ def build_display_registry(
         - visibility
         - grouping
         - views
+        - rendering overlays
+
+    Initialization Order
+    --------------------
+
+    1. schema ontology overlays
+    2. metrics ontology overlays
+    3. aggregate analytical overlays
+    4. explicit display field overlays
+    5. display groups
+    6. display views
+    7. validation
     """
 
     reg = DisplayRegistry()
 
     # =====================================================
-    # Attach semantic registries
+    # Canonical Ontology Registries
     # =====================================================
 
-    reg.schema_registry = schema_registry
-    reg.metrics_registry = metrics_registry
+    reg.schema_registry = (
+        schema_registry
+    )
+
+    reg.metrics_registry = (
+        metrics_registry
+    )
 
     # =====================================================
-    # Input Schema → Display Sync
+    # Schema Display Overlays
     # =====================================================
 
     sync_schema_registry(
-        schema_registry,
-        reg,
+        schema_registry=(
+            schema_registry
+        ),
+        display_registry=reg,
     )
 
     # =====================================================
-    # Metrics Schema → Display Sync
+    # Metrics Display Overlays
     # =====================================================
 
     sync_metrics_registry(
-        metrics_registry,
-        reg,
+        metrics_registry=(
+            metrics_registry
+        ),
+        display_registry=reg,
     )
 
     # =====================================================
-    # Aggregate Display Fields
+    # Aggregate Projection Overlays
     # =====================================================
 
     register_aggregate_display_fields(
-        reg,
-        metrics_registry,
+        reg=reg,
+        metrics_registry=(
+            metrics_registry
+        ),
     )
 
     # =====================================================
-    # Register Display Fields
+    # Explicit Manual Display Overlays
     # =====================================================
 
     register_all_display_fields(
@@ -110,7 +124,7 @@ def build_display_registry(
     )
 
     # =====================================================
-    # Register Display Groups
+    # Display Groups
     # =====================================================
 
     register_display_groups(
@@ -118,7 +132,7 @@ def build_display_registry(
     )
 
     # =====================================================
-    # Register Display Views
+    # Display Views
     # =====================================================
 
     register_display_views(
@@ -126,7 +140,7 @@ def build_display_registry(
     )
 
     # =====================================================
-    # Validate
+    # Validation
     # =====================================================
 
     reg.validate()

@@ -1,22 +1,29 @@
 from __future__ import annotations
 
-import pytest
 
-
-@pytest.mark.xfail(
-    reason=(
-        "Namespace nodes not yet "
-        "fully separated from "
-        "semantic variables."
-    )
-)
 def test_namespace_nodes_not_materialized(
     catalog_dataset,
 ):
+    """
+    Namespace hierarchy should not be
+    materialized as canonical semantic
+    variables.
+    """
+
+    namespace_names = {
+        "timing",
+        "risk",
+        "financial",
+        "display",
+        "run_execution",
+    }
 
     names = {
         row["field_name"]
         for row in catalog_dataset.rows
     }
 
-    assert "timing" not in names
+    for namespace in namespace_names:
+
+        assert namespace not in names
+    

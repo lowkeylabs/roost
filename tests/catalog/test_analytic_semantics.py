@@ -1,0 +1,204 @@
+# tests/catalog/test_analytic_semantics.py
+
+from __future__ import annotations
+
+
+# =========================================================
+# Ontology Completeness
+# =========================================================
+
+
+def test_catalog_rows_have_analytic_kind(
+    catalog_dataset,
+):
+    """
+    Ensure at least some catalog rows
+    explicitly define analytical semantics.
+    """
+
+    rows = [
+        row
+        for row in catalog_dataset.rows
+        if row["analytic_kind"] is not None
+    ]
+
+    assert rows
+
+
+# =========================================================
+# Comparative Semantics
+# =========================================================
+
+
+def test_comparative_metrics_have_comparative_analytic_kind(
+    catalog_dataset,
+):
+    """
+    Comparative analytical metrics should
+    explicitly advertise comparative
+    semantics.
+    """
+
+    comparative_rows = [
+        row
+        for row in catalog_dataset.rows
+        if row["field_name"]
+        in {
+            (
+                "run_execution."
+                "common_overrides"
+            ),
+            (
+                "run_execution."
+                "run_specific_overrides"
+            ),
+        }
+    ]
+
+    assert comparative_rows
+
+    for row in comparative_rows:
+
+        assert (
+            row["analytic_kind"]
+            == "comparative"
+        )
+
+
+# =========================================================
+# Aggregate Projection Integrity
+# =========================================================
+
+
+def test_aggregate_projection_rows_have_aggregate_semantics(
+    catalog_dataset,
+):
+    """
+    Aggregate projections should advertise
+    aggregate analytical semantics.
+    """
+
+    aggregate_rows = [
+        row
+        for row in catalog_dataset.rows
+        if row["projection_kind"]
+        == "aggregate"
+    ]
+
+    for row in aggregate_rows:
+
+        assert (
+            row["analytic_kind"]
+            in {
+                "aggregate",
+                "distributional",
+            }
+        )
+
+
+# =========================================================
+# Canonical Schema Semantics
+# =========================================================
+
+
+def test_schema_rows_are_canonical(
+    catalog_dataset,
+):
+    """
+    Schema ontology should represent
+    canonical semantic variables.
+    """
+
+    schema_rows = [
+        row
+        for row in catalog_dataset.rows
+        if row["layer"] == "schema"
+    ]
+
+    assert schema_rows
+
+    for row in schema_rows:
+
+        assert (
+            row["projection_kind"]
+            == "canonical"
+        )
+
+
+# =========================================================
+# Namespace Separation
+# =========================================================
+
+
+def test_only_semantic_variables_materialized(
+    catalog_dataset,
+):
+    """
+    Canonical catalog synthesis should
+    currently materialize only semantic
+    variable nodes.
+    """
+
+    for row in catalog_dataset.rows:
+
+        assert (
+            row["node_type"]
+            == "variable"
+        )
+
+
+# =========================================================
+# Overlay Projection Integrity
+# =========================================================
+
+
+def test_overlay_rows_are_not_canonical(
+    catalog_dataset,
+):
+    """
+    Overlay rows should never masquerade
+    as canonical semantic projections.
+    """
+
+    overlay_rows = [
+        row
+        for row in catalog_dataset.rows
+        if row["node_type"]
+        == "overlay"
+    ]
+
+    for row in overlay_rows:
+
+        assert (
+            row["projection_kind"]
+            != "canonical"
+        )
+
+
+# =========================================================
+# Observed Runtime Semantics
+# =========================================================
+
+
+def test_observed_rows_are_not_synthetic(
+    catalog_dataset,
+):
+    """
+    Observed runtime metrics should not
+    simultaneously advertise synthetic
+    analytical semantics.
+    """
+
+    observed_rows = [
+        row
+        for row in catalog_dataset.rows
+        if row["analytic_kind"]
+        == "observed"
+    ]
+
+    for row in observed_rows:
+
+        assert (
+            row["projection_kind"]
+            != "synthetic"
+        )

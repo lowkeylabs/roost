@@ -5,20 +5,21 @@ from __future__ import annotations
 from copy import deepcopy
 
 from owlroost.catalog.builders import (
-    build_display_rows,
     build_metric_rows,
     build_schema_rows,
 )
 
+from owlroost.display.dataset import (
+    Dataset,
+)
+
 from owlroost.catalog.ontology import (
+    AnalyticKind,
+    CatalogNodeType,
     Owner,
     ProjectionKind,
     SemanticDomain,
     ValueOrigin,
-)
-
-from owlroost.display.dataset import (
-    Dataset,
 )
 
 # =========================================================
@@ -152,7 +153,6 @@ def load_catalog(
     *,
     schema_registry,
     metrics_registry,
-    display_registry,
 ):
     """
     Build unified semantic catalog dataset.
@@ -164,20 +164,25 @@ def load_catalog(
 
         - schema ontology
         - metrics ontology
-        - display overlays
-        - aggregation synthesis
+        - aggregation ontology
 
     The catalog intentionally models:
 
         canonical semantic entities
 
-    rather than flattened registry rows.
+    rather than renderer-facing overlays.
 
     Architectural Invariant
     -----------------------
     Exactly one catalog row exists for each:
 
         field_name
+
+    Display overlays are intentionally
+    excluded from catalog synthesis.
+
+    Display consumes catalog semantics
+    downstream.
     """
 
     # =====================================================
@@ -214,18 +219,6 @@ def load_catalog(
         )
 
     # =====================================================
-    # Display Overlays
-    # =====================================================
-
-    for row in build_display_rows(
-        display_registry,
-    ):
-        _merge_row(
-            entities,
-            row,
-        )
-
-    # =====================================================
     # Stable Ordering
     # =====================================================
 
@@ -238,7 +231,15 @@ def load_catalog(
             )
             or "",
             r.get(
+                "analytic_kind"
+            )
+            or "",
+            r.get(
                 "projection_kind"
+            )
+            or "",
+            r.get(
+                "node_type"
             )
             or "",
             r.get("field_name")
@@ -371,6 +372,54 @@ def filter_catalog_by_projection_kind(
     )
 
 
+def filter_catalog_by_analytic_kind(
+    dataset,
+    analytic_kind: AnalyticKind,
+):
+    """
+    Filter catalog dataset by analytical
+    interpretation semantics.
+    """
+
+    rows = [
+        row
+        for row in dataset.rows
+        if row.get(
+            "analytic_kind"
+        )
+        == analytic_kind
+    ]
+
+    return Dataset(
+        rows,
+        level=dataset.level,
+    )
+
+
+def filter_catalog_by_node_type(
+    dataset,
+    node_type: CatalogNodeType,
+):
+    """
+    Filter catalog dataset by catalog
+    graph structure semantics.
+    """
+
+    rows = [
+        row
+        for row in dataset.rows
+        if row.get(
+            "node_type"
+        )
+        == node_type
+    ]
+
+    return Dataset(
+        rows,
+        level=dataset.level,
+    )
+
+
 # =========================================================
 # Search
 # =========================================================
@@ -389,7 +438,9 @@ def search_catalog(
         - description
         - owner
         - semantic_domain
+        - analytic_kind
         - projection_kind
+        - node_type
     """
 
     query = query.lower()
@@ -409,7 +460,13 @@ def search_catalog(
                     "semantic_domain"
                 ),
                 row.get(
+                    "analytic_kind"
+                ),
+                row.get(
                     "projection_kind"
+                ),
+                row.get(
+                    "node_type"
                 ),
             ]
         ).lower()

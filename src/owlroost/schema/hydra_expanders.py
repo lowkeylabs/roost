@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from owlroost.display.utils import (
+from owlroost.display.operations.normalize import (
     get_units_multiplier,
 )
 

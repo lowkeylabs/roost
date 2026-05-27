@@ -15,7 +15,7 @@ class OwlSchemaPlugin:
                     dtype=unwrap_annotation(field.annotation),
                     path=tuple(name.split(".")),
                     source="input",
-                    level="case",
-                    description=field.description,
+                    materialization_level="case",
+                    description=field.description or "",
                 )
             )

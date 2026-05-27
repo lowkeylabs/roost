@@ -98,8 +98,3 @@ class Dataset:
             mode=layout,
             explain=explain,
         )
-
-    def pipe(self):
-        from .pipeline import Pipeline
-
-        return Pipeline(self)

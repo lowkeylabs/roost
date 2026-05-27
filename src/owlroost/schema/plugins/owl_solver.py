@@ -24,7 +24,6 @@ try:
 except Exception:
     SOLVER_OPT_KEYS = []
 
-
 # =========================================================
 # Helpers
 # =========================================================
@@ -56,18 +55,20 @@ class OwlSolverPlugin:
     """
     Register solver_options fields using:
 
-    - supported UI/config keys from SOLVER_OPT_KEYS
-    - defaults/dtypes from default_config()
+        - supported UI/config keys from SOLVER_OPT_KEYS
+        - defaults/dtypes from default_config()
 
     This preserves:
-    - compatibility coverage
-    - canonical supported fields
-    - runtime defaults
-    - dynamic dtype inference
+
+        - compatibility coverage
+        - canonical supported fields
+        - runtime defaults
+        - dynamic dtype inference
 
     while avoiding:
-    - hardcoded duplicate lists
-    - stale manual metadata
+
+        - hardcoded duplicate lists
+        - stale manual metadata
     """
 
     def register(
@@ -91,8 +92,9 @@ class OwlSolverPlugin:
         # Additional compatibility fields
         #
         # These are supported by Owl but may not appear in:
-        # - SOLVER_OPT_KEYS
-        # - default_config()
+        #
+        #     - SOLVER_OPT_KEYS
+        #     - default_config()
         #
         # Keep small and intentional.
         # -------------------------------------------------
@@ -111,7 +113,11 @@ class OwlSolverPlugin:
         # Union of all supported keys
         # -------------------------------------------------
 
-        all_keys = set(SOLVER_OPT_KEYS) | set(solver_defaults.keys()) | extra_keys
+        all_keys = (
+            set(SOLVER_OPT_KEYS)
+            | set(solver_defaults.keys())
+            | extra_keys
+        )
 
         # -------------------------------------------------
         # Register fields
@@ -138,8 +144,16 @@ class OwlSolverPlugin:
                         key,
                     ),
                     source="owl",
+                    materialization_level="case",
                     default=default_value,
-                    default_source=("runtime" if key in solver_defaults else None),
-                    description=("Derived from OWL solver " "configuration support."),
+                    default_source=(
+                        "runtime"
+                        if key in solver_defaults
+                        else None
+                    ),
+                    description=(
+                        "Derived from OWL solver "
+                        "configuration support."
+                    ),
                 )
             )

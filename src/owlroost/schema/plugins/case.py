@@ -1,3 +1,5 @@
+# src/owlroost/schema/plugins/case.py
+
 from ..registry import FieldSpec
 from ..system_models import CaseConfig
 from ..utils import unwrap_annotation, walk_model
@@ -12,7 +14,8 @@ class CasePlugin:
                     dtype=unwrap_annotation(field.annotation),
                     path=("case",) + tuple(name.split(".")),
                     source="input",
-                    level="case",
+                    materialization_level="case",
                     description=field.description or "",
                 )
             )
+            

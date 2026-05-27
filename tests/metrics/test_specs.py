@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from owlroost.metrics.specs import (
-    MetricFieldSpec,
+    MetricSpec,
 )
 
 
@@ -12,7 +12,7 @@ from owlroost.metrics.specs import (
 
 def test_metric_spec_minimal_construction():
 
-    m = MetricFieldSpec(
+    m = MetricSpec(
         name="timing.elapsed_seconds",
     )
 
@@ -38,7 +38,7 @@ def test_metric_spec_minimal_construction():
 
 def test_metric_spec_inherits_ontology():
 
-    m = MetricFieldSpec(
+    m = MetricSpec(
         name="timing.elapsed_seconds",
         owner="ROOST",
         semantic_domain="execution",
@@ -77,7 +77,7 @@ def test_metric_spec_inherits_ontology():
 
 def test_metric_spec_aggregate_metadata():
 
-    m = MetricFieldSpec(
+    m = MetricSpec(
         name="timing.elapsed_seconds__median",
         projection_kind="aggregate",
         aggregate_function="median",
@@ -99,28 +99,13 @@ def test_metric_spec_aggregate_metadata():
 # =========================================================
 
 
-def test_metric_profiles_are_isolated():
-
-    a = MetricFieldSpec(
-        name="a",
-    )
-
-    b = MetricFieldSpec(
-        name="b",
-    )
-
-    a.profiles["table"] = "x"
-
-    assert "table" not in b.profiles
-
-
 def test_metric_aggregates_are_isolated():
 
-    a = MetricFieldSpec(
+    a = MetricSpec(
         name="a",
     )
 
-    b = MetricFieldSpec(
+    b = MetricSpec(
         name="b",
     )
 
@@ -136,11 +121,11 @@ def test_metric_aggregates_are_isolated():
 
 def test_metric_derived_from_isolated():
 
-    a = MetricFieldSpec(
+    a = MetricSpec(
         name="a",
     )
 
-    b = MetricFieldSpec(
+    b = MetricSpec(
         name="b",
     )
 

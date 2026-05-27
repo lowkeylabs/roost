@@ -7,7 +7,7 @@ from owlroost.metrics.registry import (
 )
 
 from owlroost.metrics.specs import (
-    MetricFieldSpec,
+    MetricSpec,
 )
 
 
@@ -17,7 +17,7 @@ def metrics_registry():
     reg = MetricsRegistry()
 
     reg.register(
-        MetricFieldSpec(
+        MetricSpec(
             name="timing.elapsed_seconds",
             owner="ROOST",
             semantic_domain="execution",

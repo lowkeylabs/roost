@@ -3,14 +3,14 @@ from __future__ import annotations
 import pytest
 
 from owlroost.metrics.specs import (
-    MetricFieldSpec,
+    MetricSpec,
 )
 
 
 @pytest.fixture
 def sample_metric():
 
-    return MetricFieldSpec(
+    return MetricSpec(
         name="timing.elapsed_seconds",
         owner="ROOST",
         semantic_domain="execution",

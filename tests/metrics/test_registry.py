@@ -6,7 +6,7 @@ from owlroost.metrics.registry import (
     MetricsRegistry,
 )
 from owlroost.metrics.specs import (
-    MetricFieldSpec,
+    MetricSpec,
 )
 
 
@@ -36,7 +36,7 @@ def test_duplicate_metric_registration_raises():
 
     reg = MetricsRegistry()
 
-    metric = MetricFieldSpec(
+    metric = MetricSpec(
         name="timing.elapsed_seconds",
     )
 
@@ -69,7 +69,7 @@ def test_registry_exists():
 
     reg = MetricsRegistry()
 
-    metric = MetricFieldSpec(
+    metric = MetricSpec(
         name="timing.elapsed_seconds",
     )
 
@@ -94,11 +94,11 @@ def test_registry_len():
     reg = MetricsRegistry()
 
     reg.register(
-        MetricFieldSpec(name="a")
+        MetricSpec(name="a")
     )
 
     reg.register(
-        MetricFieldSpec(name="b")
+        MetricSpec(name="b")
     )
 
     assert len(reg) == 2
@@ -109,7 +109,7 @@ def test_registry_contains():
     reg = MetricsRegistry()
 
     reg.register(
-        MetricFieldSpec(name="a")
+        MetricSpec(name="a")
     )
 
     assert "a" in reg
@@ -122,11 +122,11 @@ def test_registry_names():
     reg = MetricsRegistry()
 
     reg.register(
-        MetricFieldSpec(name="a")
+        MetricSpec(name="a")
     )
 
     reg.register(
-        MetricFieldSpec(name="b")
+        MetricSpec(name="b")
     )
 
     names = set(
@@ -144,7 +144,7 @@ def test_registry_items():
     reg = MetricsRegistry()
 
     reg.register(
-        MetricFieldSpec(name="a")
+        MetricSpec(name="a")
     )
 
     items = dict(
@@ -159,11 +159,11 @@ def test_registry_iteration():
     reg = MetricsRegistry()
 
     reg.register(
-        MetricFieldSpec(name="a")
+        MetricSpec(name="a")
     )
 
     reg.register(
-        MetricFieldSpec(name="b")
+        MetricSpec(name="b")
     )
 
     names = {

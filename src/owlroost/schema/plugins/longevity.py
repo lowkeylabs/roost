@@ -25,7 +25,7 @@ class LongevityPlugin:
                     dtype=unwrap_annotation(field.annotation),
                     path=("longevity",) + tuple(name.split(".")),
                     source="input",
-                    level="case",
+                    materialization_level="case",
                     description=field.description or "",
                 )
             )

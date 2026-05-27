@@ -2,7 +2,11 @@
 
 from ..registry import FieldSpec
 from ..system_models import RoostRuntimeConfig
-from ..utils import resolve_field_default, unwrap_annotation, walk_model
+from ..utils import (
+    resolve_field_default,
+    unwrap_annotation,
+    walk_model,
+)
 
 
 class RoostRuntimePlugin:
@@ -16,6 +20,7 @@ class RoostRuntimePlugin:
             # -------------------------------------------------
             # Skip duplicates (important for merged schema)
             # -------------------------------------------------
+
             if full_name in registry._fields:
                 continue
 
@@ -25,7 +30,7 @@ class RoostRuntimePlugin:
                     dtype=unwrap_annotation(field.annotation),
                     path=("roost_runtime",) + tuple(name.split(".")),
                     source="input",
-                    level="case",
+                    materialization_level="case",
                     description=field.description or "",
                     default=resolve_field_default(field),
                 )

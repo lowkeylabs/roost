@@ -10,10 +10,11 @@ class HydraHelperPlugin:
     Semantic Hydra helper fields.
 
     These fields:
-    - are sweepable
-    - are NOT canonical OWL fields
-    - expand into canonical fields
-    - are removed after expansion
+
+        - are sweepable
+        - are NOT canonical OWL fields
+        - expand into canonical fields
+        - are removed after expansion
     """
 
     def register(
@@ -33,8 +34,11 @@ class HydraHelperPlugin:
                     "from_to",
                 ),
                 source="helper",
-                level="run",
-                description=("Historical market window " "formatted as YYYY_YYYY."),
+                materialization_level="run",
+                description=(
+                    "Historical market window "
+                    "formatted as YYYY-YYYY."
+                ),
             )
         )
 
@@ -51,8 +55,11 @@ class HydraHelperPlugin:
                     "regime",
                 ),
                 source="helper",
-                level="run",
-                description=("Named historical market regime."),
+                materialization_level="run",
+                description=(
+                    "Named historical "
+                    "market regime."
+                ),
             )
         )
 
@@ -69,10 +76,18 @@ class HydraHelperPlugin:
                     "ss_age_pair",
                 ),
                 source="helper",
-                level="run",
-                description=("Social Security claiming " "age pair formatted as " "AA.A_AA.A"),
+                materialization_level="run",
+                description=(
+                    "Social Security claiming "
+                    "age pair formatted as "
+                    "AA.A-AA.A."
+                ),
             )
         )
+
+        # =================================================
+        # Semantic optimization helper
+        # =================================================
 
         registry.register(
             FieldSpec(
@@ -83,7 +98,10 @@ class HydraHelperPlugin:
                     "optimization_goal",
                 ),
                 source="helper",
-                level="run",
-                description=("Semantic optimization helper."),
+                materialization_level="run",
+                description=(
+                    "Semantic optimization "
+                    "helper."
+                ),
             )
         )
