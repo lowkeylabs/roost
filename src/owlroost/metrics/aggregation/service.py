@@ -18,6 +18,16 @@ from owlroost.metrics.aggregation.registry import (
 def _is_numeric(
     value,
 ):
+    """
+    Return whether value participates in
+    numeric aggregation semantics.
+
+    Notes
+    -----
+    Bool intentionally excluded even though
+    bool subclasses int.
+    """
+
     return isinstance(
         value,
         int | float,
@@ -41,13 +51,18 @@ def _normalize_aggregates(
 
         [("median", "currency")]
 
-    Returns:
-        list[(agg_name, fmt)]
+    Returns
+    -------
+    list[(agg_name, fmt)]
     """
 
     result = []
 
-    for agg in metric_spec.default_aggregates or []:
+    for agg in (
+        metric_spec.default_aggregates
+        or []
+    ):
+
         if isinstance(
             agg,
             tuple,
@@ -57,7 +72,9 @@ def _normalize_aggregates(
         else:
             agg_name = agg
 
-            fmt = AGG_DEFAULT_FMT.get(agg_name)
+            fmt = AGG_DEFAULT_FMT.get(
+                agg_name
+            )
 
         result.append(
             (
@@ -79,10 +96,10 @@ def _empty_aggregate_value(
     never raise runtime exceptions.
     """
 
-    if agg_name in (
+    if agg_name in {
         "cnt",
         "cnt_true",
-    ):
+    }:
         return 0
 
     return None
@@ -100,14 +117,34 @@ def aggregate_rows(
     """
     Aggregate trial rows into summary metrics.
 
-    Returns flat aggregate dict:
+    Notes
+    -----
+    Aggregation semantics are ontology-driven.
 
-        financial.bequest.total__median
-        elapsed_seconds__p90
-        etc.
+    Metrics participate in aggregation only
+    when:
+
+        materialization_level == "trial"
+
+    and:
+
+        aggregatable == True
+
+    Returns
+    -------
+    Flat aggregate metric dict.
+
+    Example
+    -------
+        timing.elapsed_seconds__median
+        financial.bequest.total__p90
     """
 
     out = {}
+
+    # =====================================================
+    # Empty Dataset
+    # =====================================================
 
     if not rows:
         return out
@@ -117,11 +154,15 @@ def aggregate_rows(
     # =====================================================
 
     for metric in metrics_registry.all():
+
         # -------------------------------------------------
-        # Only aggregate trial metrics
+        # Only aggregate trial-materialized metrics
         # -------------------------------------------------
 
-        if metric.compute_level != "trial":
+        if (
+            metric.materialization_level
+            != "trial"
+        ):
             continue
 
         # -------------------------------------------------
@@ -138,19 +179,22 @@ def aggregate_rows(
         if not metric.default_aggregates:
             continue
 
-        # -------------------------------------------------
-        # Collect numeric values
-        # -------------------------------------------------
+        # =================================================
+        # Collect Numeric Values
+        # =================================================
 
         values = []
 
         for row in rows:
+
             metrics = row.get(
                 "_metrics",
                 {},
             )
 
-            value = metrics.get(metric.name)
+            value = metrics.get(
+                metric.name
+            )
 
             if _is_numeric(value):
                 values.append(value)
@@ -159,30 +203,55 @@ def aggregate_rows(
         # Execute Aggregations
         # =================================================
 
-        for agg_name, fmt in _normalize_aggregates(metric):
-            func = get_aggregation_func(agg_name)
+        for (
+            agg_name,
+            fmt,
+        ) in _normalize_aggregates(
+            metric
+        ):
+
+            func = get_aggregation_func(
+                agg_name
+            )
 
             if func is None:
-                raise ValueError(f"Unknown aggregation: {agg_name}")
+                raise ValueError(
+                    "Unknown aggregation: "
+                    f"{agg_name}"
+                )
 
-            agg_field_name = build_aggregate_field_name(
-                metric.name,
-                agg_name,
+            agg_field_name = (
+                build_aggregate_field_name(
+                    metric.name,
+                    agg_name,
+                )
             )
 
             # ---------------------------------------------
-            # Empty dataset handling
+            # Empty value handling
             # ---------------------------------------------
 
             if not values:
-                out[agg_field_name] = _empty_aggregate_value(agg_name)
 
-                out[f"{agg_field_name}__n_valid"] = 0
+                out[
+                    agg_field_name
+                ] = _empty_aggregate_value(
+                    agg_name
+                )
 
-                out[f"{agg_field_name}__n_total"] = len(rows)
+                out[
+                    f"{agg_field_name}__n_valid"
+                ] = 0
+
+                out[
+                    f"{agg_field_name}__n_total"
+                ] = len(rows)
 
                 if fmt is not None:
-                    out[f"{agg_field_name}__fmt"] = fmt
+
+                    out[
+                        f"{agg_field_name}__fmt"
+                    ] = fmt
 
                 continue
 
@@ -192,14 +261,23 @@ def aggregate_rows(
 
             result = func(values)
 
-            out[agg_field_name] = result
+            out[
+                agg_field_name
+            ] = result
 
-            out[f"{agg_field_name}__n_valid"] = len(values)
+            out[
+                f"{agg_field_name}__n_valid"
+            ] = len(values)
 
-            out[f"{agg_field_name}__n_total"] = len(rows)
+            out[
+                f"{agg_field_name}__n_total"
+            ] = len(rows)
 
             if fmt is not None:
-                out[f"{agg_field_name}__fmt"] = fmt
+
+                out[
+                    f"{agg_field_name}__fmt"
+                ] = fmt
 
     return out
 
@@ -215,8 +293,6 @@ def aggregate_dataset(
 ):
     """
     Aggregate Dataset rows.
-
-    Returns aggregate metric dict.
 
     Intended primarily for:
 

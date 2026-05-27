@@ -3,8 +3,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from ..schema.registry import FieldSpec
-
 
 @dataclass
 class DisplayProfile:
@@ -89,7 +87,7 @@ class DisplayField:
     # =====================================================
 
     path: str | None = None
-    semantic_field: FieldSpec | None = None
+    semantic_field: object | None = None
 
     profiles: dict[str, DisplayProfile] = field(default_factory=dict)
 

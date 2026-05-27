@@ -5,16 +5,44 @@ from dataclasses import (
     field,
 )
 
+from owlroost.catalog.ontology import (
+    OntologySpec,
+)
+
 from owlroost.display.specs import (
     DisplayProfile,
 )
 
 
 @dataclass
-class MetricFieldSpec:
+class MetricFieldSpec(
+    OntologySpec,
+):
     """
     Canonical semantic definition
-    of an output metric.
+    of an observable runtime metric.
+
+    Notes
+    -----
+    MetricFieldSpec defines semantic ontology
+    for values materialized through:
+
+        - OWL execution
+        - ROOST orchestration
+        - aggregation systems
+        - analytical synthesis
+
+    These specifications are harvested by:
+
+        - MetricsRegistry
+        - catalog subsystem
+        - aggregation systems
+        - explainability systems
+        - reporting pipelines
+
+    Ontology semantics are inherited from:
+
+        OntologySpec
     """
 
     # =====================================================
@@ -28,18 +56,14 @@ class MetricFieldSpec:
     description: str = ""
 
     # =====================================================
-    # Metric Semantics
+    # Provenance
     # =====================================================
 
-    compute_level: str = "trial"
+    defined_in: str | None = None
 
-    # Valid examples:
-    #
-    #   trial
-    #   run
-    #   experiment
-    #   case
-    #   synthetic
+    derived_from: list[str] = field(
+        default_factory=list,
+    )
 
     # =====================================================
     # Typing
@@ -53,10 +77,29 @@ class MetricFieldSpec:
 
     aggregatable: bool = True
 
-    default_aggregates: list[str] = field(default_factory=list)
+    default_aggregates: list[str] = field(
+        default_factory=list,
+    )
+
+    # =====================================================
+    # Aggregate Metadata
+    # =====================================================
+
+    aggregate_function: str | None = None
 
     # =====================================================
     # Default Display Profiles
     # =====================================================
 
-    profiles: dict[str, DisplayProfile] = field(default_factory=dict)
+    profiles: dict[
+        str,
+        DisplayProfile,
+    ] = field(
+        default_factory=dict,
+    )
+
+    # =====================================================
+    # Notes
+    # =====================================================
+
+    notes: str = ""

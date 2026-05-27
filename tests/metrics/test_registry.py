@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from owlroost.schema.registry import (
-    SchemaRegistry,
+from owlroost.metrics.registry import (
+    MetricsRegistry,
 )
-from owlroost.schema.specs import (
-    FieldSpec,
+from owlroost.metrics.specs import (
+    MetricFieldSpec,
 )
 
 
@@ -16,40 +16,36 @@ from owlroost.schema.specs import (
 
 
 def test_registry_register_and_get(
-    sample_field,
+    sample_metric,
 ):
 
-    reg = SchemaRegistry()
+    reg = MetricsRegistry()
 
     reg.register(
-        sample_field
+        sample_metric
     )
 
     out = reg.get(
-        "solver_options.bequest"
+        "timing.elapsed_seconds"
     )
 
-    assert out is sample_field
+    assert out is sample_metric
 
 
-def test_registry_duplicate_registration_raises():
+def test_duplicate_metric_registration_raises():
 
-    reg = SchemaRegistry()
+    reg = MetricsRegistry()
 
-    field = FieldSpec(
-        name="solver_options.bequest",
+    metric = MetricFieldSpec(
+        name="timing.elapsed_seconds",
     )
 
-    reg.register(
-        field
-    )
+    reg.register(metric)
 
     with pytest.raises(
         ValueError
     ):
-        reg.register(
-            field
-        )
+        reg.register(metric)
 
 
 # =========================================================
@@ -59,34 +55,32 @@ def test_registry_duplicate_registration_raises():
 
 def test_registry_missing_lookup_raises():
 
-    reg = SchemaRegistry()
+    reg = MetricsRegistry()
 
     with pytest.raises(
         KeyError
     ):
         reg.get(
-            "missing.field"
+            "missing.metric"
         )
 
 
 def test_registry_exists():
 
-    reg = SchemaRegistry()
+    reg = MetricsRegistry()
 
-    field = FieldSpec(
-        name="solver_options.bequest",
+    metric = MetricFieldSpec(
+        name="timing.elapsed_seconds",
     )
 
-    reg.register(
-        field
-    )
+    reg.register(metric)
 
     assert reg.exists(
-        "solver_options.bequest"
+        "timing.elapsed_seconds"
     )
 
     assert not reg.exists(
-        "missing.field"
+        "missing.metric"
     )
 
 
@@ -97,14 +91,14 @@ def test_registry_exists():
 
 def test_registry_len():
 
-    reg = SchemaRegistry()
+    reg = MetricsRegistry()
 
     reg.register(
-        FieldSpec(name="a")
+        MetricFieldSpec(name="a")
     )
 
     reg.register(
-        FieldSpec(name="b")
+        MetricFieldSpec(name="b")
     )
 
     assert len(reg) == 2
@@ -112,10 +106,10 @@ def test_registry_len():
 
 def test_registry_contains():
 
-    reg = SchemaRegistry()
+    reg = MetricsRegistry()
 
     reg.register(
-        FieldSpec(name="a")
+        MetricFieldSpec(name="a")
     )
 
     assert "a" in reg
@@ -125,14 +119,14 @@ def test_registry_contains():
 
 def test_registry_names():
 
-    reg = SchemaRegistry()
+    reg = MetricsRegistry()
 
     reg.register(
-        FieldSpec(name="a")
+        MetricFieldSpec(name="a")
     )
 
     reg.register(
-        FieldSpec(name="b")
+        MetricFieldSpec(name="b")
     )
 
     names = set(
@@ -147,10 +141,10 @@ def test_registry_names():
 
 def test_registry_items():
 
-    reg = SchemaRegistry()
+    reg = MetricsRegistry()
 
     reg.register(
-        FieldSpec(name="a")
+        MetricFieldSpec(name="a")
     )
 
     items = dict(
@@ -162,19 +156,19 @@ def test_registry_items():
 
 def test_registry_iteration():
 
-    reg = SchemaRegistry()
+    reg = MetricsRegistry()
 
     reg.register(
-        FieldSpec(name="a")
+        MetricFieldSpec(name="a")
     )
 
     reg.register(
-        FieldSpec(name="b")
+        MetricFieldSpec(name="b")
     )
 
     names = {
-        f.name
-        for f in reg
+        m.name
+        for m in reg
     }
 
     assert names == {

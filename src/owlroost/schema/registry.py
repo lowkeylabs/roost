@@ -1,85 +1,49 @@
 # src/owlroost/schema/registry.py
 
-from dataclasses import dataclass, field
+from __future__ import annotations
 
-VALID_SOURCES = {
-    "input",
-    "metric",
-    "derived",
-    "discovered",
-    "internal",
-    "helper",
-}
+from owlroost.schema.specs import (
+    FieldSpec,
+)
 
-VALID_LEVELS = {
-    "case",
-    "session",
-    "run",
-    "trial",
-}
-
-
-@dataclass
-class FieldSpec:
-    name: str
-    dtype: object
-
-    path: tuple = field(default_factory=tuple)
-
-    source: str = ""
-    level: str = ""
-
-    compute_fn: object | None = None
-    aggregates: list = field(default_factory=list)
-
-    # =================================================
-    # Semantic metadata
-    # =================================================
-
-    description: str = ""
-
-    variable: str = ""
-    units: str | None = None
-    notes: str | None = None
-
-    doc_section: str | None = None
-    doc_type: str | None = None
-
-    default: object | None = None
-
-    display_profiles: dict = field(default_factory=dict)
-
-    def __post_init__(self):
-        # =================================================
-        # Validation
-        # =================================================
-
-        if self.source not in VALID_SOURCES:
-            raise ValueError(
-                f"Invalid source '{self.source}' "
-                f"for field '{self.name}'. "
-                f"Valid sources: "
-                f"{sorted(VALID_SOURCES)}"
-            )
-
-        if self.level not in VALID_LEVELS:
-            raise ValueError(
-                f"Invalid level '{self.level}' "
-                f"for field '{self.name}'. "
-                f"Valid levels: "
-                f"{sorted(VALID_LEVELS)}"
-            )
-
-        # =================================================
-        # Normalize path
-        # =================================================
-
-        self.path = tuple(self.path) if self.path is not None else ()
+# =========================================================
+# Schema Registry
+# =========================================================
 
 
 class SchemaRegistry:
-    def __init__(self):
-        self._fields = {}
+    """
+    Runtime registry and lookup container
+    for executable schema ontology.
+
+    Notes
+    -----
+    SchemaRegistry intentionally owns only:
+
+        - field registration
+        - lookup/indexing
+        - iteration
+
+    It intentionally does NOT own:
+
+        - ontology definitions
+        - runtime discovery
+        - aggregation synthesis
+        - catalog indexing
+        - display composition
+        - reporting behavior
+
+    Canonical semantic ownership belongs
+    to FieldSpec and OntologySpec.
+    """
+
+    def __init__(
+        self,
+    ):
+        self._fields: dict[
+            str,
+            FieldSpec,
+        ] = {}
 
     # =====================================================
     # Registration
@@ -89,8 +53,15 @@ class SchemaRegistry:
         self,
         field: FieldSpec,
     ):
+        """
+        Register canonical executable schema field.
+        """
+
         if field.name in self._fields:
-            raise ValueError(f"Duplicate field registered: " f"{field.name}")
+            raise ValueError(
+                "Duplicate schema field "
+                f"registered: {field.name}"
+            )
 
         self._fields[field.name] = field
 
@@ -100,125 +71,79 @@ class SchemaRegistry:
 
     def get(
         self,
-        name,
-    ):
+        name: str,
+    ) -> FieldSpec:
+        """
+        Retrieve schema field by canonical name.
+        """
+
         try:
             return self._fields[name]
 
         except KeyError as err:
-            raise KeyError(f"Field not found: {name}") from err
+            raise KeyError(
+                f"Schema field not found: {name}"
+            ) from err
 
-    def all(self):
+    def exists(
+        self,
+        name: str,
+    ) -> bool:
+        """
+        Return whether field exists.
+        """
+
+        return name in self._fields
+
+    # =====================================================
+    # Iteration
+    # =====================================================
+
+    def all(
+        self,
+    ):
+        """
+        Iterate over all registered fields.
+        """
+
         return self._fields.values()
 
-    # =====================================================
-    # Discovered defaults
-    # =====================================================
-
-    def attach_discovered_defaults(
+    def names(
         self,
-        discovered_defaults: dict,
-        get_from_path,
     ):
         """
-        Inject discovered defaults
-        (from OWL runtime discovery)
-        into FieldSpec objects.
+        Iterate over canonical field names.
         """
 
-        for f in self._fields.values():
-            if not f.path:
-                continue
+        return self._fields.keys()
 
-            val = get_from_path(
-                discovered_defaults,
-                f.path,
-            )
-
-            if val is None:
-                continue
-
-            # ---------------------------------------------
-            # Only override if schema didn't already define
-            # a default.
-            # ---------------------------------------------
-
-            if f.default is None:
-                f.default = val
-
-    # =====================================================
-    # Discovered field registration
-    # =====================================================
-
-    def register_discovered_fields(
+    def items(
         self,
-        discovered_defaults: dict,
     ):
         """
-        Add fields that exist in discovered
-        defaults but not in schema.
-
-        Fully recursive across dicts + lists.
+        Iterate over registry items.
         """
 
-        def walk(
-            obj,
-            prefix=(),
-        ):
-            # ---------------------------------------------
-            # Dicts
-            # ---------------------------------------------
+        return self._fields.items()
 
-            if isinstance(
-                obj,
-                dict,
-            ):
-                for k, v in obj.items():
-                    path = prefix + (k,)
+    # =====================================================
+    # Introspection
+    # =====================================================
 
-                    name = ".".join(path)
+    def __contains__(
+        self,
+        name: str,
+    ):
+        return name in self._fields
 
-                    # -------------------------------------
-                    # Register if missing
-                    # -------------------------------------
+    def __len__(
+        self,
+    ):
+        return len(self._fields)
 
-                    if name not in self._fields:
-                        self._fields[name] = FieldSpec(
-                            name=name,
-                            dtype=type(v),
-                            path=path,
-                            source="discovered",
-                            level="case",
-                            default=v,
-                        )
-
-                    # -------------------------------------
-                    # Recurse
-                    # -------------------------------------
-
-                    walk(
-                        v,
-                        path,
-                    )
-
-            # ---------------------------------------------
-            # Lists
-            # ---------------------------------------------
-
-            elif isinstance(
-                obj,
-                list,
-            ):
-                for item in obj:
-                    walk(
-                        item,
-                        prefix,
-                    )
-
-            # ---------------------------------------------
-            # Scalars
-            # ---------------------------------------------
-            else:
-                pass
-
-        walk(discovered_defaults)
+    def __iter__(
+        self,
+    ):
+        return iter(
+            self._fields.values()
+        )

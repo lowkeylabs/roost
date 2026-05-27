@@ -28,13 +28,21 @@ from owlroost.schema.bootstrap import (
 )
 
 # =========================================================
+# Defaults
+# =========================================================
+
+DEFAULT_LEVEL = "catalog"
+
+DEFAULT_VIEW = "summary"
+
+# =========================================================
 # CLI
 # =========================================================
 
 
 @click.command("vars")
 @click.argument(
-    "query",
+    "search",
     required=False,
 )
 @click.option(
@@ -50,9 +58,62 @@ from owlroost.schema.bootstrap import (
     help="Filter by ontology layer.",
 )
 @click.option(
+    "--owner",
+    type=click.Choice(
+        [
+            "OWL",
+            "ROOST",
+        ],
+        case_sensitive=False,
+    ),
+    help="Filter by semantic owner.",
+)
+@click.option(
+    "--domain",
+    "semantic_domain",
+    type=click.Choice(
+        [
+            "decision",
+            "design",
+            "execution",
+        ],
+        case_sensitive=False,
+    ),
+    help="Filter by semantic domain.",
+)
+@click.option(
+    "--origin",
+    "value_origin",
+    type=click.Choice(
+        [
+            "user-specified",
+            "owl-computed",
+            "roost-computed",
+        ],
+        case_sensitive=False,
+    ),
+    help="Filter by value origin.",
+)
+@click.option(
+    "--projection",
+    "projection_kind",
+    type=click.Choice(
+        [
+            "canonical",
+            "aggregate",
+            "composed",
+            "formatted",
+            "synthetic",
+        ],
+        case_sensitive=False,
+    ),
+    help="Filter by projection kind.",
+)
+@click.option(
     "--view",
-    default="summary",
+    default=DEFAULT_VIEW,
     show_default=True,
+    help="Catalog view.",
 )
 @click.option(
     "--markdown",
@@ -66,7 +127,13 @@ from owlroost.schema.bootstrap import (
     "--filter",
     "filters",
     multiple=True,
-    help=("Filter rows. " "Examples: " "layer=schema " "source=_metrics"),
+    help=(
+        "Filter rows. "
+        "Examples: "
+        "layer=metrics "
+        "source=_metrics "
+        "owner=OWL"
+    ),
 )
 @click.option(
     "--sort",
@@ -79,8 +146,12 @@ from owlroost.schema.bootstrap import (
     help="Limit number of rows.",
 )
 def cmd_vars(
-    query,
+    search,
     layer,
+    owner,
+    semantic_domain,
+    value_origin,
+    projection_kind,
     view,
     markdown,
     latex,
@@ -89,19 +160,28 @@ def cmd_vars(
     top,
 ):
     """
-    Display ROOST variable catalog.
+    Display ROOST ontology and variable catalog.
 
-    Examples:
+    Examples
+    --------
 
       roost vars
 
       roost vars spending
 
-      roost vars --layer metrics
+      roost vars --view ontology
 
       roost vars --view provenance
 
-      roost vars --filter layer=metrics
+      roost vars --layer metrics
+
+      roost vars --owner OWL
+
+      roost vars --domain decision
+
+      roost vars --projection aggregate
+
+      roost vars --filter source=_metrics
 
       roost vars --sort field_name
     """
@@ -128,7 +208,11 @@ def cmd_vars(
         metrics_registry=metrics_registry,
         display_registry=display_registry,
         layer=layer,
-        search=query,
+        owner=owner,
+        semantic_domain=semantic_domain,
+        value_origin=value_origin,
+        projection_kind=projection_kind,
+        search=search,
     )
 
     # =====================================================
@@ -140,20 +224,23 @@ def cmd_vars(
     )
 
     # =====================================================
-    # Context-sensitive help
+    # Context-sensitive Help
     # =====================================================
 
     if "help" in (filters or ()):
         render_field_help(
             dataset=ds,
             registry=display_registry,
-            level="catalog",
+            level=DEFAULT_LEVEL,
             view_name=view,
             mode="view",
             title="Available filter fields",
             examples=[
                 "--filter layer=schema",
                 "--filter source=_metrics",
+                "--filter owner=OWL",
+                "--filter semantic_domain=decision",
+                "--filter projection_kind=aggregate",
                 "--filter field_name=in:spending,bequest",
             ],
         )
@@ -164,7 +251,7 @@ def cmd_vars(
         render_field_help(
             dataset=ds,
             registry=display_registry,
-            level="catalog",
+            level=DEFAULT_LEVEL,
             view_name=view,
             mode="all",
             title="All queryable fields",
@@ -189,7 +276,9 @@ def cmd_vars(
     # =====================================================
 
     if not ds.rows:
-        click.echo("No matching variables found.")
+        click.echo(
+            "No matching variables found."
+        )
         return
 
     # =====================================================
@@ -209,7 +298,7 @@ def cmd_vars(
         registry=display_registry,
         name=view,
         layout="table",
-    )
+    )    
 
     # =====================================================
     # Inject Row IDs
@@ -233,3 +322,4 @@ def cmd_vars(
         click.echo(
             output,
         )
+    

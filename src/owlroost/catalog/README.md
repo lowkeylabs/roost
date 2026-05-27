@@ -1,32 +1,43 @@
 # ROOST Catalog Architecture
 
-The `catalog/` subsystem provides the provenance, introspection, lineage, and semantic navigation infrastructure for ROOST.
+The `catalog/` subsystem provides the semantic metadata, provenance, lineage, introspection, and analytical navigation infrastructure for ROOST.
 
-The catalog is intentionally designed as a metadata and relationship layer built on top of the existing ontology and execution architecture documented in the top-level `README.md`.
+The catalog is intentionally designed as a metadata-oriented layer built on top of the existing ontology and execution architecture documented in the top-level `README.md`.
 
 This document complements the main architecture document and focuses specifically on:
 
-* Semantic ownership
+* Semantic metadata
+* Variable ownership
 * Variable lineage
 * Projection tracing
 * Provenance indexing
-* Cross-registry navigation
 * Runtime realization tracing
-* Analytical introspection workflows
+* Cross-registry introspection
+* Explainability infrastructure
+* Analytical navigation workflows
 
-The catalog is intended to make the internal architecture of ROOST observable, queryable, explainable, and operationally navigable.
+The catalog is intended to make the internal architecture of ROOST:
+
+```text
+observable
+queryable
+explainable
+traceable
+navigable
+```
 
 ---
 
 # Architectural Context
 
-ROOST distinguishes between multiple semantic ontology layers:
+ROOST distinguishes between multiple ontology layers:
 
-| Registry            | Responsibility                                  |
-| ------------------- | ------------------------------------------------ |
-| `schema/`           | Executable configuration ontology                |
-| `metrics/`          | Observable output ontology                       |
-| `display/`          | Analytical projection ontology                   |
+| Registry   | Responsibility                                   |
+| ---------- | ------------------------------------------------ |
+| `schema/`  | Executable configuration ontology                |
+| `metrics/` | Observable runtime ontology                      |
+| `display/` | Analytical projection ontology                   |
+| `catalog/` | Metadata, provenance, and introspection ontology |
 
 These registries intentionally remain separate.
 
@@ -35,30 +46,187 @@ The catalog subsystem does NOT replace these registries.
 Instead, the catalog provides:
 
 ```text
-cross-registry provenance and introspection infrastructure
+cross-registry semantic metadata and provenance infrastructure
 ```
 
 layered on top of them.
 
+This README is now describing something much more sophisticated and coherent than a traditional “variable registry.” 
+
+The key conceptual advancement is this section:
+
+```text
+There should be only one catalog, not several.
+Ontology and provenance are layered.
+```
+
+That fundamentally changes the architecture from:
+
+```text
+registry catalog
+```
+
+to:
+
+```text
+semantic identity graph
+```
+
+And I think that is exactly right for ROOST.
+
+# The Most Important Architectural Consequence
+
+The catalog should no longer be thought of as:
+
+```text
+rows harvested from registries
+```
+
+Instead:
+
+```text
+canonical semantic entities
+```
+
+are progressively enriched by:
+
+* ontology
+* provenance
+* runtime realization
+* aggregation
+* projections
+* formatting overlays
+
+That is a fundamentally different architecture.
+
+# I Would Strengthen the README in One Specific Way
+
+Right now the document still subtly implies:
+
+```text
+schema/
+metrics/
+display/
+catalog/
+```
+
+are parallel ontology systems. 
+
+But your latest clarification establishes something stronger:
+
+```text
+The catalog is the unified semantic identity layer.
+The registries contribute layered metadata and provenance.
+```
+
+That distinction is extremely important.
+
+# I Would Add This New Section
+
+Immediately after:
+
+```text
+# Architectural Context
+```
+
+I would insert something like:
+
 ---
 
-# Primary Responsibilities
+## Canonical Variable Identity
 
-The catalog subsystem is responsible for:
+ROOST intentionally treats a semantic variable as a single canonical entity that evolves through layered realization, projection, aggregation, and provenance refinement.
 
-* Variable ownership tracing
-* Source-file discovery
-* Projection lineage
-* Override lineage
-* Runtime materialization tracing
-* Aggregation lineage
-* Report and view usage discovery
-* Provenance indexing
-* Explainability support
-* Architectural introspection
-* Developer navigation workflows
+Conceptually:
 
-The catalog acts as the semantic navigation and provenance graph layer of ROOST.
+```text
+canonical semantic variable
+    +
+ontology layers
+    +
+runtime realization
+    +
+aggregation lineage
+    +
+projection overlays
+    +
+presentation refinement
+```
+
+The catalog therefore maintains:
+
+```text
+one semantic variable identity
+```
+
+rather than creating independent catalog rows for:
+
+* schema definitions
+* metrics realizations
+* display overlays
+* formatting refinements
+* aggregation derivatives
+
+Examples:
+
+```text
+financial.spending.total.today
+```
+
+remains a single semantic variable even as it acquires:
+
+* runtime realizations (`_metrics`)
+* aggregation derivatives (`__median`)
+* display formatting
+* analytical projections
+* provenance overlays
+
+These enrichments SHOULD contribute provenance and metadata layers rather than creating competing semantic identities.
+
+The catalog therefore acts as:
+
+```text
+a layered semantic identity graph
+```
+
+rather than merely a flattened registry index.
+
+# Architectural Invariant
+
+ROOST maintains:
+
+```
+one canonical semantic identity per variable
+```
+
+across the entire analytical lifecycle.
+
+Registries MAY:
+
+* enrich
+* refine
+* aggregate
+* project
+* format
+* materialize
+* annotate
+
+a variable.
+
+Registries SHOULD NOT:
+
+* create competing semantic identities
+* duplicate canonical ontology
+* redefine ownership
+* fork provenance lineage
+
+The catalog therefore acts as:
+
+```
+the canonical semantic identity graph
+```
+
+for all ROOST analytical infrastructure.
 
 ---
 
@@ -69,96 +237,448 @@ Conceptually:
 ```text
 semantic ontology
     ↓
-projection layers
-    ↓
 runtime realization
     ↓
 aggregation
     ↓
-analytical overlays
+analytical projection
     ↓
 reporting
 ```
 
 The catalog indexes and traces relationships across this entire pipeline.
 
----
+The catalog is therefore evolving toward:
 
-# Architectural Invariants
+```text
+a semantic analytical metadata system
+```
 
-The following concepts are foundational to the catalog architecture and SHOULD remain stable unless intentionally redesigned.
-
----
-
-## Registries Remain Layered
-
-The catalog MUST NOT collapse or replace the existing ontology registries.
-
-The following architectural layering is intentional:
-
-| Layer      | Role                               |
-| ---------- | ---------------------------------- |
-| `schema/`  | Executable ontology                |
-| `metrics/` | Observable ontology                |
-| `display/` | Analytical ontology                |
-| `catalog/` | Provenance and introspection graph |
-
-The catalog exists to connect and explain these layers rather than merge them.
+rather than merely a provenance helper.
 
 ---
 
-## Schema Registry Owns Executable Semantics
+# Architectural Philosophy
 
-The schema registry remains authoritative for:
+The catalog is intentionally:
 
-* Executable input semantics
-* Hydra sweep generation
-* Runtime configuration ontology
-* Runtime materialization semantics
+* metadata-oriented
+* introspection-oriented
+* provenance-aware
+* explainability-oriented
+* projection-aware
+* workflow-aware
 
-The catalog MUST treat the schema registry as the canonical executable ontology source.
+The catalog SHOULD:
 
-The catalog MUST NOT weaken or partially replicate schema coverage.
+* Explain architecture
+* Expose relationships
+* Preserve provenance
+* Improve discoverability
+* Support explainability
+* Support QA/QC workflows
+* Support developer navigation
+* Support reporting workflows
+* Support study-generation workflows
 
----
+The catalog SHOULD NOT:
 
-## Metrics Registry Owns Observable Semantics
-
-The metrics registry remains authoritative for:
-
-* Runtime observations
-* Aggregation semantics
-* Statistical outputs
-* Metric interpretation
-
-The catalog MAY trace metric lineage and aggregation provenance but MUST NOT redefine metric semantics independently.
-
----
-
-## Display Registry Owns Analytical Projection
-
-The display registry remains renderer-facing and analytical.
-
-Display fields MAY:
-
-* Override labels
-* Define formatting
-* Define grouping semantics
-* Synthesize analytical overlays
-
-but SHOULD NOT become canonical semantic authorities.
-
-The catalog MUST preserve distinction between:
-
-* Canonical semantic ownership
-  and
-* Analytical presentation overlays
+* Become a replacement runtime datastore
+* Become the canonical semantic authority
+* Collapse ontology layers
+* Duplicate registry semantics unnecessarily
+* Replace runtime execution metadata
+* Replace filesystem provenance
 
 ---
 
-## Operational Realization Remains Separate
+# Semantic Metadata Dimensions
 
-ROOST intentionally separates semantic definitions from operational runtime realization.
+The catalog is evolving toward a set of orthogonal metadata dimensions that describe:
+
+```text
+what a variable means,
+who owns it,
+how it is produced,
+how it is analytically realized,
+and how it evolved through the system.
+```
+
+These dimensions are intentionally independent.
+
+---
+
+# Owner
+
+The `owner` dimension identifies conceptual ontology ownership.
+
+Current taxonomy:
+
+| Owner   | Meaning                                                      |
+| ------- | ------------------------------------------------------------ |
+| `OWL`   | Retirement/planning engine ontology                          |
+| `ROOST` | Orchestration, analytics, runtime, display, catalog ontology |
+
+Examples:
+
+| Variable                       | Owner |
+| ------------------------------ | ----- |
+| `solver_options.bequest`       | OWL   |
+| `rates_selection.method`       | OWL   |
+| `roost_runtime.trials_per_run` | ROOST |
+| `compact_id`                   | ROOST |
+
+Ownership is stable and SHOULD NOT change because of:
+
+* Display overlays
+* Formatting overrides
+* Aggregation derivations
+* Runtime realization
+* Provenance events
+
+---
+
+# Semantic Domain
+
+The `semantic_domain` dimension identifies the role a variable plays in the scientific and analytical workflow.
+
+Current taxonomy:
+
+| Domain      | Meaning                                          |
+| ----------- | ------------------------------------------------ |
+| `decision`  | Retirement strategy and planning assumptions     |
+| `design`    | Experimental and scenario-generation methodology |
+| `execution` | Computational and runtime orchestration          |
+
+---
+
+## Decision Variables
+
+Decision variables define:
+
+* Retirement policy
+* Financial assumptions
+* Optimization objectives
+* Planning strategy
+
+Examples:
+
+| Variable                            |
+| ----------------------------------- |
+| `solver_options.bequest`            |
+| `optimization_parameters.objective` |
+| `asset_allocation.*`                |
+| `fixed_income.*`                    |
+
+---
+
+## Design Variables
+
+Design variables define:
+
+* How evidence is generated
+* Scenario methodology
+* Trial structure
+* Historical/stochastic methodology
+* Robustness methodology
+
+Examples:
+
+| Variable                 |
+| ------------------------ |
+| `rates_selection.method` |
+| `trials_per_run`         |
+| `historical.from`        |
+| `historical.to`          |
+| `longevity.method`       |
+
+These are:
+
+```text
+study design variables
+```
+
+rather than merely “sampling variables”.
+
+---
+
+## Execution Variables
+
+Execution variables define:
+
+* Runtime orchestration
+* Computational realization
+* Concurrency
+* Performance configuration
+
+Examples:
+
+| Variable                |
+| ----------------------- |
+| `workers_per_run`       |
+| `OMP_NUM_THREADS`       |
+| `worker_timeout`        |
+| `runtime_environment.*` |
+
+Execution variables SHOULD ideally NOT change:
+
+* Scientific meaning
+* Evidence quality
+* Retirement interpretation
+
+They SHOULD affect only runtime behavior.
+
+---
+
+# Value Origin
+
+The `value_origin` dimension identifies where a value fundamentally comes from.
+
+Current taxonomy:
+
+| Value Origin     | Meaning                                           |
+| ---------------- | ------------------------------------------------- |
+| `user-specified` | Configured/prescribed by humans                   |
+| `owl-computed`   | Generated by OWL execution                        |
+| `roost-computed` | Generated analytically/orchestrationally by ROOST |
+
+---
+
+## User-Specified Values
+
+Examples:
+
+| Variable                 |
+| ------------------------ |
+| `solver_options.bequest` |
+| `rates_selection.method` |
+| `trials_per_run`         |
+
+These represent:
+
+```text
+model assumptions and study configuration
+```
+
+---
+
+## OWL-Computed Values
+
+Examples:
+
+| Variable                         |
+| -------------------------------- |
+| `financial.spending.total.today` |
+| `financial.bequest.total.today`  |
+| `success_rate`                   |
+
+These represent:
+
+```text
+simulation and planning outcomes
+```
+
+---
+
+## ROOST-Computed Values
+
+Examples:
+
+| Variable               |
+| ---------------------- |
+| `compact_id`           |
+| `compact_threads`      |
+| `display.total_assets` |
+
+These represent:
+
+```text
+analytical or orchestration projections
+```
+
+generated by ROOST infrastructure.
+
+---
+
+# Projection Kind
+
+The `projection_kind` dimension identifies how a variable analytically exists.
+
+Current taxonomy:
+
+| Projection Kind | Meaning                               |
+| --------------- | ------------------------------------- |
+| `canonical`     | Original semantic variable            |
+| `aggregate`     | Statistical reduction over trials     |
+| `composed`      | Combination of multiple variables     |
+| `synthetic`     | Derived analytical helper/computation |
+| `formatted`     | Presentation-only refinement          |
+| `alias`         | Alternate naming/projection           |
+
+---
+
+## Canonical Variables
+
+Examples:
+
+| Variable                         |
+| -------------------------------- |
+| `solver_options.bequest`         |
+| `financial.spending.total.today` |
+
+These are first-class semantic variables.
+
+---
+
+## Aggregate Variables
+
+Examples:
+
+| Variable   |
+| ---------- |
+| `__mean`   |
+| `__median` |
+| `__p90`    |
+
+These are:
+
+```text
+statistical analytical projections
+```
+
+derived from trial-level distributions.
+
+---
+
+## Composed Variables
+
+Examples:
+
+| Variable          |
+| ----------------- |
+| `compact_id`      |
+| `compact_threads` |
+
+These combine multiple semantic variables into a single analytical projection.
+
+---
+
+## Synthetic Variables
+
+Examples:
+
+| Variable               |
+| ---------------------- |
+| `display.total_assets` |
+| `display.net_worth`    |
+
+These are analytical helper computations.
+
+---
+
+## Formatted Variables
+
+Presentation-only refinements.
+
+Examples include:
+
+* Compact display formatting
+* Presentation labels
+* Renderer-oriented overlays
+
+---
+
+## Alias Variables
+
+Alternate naming or projection forms.
+
+Examples include:
+
+* `mxSpd`
+* Short-form display labels
+
+---
+
+# Materialization Level
+
+The `materialization_level` dimension identifies the operational granularity where a value exists.
+
+Expected taxonomy:
+
+| Level     | Meaning       |
+| --------- | ------------- |
+| `case`    | Case-level    |
+| `session` | Session-level |
+| `run`     | Run-level     |
+| `trial`   | Trial-level   |
+
+Examples:
+
+| Variable                                 | Level |
+| ---------------------------------------- | ----- |
+| `solver_options.bequest`                 | run   |
+| `financial.spending.total.today`         | trial |
+| `financial.spending.total.today__median` | run   |
+| `compact_id`                             | run   |
+
+This becomes especially important for:
+
+* Aggregates
+* Explainability
+* Reporting
+* Lineage tracing
+* Provenance analysis
+
+---
+
+# Provenance Chain
+
+The catalog treats provenance as a first-class architectural concern.
+
+The `provenance_chain` dimension captures how variables evolve through the system.
+
+Conceptually:
+
+```python
+@dataclass
+class ProvenanceEvent:
+    stage: str
+    operation: str
+    file: str
+    detail: dict = field(default_factory=dict)
+```
+
+Expected operations include:
+
+| Operation           | Meaning                         |
+| ------------------- | ------------------------------- |
+| `REGISTERED`        | Initial ontology registration   |
+| `OVERRIDDEN`        | Projection/display refinement   |
+| `AGGREGATE_DERIVED` | Statistical derivative creation |
+| `COMPOSED`          | Combined projection creation    |
+| `FORMATTED`         | Presentation refinement         |
+| `MATERIALIZED`      | Runtime realization             |
+
+Examples:
+
+```text
+schema/plugins/owl.py
+    REGISTERED
+
+display/fields/planning.py
+    LABEL_OVERRIDE
+
+metrics/aggregation/aggregate_metrics.py
+    AGGREGATE_DERIVED
+```
+
+The catalog exists primarily to preserve and expose these relationships.
+
+---
+
+# Runtime Realization
+
+ROOST intentionally separates semantic definitions from runtime realization.
 
 Canonical runtime dataset structures currently distinguish between:
 
@@ -169,15 +689,11 @@ Canonical runtime dataset structures currently distinguish between:
 | `_meta`           | Operational metadata and transient identity |
 | `_paths`          | Filesystem provenance                       |
 
-The catalog MUST preserve this distinction.
-
-The catalog indexes runtime realization.
-
-It does NOT replace runtime realization.
+The catalog indexes runtime realization but does NOT replace it.
 
 ---
 
-## Filesystem Paths Remain Canonical Provenance Identifiers
+# Filesystem Provenance
 
 Filesystem paths remain the canonical operational provenance identifiers throughout ROOST.
 
@@ -195,92 +711,7 @@ The catalog MUST preserve this invariant.
 
 ---
 
-## Semantic Projection and Hierarchical Projection Are Distinct
-
-ROOST distinguishes between:
-
-| Projection Type         | Meaning                                       |
-| ----------------------- | --------------------------------------------- |
-| Semantic projection     | Registry-to-display analytical projection     |
-| Hierarchical projection | Trial/run/session/case aggregation projection |
-
-These are separate architectural concepts.
-
-The catalog SHOULD preserve this distinction explicitly.
-
----
-
-## Provenance Is First-Class
-
-The catalog treats provenance as a foundational architectural concern.
-
-Provenance includes both:
-
-* Operational provenance
-* Semantic provenance
-
-Examples include:
-
-* Variable origin registry
-* Runtime storage location
-* Source-file ownership
-* Aggregation lineage
-* Display override lineage
-* Runtime discovery lineage
-* Hydra generation provenance
-* Report and view usage
-* Runtime realization paths
-
-The catalog exists primarily to preserve and expose these relationships.
-
----
-
-# Catalog Responsibilities
-
-The catalog subsystem is expected to evolve toward support for:
-
-| Capability            | Description                             |
-| --------------------- | --------------------------------------- |
-| Ownership tracing     | Which registry owns a variable          |
-| Source tracing        | Which file or plugin defines a variable |
-| Projection tracing    | How variables flow across layers        |
-| Override tracing      | Which overlays modify behavior          |
-| Aggregation lineage   | How metrics are synthesized             |
-| Runtime lineage       | How variables materialize operationally |
-| Usage tracing         | Which views/reports reference variables |
-| Explainability        | Human-readable provenance explanations  |
-| Introspection         | Developer navigation and debugging      |
-| Structural comparison | Variable-aware equivalence tracing      |
-
----
-
-# Catalog Philosophy
-
-The catalog is intentionally metadata-oriented rather than execution-oriented.
-
-It SHOULD:
-
-* Explain architecture
-* Expose relationships
-* Preserve provenance
-* Improve discoverability
-* Support explainability
-* Support reporting workflows
-* Support study-generation workflows
-* Support developer navigation
-
-The catalog SHOULD NOT:
-
-* Become a replacement runtime datastore
-* Become the canonical semantic authority
-* Collapse ontology layers
-* Duplicate registry semantics unnecessarily
-* Replace runtime execution metadata
-* Replace filesystem provenance
-
----
-
-# Catalog and Explainability
+# Explainability
 
 The catalog is expected to become the foundation of future explainability systems.
 
@@ -293,14 +724,14 @@ runtime materialization
     ↓
 aggregation
     ↓
-display projection
+projection overlays
     ↓
 report usage
 ```
 
 The catalog SHOULD support tracing across this entire chain.
 
-This explainability architecture is foundational to:
+This explainability infrastructure is foundational to:
 
 * Reporting
 * QA/QC validation
@@ -308,19 +739,18 @@ This explainability architecture is foundational to:
 * Reproducibility
 * Provenance analysis
 * Runtime debugging
-* Merge compatibility analysis
 * Structural comparison workflows
 
 ---
 
-# Catalog and Developer Tooling
+# Developer Tooling
 
-The catalog is expected to support future developer and CLI workflows such as:
+The catalog is expected to support future CLI workflows such as:
 
 ```text
 roost vars show <variable>
-roost vars where <variable>
 roost vars lineage <variable>
+roost vars where <variable>
 roost vars views <variable>
 roost vars reports <variable>
 roost vars overrides <variable>
@@ -332,24 +762,9 @@ These workflows are intended to provide:
 * Jump-to-definition navigation
 * Provenance inspection
 * Projection tracing
-* Report introspection
-* Aggregation explainability
 * Runtime realization tracing
-
----
-
-# Metadata-Enriched Architecture
-
-ROOST is evolving toward a metadata-rich analytical architecture in which:
-
-* Semantic ontologies remain explicitly layered
-* Runtime realization remains operationally reproducible
-* Analytical overlays remain logically separated
-* Provenance remains queryable across all layers
-* Study workflows become increasingly automated
-* Reporting becomes increasingly introspectable
-
-The catalog subsystem is expected to become the central provenance and introspection layer enabling these workflows.
+* Aggregation explainability
+* Report introspection
 
 ---
 
@@ -358,20 +773,22 @@ The catalog subsystem is expected to become the central provenance and introspec
 The catalog architecture is expected to evolve toward:
 
 * Provenance graph indexing
-* Cross-study introspection
+* Projection-aware lineage tracing
 * Automated explainability generation
 * Variable-aware reporting systems
-* Projection-aware lineage tracing
+* Cross-study introspection
 * Structural equivalence analysis
 * Merge-compatibility analysis
-* Study-template introspection
 * Runtime execution introspection
 * Publication-oriented provenance reporting
+* Study-template introspection
 
 The catalog therefore serves as:
 
 ```text
-the semantic navigation and provenance graph layer of ROOST
+the semantic metadata, provenance,
+and analytical navigation layer of ROOST
 ```
 
 rather than merely a metadata utility subsystem.
+

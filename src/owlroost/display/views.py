@@ -179,7 +179,6 @@ def register_display_views(
             ),
         )
     )
-
     # =====================================================
     # CATALOG VIEWS
     # =====================================================
@@ -190,16 +189,43 @@ def register_display_views(
             name="summary",
             entries=[
                 "field_name",
-                "layer",
+                "owner",
+                "semantic_domain",
+                "projection_kind",
                 "source",
-                "path",
                 "description",
             ],
             description=(
-                "Catalog variable summary showing "
-                "ontology layer, runtime provenance "
-                "source, storage path, and semantic "
+                "High-level catalog ontology summary "
+                "showing canonical variable identity, "
+                "semantic ownership, analytical role, "
+                "projection classification, runtime "
+                "materialization source, and semantic "
                 "description."
+            ),
+        )
+    )
+
+    reg.register_view(
+        DisplayView(
+            level="catalog",
+            name="ontology",
+            entries=[
+                "field_name",
+                "owner",
+                "semantic_domain",
+                "value_origin",
+                "projection_kind",
+                "materialization_level",
+                "description",
+            ],
+            description=(
+                "Canonical ontology view showing the "
+                "semantic classification of variables "
+                "across decision, design, and execution "
+                "domains, including ownership, origin, "
+                "projection semantics, and runtime "
+                "materialization level."
             ),
         )
     )
@@ -210,15 +236,92 @@ def register_display_views(
             name="provenance",
             entries=[
                 "field_name",
-                "layer",
-                "semantic_owner",
+                "owner",
+                "value_origin",
+                "projection_kind",
+                "materialization_level",
                 "source",
                 "path",
+                "provenance_depth",
             ],
             description=(
-                "Catalog provenance summary showing "
-                "semantic ownership and runtime "
-                "materialization domains."
+                "Provenance-oriented catalog view "
+                "showing how variables materialize "
+                "through runtime systems, including "
+                "their origin, projection lineage, "
+                "storage source, canonical path, and "
+                "provenance chain depth."
             ),
         )
     )
+
+    reg.register_view(
+        DisplayView(
+            level="catalog",
+            name="aggregates",
+            entries=[
+                "field_name",
+                "projection_kind",
+                "derived_from",
+                "value_origin",
+                "materialization_level",
+                "description",
+            ],
+            description=(
+                "Aggregate and derived variable view "
+                "showing statistical projections, "
+                "derived lineage relationships, and "
+                "analytical summarization semantics."
+            ),
+        )
+    )
+
+    reg.register_view(
+        DisplayView(
+            level="catalog",
+            name="paths",
+            entries=[
+                "field_name",
+                "source",
+                "path",
+                "owner",
+                "semantic_domain",
+            ],
+            description=(
+                "Low-level runtime storage mapping "
+                "view showing canonical variable names, "
+                "runtime storage domains, internal "
+                "materialization paths, and ontology "
+                "ownership classifications."
+            ),
+        )
+    )
+
+    reg.register_view(
+        DisplayView(
+            level="catalog",
+            name="debug",
+            entries=[
+                "field_name",
+                "layer",
+                "owner",
+                "semantic_domain",
+                "value_origin",
+                "projection_kind",
+                "materialization_level",
+                "source",
+                "path",
+                "derived_from",
+                "provenance_depth",
+                "description",
+            ],
+            description=(
+                "Comprehensive debugging and ontology "
+                "inspection view exposing all major "
+                "catalog semantic dimensions, lineage "
+                "metadata, provenance structure, and "
+                "runtime materialization metadata."
+            ),
+        )
+    )
+    

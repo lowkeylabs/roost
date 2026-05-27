@@ -3,18 +3,36 @@
 from __future__ import annotations
 
 import statistics
-from collections.abc import Callable
-from typing import Any
+from collections.abc import (
+    Callable,
+)
+from typing import (
+    Any,
+)
 
 import numpy as np
 
-from .context import AggregationExplainFn
+from .context import (
+    AggregationExplainFn,
+)
 
 # =========================================================
-# Default Display Formats
+# Aggregation Function Typing
 # =========================================================
 
-AGG_DEFAULT_FMT: dict[str, str | None] = {
+AggregationFunc = Callable[
+    [list[Any]],
+    Any,
+]
+
+# =========================================================
+# Default Aggregate Display Formats
+# =========================================================
+
+AGG_DEFAULT_FMT: dict[
+    str,
+    str | None,
+] = {
     "cnt": "int",
     "cnt_true": "int",
     "pct": "percent",
@@ -30,26 +48,23 @@ AGG_DEFAULT_FMT: dict[str, str | None] = {
     "p99": "float2",
 }
 
-
 # =========================================================
-# Aggregation Function Registry
+# Canonical Aggregation Registry
 # =========================================================
 
 AGG_FUNCS: dict[
     str,
-    Callable[[list[Any]], Any],
+    AggregationFunc,
 ] = {}
 
-
 # =========================================================
-# Aggregation Explain Registry
+# Explainability Registry
 # =========================================================
 
 AGG_EXPLAINS: dict[
     str,
     AggregationExplainFn,
 ] = {}
-
 
 # =========================================================
 # Registration
@@ -58,19 +73,41 @@ AGG_EXPLAINS: dict[
 
 def register_aggregation(
     name: str,
-    func: Callable[[list[Any]], Any],
-    explain: AggregationExplainFn | None = None,
+    func: AggregationFunc,
+    explain: (
+        AggregationExplainFn | None
+    ) = None,
 ):
     """
-    Register aggregation function.
+    Register canonical aggregation function.
+
+    Notes
+    -----
+    Aggregation names form part of ROOST's
+    analytical ontology.
+
+    Example
+    -------
+        timing.elapsed_seconds
+            +
+        median
+
+        ->
+        timing.elapsed_seconds__median
+
+    Therefore duplicate registrations are
+    considered ontology errors.
     """
 
     if name in AGG_FUNCS:
-        raise ValueError(f"Aggregation already registered: {name}")
+        raise ValueError(
+            "Aggregation already "
+            f"registered: {name}"
+        )
 
     AGG_FUNCS[name] = func
 
-    if explain:
+    if explain is not None:
         AGG_EXPLAINS[name] = explain
 
 
@@ -79,16 +116,35 @@ def register_aggregation(
 # =========================================================
 
 
-def get_aggregation_func(name: str):
+def get_aggregation_func(
+    name: str,
+):
+    """
+    Retrieve aggregation implementation.
+    """
+
     return AGG_FUNCS.get(name)
 
 
-def get_aggregation_explain(name: str):
+def get_aggregation_explain(
+    name: str,
+):
+    """
+    Retrieve aggregation explainability
+    helper.
+    """
+
     return AGG_EXPLAINS.get(name)
 
 
 def list_aggregations():
-    return sorted(AGG_FUNCS.keys())
+    """
+    Return stable sorted aggregation names.
+    """
+
+    return sorted(
+        AGG_FUNCS.keys()
+    )
 
 
 # =========================================================
@@ -123,22 +179,32 @@ register_aggregation(
 
 register_aggregation(
     "std",
-    lambda v: statistics.stdev(v) if len(v) >= 2 else 0.0,
+    lambda v: (
+        statistics.stdev(v)
+        if len(v) >= 2
+        else 0.0
+    ),
 )
 
 register_aggregation(
     "p10",
-    lambda v: float(np.percentile(v, 10)),
+    lambda v: float(
+        np.percentile(v, 10)
+    ),
 )
 
 register_aggregation(
     "p90",
-    lambda v: float(np.percentile(v, 90)),
+    lambda v: float(
+        np.percentile(v, 90)
+    ),
 )
 
 register_aggregation(
     "p99",
-    lambda v: float(np.percentile(v, 99)),
+    lambda v: float(
+        np.percentile(v, 99)
+    ),
 )
 
 register_aggregation(
@@ -148,10 +214,36 @@ register_aggregation(
 
 register_aggregation(
     "cnt_true",
-    lambda v: sum(bool(x) for x in v),
+    lambda v: sum(
+        bool(x) for x in v
+    ),
 )
 
 register_aggregation(
     "pct",
-    lambda v: (sum(bool(x) for x in v) / len(v)) if v else 0.0,
+    lambda v: (
+        (
+            sum(bool(x) for x in v)
+            / len(v)
+        )
+        if v
+        else 0.0
+    ),
+)
+
+# =========================================================
+# Optional Ratio Aggregation
+# =========================================================
+
+
+register_aggregation(
+    "ratio",
+    lambda v: (
+        (
+            sum(bool(x) for x in v)
+            / len(v)
+        )
+        if v
+        else 0.0
+    ),
 )

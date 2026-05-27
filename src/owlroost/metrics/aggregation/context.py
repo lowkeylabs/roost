@@ -2,102 +2,92 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Any
+from collections.abc import (
+    Callable,
+)
+from dataclasses import (
+    dataclass,
+)
+from typing import (
+    Any,
+)
 
 # =========================================================
-# Aggregation Context
+# Aggregation Explain Context
 # =========================================================
 
 
 @dataclass(slots=True)
 class AggregationContext:
     """
-    Context object passed to aggregation explainers.
+    Lightweight explainability metadata
+    associated with an aggregate result.
 
-    This provides provenance and semantic metadata
-    about an aggregation result.
+    Notes
+    -----
+    This object intentionally supports:
 
-    Example:
-        aggregation = "mean"
-        field_name = "elapsed_seconds"
-        n_valid = 93
-        n_total = 100
+        - explain mode
+        - report generation
+        - hover/help systems
+        - analytical annotations
 
-    Used by:
-    - explain mode
-    - report generation
-    - hover/help systems
-    - future provenance tracing
+    while intentionally avoiding ownership of:
+
+        - ontology semantics
+        - provenance systems
+        - catalog identity
+        - rendering behavior
+
+    Canonical semantic ownership belongs to:
+
+        - OntologySpec
+        - MetricFieldSpec
+        - CatalogSpec
     """
 
-    # -----------------------------------------------------
-    # Aggregated values actually used
-    # -----------------------------------------------------
+    # =====================================================
+    # Aggregated Values
+    # =====================================================
 
     source_values: list[Any]
 
-    # -----------------------------------------------------
-    # Non-null values included
-    # -----------------------------------------------------
+    # =====================================================
+    # Aggregation Statistics
+    # =====================================================
 
     n_valid: int | None
 
-    # -----------------------------------------------------
-    # Total rows considered
-    # -----------------------------------------------------
-
     n_total: int | None
 
-    # -----------------------------------------------------
-    # Aggregation name
-    #
-    # Examples:
-    #   mean
-    #   p10
-    #   median
-    # -----------------------------------------------------
+    # =====================================================
+    # Aggregation Semantics
+    # =====================================================
 
     aggregation: str | None
 
-    # -----------------------------------------------------
-    # Field name being aggregated
-    #
-    # Examples:
-    #   elapsed_seconds
-    #   spending
-    # -----------------------------------------------------
-
     field_name: str | None = None
 
-    # -----------------------------------------------------
-    # Dataset level
-    #
-    # Examples:
-    #   trial
-    #   run
-    #   experiment
-    # -----------------------------------------------------
+    # =====================================================
+    # Runtime Materialization
+    # =====================================================
 
-    level: str | None = None
+    materialization_level: (
+        str | None
+    ) = None
 
-    # -----------------------------------------------------
-    # Optional renderer/display metadata
-    # -----------------------------------------------------
+    # =====================================================
+    # Optional Display Metadata
+    # =====================================================
 
     fmt: str | None = None
-
-    # -----------------------------------------------------
-    # Optional provenance metadata
-    # -----------------------------------------------------
-
-    source: str | None = None
 
 
 # =========================================================
 # Explain Function Type
 # =========================================================
 
-
-type AggregationExplainFn = Callable[[AggregationContext], str]
+type AggregationExplainFn = Callable[
+    [AggregationContext],
+    str,
+]
