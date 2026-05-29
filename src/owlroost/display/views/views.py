@@ -1,4 +1,4 @@
-# src/owlroost/display/views.py
+# src/owlroost/display/views/views.py
 
 from __future__ import annotations
 
@@ -324,4 +324,3 @@ def register_display_views(
             ),
         )
     )
-    

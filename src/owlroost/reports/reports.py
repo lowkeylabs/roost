@@ -1,4 +1,4 @@
-# src/owlroost/display/reports.py
+# src/owlroost/reports/reports.py
 
 from __future__ import annotations
 
@@ -160,14 +160,14 @@ def initialize_templates(
     missing = [d for d in required if not (source_dir / d).exists()]
 
     if missing:
-        raise RuntimeError("Template source missing " f"required folders: " f"{', '.join(missing)}")
+        raise RuntimeError(f"Template source missing required folders: {', '.join(missing)}")
 
     # ----------------------------------------
     # Replace destination
     # ----------------------------------------
     if destination_dir.exists():
         if not force:
-            raise FileExistsError("Destination templates " "already exists")
+            raise FileExistsError("Destination templates already exists")
 
         shutil.rmtree(destination_dir)
 

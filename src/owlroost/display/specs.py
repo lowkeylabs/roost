@@ -154,9 +154,7 @@ class DisplayField:
     # Computed Presentation Overlay
     # =====================================================
 
-    display_fn: (
-        DisplayValueFn | None
-    ) = None
+    display_fn: DisplayValueFn | None = None
 
     # =====================================================
     # Lightweight Renderer Metadata
@@ -192,9 +190,7 @@ class DisplayGroup:
 
     key: str
 
-    entries: list[
-        str | tuple | dict
-    ]
+    entries: list[str | tuple | dict]
 
     description: str = ""
 
@@ -217,4 +213,3 @@ class DisplayView:
     entries: list
 
     description: str = ""
-    

@@ -9,7 +9,6 @@ from owlroost.schema.specs import (
 
 @pytest.fixture
 def sample_field():
-
     return FieldSpec(
         name="solver_options.bequest",
         dtype=float,

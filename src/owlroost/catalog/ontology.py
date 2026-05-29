@@ -224,46 +224,34 @@ class OntologySpec:
     # Scientific Workflow Domain
     # =====================================================
 
-    semantic_domain: (
-        SemanticDomain | None
-    ) = None
+    semantic_domain: SemanticDomain | None = None
 
     # =====================================================
     # Fundamental Value Provenance
     # =====================================================
 
-    value_origin: (
-        ValueOrigin | None
-    ) = None
+    value_origin: ValueOrigin | None = None
 
     # =====================================================
     # Analytical Realization Semantics
     # =====================================================
 
-    projection_kind: (
-        ProjectionKind | None
-    ) = "canonical"
+    projection_kind: ProjectionKind | None = "canonical"
 
     # =====================================================
     # Analytical Interpretation Semantics
     # =====================================================
 
-    analytic_kind: (
-        AnalyticKind | None
-    ) = None
+    analytic_kind: AnalyticKind | None = None
 
     # =====================================================
     # Runtime Operational Granularity
     # =====================================================
 
-    materialization_level: (
-        MaterializationLevel | None
-    ) = None
+    materialization_level: MaterializationLevel | None = None
 
     # =====================================================
     # Catalog Graph Structure
     # =====================================================
 
-    node_type: (
-        CatalogNodeType | None
-    ) = "variable"
+    node_type: CatalogNodeType | None = "variable"

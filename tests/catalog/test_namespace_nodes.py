@@ -18,12 +18,7 @@ def test_namespace_nodes_not_materialized(
         "run_execution",
     }
 
-    names = {
-        row["field_name"]
-        for row in catalog_dataset.rows
-    }
+    names = {row["field_name"] for row in catalog_dataset.rows}
 
     for namespace in namespace_names:
-
         assert namespace not in names
-    

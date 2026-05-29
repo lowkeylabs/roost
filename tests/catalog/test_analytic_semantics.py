@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 # =========================================================
 # Ontology Completeness
 # =========================================================
@@ -16,11 +15,7 @@ def test_catalog_rows_have_analytic_kind(
     explicitly define analytical semantics.
     """
 
-    rows = [
-        row
-        for row in catalog_dataset.rows
-        if row["analytic_kind"] is not None
-    ]
+    rows = [row for row in catalog_dataset.rows if row["analytic_kind"] is not None]
 
     assert rows
 
@@ -44,25 +39,15 @@ def test_comparative_metrics_have_comparative_analytic_kind(
         for row in catalog_dataset.rows
         if row["field_name"]
         in {
-            (
-                "run_execution."
-                "common_overrides"
-            ),
-            (
-                "run_execution."
-                "run_specific_overrides"
-            ),
+            ("run_execution.common_overrides"),
+            ("run_execution.run_specific_overrides"),
         }
     ]
 
     assert comparative_rows
 
     for row in comparative_rows:
-
-        assert (
-            row["analytic_kind"]
-            == "comparative"
-        )
+        assert row["analytic_kind"] == "comparative"
 
 
 # =========================================================
@@ -78,22 +63,13 @@ def test_aggregate_projection_rows_have_aggregate_semantics(
     aggregate analytical semantics.
     """
 
-    aggregate_rows = [
-        row
-        for row in catalog_dataset.rows
-        if row["projection_kind"]
-        == "aggregate"
-    ]
+    aggregate_rows = [row for row in catalog_dataset.rows if row["projection_kind"] == "aggregate"]
 
     for row in aggregate_rows:
-
-        assert (
-            row["analytic_kind"]
-            in {
-                "aggregate",
-                "distributional",
-            }
-        )
+        assert row["analytic_kind"] in {
+            "aggregate",
+            "distributional",
+        }
 
 
 # =========================================================
@@ -109,20 +85,12 @@ def test_schema_rows_are_canonical(
     canonical semantic variables.
     """
 
-    schema_rows = [
-        row
-        for row in catalog_dataset.rows
-        if row["layer"] == "schema"
-    ]
+    schema_rows = [row for row in catalog_dataset.rows if row["layer"] == "schema"]
 
     assert schema_rows
 
     for row in schema_rows:
-
-        assert (
-            row["projection_kind"]
-            == "canonical"
-        )
+        assert row["projection_kind"] == "canonical"
 
 
 # =========================================================
@@ -140,11 +108,7 @@ def test_only_semantic_variables_materialized(
     """
 
     for row in catalog_dataset.rows:
-
-        assert (
-            row["node_type"]
-            == "variable"
-        )
+        assert row["node_type"] == "variable"
 
 
 # =========================================================
@@ -160,19 +124,10 @@ def test_overlay_rows_are_not_canonical(
     as canonical semantic projections.
     """
 
-    overlay_rows = [
-        row
-        for row in catalog_dataset.rows
-        if row["node_type"]
-        == "overlay"
-    ]
+    overlay_rows = [row for row in catalog_dataset.rows if row["node_type"] == "overlay"]
 
     for row in overlay_rows:
-
-        assert (
-            row["projection_kind"]
-            != "canonical"
-        )
+        assert row["projection_kind"] != "canonical"
 
 
 # =========================================================
@@ -189,16 +144,7 @@ def test_observed_rows_are_not_synthetic(
     analytical semantics.
     """
 
-    observed_rows = [
-        row
-        for row in catalog_dataset.rows
-        if row["analytic_kind"]
-        == "observed"
-    ]
+    observed_rows = [row for row in catalog_dataset.rows if row["analytic_kind"] == "observed"]
 
     for row in observed_rows:
-
-        assert (
-            row["projection_kind"]
-            != "synthetic"
-        )
+        assert row["projection_kind"] != "synthetic"

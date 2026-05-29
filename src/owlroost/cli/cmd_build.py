@@ -54,7 +54,7 @@ def resolve_case_selection(
             if Path(r["_path"]).resolve() == resolved:
                 return r
 
-        raise click.ClickException("File not recognized " f"as case: {arg}")
+        raise click.ClickException(f"File not recognized as case: {arg}")
 
     # ----------------------------------------
     # Numeric ID
@@ -70,7 +70,7 @@ def resolve_case_selection(
     # ----------------------------------------
     # Unknown selection
     # ----------------------------------------
-    raise click.ClickException("Invalid case selection: " f"{arg}")
+    raise click.ClickException(f"Invalid case selection: {arg}")
 
 
 def build_hydra_command(
@@ -90,10 +90,10 @@ def build_hydra_command(
         "-m",
         "owlroost.hydra.generate_trials",
         "--multirun",
-        ("--config-path=" f"{str(conf_dir.resolve())}"),
+        (f"--config-path={str(conf_dir.resolve())}"),
         "--config-name=config",
-        ("case.file=" f"{str(case_path.resolve())}"),
-        ("case.name=" f"{case_path.stem}"),
+        (f"case.file={str(case_path.resolve())}"),
+        (f"case.name={case_path.stem}"),
     ]
 
     cmd.extend(overrides)
@@ -168,7 +168,7 @@ def run_hydra_build(
         )
 
         if exp_dir is None:
-            raise click.ClickException("Unable to locate " "generated session.")
+            raise click.ClickException("Unable to locate generated session.")
 
         runs = find_runs(exp_dir)
         if not runs:
@@ -176,7 +176,7 @@ def run_hydra_build(
         return runs
 
     except subprocess.CalledProcessError as exc:
-        raise click.ClickException("Hydra run failed " f"({exc.returncode})") from exc
+        raise click.ClickException(f"Hydra run failed ({exc.returncode})") from exc
 
 
 # ---------------------------------------------------------
@@ -218,9 +218,7 @@ def run_hydra_build(
 @click.option(
     "--explain",
     type=str,
-    help=(
-        "Explanation facets. " "Comma-separated list from: " "variables,values,sources,debug,all"
-    ),
+    help=("Explanation facets. Comma-separated list from: variables,values,sources,debug,all"),
 )
 @click.option(
     "--filter",
@@ -247,7 +245,7 @@ def run_hydra_build(
     "--progress",
     default="rich",
     show_default=True,
-    help=("Progress renderer: " "rich, dot, dot2, none"),
+    help=("Progress renderer: rich, dot, dot2, none"),
 )
 @click.option(
     "--run",

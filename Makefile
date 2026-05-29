@@ -1,4 +1,30 @@
-.PHONY: help sync pre-commit pytest test
+.PHONY: \
+	help \
+	sync-dev \
+	pre-commit \
+	lint \
+	format \
+	pyright \
+	pytest \
+	coverage \
+	check \
+	verify \
+	test \
+	audit \
+	audit-tree \
+	imports \
+	architecture \
+	verify-mode \
+	owl-upgrade \
+	release \
+	release-apply \
+	release-patch \
+	release-minor \
+	release-major
+
+# ==========================================================
+# General
+# ==========================================================
 
 help:
 	cat Makefile
@@ -6,24 +32,70 @@ help:
 sync-dev:
 	uv sync --extra dev
 
+# ==========================================================
+# Code Quality
+# ==========================================================
+
 pre-commit:
 	uv run pre-commit run --all-files
+
+lint:
+	uv run ruff check src tests
+
+format:
+	uv run ruff format src tests
+
+pyright:
+	uv run pyright
+
+# ==========================================================
+# Testing
+# ==========================================================
 
 pytest:
 	uv run pytest
 
-test: sync-dev pre-commit pytest
+coverage:
+	uv run pytest --cov=owlroost
 
+# Fast developer verification
+check: lint pyright
+
+# Full validation
+verify: pre-commit pytest
+
+# Typical workflow
+test: sync-dev verify
+
+# ==========================================================
+# Architecture Audits
+# ==========================================================
+
+audit:
+	uv run roost-audit
+
+# Useful while developing audit subsystem
+audit-tree:
+	uv run python -m owlroost.audit.tree
+
+# Requires .importlinter
+imports:
+	uv run lint-imports
+
+# Full architecture verification
+architecture: imports audit
+
+# ==========================================================
+# Development Environment Diagnostics
+# ==========================================================
 
 verify-mode:
 	uv run python -c "import pkgutil; print([m.name for m in pkgutil.iter_modules() if 'owl' in m.name.lower()])"
-	uv run python -c "import subprocess, pathlib; p=pathlib.Path('../owl-planner'); print(subprocess.check_output(['git','branch','--show-current'], cwd=p).decode().strip())" fixes/bootstrap-sor
+	uv run python -c "import subprocess, pathlib; p=pathlib.Path('../owl-planner'); print(subprocess.check_output(['git','branch','--show-current'], cwd=p).decode().strip())"
 
-# ---------------------------------------
+# ==========================================================
 # OWL Upgrade / Regeneration
-# ---------------------------------------
-
-.PHONY: owl-upgrade
+# ==========================================================
 
 owl-upgrade:
 	@echo ""
@@ -53,30 +125,25 @@ owl-upgrade:
 
 	uv run pytest
 
+# ==========================================================
+# Release Versioning
+# ==========================================================
 
-# ---------------------------------------
-# Release versioning
-# ---------------------------------------
-
-.PHONY: release release-apply release-patch release-minor release-major
-
-# Preview next patch version (dry-run)
 release:
 	uv run scripts/bump_version.py
 	@echo ""
-	@echo + Run \"make pre-commit\" and \"uv run pytest\" prior to bumping version.
-	@echo + WARNING - the commands below include the --apply flag!
-	@echo + use \"make release-patch\" to bump version at patch level.
-	@echo + use \"make release-minor\" to bump version at minor version level.
-	@echo + use \"make release-major\" to bump version at major version level.
+	@echo "+ Run \"make architecture\" before releasing."
+	@echo "+ Run \"make test\" before releasing."
+	@echo "+ Use one of:"
+	@echo "    make release-patch"
+	@echo "    make release-minor"
+	@echo "    make release-major"
 
-# Actually tag patch release
 release-apply:
 	uv run scripts/bump_version.py patch --apply
 	uv pip install -e . --force-reinstall
 	uv run roost --version
 
-# Explicit bump types
 release-patch:
 	uv run scripts/bump_version.py patch --apply
 	uv pip install -e . --force-reinstall

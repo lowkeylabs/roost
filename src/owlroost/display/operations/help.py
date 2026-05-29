@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 # =========================================================
 # Field Discovery
 # =========================================================
@@ -42,11 +41,7 @@ def discover_queryable_fields(
             return
 
         for key, value in obj.items():
-            full = (
-                key
-                if not prefix
-                else f"{prefix}.{key}"
-            )
+            full = key if not prefix else f"{prefix}.{key}"
 
             fields.add(full)
 

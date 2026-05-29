@@ -87,11 +87,7 @@ class MetricsRegistry:
         """
 
         if field.name in self._fields:
-            raise ValueError(
-                "Duplicate metric field "
-                f"registered: "
-                f"{field.name}"
-            )
+            raise ValueError(f"Duplicate metric field registered: {field.name}")
 
         self._fields[field.name] = field
 
@@ -112,10 +108,7 @@ class MetricsRegistry:
             return self._fields[name]
 
         except KeyError as err:
-            raise KeyError(
-                "Metric field not found: "
-                f"{name}"
-            ) from err
+            raise KeyError(f"Metric field not found: {name}") from err
 
     def exists(
         self,
@@ -145,12 +138,7 @@ class MetricsRegistry:
         deterministic analytical behavior.
         """
 
-        return [
-            self._fields[name]
-            for name in sorted(
-                self._fields
-            )
-        ]
+        return [self._fields[name] for name in sorted(self._fields)]
 
     def names(
         self,
@@ -159,11 +147,7 @@ class MetricsRegistry:
         Iterate canonical metric names.
         """
 
-        return iter(
-            sorted(
-                self._fields.keys()
-            )
-        )
+        return iter(sorted(self._fields.keys()))
 
     def items(
         self,
@@ -173,9 +157,7 @@ class MetricsRegistry:
         canonical name order.
         """
 
-        for name in sorted(
-            self._fields
-        ):
+        for name in sorted(self._fields):
             yield (
                 name,
                 self._fields[name],
@@ -208,14 +190,10 @@ class MetricsRegistry:
 
     def __iter__(
         self,
-    ) -> Iterator[
-        MetricSpec
-    ]:
+    ) -> Iterator[MetricSpec]:
         """
         Iterate metric specifications in
         stable canonical order.
         """
 
-        return iter(
-            self.all()
-        )
+        return iter(self.all())

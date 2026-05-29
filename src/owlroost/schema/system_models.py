@@ -90,7 +90,7 @@ class RoostRuntimeConfig(BaseSystemConfig):
     workers_per_run: int | None = Field(
         default=None,
         ge=1,
-        description=("Number of parallel workers used " "to execute trials within a run."),
+        description=("Number of parallel workers used to execute trials within a run."),
     )
 
     worker_timeout: int = Field(
@@ -106,7 +106,7 @@ class RoostRuntimeConfig(BaseSystemConfig):
 
     workers_per_run_mode: str = Field(
         default="auto",
-        description=("Worker allocation strategy: " "'fixed' or 'auto'."),
+        description=("Worker allocation strategy: 'fixed' or 'auto'."),
     )
 
     # -----------------------------------------------------
@@ -130,9 +130,7 @@ class RoostRuntimeConfig(BaseSystemConfig):
             # -----------------------------------------
             "HiGHS": 12,
         },
-        description=(
-            "Recommended workers_per_run " "by solver when " "workers_per_run_mode='auto'."
-        ),
+        description=("Recommended workers_per_run by solver when workers_per_run_mode='auto'."),
     )
 
     auto_runtime_environment_by_solver: dict[str, dict[str, int]] = Field(
@@ -164,9 +162,7 @@ class RoostRuntimeConfig(BaseSystemConfig):
             "HiGHS": {},
         },
         description=(
-            "Recommended runtime environment "
-            "variables by solver when "
-            "workers_per_run_mode='auto'."
+            "Recommended runtime environment variables by solver when workers_per_run_mode='auto'."
         ),
     )
 

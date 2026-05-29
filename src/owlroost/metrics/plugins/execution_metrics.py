@@ -199,10 +199,7 @@ class ExecutionMetricsPlugin:
             MetricSpec(
                 name="run_execution.trials_per_second",
                 category="derived_metric",
-                description=(
-                    "Completed trials per "
-                    "wall-clock second."
-                ),
+                description=("Completed trials per wall-clock second."),
                 owner="ROOST",
                 semantic_domain="execution",
                 value_origin="roost-computed",
@@ -231,10 +228,7 @@ class ExecutionMetricsPlugin:
             MetricSpec(
                 name="run_execution.concurrency_equivalent",
                 category="derived_metric",
-                description=(
-                    "Throughput-equivalent "
-                    "concurrency estimate."
-                ),
+                description=("Throughput-equivalent concurrency estimate."),
                 owner="ROOST",
                 semantic_domain="execution",
                 value_origin="roost-computed",
@@ -261,10 +255,7 @@ class ExecutionMetricsPlugin:
             MetricSpec(
                 name="run_execution.worker_utilization",
                 category="derived_metric",
-                description=(
-                    "Parallel efficiency "
-                    "normalized by workers."
-                ),
+                description=("Parallel efficiency normalized by workers."),
                 owner="ROOST",
                 semantic_domain="execution",
                 value_origin="roost-computed",
@@ -290,10 +281,7 @@ class ExecutionMetricsPlugin:
             MetricSpec(
                 name="run_execution.trials_per_worker",
                 category="derived_metric",
-                description=(
-                    "Completed trials "
-                    "per worker."
-                ),
+                description=("Completed trials per worker."),
                 owner="ROOST",
                 semantic_domain="execution",
                 value_origin="roost-computed",
@@ -318,10 +306,7 @@ class ExecutionMetricsPlugin:
             MetricSpec(
                 name="run_timing.trial_latency_skew",
                 category="derived_metric",
-                description=(
-                    "Ratio of p90 to median "
-                    "trial execution time."
-                ),
+                description=("Ratio of p90 to median trial execution time."),
                 owner="ROOST",
                 semantic_domain="execution",
                 value_origin="roost-computed",

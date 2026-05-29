@@ -75,10 +75,7 @@ class OwlUiBridgePlugin:
                     "aca_settings",
                     key,
                 ),
-                description=(
-                    "Derived from OWL "
-                    "ui_bridge ACA_FIELDS"
-                ),
+                description=("Derived from OWL ui_bridge ACA_FIELDS"),
             )
 
         # -------------------------------------------------
@@ -107,10 +104,7 @@ class OwlUiBridgePlugin:
                     "rates_selection",
                     key,
                 ),
-                description=(
-                    "Derived from OWL ui_bridge "
-                    "(rates_selection extras)"
-                ),
+                description=("Derived from OWL ui_bridge (rates_selection extras)"),
             )
 
         # -------------------------------------------------
@@ -132,10 +126,7 @@ class OwlUiBridgePlugin:
                     key,
                 ),
                 dtype=list,
-                description=(
-                    "Derived from OWL ui_bridge "
-                    "(account allocation mode)"
-                ),
+                description=("Derived from OWL ui_bridge (account allocation mode)"),
             )
 
         # -------------------------------------------------
@@ -154,8 +145,5 @@ class OwlUiBridgePlugin:
                     "fixed_income",
                     key,
                 ),
-                description=(
-                    "Derived from OWL ui_bridge "
-                    "(fixed_income extras)"
-                ),
+                description=("Derived from OWL ui_bridge (fixed_income extras)"),
             )

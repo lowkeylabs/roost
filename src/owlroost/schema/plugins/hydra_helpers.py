@@ -35,10 +35,7 @@ class HydraHelperPlugin:
                 ),
                 source="helper",
                 materialization_level="run",
-                description=(
-                    "Historical market window "
-                    "formatted as YYYY-YYYY."
-                ),
+                description=("Historical market window formatted as YYYY-YYYY."),
             )
         )
 
@@ -56,10 +53,7 @@ class HydraHelperPlugin:
                 ),
                 source="helper",
                 materialization_level="run",
-                description=(
-                    "Named historical "
-                    "market regime."
-                ),
+                description=("Named historical market regime."),
             )
         )
 
@@ -77,11 +71,7 @@ class HydraHelperPlugin:
                 ),
                 source="helper",
                 materialization_level="run",
-                description=(
-                    "Social Security claiming "
-                    "age pair formatted as "
-                    "AA.A-AA.A."
-                ),
+                description=("Social Security claiming age pair formatted as AA.A-AA.A."),
             )
         )
 
@@ -99,9 +89,6 @@ class HydraHelperPlugin:
                 ),
                 source="helper",
                 materialization_level="run",
-                description=(
-                    "Semantic optimization "
-                    "helper."
-                ),
+                description=("Semantic optimization helper."),
             )
         )

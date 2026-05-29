@@ -85,7 +85,7 @@ def register_display_fields(
         DisplayField(
             field_name="session.description",
             path="_meta.session.description",
-            description=("Human-readable operational " "session description."),
+            description=("Human-readable operational session description."),
             profiles={
                 "table": DisplayProfile(
                     label="Description",

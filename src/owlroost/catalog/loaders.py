@@ -9,7 +9,6 @@ from owlroost.catalog.ontology import (
     SemanticDomain,
     ValueOrigin,
 )
-
 from owlroost.catalog.service import (
     filter_catalog_by_layer,
     load_catalog,
@@ -45,24 +44,15 @@ def load_catalog_dataset(
     *,
     schema_registry,
     metrics_registry,
-    display_registry,
     # -----------------------------------------------------
     # Ontology Filters
     # -----------------------------------------------------
     layer: str | None = None,
     owner: Owner | None = None,
-    semantic_domain: (
-        SemanticDomain | None
-    ) = None,
-    value_origin: (
-        ValueOrigin | None
-    ) = None,
-    projection_kind: (
-        ProjectionKind | None
-    ) = None,
-    node_type: (
-        CatalogNodeType | None
-    ) = None,
+    semantic_domain: SemanticDomain | None = None,
+    value_origin: ValueOrigin | None = None,
+    projection_kind: ProjectionKind | None = None,
+    node_type: CatalogNodeType | None = None,
     # -----------------------------------------------------
     # Search
     # -----------------------------------------------------
@@ -77,16 +67,35 @@ def load_catalog_dataset(
 
         canonical semantic entities
 
-    rather than flattened registry rows.
+    rather than display overlays,
+    registry rows, or renderer-facing
+    structures.
 
-    This loader provides ontology-aware
-    filtering layered across:
+    Catalog synthesis integrates:
 
         - schema ontology
         - metrics ontology
-        - display overlays
-        - aggregate synthesis
-        - analytical projections
+
+    into a unified semantic entity graph.
+
+    Display consumes catalog semantics
+    downstream.
+
+    Architectural Invariant
+    -----------------------
+    Catalog owns semantic identity.
+
+    Display owns presentation identity.
+
+    Catalog therefore returns:
+
+        Dataset(level="catalog")
+
+    rather than renderer-facing
+    objects such as:
+
+        - RoostTable
+        - TableColumn
 
     Parameters
     ----------
@@ -94,14 +103,15 @@ def load_catalog_dataset(
         Optional ontology layer filter.
 
         Examples:
+
             schema
             metrics
-            display
 
     owner
         Semantic ownership filter.
 
         Examples:
+
             OWL
             ROOST
 
@@ -109,6 +119,7 @@ def load_catalog_dataset(
         Scientific workflow role filter.
 
         Examples:
+
             decision
             design
             execution
@@ -117,6 +128,7 @@ def load_catalog_dataset(
         Fundamental value provenance filter.
 
         Examples:
+
             user-specified
             owl-computed
             roost-computed
@@ -124,23 +136,12 @@ def load_catalog_dataset(
     projection_kind
         Analytical realization filter.
 
-        Examples:
-            canonical
-            aggregate
-            synthetic
-            composed
-            formatted
-
     node_type
         Optional catalog graph filter.
 
-        Examples:
-            variable
-            namespace
-
     search
         Optional case-insensitive substring
-        search across semantic metadata.
+        search across catalog semantics.
     """
 
     # =====================================================
@@ -150,7 +151,6 @@ def load_catalog_dataset(
     dataset = load_catalog(
         schema_registry=schema_registry,
         metrics_registry=metrics_registry,
-        display_registry=display_registry,
     )
 
     # =====================================================
@@ -159,11 +159,9 @@ def load_catalog_dataset(
 
     if layer:
 
-        dataset = (
-            filter_catalog_by_layer(
-                dataset,
-                layer,
-            )
+        dataset = filter_catalog_by_layer(
+            dataset,
+            layer,
         )
 
     # =====================================================
@@ -174,69 +172,36 @@ def load_catalog_dataset(
         row,
     ) -> bool:
 
-        # -------------------------------------------------
-        # Semantic Ownership
-        # -------------------------------------------------
-
         if (
             owner is not None
-            and row.get("owner")
-            != owner
+            and row.get("owner") != owner
         ):
             return False
 
-        # -------------------------------------------------
-        # Scientific Workflow Role
-        # -------------------------------------------------
-
         if (
-            semantic_domain
-            is not None
-            and row.get(
-                "semantic_domain"
-            )
+            semantic_domain is not None
+            and row.get("semantic_domain")
             != semantic_domain
         ):
             return False
 
-        # -------------------------------------------------
-        # Fundamental Value Provenance
-        # -------------------------------------------------
-
         if (
-            value_origin
-            is not None
-            and row.get(
-                "value_origin"
-            )
+            value_origin is not None
+            and row.get("value_origin")
             != value_origin
         ):
             return False
 
-        # -------------------------------------------------
-        # Projection Semantics
-        # -------------------------------------------------
-
         if (
-            projection_kind
-            is not None
-            and row.get(
-                "projection_kind"
-            )
+            projection_kind is not None
+            and row.get("projection_kind")
             != projection_kind
         ):
             return False
 
-        # -------------------------------------------------
-        # Catalog Graph Structure
-        # -------------------------------------------------
-
         if (
-            node_type
-            is not None
-            and row.get(
-                "node_type"
-            )
+            node_type is not None
+            and row.get("node_type")
             != node_type
         ):
             return False

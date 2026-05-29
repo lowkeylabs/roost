@@ -6,7 +6,6 @@ from dataclasses import (
     dataclass,
     field,
 )
-
 from typing import (
     Any,
 )
@@ -169,9 +168,7 @@ class CatalogSpec(
     # Provenance Evolution
     # =====================================================
 
-    provenance_chain: list[
-        ProvenanceEvent
-    ] = field(
+    provenance_chain: list[ProvenanceEvent] = field(
         default_factory=list,
     )
 
@@ -188,4 +185,3 @@ class CatalogSpec(
 
         if self.path == "":
             self.path = None
-    

@@ -125,7 +125,7 @@ def register_display_fields(
         DisplayField(
             field_name="completion_ratio",
             display_fn=completion_ratio_display,
-            description=("Completed trials relative " "to configured trials per run."),
+            description=("Completed trials relative to configured trials per run."),
             profiles={
                 "table": DisplayProfile(
                     label="Trials",
@@ -179,7 +179,7 @@ def completion_ratio_display(
         if completed is None or total is None:
             return "."
 
-        return f"{completed}/" f"{total}"
+        return f"{completed}/{total}"
 
     except Exception:
         return "."

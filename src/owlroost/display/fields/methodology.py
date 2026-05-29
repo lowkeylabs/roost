@@ -123,7 +123,7 @@ def register_display_fields(
         DisplayField(
             field_name="display.optimization_goal",
             display_fn=compute_optimization_goal,
-            description=("Combined optimization objective " "and associated target."),
+            description=("Combined optimization objective and associated target."),
             profiles={
                 "table": DisplayProfile(
                     label="Goal",
@@ -187,7 +187,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField(
             field_name="roost_runtime.trials_per_run",
-            description=("Configured stochastic trials " "executed per run."),
+            description=("Configured stochastic trials executed per run."),
             profiles={
                 "table": DisplayProfile(
                     label="Trials\nPer\nRun",
@@ -209,7 +209,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField(
             field_name="roost_runtime.workers_per_run",
-            description=("Configured worker concurrency " "per run."),
+            description=("Configured worker concurrency per run."),
             profiles={
                 "table": DisplayProfile(
                     label="Workers\nPer Run",

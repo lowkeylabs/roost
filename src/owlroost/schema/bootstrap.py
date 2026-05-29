@@ -11,7 +11,6 @@ from .plugins.ui_bridge import OwlUiBridgePlugin
 from .registry import SchemaRegistry
 from .runtime_defaults import (
     build_runtime_defaults,
-    get_from_path,
 )
 
 
@@ -46,16 +45,16 @@ def build_registry(
     # Discover runtime-expanded OWL defaults
     # =====================================================
 
-    discovered_defaults = build_runtime_defaults()
+    _discovered_defaults = build_runtime_defaults()
 
-#    reg.register_discovered_fields(
-#        discovered_defaults,
-#    )
+    #    reg.register_discovered_fields(
+    #        discovered_defaults,
+    #    )
 
-#    reg.attach_discovered_defaults(
-#        discovered_defaults,
-#        get_from_path,
-#    )
+    #    reg.attach_discovered_defaults(
+    #        discovered_defaults,
+    #        get_from_path,
+    #    )
 
     # =====================================================
     # Return

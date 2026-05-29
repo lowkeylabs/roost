@@ -28,6 +28,10 @@ dev = [
     "ruff>=0.6.9",
     "pre-commit>=3.7.0",
     "pytest>=9.0.2",
+    "pytest-cov>=7.0",
+    "pyright>=1.1.400",
+    "import-linter>=2.3",
+    "grimp>=3.11",
 ]
 
 
@@ -36,6 +40,7 @@ dev = [
 owlroost = "owlroost.cli._main:cli"
 owlr     = "owlroost.cli._main:cli"
 roost    = "owlroost.cli._main:cli"
+roost-audit = "owlroost.tools.audit:main"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
@@ -71,7 +76,7 @@ packages = ["src/owlroost"]
 # -------------------------------
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py312"
 line-length = 100
 fix = true
 
@@ -116,3 +121,50 @@ console_output_style = "progress"
 ## Use when needing to point to local code.
 #[tool.uv.sources]
 #owlplanner = { path = "../owl-planner", editable = true }
+
+# -------------------------------
+# Coverage
+# -------------------------------
+
+[tool.coverage.run]
+source = ["src/owlroost"]
+
+[tool.coverage.report]
+skip_empty = true
+show_missing = true
+
+omit = [
+    "tests/*",
+    "tests_v1/*",
+]
+
+
+# -------------------------------
+# Pyright
+# -------------------------------
+
+[tool.pyright]
+include = ["src", "tests"]
+
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+
+reportMissingImports = true
+reportMissingTypeStubs = false
+
+
+# -------------------------------
+# ROOST Architecture Audits
+# -------------------------------
+
+[tool.roost.audit]
+
+tree = true
+imports = true
+packages = true
+
+ontology = true
+catalog = true
+display = true
+
+fail_on_warning = false

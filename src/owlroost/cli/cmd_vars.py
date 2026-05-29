@@ -127,13 +127,7 @@ DEFAULT_VIEW = "summary"
     "--filter",
     "filters",
     multiple=True,
-    help=(
-        "Filter rows. "
-        "Examples: "
-        "layer=metrics "
-        "source=_metrics "
-        "owner=OWL"
-    ),
+    help=("Filter rows. Examples: layer=metrics source=_metrics owner=OWL"),
 )
 @click.option(
     "--sort",
@@ -276,9 +270,7 @@ def cmd_vars(
     # =====================================================
 
     if not ds.rows:
-        click.echo(
-            "No matching variables found."
-        )
+        click.echo("No matching variables found.")
         return
 
     # =====================================================
@@ -298,7 +290,7 @@ def cmd_vars(
         registry=display_registry,
         name=view,
         layout="table",
-    )    
+    )
 
     # =====================================================
     # Inject Row IDs
@@ -322,4 +314,3 @@ def cmd_vars(
         click.echo(
             output,
         )
-    

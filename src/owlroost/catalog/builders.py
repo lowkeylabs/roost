@@ -9,11 +9,9 @@ from owlroost.catalog.ontology import (
     SemanticDomain,
     ValueOrigin,
 )
-
 from owlroost.catalog.rows import (
     build_catalog_row,
 )
-
 from owlroost.catalog.specs import (
     CatalogSpec,
     ProvenanceEvent,
@@ -23,29 +21,17 @@ from owlroost.catalog.specs import (
 # Typed Defaults
 # =========================================================
 
-DEFAULT_SCHEMA_VALUE_ORIGIN: ValueOrigin = (
-    "user-specified"
-)
+DEFAULT_SCHEMA_VALUE_ORIGIN: ValueOrigin = "user-specified"
 
-DEFAULT_METRIC_VALUE_ORIGIN: ValueOrigin = (
-    "owl-computed"
-)
+DEFAULT_METRIC_VALUE_ORIGIN: ValueOrigin = "owl-computed"
 
-DEFAULT_DISPLAY_VALUE_ORIGIN: ValueOrigin = (
-    "roost-computed"
-)
+DEFAULT_DISPLAY_VALUE_ORIGIN: ValueOrigin = "roost-computed"
 
-DEFAULT_CANONICAL_PROJECTION: ProjectionKind = (
-    "canonical"
-)
+DEFAULT_CANONICAL_PROJECTION: ProjectionKind = "canonical"
 
-DEFAULT_RUN_LEVEL: MaterializationLevel = (
-    "run"
-)
+DEFAULT_RUN_LEVEL: MaterializationLevel = "run"
 
-DEFAULT_TRIAL_LEVEL: MaterializationLevel = (
-    "trial"
-)
+DEFAULT_TRIAL_LEVEL: MaterializationLevel = "trial"
 
 # =========================================================
 # Helpers
@@ -122,61 +108,34 @@ def build_schema_rows(
     rows = []
 
     for field in schema_registry.all():
-
         spec = CatalogSpec(
             # -------------------------------------------------
             # Canonical Identity
             # -------------------------------------------------
             field_name=field.name,
-
             node_type="variable",
-
             # -------------------------------------------------
             # Ontology
             # -------------------------------------------------
             owner=field.owner,
-
-            semantic_domain=(
-                field.semantic_domain
-            ),
-
-            value_origin=(
-                field.value_origin
-                or DEFAULT_SCHEMA_VALUE_ORIGIN
-            ),
-
-            projection_kind=(
-                field.projection_kind
-                or DEFAULT_CANONICAL_PROJECTION
-            ),
-
+            semantic_domain=(field.semantic_domain),
+            value_origin=(field.value_origin or DEFAULT_SCHEMA_VALUE_ORIGIN),
+            projection_kind=(field.projection_kind or DEFAULT_CANONICAL_PROJECTION),
             analytic_kind=getattr(
                 field,
                 "analytic_kind",
                 None,
             ),
-
-            materialization_level=(
-                field.materialization_level
-                or DEFAULT_RUN_LEVEL
-            ),
-
+            materialization_level=(field.materialization_level or DEFAULT_RUN_LEVEL),
             # -------------------------------------------------
             # Runtime Realization
             # -------------------------------------------------
             source="_inputs",
-
-            path=_normalize_path(
-                field.path
-            ),
-
+            path=_normalize_path(field.path),
             # -------------------------------------------------
             # Explainability
             # -------------------------------------------------
-            description=(
-                field.description
-            ),
-
+            description=(field.description),
             # -------------------------------------------------
             # Analytical Lineage
             # -------------------------------------------------
@@ -187,7 +146,6 @@ def build_schema_rows(
                     [],
                 )
             ),
-
             # -------------------------------------------------
             # Provenance
             # -------------------------------------------------
@@ -237,59 +195,34 @@ def build_metric_rows(
     rows = []
 
     for metric in metrics_registry.all():
-
         spec = CatalogSpec(
             # -------------------------------------------------
             # Canonical Identity
             # -------------------------------------------------
             field_name=metric.name,
-
             node_type="variable",
-
             # -------------------------------------------------
             # Ontology
             # -------------------------------------------------
             owner=metric.owner,
-
-            semantic_domain=(
-                metric.semantic_domain
-            ),
-
-            value_origin=(
-                metric.value_origin
-                or DEFAULT_METRIC_VALUE_ORIGIN
-            ),
-
-            projection_kind=(
-                metric.projection_kind
-                or DEFAULT_CANONICAL_PROJECTION
-            ),
-
+            semantic_domain=(metric.semantic_domain),
+            value_origin=(metric.value_origin or DEFAULT_METRIC_VALUE_ORIGIN),
+            projection_kind=(metric.projection_kind or DEFAULT_CANONICAL_PROJECTION),
             analytic_kind=getattr(
                 metric,
                 "analytic_kind",
                 None,
             ),
-
-            materialization_level=(
-                metric.materialization_level
-                or DEFAULT_TRIAL_LEVEL
-            ),
-
+            materialization_level=(metric.materialization_level or DEFAULT_TRIAL_LEVEL),
             # -------------------------------------------------
             # Runtime Realization
             # -------------------------------------------------
             source="_metrics",
-
             path=metric.name,
-
             # -------------------------------------------------
             # Explainability
             # -------------------------------------------------
-            description=(
-                metric.description
-            ),
-
+            description=(metric.description),
             # -------------------------------------------------
             # Analytical Lineage
             # -------------------------------------------------
@@ -300,7 +233,6 @@ def build_metric_rows(
                     [],
                 )
             ),
-
             # -------------------------------------------------
             # Provenance
             # -------------------------------------------------
@@ -354,12 +286,9 @@ def infer_display_source(
     if path.startswith("_inputs"):
         return "_inputs"
 
-    semantic_field = (
-        field.semantic_field
-    )
+    semantic_field = field.semantic_field
 
     if semantic_field is not None:
-
         source = getattr(
             semantic_field,
             "source",
@@ -393,9 +322,7 @@ def infer_display_projection_kind(
     # Multi-field composition
     # -----------------------------------------------------
 
-    if field.field_name.startswith(
-        "compact_"
-    ):
+    if field.field_name.startswith("compact_"):
         return "composed"
 
     # -----------------------------------------------------
@@ -431,38 +358,24 @@ def build_display_rows(
 
     rows = []
 
-    for field in (
-        display_registry.all_display_fields()
-    ):
-
-        semantic_field = (
-            field.semantic_field
-        )
+    for field in display_registry.all_display_fields():
+        semantic_field = field.semantic_field
 
         owner = None
 
-        semantic_domain: (
-            SemanticDomain | None
-        ) = None
+        semantic_domain: SemanticDomain | None = None
 
-        analytic_kind: (
-            AnalyticKind | None
-        ) = None
+        analytic_kind: AnalyticKind | None = None
 
-        value_origin: ValueOrigin = (
-            DEFAULT_DISPLAY_VALUE_ORIGIN
-        )
+        value_origin: ValueOrigin = DEFAULT_DISPLAY_VALUE_ORIGIN
 
-        materialization_level: (
-            MaterializationLevel
-        ) = DEFAULT_RUN_LEVEL
+        materialization_level: MaterializationLevel = DEFAULT_RUN_LEVEL
 
         # -------------------------------------------------
         # Semantic inheritance
         # -------------------------------------------------
 
         if semantic_field is not None:
-
             owner = getattr(
                 semantic_field,
                 "owner",
@@ -504,52 +417,25 @@ def build_display_rows(
             # Canonical Identity
             # -------------------------------------------------
             field_name=field.field_name,
-
             node_type="variable",
-
             # -------------------------------------------------
             # Ontology
             # -------------------------------------------------
             owner=owner,
-
-            semantic_domain=(
-                semantic_domain
-            ),
-
-            value_origin=(
-                value_origin
-            ),
-
-            projection_kind=(
-                infer_display_projection_kind(
-                    field
-                )
-            ),
-
-            analytic_kind=(
-                analytic_kind
-            ),
-
-            materialization_level=(
-                materialization_level
-            ),
-
+            semantic_domain=(semantic_domain),
+            value_origin=(value_origin),
+            projection_kind=(infer_display_projection_kind(field)),
+            analytic_kind=(analytic_kind),
+            materialization_level=(materialization_level),
             # -------------------------------------------------
             # Runtime Realization
             # -------------------------------------------------
-            source=infer_display_source(
-                field
-            ),
-
+            source=infer_display_source(field),
             path=field.path,
-
             # -------------------------------------------------
             # Explainability
             # -------------------------------------------------
-            description=(
-                field.description
-            ),
-
+            description=(field.description),
             # -------------------------------------------------
             # Provenance
             # -------------------------------------------------
@@ -566,9 +452,7 @@ def build_display_rows(
             build_catalog_row(
                 spec=spec,
                 layer="display",
-                semantic_field=(
-                    semantic_field
-                ),
+                semantic_field=(semantic_field),
                 display_field=field,
             )
         )

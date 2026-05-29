@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import (
     dataclass,
     field,
 )
 from typing import (
-    Callable,
     Literal,
 )
 
 from owlroost.catalog.ontology import (
     OntologySpec,
 )
-
 from owlroost.display.specs import (
     DisplayProfile,
 )

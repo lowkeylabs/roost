@@ -5,7 +5,6 @@ from __future__ import annotations
 # =========================================================
 # Default Aggregate Formatting
 # =========================================================
-
 from .registry import (
     AGG_DEFAULT_FMT,
 )
@@ -42,9 +41,7 @@ def normalize_aggregate_definition(
 
     return (
         aggregate,
-        AGG_DEFAULT_FMT.get(
-            aggregate
-        ),
+        AGG_DEFAULT_FMT.get(aggregate),
     )
 
 
@@ -71,10 +68,7 @@ def build_aggregate_field_name(
         timing.elapsed_seconds__median
     """
 
-    return (
-        f"{field_name}"
-        f"__{agg_name}"
-    )
+    return f"{field_name}__{agg_name}"
 
 
 # =========================================================
@@ -108,7 +102,6 @@ def iter_aggregate_projections(
     """
 
     for metric in metrics_registry.all():
-
         # =================================================
         # Skip metrics without aggregate definitions
         # =================================================
@@ -120,38 +113,21 @@ def iter_aggregate_projections(
         # Aggregate Definitions
         # =================================================
 
-        for aggregate in (
-            metric.default_aggregates
-        ):
-
+        for aggregate in metric.default_aggregates:
             (
                 agg_name,
                 agg_fmt,
-            ) = normalize_aggregate_definition(
-                aggregate
-            )
+            ) = normalize_aggregate_definition(aggregate)
 
-            agg_field_name = (
-                build_aggregate_field_name(
-                    metric.name,
-                    agg_name,
-                )
+            agg_field_name = build_aggregate_field_name(
+                metric.name,
+                agg_name,
             )
 
             yield {
-                "field_name": (
-                    agg_field_name
-                ),
-                "source_metric": (
-                    metric.name
-                ),
-                "aggregation": (
-                    agg_name
-                ),
+                "field_name": (agg_field_name),
+                "source_metric": (metric.name),
+                "aggregation": (agg_name),
                 "fmt": agg_fmt,
-                "path": (
-                    f"_metrics."
-                    f"{agg_field_name}"
-                ),
+                "path": (f"_metrics.{agg_field_name}"),
             }
-    

@@ -169,7 +169,7 @@ class DisplayRegistry:
         key = (view.level, view.name)
 
         if key in self._views:
-            raise ValueError("Duplicate DisplayView registered: " f"{view.level}/{view.name}")
+            raise ValueError(f"Duplicate DisplayView registered: {view.level}/{view.name}")
 
         self._views[key] = view
 
@@ -341,10 +341,7 @@ class DisplayRegistry:
                 if isinstance(entry, str):
                     if not self.has_display_field(entry):
                         raise ValueError(
-                            "Group "
-                            f"'{group.key}' "
-                            "references unknown "
-                            f"DisplayField: {entry}"
+                            f"Group '{group.key}' references unknown DisplayField: {entry}"
                         )
 
                 # -----------------------------
@@ -352,28 +349,20 @@ class DisplayRegistry:
                 # -----------------------------
                 elif isinstance(entry, tuple):
                     if len(entry) != 2:
-                        raise ValueError(
-                            "Invalid group tuple " f"entry in '{group.key}': " f"{entry}"
-                        )
+                        raise ValueError(f"Invalid group tuple entry in '{group.key}': {entry}")
 
                     kind, value = entry
 
                     if kind == "field":
                         if not self.has_display_field(value):
                             raise ValueError(
-                                "Group "
-                                f"'{group.key}' "
-                                "references unknown "
-                                f"DisplayField: {value}"
+                                f"Group '{group.key}' references unknown DisplayField: {value}"
                             )
 
                     elif kind == "group":
                         if not self.has_group(value):
                             raise ValueError(
-                                "Group "
-                                f"'{group.key}' "
-                                "references unknown "
-                                f"DisplayGroup: {value}"
+                                f"Group '{group.key}' references unknown DisplayGroup: {value}"
                             )
 
         # -------------------------------------------------
@@ -387,10 +376,7 @@ class DisplayRegistry:
                 if isinstance(entry, tuple):
                     if len(entry) != 2:
                         raise ValueError(
-                            "Invalid view tuple "
-                            f"entry in "
-                            f"{view.level}/{view.name}: "
-                            f"{entry}"
+                            f"Invalid view tuple entry in {view.level}/{view.name}: {entry}"
                         )
 
                     kind, value = entry
@@ -401,10 +387,7 @@ class DisplayRegistry:
                     if kind == "group":
                         if not self.has_group(value):
                             raise ValueError(
-                                "View "
-                                f"{view.level}/{view.name} "
-                                "references unknown "
-                                f"group: {value}"
+                                f"View {view.level}/{view.name} references unknown group: {value}"
                             )
 
                     # -------------------------
@@ -413,10 +396,7 @@ class DisplayRegistry:
                     elif kind == "field":
                         if not self.has_display_field(value):
                             raise ValueError(
-                                "View "
-                                f"{view.level}/{view.name} "
-                                "references unknown "
-                                f"field: {value}"
+                                f"View {view.level}/{view.name} references unknown field: {value}"
                             )
 
     # =====================================================

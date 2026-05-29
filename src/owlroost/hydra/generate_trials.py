@@ -507,7 +507,7 @@ def generate_trials(cfg: DictConfig):
     )
 
     label = f"{case_name}/{run_path.name}"
-    desc = f"{label:<{label_width}}: " f"generating {trials_per_run} trials"
+    desc = f"{label:<{label_width}}: generating {trials_per_run} trials"
 
     renderer = create_renderer(
         "rich",

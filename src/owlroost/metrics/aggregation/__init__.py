@@ -28,11 +28,9 @@ from .aggregate_metrics import (
     iter_aggregate_projections,
     normalize_aggregate_definition,
 )
-
 from .context import (
     AggregationContext,
 )
-
 from .registry import (
     AGG_DEFAULT_FMT,
     AGG_EXPLAINS,
@@ -41,7 +39,6 @@ from .registry import (
     get_aggregation_func,
     list_aggregations,
 )
-
 from .service import (
     aggregate_dataset,
     aggregate_rows,
@@ -51,31 +48,24 @@ __all__ = [
     # =====================================================
     # Context
     # =====================================================
-
     "AggregationContext",
-
     # =====================================================
     # Registry
     # =====================================================
-
     "AGG_FUNCS",
     "AGG_EXPLAINS",
     "AGG_DEFAULT_FMT",
     "get_aggregation_func",
     "get_aggregation_explain",
     "list_aggregations",
-
     # =====================================================
     # Services
     # =====================================================
-
     "aggregate_rows",
     "aggregate_dataset",
-
     # =====================================================
     # Aggregate Projection Ontology
     # =====================================================
-
     "build_aggregate_field_name",
     "normalize_aggregate_definition",
     "iter_aggregate_projections",

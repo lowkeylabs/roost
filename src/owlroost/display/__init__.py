@@ -4,7 +4,6 @@
 from .registry import (
     DisplayRegistry,
 )
-
 from .specs import (
     DisplayField,
     DisplayGroup,

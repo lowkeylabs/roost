@@ -220,7 +220,7 @@ def adjust_parameters(
 
     if health not in HEALTH_MULTIPLIERS:
         raise ValueError(
-            f"Invalid health level '{health}'. " f"Valid values: {list(HEALTH_MULTIPLIERS.keys())}"
+            f"Invalid health level '{health}'. Valid values: {list(HEALTH_MULTIPLIERS.keys())}"
         )
 
     if sex not in SEX_MULTIPLIER:

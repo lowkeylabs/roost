@@ -1,0 +1,11 @@
+{
+  "include": [
+    "src/owlroost",
+    "tests"
+  ],
+  "exclude": [
+    "src/owlroost_v1",
+    "**/__pycache__",
+    ".venv"
+  ]
+}

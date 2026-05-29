@@ -346,12 +346,12 @@ def apply_top(
     "--filter",
     "filters",
     multiple=True,
-    help=("Filter rows. " "Examples: case_id=0 " "trial.completed>50"),
+    help=("Filter rows. Examples: case_id=0 trial.completed>50"),
 )
 @click.option(
     "--sort",
     type=str,
-    help=("Sort by field. " "Prefix '-' for descending."),
+    help=("Sort by field. Prefix '-' for descending."),
 )
 @click.option(
     "--top",

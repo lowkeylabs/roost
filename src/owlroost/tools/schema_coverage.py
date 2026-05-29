@@ -28,7 +28,7 @@ def report_section(
     if not missing:
         return
 
-    print(f"\n{title} " f"({len(missing)}):")
+    print(f"\n{title} ({len(missing)}):")
 
     if guidance:
         print()
@@ -41,7 +41,7 @@ def report_section(
         print("   ", m)
 
     if len(missing) > limit:
-        print(f"   ... +" f"{len(missing) - limit} more")
+        print(f"   ... +{len(missing) - limit} more")
 
 
 def normalize_key(k: str) -> str:
@@ -86,13 +86,13 @@ def report_diff(
     if not missing:
         return
 
-    print(f"\n{label} " f"({len(missing)}):")
+    print(f"\n{label} ({len(missing)}):")
 
     for m in sorted(missing)[:limit]:
         print("   ", m)
 
     if len(missing) > limit:
-        print(f"   ... +" f"{len(missing) - limit} more")
+        print(f"   ... +{len(missing) - limit} more")
 
 
 # =========================================================
@@ -318,15 +318,15 @@ def main():
     print("\nRegistry Summary")
     print("-" * 60)
 
-    print(f"Canonical registry fields:      " f"{len(registry_canonical)}")
+    print(f"Canonical registry fields:      {len(registry_canonical)}")
 
-    print(f"Compatibility fields:           " f"{len(registry_compat)}")
+    print(f"Compatibility fields:           {len(registry_compat)}")
 
-    print(f"Synthetic/runtime fields:       " f"{len(registry_synthetic)}")
+    print(f"Synthetic/runtime fields:       {len(registry_synthetic)}")
 
-    print(f"Hydra config fields:            " f"{len(hydra_fields)}")
+    print(f"Hydra config fields:            {len(hydra_fields)}")
 
-    print(f"TOML corpus fields:             " f"{len(toml_fields_raw)}")
+    print(f"TOML corpus fields:             {len(toml_fields_raw)}")
 
     # =====================================================
     # Canonical Coverage
@@ -343,7 +343,7 @@ def main():
 
     print(
         f"registry → hydra:               "
-        f"{pct(registry_hydra_scope,hydra_fields):6.1f}%"
+        f"{pct(registry_hydra_scope, hydra_fields):6.1f}%"
         f"  ({len(hydra_missing)} missing)"
     )
 

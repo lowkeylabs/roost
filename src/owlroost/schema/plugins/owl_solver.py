@@ -113,11 +113,7 @@ class OwlSolverPlugin:
         # Union of all supported keys
         # -------------------------------------------------
 
-        all_keys = (
-            set(SOLVER_OPT_KEYS)
-            | set(solver_defaults.keys())
-            | extra_keys
-        )
+        all_keys = set(SOLVER_OPT_KEYS) | set(solver_defaults.keys()) | extra_keys
 
         # -------------------------------------------------
         # Register fields
@@ -146,14 +142,7 @@ class OwlSolverPlugin:
                     source="owl",
                     materialization_level="case",
                     default=default_value,
-                    default_source=(
-                        "runtime"
-                        if key in solver_defaults
-                        else None
-                    ),
-                    description=(
-                        "Derived from OWL solver "
-                        "configuration support."
-                    ),
+                    default_source=("runtime" if key in solver_defaults else None),
+                    description=("Derived from OWL solver configuration support."),
                 )
             )

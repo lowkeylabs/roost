@@ -74,22 +74,16 @@ def build_display_registry(
     # Canonical Ontology Registries
     # =====================================================
 
-    reg.schema_registry = (
-        schema_registry
-    )
+    reg.schema_registry = schema_registry
 
-    reg.metrics_registry = (
-        metrics_registry
-    )
+    reg.metrics_registry = metrics_registry
 
     # =====================================================
     # Schema Display Overlays
     # =====================================================
 
     sync_schema_registry(
-        schema_registry=(
-            schema_registry
-        ),
+        schema_registry=(schema_registry),
         display_registry=reg,
     )
 
@@ -98,9 +92,7 @@ def build_display_registry(
     # =====================================================
 
     sync_metrics_registry(
-        metrics_registry=(
-            metrics_registry
-        ),
+        metrics_registry=(metrics_registry),
         display_registry=reg,
     )
 
@@ -110,9 +102,7 @@ def build_display_registry(
 
     register_aggregate_display_fields(
         reg=reg,
-        metrics_registry=(
-            metrics_registry
-        ),
+        metrics_registry=(metrics_registry),
     )
 
     # =====================================================

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 # =========================================================
 # Path Extraction
 # =========================================================
@@ -60,20 +59,14 @@ def resolve_field_value(
     # Display-derived value
     # =====================================================
 
-    if (
-        display_field is not None
-        and display_field.display_fn
-    ):
+    if display_field is not None and display_field.display_fn:
         return display_field.display_fn(row)
 
     # =====================================================
     # Explicit display path
     # =====================================================
 
-    if (
-        display_field is not None
-        and display_field.path is not None
-    ):
+    if display_field is not None and display_field.path is not None:
         value = extract_path(
             row,
             display_field.path,

@@ -4,14 +4,12 @@ from owlroost.schema.specs import (
     FieldSpec,
 )
 
-
 # =========================================================
 # Runtime Paths
 # =========================================================
 
 
 def test_empty_runtime_path():
-
     f = FieldSpec(
         name="root",
     )
@@ -20,7 +18,6 @@ def test_empty_runtime_path():
 
 
 def test_nested_runtime_path():
-
     f = FieldSpec(
         name="financial.spending.total.today",
         path=(
@@ -40,7 +37,6 @@ def test_nested_runtime_path():
 
 
 def test_runtime_path_type_normalized():
-
     f = FieldSpec(
         name="financial.spending.total.today",
         path=(
@@ -48,7 +44,7 @@ def test_runtime_path_type_normalized():
             "spending",
             "total",
             "today",
-        ),        
+        ),
     )
 
     assert isinstance(
@@ -58,7 +54,6 @@ def test_runtime_path_type_normalized():
 
 
 def test_runtime_path_matches_name():
-
     f = FieldSpec(
         name="timing.elapsed_seconds",
         path=(
@@ -67,7 +62,4 @@ def test_runtime_path_matches_name():
         ),
     )
 
-    assert (
-        ".".join(f.path)
-        == f.name
-    )
+    assert ".".join(f.path) == f.name

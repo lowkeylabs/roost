@@ -29,9 +29,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField(
             field_name="field_name",
-            description=(
-                "Canonical variable name."
-            ),
+            description=("Canonical variable name."),
             profiles={
                 "table": DisplayProfile(
                     label="Variable",
@@ -44,9 +42,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField(
             field_name="description",
-            description=(
-                "Semantic variable description."
-            ),
+            description=("Semantic variable description."),
             profiles={
                 "table": DisplayProfile(
                     label="Description",
@@ -64,9 +60,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField(
             field_name="layer",
-            description=(
-                "Ontology registry layer."
-            ),
+            description=("Ontology registry layer."),
             profiles={
                 "table": DisplayProfile(
                     label="Layer",
@@ -79,9 +73,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField(
             field_name="owner",
-            description=(
-                "Semantic ontology owner."
-            ),
+            description=("Semantic ontology owner."),
             profiles={
                 "table": DisplayProfile(
                     label="Owner",
@@ -94,9 +86,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField(
             field_name="semantic_domain",
-            description=(
-                "Scientific workflow role."
-            ),
+            description=("Scientific workflow role."),
             profiles={
                 "table": DisplayProfile(
                     label="Domain",
@@ -109,9 +99,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField(
             field_name="value_origin",
-            description=(
-                "Fundamental value origin."
-            ),
+            description=("Fundamental value origin."),
             profiles={
                 "table": DisplayProfile(
                     label="Origin",
@@ -124,9 +112,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField(
             field_name="projection_kind",
-            description=(
-                "Analytical projection type."
-            ),
+            description=("Analytical projection type."),
             profiles={
                 "table": DisplayProfile(
                     label="Projection",
@@ -139,9 +125,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField(
             field_name="materialization_level",
-            description=(
-                "Runtime materialization level."
-            ),
+            description=("Runtime materialization level."),
             profiles={
                 "table": DisplayProfile(
                     label="Level",
@@ -158,9 +142,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField(
             field_name="source",
-            description=(
-                "Runtime storage source."
-            ),
+            description=("Runtime storage source."),
             profiles={
                 "table": DisplayProfile(
                     label="Source",
@@ -173,9 +155,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField(
             field_name="path",
-            description=(
-                "Underlying runtime storage path."
-            ),
+            description=("Underlying runtime storage path."),
             profiles={
                 "table": DisplayProfile(
                     label="Path",
@@ -188,9 +168,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField(
             field_name="derived_from",
-            description=(
-                "Lineage parent variable(s)."
-            ),
+            description=("Lineage parent variable(s)."),
             profiles={
                 "table": DisplayProfile(
                     label="Derived\nFrom",
@@ -204,9 +182,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField(
             field_name="provenance_depth",
-            description=(
-                "Number of provenance events."
-            ),
+            description=("Number of provenance events."),
             profiles={
                 "table": DisplayProfile(
                     label="Prov\nDepth",

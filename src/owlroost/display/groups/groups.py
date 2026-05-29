@@ -1,4 +1,4 @@
-# src/owlroost/display/groups.py
+# src/owlroost/display/groups/groups.py
 
 from __future__ import annotations
 
@@ -138,7 +138,7 @@ def register_display_groups(
                 # -----------------------------------------
                 "run_timing.trial_latency_skew",
             ],
-            description=("Run-level execution, throughput, " "and timing diagnostics."),
+            description=("Run-level execution, throughput, and timing diagnostics."),
         )
     )
 

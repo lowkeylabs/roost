@@ -225,9 +225,9 @@ def _format_goal_and_target(value, row):
 
     def short_currency(v):
         if v >= 1_000_000:
-            return f"${v/1_000_000:.1f}M"
+            return f"${v / 1_000_000:.1f}M"
         if v >= 1_000:
-            return f"${int(v/1000)}K"
+            return f"${int(v / 1000)}K"
         return f"${int(v)}"
 
     val = short_currency(value)

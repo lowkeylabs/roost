@@ -42,10 +42,7 @@ CANONICAL_METRICS: list[MetricSpec] = [
     MetricSpec(
         name="timing.elapsed_seconds",
         category="metric",
-        description=(
-            "Elapsed execution time "
-            "for a single trial."
-        ),
+        description=("Elapsed execution time for a single trial."),
         owner="ROOST",
         semantic_domain="execution",
         value_origin="roost-computed",
@@ -67,9 +64,7 @@ CANONICAL_METRICS: list[MetricSpec] = [
     MetricSpec(
         name="trial.completed",
         category="metric",
-        description=(
-            "Number of completed trials."
-        ),
+        description=("Number of completed trials."),
         owner="ROOST",
         semantic_domain="execution",
         value_origin="roost-computed",
@@ -82,9 +77,7 @@ CANONICAL_METRICS: list[MetricSpec] = [
     MetricSpec(
         name="trial.pending",
         category="metric",
-        description=(
-            "Number of pending trials."
-        ),
+        description=("Number of pending trials."),
         owner="ROOST",
         semantic_domain="execution",
         value_origin="roost-computed",
@@ -97,9 +90,7 @@ CANONICAL_METRICS: list[MetricSpec] = [
     MetricSpec(
         name="trial.total",
         category="metric",
-        description=(
-            "Total number of trials."
-        ),
+        description=("Total number of trials."),
         owner="ROOST",
         semantic_domain="design",
         value_origin="user-specified",
@@ -112,9 +103,7 @@ CANONICAL_METRICS: list[MetricSpec] = [
     MetricSpec(
         name="trial.completion_rate",
         category="metric",
-        description=(
-            "Fraction of completed trials."
-        ),
+        description=("Fraction of completed trials."),
         owner="ROOST",
         semantic_domain="execution",
         value_origin="roost-computed",
@@ -130,10 +119,7 @@ CANONICAL_METRICS: list[MetricSpec] = [
     MetricSpec(
         name="financial.spending.year0.today",
         category="metric",
-        description=(
-            "Inflation-adjusted "
-            "year-0 spending."
-        ),
+        description=("Inflation-adjusted year-0 spending."),
         owner="OWL",
         semantic_domain="decision",
         value_origin="owl-computed",
@@ -152,10 +138,7 @@ CANONICAL_METRICS: list[MetricSpec] = [
     MetricSpec(
         name="financial.spending.total.today",
         category="metric",
-        description=(
-            "Total lifetime inflation-adjusted "
-            "spending."
-        ),
+        description=("Total lifetime inflation-adjusted spending."),
         owner="OWL",
         semantic_domain="decision",
         value_origin="owl-computed",
@@ -174,10 +157,7 @@ CANONICAL_METRICS: list[MetricSpec] = [
     MetricSpec(
         name="financial.bequest.total.today",
         category="metric",
-        description=(
-            "Terminal inflation-adjusted "
-            "bequest."
-        ),
+        description=("Terminal inflation-adjusted bequest."),
         owner="OWL",
         semantic_domain="decision",
         value_origin="owl-computed",
@@ -199,10 +179,7 @@ CANONICAL_METRICS: list[MetricSpec] = [
     MetricSpec(
         name="risk.summary.overall_risk",
         category="metric",
-        description=(
-            "Overall scenario risk "
-            "classification."
-        ),
+        description=("Overall scenario risk classification."),
         owner="OWL",
         semantic_domain="decision",
         value_origin="owl-computed",
@@ -215,10 +192,7 @@ CANONICAL_METRICS: list[MetricSpec] = [
     MetricSpec(
         name="risk.summary.scenario_severity",
         category="metric",
-        description=(
-            "Severity score for "
-            "scenario outcomes."
-        ),
+        description=("Severity score for scenario outcomes."),
         owner="OWL",
         semantic_domain="decision",
         value_origin="owl-computed",
@@ -276,23 +250,14 @@ class OutputMetricsPlugin:
         # Aggregate Metrics
         # =================================================
 
-        canonical_metrics = list(
-            registry.all()
-        )
+        canonical_metrics = list(registry.all())
 
         for metric in canonical_metrics:
-
             if not metric.aggregatable:
                 continue
 
-            for aggregate_name in (
-                metric.default_aggregates
-            ):
-
-                aggregate_metric_name = (
-                    f"{metric.name}"
-                    f"__{aggregate_name}"
-                )
+            for aggregate_name in metric.default_aggregates:
+                aggregate_metric_name = f"{metric.name}__{aggregate_name}"
 
                 registry.register(
                     MetricSpec(
@@ -301,37 +266,24 @@ class OutputMetricsPlugin:
                         # ---------------------------------
                         name=aggregate_metric_name,
                         category="aggregate",
-                        description=(
-                            f"{aggregate_name} "
-                            f"aggregate of "
-                            f"{metric.name}"
-                        ),
+                        description=(f"{aggregate_name} aggregate of {metric.name}"),
                         # ---------------------------------
                         # Ontology
                         # ---------------------------------
                         owner=metric.owner,
-                        semantic_domain=(
-                            metric.semantic_domain
-                        ),
-                        value_origin=(
-                            metric.value_origin
-                        ),
+                        semantic_domain=(metric.semantic_domain),
+                        value_origin=(metric.value_origin),
                         projection_kind="aggregate",
                         analytic_kind="aggregate",
                         materialization_level="run",
                         # ---------------------------------
                         # Provenance
                         # ---------------------------------
-                        defined_in=(
-                            "metrics/plugins/"
-                            "output_metrics.py"
-                        ),
+                        defined_in=("metrics/plugins/output_metrics.py"),
                         derived_from=[
                             metric.name,
                         ],
-                        aggregate_function=(
-                            aggregate_name
-                        ),
+                        aggregate_function=(aggregate_name),
                         # ---------------------------------
                         # Typing
                         # ---------------------------------
@@ -344,9 +296,6 @@ class OutputMetricsPlugin:
                         # ---------------------------------
                         # Notes
                         # ---------------------------------
-                        notes=(
-                            "Autogenerated aggregate "
-                            "metric."
-                        ),
+                        notes=("Autogenerated aggregate metric."),
                     )
                 )

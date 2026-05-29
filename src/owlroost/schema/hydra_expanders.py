@@ -181,7 +181,7 @@ def expand_optimization_goal(run_dict):
         objective_name, target = value.split("-", 1)
 
     except Exception as exc:
-        raise ValueError("Invalid roost_runtime.optimization_goal " f"value: {value}") from exc
+        raise ValueError(f"Invalid roost_runtime.optimization_goal value: {value}") from exc
 
     optimization = run_dict.setdefault(
         "optimization_parameters",
@@ -201,7 +201,7 @@ def expand_optimization_goal(run_dict):
         target_k_dollars = float(target.replace("_", ""))
 
     except Exception as exc:
-        raise ValueError("Invalid optimization target " f"value: {target}") from exc
+        raise ValueError(f"Invalid optimization target value: {target}") from exc
 
     # -----------------------------------------------------
     # Convert K-dollars -> configured OWL units
@@ -301,4 +301,4 @@ def expand_optimization_goal(run_dict):
     # Unknown objective
     # -----------------------------------------------------
 
-    raise ValueError("Unknown optimization objective " f"in optimization_goal: {objective_name}")
+    raise ValueError(f"Unknown optimization objective in optimization_goal: {objective_name}")

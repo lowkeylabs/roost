@@ -9,12 +9,12 @@ from owlplanner.socialsecurity import (
     getSelfFactor,
 )
 
+from owlroost.display.operations.normalize import (
+    normalize_input_money,
+)
 from owlroost.display.specs import (
     DisplayField,
     DisplayProfile,
-)
-from owlroost.display.operations.normalize import (
-    normalize_input_money,
 )
 
 # =========================================================

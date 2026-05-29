@@ -9,7 +9,6 @@ from owlroost.metrics.specs import (
 
 @pytest.fixture
 def sample_metric():
-
     return MetricSpec(
         name="timing.elapsed_seconds",
         owner="ROOST",

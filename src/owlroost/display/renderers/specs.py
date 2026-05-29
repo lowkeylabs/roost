@@ -1,4 +1,4 @@
-# src/owlroost/display/table.py
+# src/owlroost/display/renderers/specs.py
 
 from __future__ import annotations
 
@@ -91,7 +91,7 @@ class RoostTable:
     # =====================================================
 
     def __repr__(self):
-        return "RoostTable(" f"columns={len(self.columns)}, " f"rows={len(self.rows)}" ")"
+        return f"RoostTable(columns={len(self.columns)}, rows={len(self.rows)})"
 
 
 # =========================================================

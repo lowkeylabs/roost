@@ -1,0 +1,62 @@
+[importlinter]
+root_package = owlroost
+
+# ==================================================
+# Display Layer
+# ==================================================
+
+[importlinter:contract:display_no_cli]
+name = Display must not import CLI
+
+type = forbidden
+
+source_modules =
+    owlroost.display
+
+forbidden_modules =
+    owlroost.cli
+
+# ==================================================
+# Catalog Layer
+# ==================================================
+
+[importlinter:contract:catalog_no_display]
+name = Catalog must not import display
+
+type = forbidden
+
+source_modules =
+    owlroost.catalog
+
+forbidden_modules =
+    owlroost.display
+
+# ==================================================
+# Schema Layer
+# ==================================================
+
+[importlinter:contract:schema_no_display]
+name = Schema must not import display
+
+type = forbidden
+
+source_modules =
+    owlroost.schema
+
+forbidden_modules =
+    owlroost.display
+
+# ==================================================
+# Metrics Layer
+# ==================================================
+
+[importlinter:contract:metrics_no_display]
+name = Metrics must not import display
+
+type = forbidden
+
+source_modules =
+    owlroost.metrics
+
+forbidden_modules =
+    owlroost.display

@@ -63,20 +63,11 @@ def _export_provenance_chain(
     rows = []
 
     for event in chain:
-
         if is_dataclass(event):
-            rows.append(
-                asdict(event)
-            )
+            rows.append(asdict(event))
 
         else:
-            rows.append(
-                {
-                    "type": str(
-                        type(event).__name__
-                    )
-                }
-            )
+            rows.append({"type": str(type(event).__name__)})
 
     return rows
 
@@ -122,11 +113,7 @@ def build_catalog_row(
     # Provenance
     # =====================================================
 
-    provenance_chain = (
-        _export_provenance_chain(
-            spec.provenance_chain
-        )
-    )
+    provenance_chain = _export_provenance_chain(spec.provenance_chain)
 
     # =====================================================
     # Overlay Metadata
@@ -135,9 +122,7 @@ def build_catalog_row(
     overlay_layers: list[str] = []
 
     if layer == "display":
-        overlay_layers.append(
-            "display"
-        )
+        overlay_layers.append("display")
 
     # =====================================================
     # Canonical Row
@@ -162,27 +147,15 @@ def build_catalog_row(
             # Semantic Ontology
             # ---------------------------------------------
             "owner": spec.owner,
-            "semantic_domain": (
-                spec.semantic_domain
-            ),
-            "value_origin": (
-                spec.value_origin
-            ),
+            "semantic_domain": (spec.semantic_domain),
+            "value_origin": (spec.value_origin),
             # ---------------------------------------------
             # Extended Ontology Semantics
             # ---------------------------------------------
-            "projection_kind": (
-                spec.projection_kind
-            ),
-            "analytic_kind": (
-                spec.analytic_kind
-            ),
-            "materialization_level": (
-                spec.materialization_level
-            ),
-            "node_type": (
-                spec.node_type
-            ),
+            "projection_kind": (spec.projection_kind),
+            "analytic_kind": (spec.analytic_kind),
+            "materialization_level": (spec.materialization_level),
+            "node_type": (spec.node_type),
             # ---------------------------------------------
             # Runtime Realization
             # ---------------------------------------------
@@ -191,38 +164,22 @@ def build_catalog_row(
             # ---------------------------------------------
             # Lineage / Provenance
             # ---------------------------------------------
-            "derived_from": (
-                spec.derived_from
-            ),
-            "provenance_chain": (
-                provenance_chain
-            ),
-            "overlay_layers": (
-                overlay_layers
-            ),
+            "derived_from": (spec.derived_from),
+            "provenance_chain": (provenance_chain),
+            "overlay_layers": (overlay_layers),
         },
         # -------------------------------------------------
         # Explainability / Presentation
         # -------------------------------------------------
         "_display": {
-            "description": (
-                spec.description
-            ),
+            "description": (spec.description),
         },
         # -------------------------------------------------
         # Lightweight Registry References
         # -------------------------------------------------
         "_objects": {
-            "semantic_field": (
-                _safe_export(
-                    semantic_field
-                )
-            ),
-            "display_field": (
-                _safe_export(
-                    display_field
-                )
-            ),
+            "semantic_field": (_safe_export(semantic_field)),
+            "display_field": (_safe_export(display_field)),
         },
         # -------------------------------------------------
         # Flattened Convenience Aliases
@@ -236,27 +193,15 @@ def build_catalog_row(
         "field_name": spec.field_name,
         "layer": layer,
         "owner": spec.owner,
-        "semantic_domain": (
-            spec.semantic_domain
-        ),
-        "value_origin": (
-            spec.value_origin
-        ),
+        "semantic_domain": (spec.semantic_domain),
+        "value_origin": (spec.value_origin),
         # -------------------------------------------------
         # Extended Ontology Semantics
         # -------------------------------------------------
-        "projection_kind": (
-            spec.projection_kind
-        ),
-        "analytic_kind": (
-            spec.analytic_kind
-        ),
-        "materialization_level": (
-            spec.materialization_level
-        ),
-        "node_type": (
-            spec.node_type
-        ),
+        "projection_kind": (spec.projection_kind),
+        "analytic_kind": (spec.analytic_kind),
+        "materialization_level": (spec.materialization_level),
+        "node_type": (spec.node_type),
         # -------------------------------------------------
         # Runtime Realization
         # -------------------------------------------------
@@ -265,32 +210,16 @@ def build_catalog_row(
         # -------------------------------------------------
         # Explainability
         # -------------------------------------------------
-        "description": (
-            spec.description
-        ),
+        "description": (spec.description),
         # -------------------------------------------------
         # Lineage
         # -------------------------------------------------
-        "derived_from": (
-            ", ".join(
-                spec.derived_from
-            )
-            if spec.derived_from
-            else ""
-        ),
+        "derived_from": (", ".join(spec.derived_from) if spec.derived_from else ""),
         # -------------------------------------------------
         # Provenance
         # -------------------------------------------------
-        "provenance_depth": len(
-            provenance_chain
-        ),
-        "overlay_layers": (
-            ", ".join(
-                overlay_layers
-            )
-            if overlay_layers
-            else ""
-        ),
+        "provenance_depth": len(provenance_chain),
+        "overlay_layers": (", ".join(overlay_layers) if overlay_layers else ""),
     }
 
     return row

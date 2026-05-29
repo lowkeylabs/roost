@@ -1,4 +1,4 @@
-# src/owlroost/cli/cmd_report.py
+# src/owlroost/cli/cmd_reports.py
 
 from __future__ import annotations
 
@@ -78,7 +78,7 @@ def cmd_reports(
         except Exception as exc:
             raise click.ClickException(str(exc)) from exc
 
-        click.echo("Templates initialized: " f"{result['templates_dir']}")
+        click.echo(f"Templates initialized: {result['templates_dir']}")
 
         moved = result["moved_files"]
 
@@ -95,10 +95,10 @@ def cmd_reports(
     # =====================================================
     if sync:
         if not results_dir.exists():
-            raise click.ClickException("Results directory not found: " f"{results_dir}")
+            raise click.ClickException(f"Results directory not found: {results_dir}")
 
         if not templates_dir.exists():
-            raise click.ClickException("Templates directory not found: " f"{templates_dir}")
+            raise click.ClickException(f"Templates directory not found: {templates_dir}")
 
         try:
             sync_reports(
@@ -117,7 +117,7 @@ def cmd_reports(
     # DIAGNOSTICS
     # =====================================================
     if not results_dir.exists():
-        raise click.ClickException("Results directory not found: " f"{results_dir}")
+        raise click.ClickException(f"Results directory not found: {results_dir}")
 
     diagnostics = collect_report_diagnostics(
         results_dir,
@@ -137,12 +137,12 @@ def cmd_reports(
     # Template status
     # ----------------------------------------
     if not template_status["exists"]:
-        click.echo("Templates:   " "MISSING " "(./templates not found)")
+        click.echo("Templates:   MISSING (./templates not found)")
 
     elif template_status["missing_subdirs"]:
         missing = ", ".join(template_status["missing_subdirs"])
 
-        click.echo("Templates:   " f"INCOMPLETE (missing: {missing})")
+        click.echo(f"Templates:   INCOMPLETE (missing: {missing})")
 
     else:
         click.echo("Templates:   OK")
@@ -155,7 +155,7 @@ def cmd_reports(
     def line(label, key):
         c = counts[key]
 
-        click.echo(f"{label:<12} " f"{c['total']:>6} " f"(missing: {c['missing']})")
+        click.echo(f"{label:<12} {c['total']:>6} (missing: {c['missing']})")
 
     line("Cases:", "case")
     line("Sessions:", "session")

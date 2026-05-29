@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from owlroost.display.table import (
+from owlroost.display.renderers.specs import (
     TableColumn,
 )
 

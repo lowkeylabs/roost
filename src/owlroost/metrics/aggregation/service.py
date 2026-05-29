@@ -58,11 +58,7 @@ def _normalize_aggregates(
 
     result = []
 
-    for agg in (
-        metric_spec.default_aggregates
-        or []
-    ):
-
+    for agg in metric_spec.default_aggregates or []:
         if isinstance(
             agg,
             tuple,
@@ -72,9 +68,7 @@ def _normalize_aggregates(
         else:
             agg_name = agg
 
-            fmt = AGG_DEFAULT_FMT.get(
-                agg_name
-            )
+            fmt = AGG_DEFAULT_FMT.get(agg_name)
 
         result.append(
             (
@@ -154,15 +148,11 @@ def aggregate_rows(
     # =====================================================
 
     for metric in metrics_registry.all():
-
         # -------------------------------------------------
         # Only aggregate trial-materialized metrics
         # -------------------------------------------------
 
-        if (
-            metric.materialization_level
-            != "trial"
-        ):
+        if metric.materialization_level != "trial":
             continue
 
         # -------------------------------------------------
@@ -186,15 +176,12 @@ def aggregate_rows(
         values = []
 
         for row in rows:
-
             metrics = row.get(
                 "_metrics",
                 {},
             )
 
-            value = metrics.get(
-                metric.name
-            )
+            value = metrics.get(metric.name)
 
             if _is_numeric(value):
                 values.append(value)
@@ -206,25 +193,15 @@ def aggregate_rows(
         for (
             agg_name,
             fmt,
-        ) in _normalize_aggregates(
-            metric
-        ):
-
-            func = get_aggregation_func(
-                agg_name
-            )
+        ) in _normalize_aggregates(metric):
+            func = get_aggregation_func(agg_name)
 
             if func is None:
-                raise ValueError(
-                    "Unknown aggregation: "
-                    f"{agg_name}"
-                )
+                raise ValueError(f"Unknown aggregation: {agg_name}")
 
-            agg_field_name = (
-                build_aggregate_field_name(
-                    metric.name,
-                    agg_name,
-                )
+            agg_field_name = build_aggregate_field_name(
+                metric.name,
+                agg_name,
             )
 
             # ---------------------------------------------
@@ -232,26 +209,14 @@ def aggregate_rows(
             # ---------------------------------------------
 
             if not values:
+                out[agg_field_name] = _empty_aggregate_value(agg_name)
 
-                out[
-                    agg_field_name
-                ] = _empty_aggregate_value(
-                    agg_name
-                )
+                out[f"{agg_field_name}__n_valid"] = 0
 
-                out[
-                    f"{agg_field_name}__n_valid"
-                ] = 0
-
-                out[
-                    f"{agg_field_name}__n_total"
-                ] = len(rows)
+                out[f"{agg_field_name}__n_total"] = len(rows)
 
                 if fmt is not None:
-
-                    out[
-                        f"{agg_field_name}__fmt"
-                    ] = fmt
+                    out[f"{agg_field_name}__fmt"] = fmt
 
                 continue
 
@@ -261,23 +226,14 @@ def aggregate_rows(
 
             result = func(values)
 
-            out[
-                agg_field_name
-            ] = result
+            out[agg_field_name] = result
 
-            out[
-                f"{agg_field_name}__n_valid"
-            ] = len(values)
+            out[f"{agg_field_name}__n_valid"] = len(values)
 
-            out[
-                f"{agg_field_name}__n_total"
-            ] = len(rows)
+            out[f"{agg_field_name}__n_total"] = len(rows)
 
             if fmt is not None:
-
-                out[
-                    f"{agg_field_name}__fmt"
-                ] = fmt
+                out[f"{agg_field_name}__fmt"] = fmt
 
     return out
 

@@ -27,7 +27,6 @@ def path_to_table_label(
     # -----------------------------------------------------
 
     if "__" in field_name:
-
         (
             base,
             agg,
@@ -38,10 +37,7 @@ def path_to_table_label(
 
         leaf = base.split(".")[-1]
 
-        return (
-            f"{leaf.replace('_', ' ').title()} "
-            f"{agg.upper()}"
-        )
+        return f"{leaf.replace('_', ' ').title()} {agg.upper()}"
 
     # -----------------------------------------------------
     # Standard fields
@@ -67,7 +63,6 @@ def path_to_pivot_label(
     # -----------------------------------------------------
 
     if "__" in field_name:
-
         (
             base,
             agg,
@@ -76,10 +71,7 @@ def path_to_pivot_label(
             1,
         )
 
-        return (
-            f"{base.replace('.', ' ').replace('_', ' ').title()} "
-            f"{agg.upper()}"
-        )
+        return f"{base.replace('.', ' ').replace('_', ' ').title()} {agg.upper()}"
 
     # -----------------------------------------------------
     # Standard fields
@@ -126,9 +118,7 @@ def _register_field_if_missing(
     # Preserve explicit registrations
     # -----------------------------------------------------
 
-    if display_registry.has_display_field(
-        field_name
-    ):
+    if display_registry.has_display_field(field_name):
         return
 
     # -----------------------------------------------------
@@ -136,17 +126,12 @@ def _register_field_if_missing(
     # -----------------------------------------------------
 
     if profiles is None:
-
         profiles = {
             "table": DisplayProfile(
-                label=path_to_table_label(
-                    field_name
-                ),
+                label=path_to_table_label(field_name),
             ),
             "pivot": DisplayProfile(
-                label=path_to_pivot_label(
-                    field_name
-                ),
+                label=path_to_pivot_label(field_name),
             ),
         }
 
@@ -179,15 +164,10 @@ def sync_schema_registry(
     """
 
     for schema_field in schema_registry.all():
-
         _register_field_if_missing(
             field_name=schema_field.name,
-            description=(
-                schema_field.description
-            ),
-            display_registry=(
-                display_registry
-            ),
+            description=(schema_field.description),
+            display_registry=(display_registry),
             semantic_field=schema_field,
             profiles=getattr(
                 schema_field,
@@ -211,10 +191,7 @@ def sync_metrics_registry(
     canonical metrics ontology.
     """
 
-    for metrics_field in (
-        metrics_registry.all()
-    ):
-
+    for metrics_field in metrics_registry.all():
         _register_field_if_missing(
             field_name=metrics_field.name,
             description=getattr(
@@ -223,13 +200,10 @@ def sync_metrics_registry(
                 None,
             ),
             semantic_field=metrics_field,
-            display_registry=(
-                display_registry
-            ),
+            display_registry=(display_registry),
             profiles=getattr(
                 metrics_field,
                 "profiles",
                 None,
             ),
         )
-    

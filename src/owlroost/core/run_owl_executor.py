@@ -97,7 +97,7 @@ def run_trial_from_toml(
     trial_toml = trial_dir / "trial.toml"
 
     if not trial_toml.exists():
-        raise RuntimeError("Missing trial.toml in " f"{trial_dir}")
+        raise RuntimeError(f"Missing trial.toml in {trial_dir}")
 
     # ----------------------------------------
     # Skip completed trials
@@ -360,10 +360,7 @@ def execute_trials(
 
     if 0:
         click.echo(
-            f"\nRunning "
-            f"{len(pending_trials)} "
-            f"pending trials "
-            f"with {workers_per_run} workers...\n"
+            f"\nRunning {len(pending_trials)} pending trials with {workers_per_run} workers...\n"
         )
 
     results = []
@@ -506,7 +503,7 @@ def execute_run(
 
         label = f"{label:<{label_width}}"
 
-        desc = f"{label} " f"({workers_per_run} workers, {solver})"
+        desc = f"{label} ({workers_per_run} workers, {solver})"
 
         results = execute_trials(
             pending_trials,
@@ -579,7 +576,7 @@ def execute_run(
     #   click.echo(vf"run_elapsed={elapsed:.1f}s" )
 
     if not timing_is_whole:
-        click.echo("WARNING: run timing does not include all trials " "(partial execution)")
+        click.echo("WARNING: run timing does not include all trials (partial execution)")
 
     #    render_execution_summary(results)
 

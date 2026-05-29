@@ -117,7 +117,7 @@ def register_display_fields(
         DisplayField(
             field_name="compact_id",
             display_fn=compact_id_display,
-            description=("Compact hierarchical operational " "identifier."),
+            description=("Compact hierarchical operational identifier."),
             profiles={
                 "table": DisplayProfile(
                     label="ID",
@@ -199,20 +199,20 @@ def compact_id_display(
         # =================================================
 
         if run_id is None:
-            return f"{case_id}/" f"{session_id}"
+            return f"{case_id}/{session_id}"
 
         # =================================================
         # Run Level
         # =================================================
 
         if trial_id is None:
-            return f"{case_id}/" f"{session_id}/" f"{run_id}"
+            return f"{case_id}/{session_id}/{run_id}"
 
         # =================================================
         # Trial Level
         # =================================================
 
-        return f"{case_id}/" f"{session_id}/" f"{run_id}/" f"{trial_id}"
+        return f"{case_id}/{session_id}/{run_id}/{trial_id}"
 
     except Exception:
         return None

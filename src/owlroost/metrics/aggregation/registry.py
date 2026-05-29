@@ -74,9 +74,7 @@ AGG_EXPLAINS: dict[
 def register_aggregation(
     name: str,
     func: AggregationFunc,
-    explain: (
-        AggregationExplainFn | None
-    ) = None,
+    explain: (AggregationExplainFn | None) = None,
 ):
     """
     Register canonical aggregation function.
@@ -100,10 +98,7 @@ def register_aggregation(
     """
 
     if name in AGG_FUNCS:
-        raise ValueError(
-            "Aggregation already "
-            f"registered: {name}"
-        )
+        raise ValueError(f"Aggregation already registered: {name}")
 
     AGG_FUNCS[name] = func
 
@@ -142,9 +137,7 @@ def list_aggregations():
     Return stable sorted aggregation names.
     """
 
-    return sorted(
-        AGG_FUNCS.keys()
-    )
+    return sorted(AGG_FUNCS.keys())
 
 
 # =========================================================
@@ -179,32 +172,22 @@ register_aggregation(
 
 register_aggregation(
     "std",
-    lambda v: (
-        statistics.stdev(v)
-        if len(v) >= 2
-        else 0.0
-    ),
+    lambda v: (statistics.stdev(v) if len(v) >= 2 else 0.0),
 )
 
 register_aggregation(
     "p10",
-    lambda v: float(
-        np.percentile(v, 10)
-    ),
+    lambda v: float(np.percentile(v, 10)),
 )
 
 register_aggregation(
     "p90",
-    lambda v: float(
-        np.percentile(v, 90)
-    ),
+    lambda v: float(np.percentile(v, 90)),
 )
 
 register_aggregation(
     "p99",
-    lambda v: float(
-        np.percentile(v, 99)
-    ),
+    lambda v: float(np.percentile(v, 99)),
 )
 
 register_aggregation(
@@ -214,21 +197,12 @@ register_aggregation(
 
 register_aggregation(
     "cnt_true",
-    lambda v: sum(
-        bool(x) for x in v
-    ),
+    lambda v: sum(bool(x) for x in v),
 )
 
 register_aggregation(
     "pct",
-    lambda v: (
-        (
-            sum(bool(x) for x in v)
-            / len(v)
-        )
-        if v
-        else 0.0
-    ),
+    lambda v: ((sum(bool(x) for x in v) / len(v)) if v else 0.0),
 )
 
 # =========================================================
@@ -238,12 +212,5 @@ register_aggregation(
 
 register_aggregation(
     "ratio",
-    lambda v: (
-        (
-            sum(bool(x) for x in v)
-            / len(v)
-        )
-        if v
-        else 0.0
-    ),
+    lambda v: ((sum(bool(x) for x in v) / len(v)) if v else 0.0),
 )

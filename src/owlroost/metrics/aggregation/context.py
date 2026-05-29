@@ -72,9 +72,7 @@ class AggregationContext:
     # Runtime Materialization
     # =====================================================
 
-    materialization_level: (
-        str | None
-    ) = None
+    materialization_level: str | None = None
 
     # =====================================================
     # Optional Display Metadata

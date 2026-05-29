@@ -1,12 +1,12 @@
-# src/owlroost/metrics/registry/bootstrap.py
-
-from .plugins.output_metrics import OutputMetricsPlugin
-from .plugins.execution_metrics import ExecutionMetricsPlugin
-from .plugins.hydra_overrides import HydraOverridesPlugin
+# src/owlroost/metrics/bootstrap.py
 
 from owlroost.metrics.registry import (
     MetricsRegistry,
 )
+
+from .plugins.execution_metrics import ExecutionMetricsPlugin
+from .plugins.hydra_overrides import HydraOverridesPlugin
+from .plugins.output_metrics import OutputMetricsPlugin
 
 # =========================================================
 # Bootstrap

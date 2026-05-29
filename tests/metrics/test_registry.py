@@ -9,7 +9,6 @@ from owlroost.metrics.specs import (
     MetricSpec,
 )
 
-
 # =========================================================
 # Registration
 # =========================================================
@@ -18,22 +17,16 @@ from owlroost.metrics.specs import (
 def test_registry_register_and_get(
     sample_metric,
 ):
-
     reg = MetricsRegistry()
 
-    reg.register(
-        sample_metric
-    )
+    reg.register(sample_metric)
 
-    out = reg.get(
-        "timing.elapsed_seconds"
-    )
+    out = reg.get("timing.elapsed_seconds")
 
     assert out is sample_metric
 
 
 def test_duplicate_metric_registration_raises():
-
     reg = MetricsRegistry()
 
     metric = MetricSpec(
@@ -42,9 +35,7 @@ def test_duplicate_metric_registration_raises():
 
     reg.register(metric)
 
-    with pytest.raises(
-        ValueError
-    ):
+    with pytest.raises(ValueError):
         reg.register(metric)
 
 
@@ -54,19 +45,13 @@ def test_duplicate_metric_registration_raises():
 
 
 def test_registry_missing_lookup_raises():
-
     reg = MetricsRegistry()
 
-    with pytest.raises(
-        KeyError
-    ):
-        reg.get(
-            "missing.metric"
-        )
+    with pytest.raises(KeyError):
+        reg.get("missing.metric")
 
 
 def test_registry_exists():
-
     reg = MetricsRegistry()
 
     metric = MetricSpec(
@@ -75,13 +60,9 @@ def test_registry_exists():
 
     reg.register(metric)
 
-    assert reg.exists(
-        "timing.elapsed_seconds"
-    )
+    assert reg.exists("timing.elapsed_seconds")
 
-    assert not reg.exists(
-        "missing.metric"
-    )
+    assert not reg.exists("missing.metric")
 
 
 # =========================================================
@@ -90,27 +71,19 @@ def test_registry_exists():
 
 
 def test_registry_len():
-
     reg = MetricsRegistry()
 
-    reg.register(
-        MetricSpec(name="a")
-    )
+    reg.register(MetricSpec(name="a"))
 
-    reg.register(
-        MetricSpec(name="b")
-    )
+    reg.register(MetricSpec(name="b"))
 
     assert len(reg) == 2
 
 
 def test_registry_contains():
-
     reg = MetricsRegistry()
 
-    reg.register(
-        MetricSpec(name="a")
-    )
+    reg.register(MetricSpec(name="a"))
 
     assert "a" in reg
 
@@ -118,20 +91,13 @@ def test_registry_contains():
 
 
 def test_registry_names():
-
     reg = MetricsRegistry()
 
-    reg.register(
-        MetricSpec(name="a")
-    )
+    reg.register(MetricSpec(name="a"))
 
-    reg.register(
-        MetricSpec(name="b")
-    )
+    reg.register(MetricSpec(name="b"))
 
-    names = set(
-        reg.names()
-    )
+    names = set(reg.names())
 
     assert names == {
         "a",
@@ -140,36 +106,23 @@ def test_registry_names():
 
 
 def test_registry_items():
-
     reg = MetricsRegistry()
 
-    reg.register(
-        MetricSpec(name="a")
-    )
+    reg.register(MetricSpec(name="a"))
 
-    items = dict(
-        reg.items()
-    )
+    items = dict(reg.items())
 
     assert "a" in items
 
 
 def test_registry_iteration():
-
     reg = MetricsRegistry()
 
-    reg.register(
-        MetricSpec(name="a")
-    )
+    reg.register(MetricSpec(name="a"))
 
-    reg.register(
-        MetricSpec(name="b")
-    )
+    reg.register(MetricSpec(name="b"))
 
-    names = {
-        m.name
-        for m in reg
-    }
+    names = {m.name for m in reg}
 
     assert names == {
         "a",

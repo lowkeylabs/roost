@@ -245,7 +245,7 @@ def register_display_fields(
         DisplayField(
             field_name="compact_threads",
             display_fn=compact_threads_display,
-            description=("Compact runtime thread summary: " "MSK/MKL/OMP/BLAS."),
+            description=("Compact runtime thread summary: MSK/MKL/OMP/BLAS."),
             profiles={
                 "table": DisplayProfile(
                     label="MSK/MKL/\nOMP/BLAS",
@@ -309,7 +309,7 @@ def compact_threads_display(
             "-",
         )
 
-        return f"{msk}/" f"{mkl}/" f"{omp}/" f"{blas}"
+        return f"{msk}/{mkl}/{omp}/{blas}"
 
     except Exception:
         return None

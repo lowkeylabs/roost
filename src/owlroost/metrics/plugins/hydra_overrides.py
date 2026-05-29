@@ -98,21 +98,13 @@ def _assign_group_override_metrics(rows):
     if not rows:
         return
 
-    override_sets = [
-        _extract_overrides(row)
-        for row in rows
-    ]
+    override_sets = [_extract_overrides(row) for row in rows]
 
     # =====================================================
     # Common overrides
     # =====================================================
 
-    common_items = set.intersection(
-        *[
-            set(d.items())
-            for d in override_sets
-        ]
-    )
+    common_items = set.intersection(*[set(d.items()) for d in override_sets])
 
     common = dict(common_items)
 
@@ -125,25 +117,16 @@ def _assign_group_override_metrics(rows):
         override_sets,
         strict=False,
     ):
-
-        specific = {
-            k: v
-            for k, v in override_set.items()
-            if common.get(k) != v
-        }
+        specific = {k: v for k, v in override_set.items() if common.get(k) != v}
 
         metrics = row.setdefault(
             "_metrics",
             {},
         )
 
-        metrics[
-            "run_execution.common_overrides"
-        ] = common
+        metrics["run_execution.common_overrides"] = common
 
-        metrics[
-            "run_execution.run_specific_overrides"
-        ] = specific
+        metrics["run_execution.run_specific_overrides"] = specific
 
 
 # =========================================================
@@ -177,7 +160,6 @@ def apply_group_derived_metrics(
     # =====================================================
 
     if use_working_set:
-
         _assign_group_override_metrics(
             rows,
         )
@@ -191,7 +173,6 @@ def apply_group_derived_metrics(
     groups = defaultdict(list)
 
     for row in rows:
-
         meta = row.get(
             "_meta",
             {},
@@ -205,7 +186,6 @@ def apply_group_derived_metrics(
         groups[key].append(row)
 
     for group_rows in groups.values():
-
         _assign_group_override_metrics(
             group_rows,
         )
@@ -253,70 +233,42 @@ class HydraOverridesPlugin:
                 # =========================================
                 # Identity
                 # =========================================
-
-                name=(
-                    "run_execution.common_overrides"
-                ),
-
+                name=("run_execution.common_overrides"),
                 category="derived_metric",
-
-                description=(
-                    "Overrides shared across "
-                    "comparison group."
-                ),
-
+                description=("Overrides shared across comparison group."),
                 # =========================================
                 # Provenance
                 # =========================================
-
                 defined_in=__name__,
-
                 derived_from=[
                     "_meta.task_overrides",
                 ],
-
                 # =========================================
                 # Typing
                 # =========================================
-
                 dtype=dict,
-
                 # =========================================
                 # Ontology
                 # =========================================
-
                 owner="ROOST",
-
                 semantic_domain="design",
-
                 value_origin="roost-computed",
-
                 projection_kind="synthetic",
-
                 analytic_kind="comparative",
-
                 materialization_level="session",
-
                 # =========================================
                 # Materialization
                 # =========================================
-
                 compute_fn=None,
-
                 # =========================================
                 # Aggregation
                 # =========================================
-
                 aggregatable=False,
-
                 default_aggregates=[],
-
                 aggregate_function=None,
-
                 # =========================================
                 # Notes
                 # =========================================
-
                 notes=(
                     "Computed dynamically from "
                     "Hydra task overrides visible "
@@ -334,71 +286,42 @@ class HydraOverridesPlugin:
                 # =========================================
                 # Identity
                 # =========================================
-
-                name=(
-                    "run_execution."
-                    "run_specific_overrides"
-                ),
-
+                name=("run_execution.run_specific_overrides"),
                 category="derived_metric",
-
-                description=(
-                    "Overrides unique within "
-                    "comparison group."
-                ),
-
+                description=("Overrides unique within comparison group."),
                 # =========================================
                 # Provenance
                 # =========================================
-
                 defined_in=__name__,
-
                 derived_from=[
                     "_meta.task_overrides",
                 ],
-
                 # =========================================
                 # Typing
                 # =========================================
-
                 dtype=dict,
-
                 # =========================================
                 # Ontology
                 # =========================================
-
                 owner="ROOST",
-
                 semantic_domain="design",
-
                 value_origin="roost-computed",
-
                 projection_kind="synthetic",
-
                 analytic_kind="comparative",
-
                 materialization_level="session",
-
                 # =========================================
                 # Materialization
                 # =========================================
-
                 compute_fn=None,
-
                 # =========================================
                 # Aggregation
                 # =========================================
-
                 aggregatable=False,
-
                 default_aggregates=[],
-
                 aggregate_function=None,
-
                 # =========================================
                 # Notes
                 # =========================================
-
                 notes=(
                     "Computed dynamically from "
                     "Hydra task overrides visible "

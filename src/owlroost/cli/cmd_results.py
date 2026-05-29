@@ -158,21 +158,19 @@ def build_sort_examples(
 @click.option(
     "--explain",
     type=str,
-    help=(
-        "Explanation facets. " "Comma-separated list from: " "variables,values,sources,debug,all"
-    ),
+    help=("Explanation facets. Comma-separated list from: variables,values,sources,debug,all"),
 )
 @click.option(
     "--delete",
     "delete_selection",
     type=str,
-    help=("Delete rows by displayed row IDs. " "Examples: 1,2,5-8"),
+    help=("Delete rows by displayed row IDs. Examples: 1,2,5-8"),
 )
 @click.option(
     "--promote",
     "promote_selection",
     type=str,
-    help=("Promote runs by displayed row IDs. " "Examples: 1,2,5-8"),
+    help=("Promote runs by displayed row IDs. Examples: 1,2,5-8"),
 )
 @click.option(
     "--purge",
@@ -183,7 +181,7 @@ def build_sort_examples(
     "--filter",
     "filters",
     multiple=True,
-    help=("Filter rows. " "Examples: " "trial.completed>50 " "metrics.success_rate>0.9"),
+    help=("Filter rows. Examples: trial.completed>50 metrics.success_rate>0.9"),
 )
 @click.option(
     "--sort",
@@ -254,19 +252,19 @@ def cmd_results(
         raise click.ClickException("--purge and --delete cannot be combined.")
 
     if purge and (compare or diff or pivot):
-        raise click.ClickException("--purge is not compatible with " "--compare/--diff/--pivot.")
+        raise click.ClickException("--purge is not compatible with --compare/--diff/--pivot.")
 
     if (compare or diff) and level not in {
         "case",
         "run",
     }:
-        raise click.ClickException("--compare/--diff only supported " "for case and run levels.")
+        raise click.ClickException("--compare/--diff only supported for case and run levels.")
 
     if promote_selection and pivot:
         raise click.ClickException("--promote is not supported with --pivot.")
 
     if promote_selection and (compare or diff):
-        raise click.ClickException("--promote is not supported with " "--compare/--diff.")
+        raise click.ClickException("--promote is not supported with --compare/--diff.")
 
     if promote_selection and level != "run":
         raise click.ClickException("--promote only supported at run level.")
@@ -280,7 +278,7 @@ def cmd_results(
     )
 
     if overrides:
-        raise click.ClickException("Hydra-style overrides are not supported " "in 'roost results'.")
+        raise click.ClickException("Hydra-style overrides are not supported in 'roost results'.")
 
     # =====================================================
     # Build Registries
@@ -508,7 +506,7 @@ def cmd_results(
 
         click.echo()
 
-        click.echo("The following superseded run(s) " "will be permanently deleted:")
+        click.echo("The following superseded run(s) will be permanently deleted:")
 
         click.echo()
 
@@ -556,7 +554,7 @@ def cmd_results(
             raise click.ClickException("--delete is not supported with --pivot.")
 
         if compare or diff:
-            raise click.ClickException("--delete is not supported with " "--compare/--diff.")
+            raise click.ClickException("--delete is not supported with --compare/--diff.")
 
         if level == "trial":
             raise click.ClickException("Trial deletion is not supported.")
@@ -596,7 +594,7 @@ def cmd_results(
 
         click.echo()
 
-        click.echo(f"The following {level}(s) " f"will be permanently deleted:")
+        click.echo(f"The following {level}(s) will be permanently deleted:")
 
         click.echo()
 
@@ -674,7 +672,7 @@ def cmd_results(
 
         click.echo()
 
-        click.echo("The following run(s) " "will be promoted:")
+        click.echo("The following run(s) will be promoted:")
 
         click.echo()
 

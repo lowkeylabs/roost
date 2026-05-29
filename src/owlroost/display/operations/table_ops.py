@@ -4,7 +4,6 @@ from owlroost.display.renderers.specs import (
     TableColumn,
 )
 
-
 # =========================================================
 # Table Utilities
 # =========================================================
@@ -34,9 +33,7 @@ def inject_id_column(
         dataset.rows,
         strict=False,
     ):
-        new_rows.append(
-            [str(r["_row_id"])] + list(row_data)
-        )
+        new_rows.append([str(r["_row_id"])] + list(row_data))
 
     table.rows = new_rows
 

@@ -99,7 +99,7 @@ def test_hydra_defaults_match_model_defaults(group, model):
                 continue  # valid equivalence
 
         assert model_val == value, (
-            f"[{group}] Default mismatch for '{key}': " f"Hydra={value} | Model={model_val}"
+            f"[{group}] Default mismatch for '{key}': Hydra={value} | Model={model_val}"
         )
 
 

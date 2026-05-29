@@ -18,4 +18,3 @@ class CasePlugin:
                     description=field.description or "",
                 )
             )
-            

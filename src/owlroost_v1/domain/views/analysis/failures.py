@@ -170,7 +170,7 @@ def view_failures(trial_rows: list[TrialRow]):
 
     console.print()
     console.print(f"Total trials: {total_trials}")
-    console.print(f"Failures: {total_failures} ({total_failures/total_trials:.1%})")
+    console.print(f"Failures: {total_failures} ({total_failures / total_trials:.1%})")
 
     # -------------------------------------------------
     # Build example rows

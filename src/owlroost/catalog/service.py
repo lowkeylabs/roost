@@ -8,11 +8,6 @@ from owlroost.catalog.builders import (
     build_metric_rows,
     build_schema_rows,
 )
-
-from owlroost.display.dataset import (
-    Dataset,
-)
-
 from owlroost.catalog.ontology import (
     AnalyticKind,
     CatalogNodeType,
@@ -20,6 +15,9 @@ from owlroost.catalog.ontology import (
     ProjectionKind,
     SemanticDomain,
     ValueOrigin,
+)
+from owlroost.display.dataset import (
+    Dataset,
 )
 
 # =========================================================
@@ -52,9 +50,7 @@ def _merge_row(
     # =====================================================
 
     if field_name not in entities:
-        entities[field_name] = deepcopy(
-            row
-        )
+        entities[field_name] = deepcopy(row)
         return
 
     existing = entities[field_name]
@@ -63,48 +59,33 @@ def _merge_row(
     # Layer Validation
     # =====================================================
 
-    existing_layer = existing.get(
-        "layer"
-    )
+    existing_layer = existing.get("layer")
 
-    incoming_layer = row.get(
-        "layer"
-    )
+    incoming_layer = row.get("layer")
 
     # -----------------------------------------------------
     # Canonical ontology collisions are illegal
     # -----------------------------------------------------
 
-    if (
-        existing_layer
-        in {
-            "schema",
-            "metrics",
-        }
-        and incoming_layer
-        in {
-            "schema",
-            "metrics",
-        }
-    ):
-        raise ValueError(
-            "Duplicate canonical semantic "
-            f"identity detected: "
-            f"{field_name}"
-        )
+    if existing_layer in {
+        "schema",
+        "metrics",
+    } and incoming_layer in {
+        "schema",
+        "metrics",
+    }:
+        raise ValueError(f"Duplicate canonical semantic identity detected: {field_name}")
 
     # =====================================================
     # Display Overlay Merge
     # =====================================================
 
     if incoming_layer == "display":
-
         # -------------------------------------------------
         # Overlay non-null metadata only
         # -------------------------------------------------
 
         for key, value in row.items():
-
             if value is None:
                 continue
 
@@ -126,9 +107,7 @@ def _merge_row(
             [],
         )
 
-        overlays.append(
-            "display"
-        )
+        overlays.append("display")
 
         return
 
@@ -137,10 +116,7 @@ def _merge_row(
     # =====================================================
 
     raise ValueError(
-        "Unsupported catalog merge: "
-        f"{field_name} "
-        f"({existing_layer} <- "
-        f"{incoming_layer})"
+        f"Unsupported catalog merge: {field_name} ({existing_layer} <- {incoming_layer})"
     )
 
 
@@ -226,24 +202,11 @@ def load_catalog(
         entities.values(),
         key=lambda r: (
             r.get("owner") or "",
-            r.get(
-                "semantic_domain"
-            )
-            or "",
-            r.get(
-                "analytic_kind"
-            )
-            or "",
-            r.get(
-                "projection_kind"
-            )
-            or "",
-            r.get(
-                "node_type"
-            )
-            or "",
-            r.get("field_name")
-            or "",
+            r.get("semantic_domain") or "",
+            r.get("analytic_kind") or "",
+            r.get("projection_kind") or "",
+            r.get("node_type") or "",
+            r.get("field_name") or "",
         ),
     )
 
@@ -270,12 +233,7 @@ def filter_catalog_by_layer(
     Filter catalog dataset by ontology layer.
     """
 
-    rows = [
-        row
-        for row in dataset.rows
-        if row.get("layer")
-        == layer
-    ]
+    rows = [row for row in dataset.rows if row.get("layer") == layer]
 
     return Dataset(
         rows,
@@ -291,12 +249,7 @@ def filter_catalog_by_owner(
     Filter catalog dataset by ontology owner.
     """
 
-    rows = [
-        row
-        for row in dataset.rows
-        if row.get("owner")
-        == owner
-    ]
+    rows = [row for row in dataset.rows if row.get("owner") == owner]
 
     return Dataset(
         rows,
@@ -312,14 +265,7 @@ def filter_catalog_by_semantic_domain(
     Filter catalog dataset by semantic domain.
     """
 
-    rows = [
-        row
-        for row in dataset.rows
-        if row.get(
-            "semantic_domain"
-        )
-        == semantic_domain
-    ]
+    rows = [row for row in dataset.rows if row.get("semantic_domain") == semantic_domain]
 
     return Dataset(
         rows,
@@ -335,12 +281,7 @@ def filter_catalog_by_value_origin(
     Filter catalog dataset by value origin.
     """
 
-    rows = [
-        row
-        for row in dataset.rows
-        if row.get("value_origin")
-        == value_origin
-    ]
+    rows = [row for row in dataset.rows if row.get("value_origin") == value_origin]
 
     return Dataset(
         rows,
@@ -357,14 +298,7 @@ def filter_catalog_by_projection_kind(
     projection realization.
     """
 
-    rows = [
-        row
-        for row in dataset.rows
-        if row.get(
-            "projection_kind"
-        )
-        == projection_kind
-    ]
+    rows = [row for row in dataset.rows if row.get("projection_kind") == projection_kind]
 
     return Dataset(
         rows,
@@ -381,14 +315,7 @@ def filter_catalog_by_analytic_kind(
     interpretation semantics.
     """
 
-    rows = [
-        row
-        for row in dataset.rows
-        if row.get(
-            "analytic_kind"
-        )
-        == analytic_kind
-    ]
+    rows = [row for row in dataset.rows if row.get("analytic_kind") == analytic_kind]
 
     return Dataset(
         rows,
@@ -405,14 +332,7 @@ def filter_catalog_by_node_type(
     graph structure semantics.
     """
 
-    rows = [
-        row
-        for row in dataset.rows
-        if row.get(
-            "node_type"
-        )
-        == node_type
-    ]
+    rows = [row for row in dataset.rows if row.get("node_type") == node_type]
 
     return Dataset(
         rows,
@@ -448,7 +368,6 @@ def search_catalog(
     rows = []
 
     for row in dataset.rows:
-
         haystack = " ".join(
             str(v or "")
             for v in [
@@ -456,18 +375,10 @@ def search_catalog(
                 row.get("path"),
                 row.get("description"),
                 row.get("owner"),
-                row.get(
-                    "semantic_domain"
-                ),
-                row.get(
-                    "analytic_kind"
-                ),
-                row.get(
-                    "projection_kind"
-                ),
-                row.get(
-                    "node_type"
-                ),
+                row.get("semantic_domain"),
+                row.get("analytic_kind"),
+                row.get("projection_kind"),
+                row.get("node_type"),
             ]
         ).lower()
 

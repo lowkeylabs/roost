@@ -18,14 +18,9 @@ def test_aggregate_metrics_use_canonical_projection(
     ontology.
     """
 
-    metric = metrics_registry.get(
-        "timing.elapsed_seconds"
-    )
+    metric = metrics_registry.get("timing.elapsed_seconds")
 
-    assert (
-        metric.projection_kind
-        == "canonical"
-    )
+    assert metric.projection_kind == "canonical"
 
 
 def test_iter_aggregate_projections(
@@ -36,37 +31,19 @@ def test_iter_aggregate_projections(
     aggregate projection ontology.
     """
 
-    projections = list(
-        iter_aggregate_projections(
-            metrics_registry
-        )
-    )
+    projections = list(iter_aggregate_projections(metrics_registry))
 
     assert projections
 
     projection = next(
-        p
-        for p in projections
-        if (
-            p["field_name"]
-            == "timing.elapsed_seconds__median"
-        )
+        p for p in projections if (p["field_name"] == "timing.elapsed_seconds__median")
     )
 
-    assert (
-        projection["source_metric"]
-        == "timing.elapsed_seconds"
-    )
+    assert projection["source_metric"] == "timing.elapsed_seconds"
 
-    assert (
-        projection["aggregation"]
-        == "median"
-    )
+    assert projection["aggregation"] == "median"
 
-    assert (
-        projection["path"]
-        == "_metrics.timing.elapsed_seconds__median"
-    )
+    assert projection["path"] == "_metrics.timing.elapsed_seconds__median"
 
 
 def test_aggregate_projection_field_names(
@@ -77,17 +54,10 @@ def test_aggregate_projection_field_names(
     canonical naming conventions.
     """
 
-    projections = list(
-        iter_aggregate_projections(
-            metrics_registry
-        )
-    )
+    projections = list(iter_aggregate_projections(metrics_registry))
 
     for projection in projections:
-
-        field_name = projection[
-            "field_name"
-        ]
+        field_name = projection["field_name"]
 
         assert "__" in field_name
 
@@ -98,17 +68,12 @@ def test_build_aggregate_field_name():
     and deterministic.
     """
 
-    field_name = (
-        build_aggregate_field_name(
-            "timing.elapsed_seconds",
-            "median",
-        )
+    field_name = build_aggregate_field_name(
+        "timing.elapsed_seconds",
+        "median",
     )
 
-    assert (
-        field_name
-        == "timing.elapsed_seconds__median"
-    )
+    assert field_name == "timing.elapsed_seconds__median"
 
 
 def test_trial_metrics_are_aggregated(
@@ -119,15 +84,8 @@ def test_trial_metrics_are_aggregated(
     analytical aggregation.
     """
 
-    metric = metrics_registry.get(
-        "timing.elapsed_seconds"
-    )
+    metric = metrics_registry.get("timing.elapsed_seconds")
 
-    assert (
-        metric.materialization_level
-        == "trial"
-    )
+    assert metric.materialization_level == "trial"
 
-    assert (
-        metric.default_aggregates
-    )
+    assert metric.default_aggregates

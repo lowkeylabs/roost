@@ -5,11 +5,9 @@ from __future__ import annotations
 from owlroost.schema.bootstrap import (
     build_registry,
 )
-
 from owlroost.schema.specs import (
     FieldSpec,
 )
-
 
 # =========================================================
 # Registry Build
@@ -28,9 +26,7 @@ def test_all_schema_plugins_register():
 
     registry = build_registry()
 
-    fields = list(
-        registry.all()
-    )
+    fields = list(registry.all())
 
     assert fields
 
@@ -49,7 +45,6 @@ def test_all_registered_fields_are_fieldspec():
     registry = build_registry()
 
     for field in registry.all():
-
         assert isinstance(
             field,
             FieldSpec,
@@ -78,7 +73,6 @@ def test_no_legacy_level_attribute():
     registry = build_registry()
 
     for field in registry.all():
-
         assert not hasattr(
             field,
             "level",
@@ -99,11 +93,7 @@ def test_all_fields_have_materialization_level():
     registry = build_registry()
 
     for field in registry.all():
-
-        assert (
-            field.materialization_level
-            is not None
-        )
+        assert field.materialization_level is not None
 
 
 # =========================================================
@@ -119,14 +109,9 @@ def test_field_names_are_unique():
 
     registry = build_registry()
 
-    names = [
-        field.name
-        for field in registry.all()
-    ]
+    names = [field.name for field in registry.all()]
 
-    assert len(names) == len(
-        set(names)
-    )
+    assert len(names) == len(set(names))
 
 
 # =========================================================
@@ -143,7 +128,6 @@ def test_all_fields_have_source():
     registry = build_registry()
 
     for field in registry.all():
-
         assert field.source
 
 
@@ -161,7 +145,6 @@ def test_all_fields_have_path():
     registry = build_registry()
 
     for field in registry.all():
-
         assert field.path is not None
 
 
@@ -179,8 +162,4 @@ def test_all_fields_have_description():
     registry = build_registry()
 
     for field in registry.all():
-
-        assert (
-            field.description
-            is not None
-        )
+        assert field.description is not None

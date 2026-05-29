@@ -4,7 +4,6 @@ from owlroost.display.operations.resolution import (
     resolve_row_value,
 )
 
-
 # =========================================================
 # Parsing
 # =========================================================
@@ -37,9 +36,7 @@ def parse_filter_expression(
                 right.strip(),
             )
 
-    raise ValueError(
-        f"Invalid filter expression: {expr}"
-    )
+    raise ValueError(f"Invalid filter expression: {expr}")
 
 
 # =========================================================
@@ -99,11 +96,7 @@ def compare_values(
     # =====================================================
 
     if op == "=in:":
-        values = [
-            coerce_value(x.strip())
-            for x in str(rhs).split(",")
-            if x.strip()
-        ]
+        values = [coerce_value(x.strip()) for x in str(rhs).split(",") if x.strip()]
 
         return lhs in values
 
@@ -131,9 +124,7 @@ def compare_values(
     if op == "<=":
         return lhs <= rhs
 
-    raise ValueError(
-        f"Unsupported operator: {op}"
-    )
+    raise ValueError(f"Unsupported operator: {op}")
 
 
 # =========================================================
@@ -152,10 +143,7 @@ def apply_filters(
     if not filters:
         return rows
 
-    parsed = [
-        parse_filter_expression(f)
-        for f in filters
-    ]
+    parsed = [parse_filter_expression(f) for f in filters]
 
     out = []
 

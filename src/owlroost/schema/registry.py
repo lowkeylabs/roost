@@ -58,10 +58,7 @@ class SchemaRegistry:
         """
 
         if field.name in self._fields:
-            raise ValueError(
-                "Duplicate schema field "
-                f"registered: {field.name}"
-            )
+            raise ValueError(f"Duplicate schema field registered: {field.name}")
 
         self._fields[field.name] = field
 
@@ -81,9 +78,7 @@ class SchemaRegistry:
             return self._fields[name]
 
         except KeyError as err:
-            raise KeyError(
-                f"Schema field not found: {name}"
-            ) from err
+            raise KeyError(f"Schema field not found: {name}") from err
 
     def exists(
         self,
@@ -144,6 +139,4 @@ class SchemaRegistry:
     def __iter__(
         self,
     ):
-        return iter(
-            self._fields.values()
-        )
+        return iter(self._fields.values())

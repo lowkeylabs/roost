@@ -5,11 +5,9 @@ from __future__ import annotations
 from owlroost.metrics.bootstrap import (
     build_metrics_registry,
 )
-
 from owlroost.metrics.specs import (
     MetricSpec,
 )
-
 
 # =========================================================
 # Registry Build
@@ -28,9 +26,7 @@ def test_all_metrics_plugins_register():
 
     registry = build_metrics_registry()
 
-    metrics = list(
-        registry.all()
-    )
+    metrics = list(registry.all())
 
     assert metrics
 
@@ -49,7 +45,6 @@ def test_all_registered_metrics_are_metricspec():
     registry = build_metrics_registry()
 
     for metric in registry.all():
-
         assert isinstance(
             metric,
             MetricSpec,
@@ -78,7 +73,6 @@ def test_no_legacy_level_attribute():
     registry = build_metrics_registry()
 
     for metric in registry.all():
-
         assert not hasattr(
             metric,
             "level",
@@ -100,11 +94,7 @@ def test_all_metrics_have_materialization_level():
     registry = build_metrics_registry()
 
     for metric in registry.all():
-
-        assert (
-            metric.materialization_level
-            is not None
-        )
+        assert metric.materialization_level is not None
 
 
 # =========================================================
@@ -121,11 +111,7 @@ def test_all_metrics_have_projection_kind():
     registry = build_metrics_registry()
 
     for metric in registry.all():
-
-        assert (
-            metric.projection_kind
-            is not None
-        )
+        assert metric.projection_kind is not None
 
 
 # =========================================================
@@ -141,14 +127,9 @@ def test_metric_names_are_unique():
 
     registry = build_metrics_registry()
 
-    names = [
-        metric.name
-        for metric in registry.all()
-    ]
+    names = [metric.name for metric in registry.all()]
 
-    assert len(names) == len(
-        set(names)
-    )
+    assert len(names) == len(set(names))
 
 
 # =========================================================
@@ -165,11 +146,7 @@ def test_all_metrics_have_description():
     registry = build_metrics_registry()
 
     for metric in registry.all():
-
-        assert (
-            metric.description
-            is not None
-        )
+        assert metric.description is not None
 
 
 # =========================================================
@@ -186,23 +163,16 @@ def test_aggregate_definitions_are_normalized():
     registry = build_metrics_registry()
 
     for metric in registry.all():
-
         if not metric.default_aggregates:
             continue
 
-        for aggregate in (
-            metric.default_aggregates
-        ):
-
-            assert (
-                isinstance(
-                    aggregate,
-                    str,
-                )
-                or isinstance(
-                    aggregate,
-                    tuple,
-                )
+        for aggregate in metric.default_aggregates:
+            assert isinstance(
+                aggregate,
+                str,
+            ) or isinstance(
+                aggregate,
+                tuple,
             )
 
 
@@ -220,23 +190,14 @@ def test_trial_metrics_support_aggregation():
     registry = build_metrics_registry()
 
     trial_metrics = [
-        metric
-        for metric in registry.all()
-        if (
-            metric.materialization_level
-            == "trial"
-        )
+        metric for metric in registry.all() if (metric.materialization_level == "trial")
     ]
 
     assert trial_metrics
 
     for metric in trial_metrics:
-
         if metric.aggregatable:
-
-            assert (
-                metric.default_aggregates
-            )
+            assert metric.default_aggregates
 
 
 # =========================================================
@@ -253,7 +214,4 @@ def test_all_metrics_have_owner():
     registry = build_metrics_registry()
 
     for metric in registry.all():
-
         assert metric.owner
-
-

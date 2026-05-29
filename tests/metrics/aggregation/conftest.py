@@ -5,7 +5,6 @@ import pytest
 from owlroost.metrics.registry import (
     MetricsRegistry,
 )
-
 from owlroost.metrics.specs import (
     MetricSpec,
 )
@@ -13,7 +12,6 @@ from owlroost.metrics.specs import (
 
 @pytest.fixture
 def metrics_registry():
-
     reg = MetricsRegistry()
 
     reg.register(
@@ -38,7 +36,6 @@ def metrics_registry():
 
 @pytest.fixture
 def sample_trial_rows():
-
     return [
         {
             "_metrics": {

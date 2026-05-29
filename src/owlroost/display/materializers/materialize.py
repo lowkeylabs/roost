@@ -1,4 +1,4 @@
-# src/owlroost/display/materialize.py
+# src/owlroost/display/materializers/materialize.py
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from owlroost.display.explain import (
 )
 from owlroost.display.registry import DisplayRegistry
 from owlroost.display.specs import DisplayProfile
-from owlroost.display.table import (
+from owlroost.display.renderers.specs import (
     RoostTable,
     TableColumn,
 )

@@ -4,7 +4,6 @@ from owlroost.display.operations.resolution import (
     resolve_row_value,
 )
 
-
 # =========================================================
 # Canonical Sort
 # =========================================================
@@ -67,8 +66,7 @@ def apply_sort(
     return sorted(
         rows,
         key=lambda r: (
-            resolve_row_value(r, key)
-            is None,
+            resolve_row_value(r, key) is None,
             resolve_row_value(r, key),
         ),
         reverse=descending,

@@ -104,7 +104,7 @@ def format_value(value, fmt: str | None):
             lines = []
 
             if "from" in cleaned and "to" in cleaned:
-                lines.append(f"from-to=" f"{cleaned['from']}" f"-" f"{cleaned['to']}")
+                lines.append(f"from-to={cleaned['from']}-{cleaned['to']}")
 
                 del cleaned["from"]
                 del cleaned["to"]
@@ -206,10 +206,10 @@ def format_value(value, fmt: str | None):
                 return "$0"
 
             if abs(v) >= 1_000_000:
-                return f"${v/1_000_000:.1f}M".rstrip("0").rstrip(".")
+                return f"${v / 1_000_000:.1f}M".rstrip("0").rstrip(".")
 
             if abs(v) >= 1_000:
-                return f"${v/1_000:.0f}K"
+                return f"${v / 1_000:.0f}K"
 
             return f"${int(v)}"
 
@@ -236,7 +236,7 @@ def format_value(value, fmt: str | None):
 
     if fmt == "currency_k":
         try:
-            return f"${value/1000.0:,.0f} k"
+            return f"${value / 1000.0:,.0f} k"
         except Exception:
             return str(value)
 
@@ -249,7 +249,7 @@ def format_value(value, fmt: str | None):
     if fmt == "float1_k":
         try:
             v = round(value / 1000.0, 1)
-            return f"{ v:,.1f}"
+            return f"{v:,.1f}"
         except Exception:
             return str(value)
 

@@ -277,7 +277,7 @@ def main():
     print(f"Reading: {OWL_PARAMETERS_MD}")
 
     if not OWL_PARAMETERS_MD.exists():
-        raise FileNotFoundError(f"Could not locate PARAMETERS.md:\n" f"{OWL_PARAMETERS_MD}")
+        raise FileNotFoundError(f"Could not locate PARAMETERS.md:\n{OWL_PARAMETERS_MD}")
 
     docs = parse_parameters_md(OWL_PARAMETERS_MD)
 

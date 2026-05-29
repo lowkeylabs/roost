@@ -5,19 +5,15 @@ from __future__ import annotations
 from owlroost.catalog.loaders import (
     load_catalog_dataset,
 )
-
 from owlroost.display.bootstrap import (
     build_display_registry,
 )
-
 from owlroost.display.renderers.rich_table import (
     render_rich_table,
 )
-
 from owlroost.metrics.bootstrap import (
     build_metrics_registry,
 )
-
 from owlroost.schema.bootstrap import (
     build_registry,
 )
@@ -69,9 +65,7 @@ def test_architecture_pipeline():
     # Metrics Registry
     # =====================================================
 
-    metrics_registry = (
-        build_metrics_registry()
-    )
+    metrics_registry = build_metrics_registry()
 
     assert metrics_registry is not None
 
@@ -81,15 +75,9 @@ def test_architecture_pipeline():
     # Display Registry
     # =====================================================
 
-    display_registry = (
-        build_display_registry(
-            schema_registry=(
-                schema_registry
-            ),
-            metrics_registry=(
-                metrics_registry
-            ),
-        )
+    display_registry = build_display_registry(
+        schema_registry=(schema_registry),
+        metrics_registry=(metrics_registry),
     )
 
     assert display_registry is not None
@@ -98,25 +86,16 @@ def test_architecture_pipeline():
     # Display overlays should exist
     # -----------------------------------------------------
 
-    assert (
-        len(display_registry.all())
-        > 0
-    )
+    assert len(display_registry.all()) > 0
 
     # =====================================================
     # Catalog Dataset
     # =====================================================
 
     ds = load_catalog_dataset(
-        schema_registry=(
-            schema_registry
-        ),
-        metrics_registry=(
-            metrics_registry
-        ),
-        display_registry=(
-            display_registry
-        ),
+        schema_registry=(schema_registry),
+        metrics_registry=(metrics_registry),
+        display_registry=(display_registry),
     )
 
     assert ds is not None
@@ -178,7 +157,6 @@ def test_architecture_pipeline():
     field_names: set[str] = set()
 
     for row in ds.rows:
-
         # -------------------------------------------------
         # Canonical semantic identity required
         # -------------------------------------------------
@@ -189,14 +167,9 @@ def test_architecture_pipeline():
         # Semantic identities must be unique
         # -------------------------------------------------
 
-        assert (
-            row["field_name"]
-            not in field_names
-        )
+        assert row["field_name"] not in field_names
 
-        field_names.add(
-            row["field_name"]
-        )
+        field_names.add(row["field_name"])
 
         # -------------------------------------------------
         # Ontology ownership required
@@ -208,56 +181,38 @@ def test_architecture_pipeline():
         # Projection semantics required
         # -------------------------------------------------
 
-        assert row.get(
-            "projection_kind"
-        )
+        assert row.get("projection_kind")
 
         # -------------------------------------------------
         # Runtime materialization required
         # -------------------------------------------------
 
-        assert row.get(
-            "materialization_level"
-        )
+        assert row.get("materialization_level")
 
         # -------------------------------------------------
         # Namespace-only rows should not appear
         # -------------------------------------------------
 
-        assert not row[
-            "field_name"
-        ].endswith(".")
+        assert not row["field_name"].endswith(".")
 
     # =====================================================
     # Aggregate Projection Invariants
     # =====================================================
 
-    aggregate_rows = [
-        r
-        for r in ds.rows
-        if (
-            r.get("projection_kind")
-            == "aggregate"
-        )
-    ]
+    aggregate_rows = [r for r in ds.rows if (r.get("projection_kind") == "aggregate")]
 
     for row in aggregate_rows:
-
         # -------------------------------------------------
         # Aggregate field naming convention
         # -------------------------------------------------
 
-        assert "__" in row[
-            "field_name"
-        ]
+        assert "__" in row["field_name"]
 
         # -------------------------------------------------
         # Aggregate lineage required
         # -------------------------------------------------
 
-        assert row.get(
-            "derived_from"
-        )
+        assert row.get("derived_from")
 
     # =====================================================
     # Display Overlay Invariants
@@ -266,20 +221,13 @@ def test_architecture_pipeline():
     overlay_names = set()
 
     for field in display_registry.all():
-
         assert field.field_name
 
-        overlay_names.add(
-            field.field_name
-        )
+        overlay_names.add(field.field_name)
 
     # -----------------------------------------------------
     # Display overlays should align to
     # semantic catalog identities.
     # -----------------------------------------------------
 
-    assert (
-        field_names
-        & overlay_names
-    )
-    
+    assert field_names & overlay_names

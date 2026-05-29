@@ -4,22 +4,17 @@ from owlroost.schema.specs import (
     FieldSpec,
 )
 
-
 # =========================================================
 # Construction
 # =========================================================
 
 
 def test_fieldspec_minimal_construction():
-
     f = FieldSpec(
         name="solver_options.bequest",
     )
 
-    assert (
-        f.name
-        == "solver_options.bequest"
-    )
+    assert f.name == "solver_options.bequest"
 
     assert f.dtype is object
 
@@ -34,7 +29,6 @@ def test_fieldspec_minimal_construction():
 
 
 def test_fieldspec_inherits_ontology():
-
     f = FieldSpec(
         name="solver_options.bequest",
         owner="OWL",
@@ -46,25 +40,13 @@ def test_fieldspec_inherits_ontology():
 
     assert f.owner == "OWL"
 
-    assert (
-        f.semantic_domain
-        == "decision"
-    )
+    assert f.semantic_domain == "decision"
 
-    assert (
-        f.value_origin
-        == "user-specified"
-    )
+    assert f.value_origin == "user-specified"
 
-    assert (
-        f.projection_kind
-        == "canonical"
-    )
+    assert f.projection_kind == "canonical"
 
-    assert (
-        f.materialization_level
-        == "run"
-    )
+    assert f.materialization_level == "run"
 
 
 # =========================================================
@@ -73,7 +55,6 @@ def test_fieldspec_inherits_ontology():
 
 
 def test_fieldspec_none_path_becomes_empty_tuple():
-
     f = FieldSpec(
         name="solver_options.bequest",
         path=None,
@@ -88,15 +69,11 @@ def test_fieldspec_none_path_becomes_empty_tuple():
 
 
 def test_fieldspec_default_projection_kind():
-
     f = FieldSpec(
         name="solver_options.bequest",
     )
 
-    assert (
-        f.projection_kind
-        == "canonical"
-    )
+    assert f.projection_kind == "canonical"
 
 
 # =========================================================
@@ -105,7 +82,6 @@ def test_fieldspec_default_projection_kind():
 
 
 def test_fieldspec_profiles_are_isolated():
-
     a = FieldSpec(
         name="a",
     )
@@ -120,7 +96,6 @@ def test_fieldspec_profiles_are_isolated():
 
 
 def test_fieldspec_aggregates_are_isolated():
-
     a = FieldSpec(
         name="a",
     )
@@ -129,17 +104,12 @@ def test_fieldspec_aggregates_are_isolated():
         name="b",
     )
 
-    a.aggregates.append(
-        "median"
-    )
+    a.aggregates.append("median")
 
-    assert (
-        b.aggregates == []
-    )
+    assert b.aggregates == []
 
 
 def test_fieldspec_derived_from_isolated():
-
     a = FieldSpec(
         name="a",
     )
@@ -148,10 +118,6 @@ def test_fieldspec_derived_from_isolated():
         name="b",
     )
 
-    a.derived_from.append(
-        "base.field"
-    )
+    a.derived_from.append("base.field")
 
-    assert (
-        b.derived_from == []
-    )
+    assert b.derived_from == []

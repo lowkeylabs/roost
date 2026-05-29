@@ -6,20 +6,15 @@ from owlroost.metrics.aggregation.aggregate_metrics import (
 
 
 def test_build_aggregate_field_name():
-
     out = build_aggregate_field_name(
         "timing.elapsed_seconds",
         "median",
     )
 
-    assert (
-        out
-        == "timing.elapsed_seconds__median"
-    )
+    assert out == "timing.elapsed_seconds__median"
 
 
 def test_aggregate_field_name_contains_suffix():
-
     out = build_aggregate_field_name(
         "financial.spending.total",
         "p90",
