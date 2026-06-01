@@ -500,5 +500,3 @@ def collect_superseded_rows(
     )
 
     return [p["superseded"] for p in pairs]
-
-

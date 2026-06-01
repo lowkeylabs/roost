@@ -1,10 +1,39 @@
 # src/owlroost/display/specs.py
 
+"""
+Display subsystem specifications.
+
+Notes
+-----
+Display provides renderer-facing presentation
+overlays layered atop canonical semantic
+entities.
+
+Display owns:
+
+    - labels
+    - formatting
+    - alignment
+    - visibility
+    - grouping
+    - views
+
+Display does NOT own:
+
+    - canonical ontology
+    - semantic identity
+    - lineage graphs
+    - provenance graphs
+
+Synthetic semantic variables may be
+declared within display modules for
+convenience, but their semantic identity
+ultimately belongs to the catalog layer.
+"""
+
 from __future__ import annotations
 
-from collections.abc import (
-    Callable,
-)
+from collections.abc import Callable
 from dataclasses import (
     dataclass,
     field,
@@ -19,23 +48,6 @@ from dataclasses import (
 class DisplayProfile:
     """
     Renderer-facing presentation profile.
-
-    Notes
-    -----
-    DisplayProfile intentionally owns only:
-
-        - labels
-        - formatting
-        - alignment
-        - visibility
-        - wrapping
-
-    It intentionally does NOT own:
-
-        - ontology semantics
-        - canonical identity
-        - provenance
-        - runtime materialization
     """
 
     # =====================================================
@@ -79,57 +91,82 @@ DisplayValueFn = Callable[
 ]
 
 # =========================================================
-# Display Overlay Field
+# Display Field
 # =========================================================
 
 
 @dataclass
 class DisplayField:
     """
-    Renderer-facing presentation overlay.
+    Renderer-facing display field.
 
-    Notes
-    -----
-    DisplayField represents presentation
-    overlays layered atop canonical ontology.
+    DisplayField represents a presentation
+    entity layered atop ROOST ontology.
 
-    Canonical semantic ownership belongs to:
+    The semantic classification of the field
+    is determined by ontology metadata and
+    lineage rather than constructor type.
 
-        - schema fields
-        - metric fields
-        - catalog entities
+    Examples
+    --------
 
-    DisplayField intentionally owns only:
+    Existing ontology field:
 
-        - presentation overlays
-        - formatting
-        - labels
-        - view composition
-        - renderer-facing metadata
+        DisplayField.field(
+            "solver_options.bequest",
+        )
 
-    Architectural Invariant
-    -----------------------
-    DisplayField must never redefine
-    canonical ontology identity.
+    Synthetic display field:
+
+        DisplayField.field(
+            "display.net_worth",
+            display_fn=net_worth_display,
+            derived_from=[
+                "display.total_savings",
+                "display.net_hfp_assets",
+            ],
+        )
     """
 
     # =====================================================
-    # Overlay Identity
+    # Identity
     # =====================================================
 
     field_name: str
 
     # =====================================================
-    # Runtime Extraction Path
+    # Runtime Extraction
     # =====================================================
 
     path: str | None = None
 
+    display_fn: DisplayValueFn | None = None
+
     # =====================================================
-    # Canonical Ontology Linkage
+    # Existing Ontology Link
     # =====================================================
 
     ontology_field: object | None = None
+
+    # =====================================================
+    # Ontology Metadata
+    # =====================================================
+
+    owner: str | None = None
+
+    semantic_domain: str | None = None
+
+    value_origin: str | None = None
+
+    projection_kind: str | None = None
+
+    analytic_kind: str | None = None
+
+    materialization_level: str | None = None
+
+    derived_from: list[str] = field(
+        default_factory=list,
+    )
 
     # =====================================================
     # Presentation Profiles
@@ -151,16 +188,80 @@ class DisplayField:
     )
 
     # =====================================================
-    # Computed Presentation Overlay
-    # =====================================================
-
-    display_fn: DisplayValueFn | None = None
-
-    # =====================================================
-    # Lightweight Renderer Metadata
+    # Metadata
     # =====================================================
 
     description: str | None = None
+
+    notes: str = ""
+
+    # =====================================================
+    # Constructor
+    # =====================================================
+
+    @classmethod
+    def field(
+        cls,
+        field_name: str,
+        **kwargs,
+    ):
+        """
+        Preferred DisplayField constructor.
+
+        Supports:
+
+            - schema-backed fields
+            - metric-backed fields
+            - aggregate fields
+            - synthetic fields
+            - future derived fields
+
+        Ontology metadata determines
+        semantic behavior.
+        """
+
+        return cls(
+            field_name=field_name,
+            **kwargs,
+        )
+
+    # =====================================================
+    # Classification
+    # =====================================================
+
+    @property
+    def is_synthetic(
+        self,
+    ) -> bool:
+        """
+        Infer synthetic semantics from
+        lineage and ontology metadata.
+        """
+
+        return (
+            self.display_fn is not None
+            or bool(self.derived_from)
+            or self.projection_kind == "synthetic"
+        )
+
+    # =====================================================
+    # Helper to set default values for synthetic fields
+    # =====================================================
+
+    def _apply_synthetic_defaults(
+        self,
+    ):
+        self.owner = self.owner or "ROOST"
+
+        self.semantic_domain = self.semantic_domain or "decision"
+
+        self.value_origin = self.value_origin or "roost-computed"
+
+        self.projection_kind = self.projection_kind or "synthetic"
+
+        self.analytic_kind = self.analytic_kind or "synthetic"
+
+        self.materialization_level = self.materialization_level or "case"
 
     # =====================================================
     # Post Init
@@ -169,12 +270,11 @@ class DisplayField:
     def __post_init__(
         self,
     ):
-        """
-        Normalize lightweight defaults.
-        """
-
         if self.path is None:
             self.path = self.field_name
+
+        if self.is_synthetic:
+            self._apply_synthetic_defaults()
 
 
 # =========================================================

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 
-from owlroost.schema.bootstrap import build_registry
+from owlroost.schema.bootstrap import build_schema_registry
 
 CONF_ROOT = Path("src/owlroost/conf")
 
@@ -153,7 +153,7 @@ def normalize_hydra_fields():
 
 
 def xtest_hydra_conf_subset_of_registry():
-    reg = build_registry()
+    reg = build_schema_registry()
 
     registry_fields = normalize_registry_fields(reg)
     hydra_fields = normalize_hydra_fields()

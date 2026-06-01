@@ -1,5 +1,16 @@
 # src/owlroost/metrics/bootstrap.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
+from __future__ import annotations
+
 from owlroost.metrics.registry import (
     MetricsRegistry,
 )

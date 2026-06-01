@@ -8,14 +8,14 @@ from __future__ import annotations
 
 
 def test_catalog_rows_have_analytic_kind(
-    catalog_dataset,
+    catalog_rows,
 ):
     """
     Ensure at least some catalog rows
     explicitly define analytical semantics.
     """
 
-    rows = [row for row in catalog_dataset.rows if row["analytic_kind"] is not None]
+    rows = [row for row in catalog_rows if row["analytic_kind"] is not None]
 
     assert rows
 
@@ -26,7 +26,7 @@ def test_catalog_rows_have_analytic_kind(
 
 
 def test_comparative_metrics_have_comparative_analytic_kind(
-    catalog_dataset,
+    catalog_rows,
 ):
     """
     Comparative analytical metrics should
@@ -36,7 +36,7 @@ def test_comparative_metrics_have_comparative_analytic_kind(
 
     comparative_rows = [
         row
-        for row in catalog_dataset.rows
+        for row in catalog_rows
         if row["field_name"]
         in {
             ("run_execution.common_overrides"),
@@ -56,14 +56,14 @@ def test_comparative_metrics_have_comparative_analytic_kind(
 
 
 def test_aggregate_projection_rows_have_aggregate_semantics(
-    catalog_dataset,
+    catalog_rows,
 ):
     """
     Aggregate projections should advertise
     aggregate analytical semantics.
     """
 
-    aggregate_rows = [row for row in catalog_dataset.rows if row["projection_kind"] == "aggregate"]
+    aggregate_rows = [row for row in catalog_rows if row["projection_kind"] == "aggregate"]
 
     for row in aggregate_rows:
         assert row["analytic_kind"] in {
@@ -78,14 +78,14 @@ def test_aggregate_projection_rows_have_aggregate_semantics(
 
 
 def test_schema_rows_are_canonical(
-    catalog_dataset,
+    catalog_rows,
 ):
     """
     Schema ontology should represent
     canonical semantic variables.
     """
 
-    schema_rows = [row for row in catalog_dataset.rows if row["layer"] == "schema"]
+    schema_rows = [row for row in catalog_rows if row["layer"] == "schema"]
 
     assert schema_rows
 
@@ -99,7 +99,7 @@ def test_schema_rows_are_canonical(
 
 
 def test_only_semantic_variables_materialized(
-    catalog_dataset,
+    catalog_rows,
 ):
     """
     Canonical catalog synthesis should
@@ -107,7 +107,7 @@ def test_only_semantic_variables_materialized(
     variable nodes.
     """
 
-    for row in catalog_dataset.rows:
+    for row in catalog_rows:
         assert row["node_type"] == "variable"
 
 
@@ -117,14 +117,14 @@ def test_only_semantic_variables_materialized(
 
 
 def test_overlay_rows_are_not_canonical(
-    catalog_dataset,
+    catalog_rows,
 ):
     """
     Overlay rows should never masquerade
     as canonical semantic projections.
     """
 
-    overlay_rows = [row for row in catalog_dataset.rows if row["node_type"] == "overlay"]
+    overlay_rows = [row for row in catalog_rows if row["node_type"] == "overlay"]
 
     for row in overlay_rows:
         assert row["projection_kind"] != "canonical"
@@ -136,7 +136,7 @@ def test_overlay_rows_are_not_canonical(
 
 
 def test_observed_rows_are_not_synthetic(
-    catalog_dataset,
+    catalog_rows,
 ):
     """
     Observed runtime metrics should not
@@ -144,7 +144,7 @@ def test_observed_rows_are_not_synthetic(
     analytical semantics.
     """
 
-    observed_rows = [row for row in catalog_dataset.rows if row["analytic_kind"] == "observed"]
+    observed_rows = [row for row in catalog_rows if row["analytic_kind"] == "observed"]
 
     for row in observed_rows:
         assert row["projection_kind"] != "synthetic"

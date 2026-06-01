@@ -1,5 +1,14 @@
 # src/owlroost/display/registry.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
 from owlroost.display.specs import (
@@ -15,16 +24,17 @@ class DisplayRegistry:
 
     Owns:
 
-    - DisplayField
-    - DisplayGroup
-    - DisplayView
+        - DisplayField
+        - DisplayGroup
+        - DisplayView
 
-    This registry is intentionally separate from
-    SchemaRegistry.
+    DisplayRegistry owns presentation
+    semantics layered atop canonical
+    schema and metrics ontology.
 
-    SchemaRegistry owns semantic meaning.
+    SchemaRegistry owns meaning.
 
-    DisplayRegistry owns presentation semantics.
+    DisplayRegistry owns presentation.
     """
 
     # =====================================================
@@ -32,9 +42,20 @@ class DisplayRegistry:
     # =====================================================
 
     def __init__(self):
-        self._display_fields: dict[str, DisplayField] = {}
-        self._groups: dict[str, DisplayGroup] = {}
-        self._views: dict[tuple[str, str], DisplayView] = {}
+        self._display_fields: dict[
+            str,
+            DisplayField,
+        ] = {}
+
+        self._groups: dict[
+            str,
+            DisplayGroup,
+        ] = {}
+
+        self._views: dict[
+            tuple[str, str],
+            DisplayView,
+        ] = {}
 
     # =====================================================
     # Display Fields
@@ -47,24 +68,19 @@ class DisplayRegistry:
         """
         Register DisplayField.
 
-        Keyed by field_name.
+        Existing fields are intentionally
+        overwritten to support display
+        customization and field refinement.
         """
 
-        key = field.field_name
-
-        #        if key in self._display_fields:
-        #            raise ValueError(
-        #                f"Duplicate DisplayField registered: {key}"
-        #            )
-
-        self._display_fields[key] = field
+        self._display_fields[field.field_name] = field
 
     def get_display_field(
         self,
         field_name: str,
     ) -> DisplayField:
         """
-        Lookup DisplayField by field name.
+        Lookup DisplayField.
         """
 
         try:
@@ -87,10 +103,30 @@ class DisplayRegistry:
         self,
     ) -> list[DisplayField]:
         """
-        Return all registered display fields.
+        Return all DisplayFields.
         """
 
         return list(self._display_fields.values())
+
+    # -----------------------------------------------------
+    # Compatibility Aliases
+    # -----------------------------------------------------
+
+    def all(
+        self,
+    ) -> list[DisplayField]:
+        """
+        Compatibility alias.
+
+        Returns all display fields.
+        """
+
+        return self.all_display_fields()
+
+    def get_all_display_fields(
+        self,
+    ) -> list[DisplayField]:
+        return self.all_display_fields()
 
     # =====================================================
     # Groups
@@ -100,10 +136,6 @@ class DisplayRegistry:
         self,
         group: DisplayGroup,
     ):
-        """
-        Register DisplayGroup.
-        """
-
         key = group.key
 
         if key in self._groups:
@@ -115,10 +147,6 @@ class DisplayRegistry:
         self,
         key: str,
     ) -> DisplayGroup:
-        """
-        Lookup group by key.
-        """
-
         try:
             return self._groups[key]
 
@@ -129,20 +157,152 @@ class DisplayRegistry:
         self,
         key: str,
     ) -> bool:
-        """
-        Return True if group exists.
-        """
-
         return key in self._groups
 
     def all_groups(
         self,
     ) -> list[DisplayGroup]:
+        return list(self._groups.values())
+
+    def get_all_groups(
+        self,
+    ) -> list[DisplayGroup]:
+        return self.all_groups()
+
+    # =====================================================
+    # Group Expansion
+    # =====================================================
+
+    def expand_group(
+        self,
+        key: str,
+    ) -> list[str]:
         """
-        Return all groups.
+        Expand a DisplayGroup into a flat
+        ordered list of field names.
+
+        Notes
+        -----
+        Expansion is recursive.
+
+        Duplicate fields are removed while
+        preserving first-seen ordering.
+
+        Cyclic group references are rejected.
         """
 
-        return list(self._groups.values())
+        expanded: list[str] = []
+
+        visited: set[str] = set()
+
+        def _expand(
+            group_key: str,
+        ):
+            if group_key in visited:
+                raise ValueError(f"DisplayGroup cycle detected: {group_key}")
+
+            visited.add(group_key)
+
+            group = self.get_group(group_key)
+
+            for entry in group.entries:
+                # -----------------------------------------
+                # Implicit field
+                # -----------------------------------------
+
+                if isinstance(
+                    entry,
+                    str,
+                ):
+                    if not self.has_display_field(entry):
+                        raise ValueError(f"Unknown DisplayField: {entry}")
+
+                    expanded.append(entry)
+
+                    continue
+
+                # -----------------------------------------
+                # Explicit entry
+                # -----------------------------------------
+
+                if not isinstance(
+                    entry,
+                    tuple,
+                ):
+                    continue
+
+                if len(entry) != 2:
+                    raise ValueError(f"Invalid group entry: {entry}")
+
+                kind, value = entry
+
+                if kind == "field":
+                    if not self.has_display_field(value):
+                        raise ValueError(f"Unknown DisplayField: {value}")
+
+                    expanded.append(value)
+
+                elif kind == "group":
+                    if not self.has_group(value):
+                        raise ValueError(f"Unknown DisplayGroup: {value}")
+
+                    _expand(value)
+
+            visited.remove(group_key)
+
+        _expand(key)
+
+        seen: set[str] = set()
+
+        unique: list[str] = []
+
+        for field_name in expanded:
+            if field_name in seen:
+                continue
+
+            seen.add(field_name)
+
+            unique.append(field_name)
+
+        return unique
+
+    # =====================================================
+    # Registry Names
+    # =====================================================
+
+    def all_field_names(
+        self,
+    ) -> list[str]:
+        """
+        Return all registered field names.
+        """
+
+        return sorted(self._display_fields.keys())
+
+    def all_group_names(
+        self,
+    ) -> list[str]:
+        """
+        Return all registered group names.
+        """
+
+        return sorted(self._groups.keys())
+
+    def all_view_keys(
+        self,
+    ) -> list[tuple[str, str]]:
+        """
+        Return all registered view keys.
+
+        Returns
+        -------
+        [
+            (level, name),
+            ...
+        ]
+        """
+
+        return sorted(self._views.keys())
 
     # =====================================================
     # Views
@@ -152,21 +312,10 @@ class DisplayRegistry:
         self,
         view: DisplayView,
     ):
-        """
-        Register DisplayView.
-
-        Views are uniquely identified by:
-
-            (level, name)
-
-        Examples:
-
-            ("case", "basic")
-            ("run", "timing")
-            ("trial", "audit")
-        """
-
-        key = (view.level, view.name)
+        key = (
+            view.level,
+            view.name,
+        )
 
         if key in self._views:
             raise ValueError(f"Duplicate DisplayView registered: {view.level}/{view.name}")
@@ -178,11 +327,10 @@ class DisplayRegistry:
         level: str,
         name: str,
     ) -> DisplayView:
-        """
-        Lookup view by (level, name).
-        """
-
-        key = (level, name)
+        key = (
+            level,
+            name,
+        )
 
         try:
             return self._views[key]
@@ -195,20 +343,20 @@ class DisplayRegistry:
         level: str,
         name: str,
     ) -> bool:
-        """
-        Return True if view exists.
-        """
-
-        return (level, name) in self._views
+        return (
+            level,
+            name,
+        ) in self._views
 
     def all_views(
         self,
     ) -> list[DisplayView]:
-        """
-        Return all registered views.
-        """
-
         return list(self._views.values())
+
+    def get_all_views(
+        self,
+    ) -> list[DisplayView]:
+        return self.all_views()
 
     # =====================================================
     # View Expansion
@@ -220,12 +368,7 @@ class DisplayRegistry:
         name: str,
     ) -> list[str]:
         """
-        Return fully-expanded field list for a view.
-
-        Expands:
-            - direct fields
-            - groups
-            - nested groups
+        Expand fields referenced by a view.
         """
 
         view = self.get_view(
@@ -233,69 +376,52 @@ class DisplayRegistry:
             name,
         )
 
-        out = []
-
-        # -------------------------------------------------
-        # Recursive expansion
-        # -------------------------------------------------
+        expanded: list[str] = []
 
         def expand_entries(
             entries,
         ):
             for entry in entries:
-                # -----------------------------------------
-                # Raw field string
-                # -----------------------------------------
+                if isinstance(
+                    entry,
+                    str,
+                ):
+                    if not self.has_display_field(entry):
+                        raise ValueError(f"Unknown DisplayField: {entry}")
 
-                if isinstance(entry, str):
-                    out.append(entry)
+                    expanded.append(entry)
 
-                # -----------------------------------------
-                # Tuple reference
-                # -----------------------------------------
-
-                elif isinstance(entry, tuple):
+                elif isinstance(
+                    entry,
+                    tuple,
+                ):
                     if len(entry) != 2:
                         continue
 
                     kind, value = entry
 
-                    # -------------------------------------
-                    # Field
-                    # -------------------------------------
-
                     if kind == "field":
-                        out.append(value)
+                        if not self.has_display_field(value):
+                            raise ValueError(f"Unknown DisplayField: {value}")
 
-                    # -------------------------------------
-                    # Group
-                    # -------------------------------------
+                        expanded.append(value)
 
                     elif kind == "group":
-                        if not self.has_group(value):
-                            continue
-
-                        group = self.get_group(value)
-
-                        expand_entries(group.entries)
+                        expanded.extend(self.expand_group(value))
 
         expand_entries(view.entries)
 
-        # -------------------------------------------------
-        # Stable de-duplication
-        # -------------------------------------------------
+        seen: set[str] = set()
 
-        seen = set()
+        unique: list[str] = []
 
-        unique = []
-
-        for x in out:
-            if x in seen:
+        for field_name in expanded:
+            if field_name in seen:
                 continue
 
-            seen.add(x)
+            seen.add(field_name)
 
-            unique.append(x)
+            unique.append(field_name)
 
         return unique
 
@@ -306,10 +432,6 @@ class DisplayRegistry:
     def summary(
         self,
     ) -> dict:
-        """
-        Return registry summary counts.
-        """
-
         return {
             "display_fields": len(self._display_fields),
             "groups": len(self._groups),
@@ -320,36 +442,34 @@ class DisplayRegistry:
     # Validation
     # =====================================================
 
-    def validate(self):
+    def validate(
+        self,
+    ):
         """
-        Validate internal references.
-
-        Current checks:
-
-        - groups reference valid display fields
-        - views reference valid groups
+        Validate registry integrity.
         """
 
         # -------------------------------------------------
-        # Validate groups
+        # Groups
         # -------------------------------------------------
+
         for group in self._groups.values():
             for entry in group.entries:
-                # -----------------------------
-                # String field reference
-                # -----------------------------
-                if isinstance(entry, str):
+                if isinstance(
+                    entry,
+                    str,
+                ):
                     if not self.has_display_field(entry):
                         raise ValueError(
                             f"Group '{group.key}' references unknown DisplayField: {entry}"
                         )
 
-                # -----------------------------
-                # Tuple references
-                # -----------------------------
-                elif isinstance(entry, tuple):
+                elif isinstance(
+                    entry,
+                    tuple,
+                ):
                     if len(entry) != 2:
-                        raise ValueError(f"Invalid group tuple entry in '{group.key}': {entry}")
+                        raise ValueError(f"Invalid group entry in '{group.key}': {entry}")
 
                     kind, value = entry
 
@@ -366,38 +486,55 @@ class DisplayRegistry:
                             )
 
         # -------------------------------------------------
-        # Validate views
+        # Views
         # -------------------------------------------------
+
         for view in self._views.values():
             for entry in view.entries:
-                # -----------------------------
-                # Tuple references
-                # -----------------------------
-                if isinstance(entry, tuple):
-                    if len(entry) != 2:
+                if not isinstance(
+                    entry,
+                    tuple,
+                ):
+                    continue
+
+                if len(entry) != 2:
+                    raise ValueError(f"Invalid view entry in {view.level}/{view.name}: {entry}")
+
+                kind, value = entry
+
+                if kind == "group":
+                    if not self.has_group(value):
                         raise ValueError(
-                            f"Invalid view tuple entry in {view.level}/{view.name}: {entry}"
+                            f"View {view.level}/{view.name} references unknown group: {value}"
                         )
 
-                    kind, value = entry
+                elif kind == "field":
+                    if not self.has_display_field(value):
+                        raise ValueError(
+                            f"View {view.level}/{view.name} references unknown field: {value}"
+                        )
 
-                    # -------------------------
-                    # Group reference
-                    # -------------------------
-                    if kind == "group":
-                        if not self.has_group(value):
-                            raise ValueError(
-                                f"View {view.level}/{view.name} references unknown group: {value}"
-                            )
+        # -------------------------------------------------
+        # Field Lineage
+        # -------------------------------------------------
 
-                    # -------------------------
-                    # Field reference
-                    # -------------------------
-                    elif kind == "field":
-                        if not self.has_display_field(value):
-                            raise ValueError(
-                                f"View {view.level}/{view.name} references unknown field: {value}"
-                            )
+        for field in self._display_fields.values():
+            for parent in field.derived_from:
+                if not self.has_display_field(parent):
+                    raise ValueError(
+                        f"DisplayField "
+                        f"'{field.field_name}' "
+                        "references unknown "
+                        "derived_from field: "
+                        f"{parent}"
+                    )
+
+        # -------------------------------------------------
+        # Group Cycles
+        # -------------------------------------------------
+
+        for group_name in self.all_group_names():
+            self.expand_group(group_name)
 
     # =====================================================
     # Representation
@@ -414,4 +551,25 @@ class DisplayRegistry:
             f"groups={s['groups']}, "
             f"views={s['views']}"
             ")"
+        )
+
+    # =====================================================
+    # Convenience Aliases
+    # =====================================================
+
+    def expand_view(
+        self,
+        level: str,
+        name: str,
+    ) -> list[str]:
+        """
+        Convenience alias.
+
+        Returns the fully expanded
+        field list for a view.
+        """
+
+        return self.expand_view_fields(
+            level,
+            name,
         )

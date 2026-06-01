@@ -1,5 +1,16 @@
 # src/owlroost/cli/_main.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
+from __future__ import annotations
+
 import sys
 
 import click

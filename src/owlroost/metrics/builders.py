@@ -1,3 +1,16 @@
+# src/owlroost/metrics/builders.py
+
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
+from __future__ import annotations
+
 import json
 from datetime import datetime
 from pathlib import Path

@@ -23,6 +23,8 @@ synthesized downstream by the display
 subsystem.
 """
 
+from __future__ import annotations
+
 from .aggregate_metrics import (
     build_aggregate_field_name,
     iter_aggregate_projections,

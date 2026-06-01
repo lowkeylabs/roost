@@ -1,5 +1,16 @@
 # src/owlroost/tools/schema_coverage.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
+from __future__ import annotations
+
 from pathlib import Path
 
 import toml

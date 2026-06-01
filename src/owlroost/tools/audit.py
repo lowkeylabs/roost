@@ -1,5 +1,14 @@
 # src/owlroost/tools/audit.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
 from importlib import import_module
@@ -86,16 +95,11 @@ def run_audit(
             return audit_fn()
 
     except Exception as err:
-
         click.echo()
 
-        click.echo(
-            f"{name.upper()} FAILED"
-        )
+        click.echo(f"{name.upper()} FAILED")
 
-        click.echo(
-            f"    {type(err).__name__}: {err}"
-        )
+        click.echo(f"    {type(err).__name__}: {err}")
 
         click.echo()
 
@@ -117,13 +121,9 @@ def run_all_audits(
     click.echo()
 
     if failures:
-        click.echo(
-            f"FAILED ({failures} issue(s))"
-        )
+        click.echo(f"FAILED ({failures} issue(s))")
     else:
-        click.echo(
-            "PASS"
-        )
+        click.echo("PASS")
 
     return failures
 
@@ -159,10 +159,7 @@ def cli(
 @click.option(
     "--fix",
     is_flag=True,
-    help=(
-        "Apply safe automatic fixes "
-        "where supported."
-    ),
+    help=("Apply safe automatic fixes where supported."),
 )
 def all(
     fix: bool,
@@ -171,9 +168,7 @@ def all(
         fix=fix,
     )
 
-    raise SystemExit(
-        1 if failures else 0
-    )
+    raise SystemExit(1 if failures else 0)
 
 
 # =========================================================
@@ -209,7 +204,6 @@ def tree_command(
         module docstring
         \"\"\"
 
-        from __future__ import annotations
     """
 
     failures = run_audit(
@@ -217,9 +211,7 @@ def tree_command(
         fix=fix,
     )
 
-    raise SystemExit(
-        1 if failures else 0
-    )
+    raise SystemExit(1 if failures else 0)
 
 
 # =========================================================
@@ -233,9 +225,7 @@ def imports() -> None:
         "imports",
     )
 
-    raise SystemExit(
-        1 if failures else 0
-    )
+    raise SystemExit(1 if failures else 0)
 
 
 # =========================================================
@@ -249,9 +239,7 @@ def packages() -> None:
         "packages",
     )
 
-    raise SystemExit(
-        1 if failures else 0
-    )
+    raise SystemExit(1 if failures else 0)
 
 
 # =========================================================
@@ -265,9 +253,7 @@ def ontology() -> None:
         "ontology",
     )
 
-    raise SystemExit(
-        1 if failures else 0
-    )
+    raise SystemExit(1 if failures else 0)
 
 
 # =========================================================
@@ -281,9 +267,7 @@ def catalog() -> None:
         "catalog",
     )
 
-    raise SystemExit(
-        1 if failures else 0
-    )
+    raise SystemExit(1 if failures else 0)
 
 
 # =========================================================
@@ -297,9 +281,7 @@ def display() -> None:
         "display",
     )
 
-    raise SystemExit(
-        1 if failures else 0
-    )
+    raise SystemExit(1 if failures else 0)
 
 
 # =========================================================
@@ -313,6 +295,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(
-        main()
-    )
+    raise SystemExit(main())

@@ -1,0 +1,367 @@
+# src/owlroost/display/views/00_examples.py
+
+"""
+Display view examples.
+
+Notes
+-----
+This module documents the supported
+DisplayView declaration patterns.
+
+This file is intended as architectural
+documentation and should not normally
+be loaded into production registries.
+
+Recommended loader behavior:
+
+    ignore files beginning with:
+
+        00_
+
+The examples below illustrate the
+supported view patterns.
+"""
+
+from __future__ import annotations
+
+from owlroost.display.specs import (
+    DisplayView,
+)
+
+
+def register_display_views(
+    reg,
+):
+    """
+    Example declarations only.
+
+    Not intended for production use.
+    """
+
+    # =====================================================
+    # Example 1
+    #
+    # Minimal view
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="minimal",
+            description=(
+                "Smallest useful view."
+            ),
+            entries=[
+                ("field", "case_name"),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 2
+    #
+    # Explicit field view
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="identity",
+            description=(
+                "Identity information."
+            ),
+            entries=[
+                ("field", "case_name"),
+                ("field", "case_id"),
+                ("field", "session_id"),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 3
+    #
+    # Group-based view
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="runtime",
+            description=(
+                "Runtime diagnostics."
+            ),
+            entries=[
+                ("group", "runtime"),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 4
+    #
+    # Mixed group/field view
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="execution",
+            description=(
+                "Execution overview."
+            ),
+            entries=[
+                ("group", "runtime"),
+                (
+                    "field",
+                    "trial.completion_rate",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 5
+    #
+    # Financial summary
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="financial",
+            description=(
+                "Financial overview."
+            ),
+            entries=[
+                ("group", "balances"),
+                ("group", "income"),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 6
+    #
+    # Dashboard view
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="dashboard",
+            description=(
+                "High-level dashboard."
+            ),
+            entries=[
+                ("group", "identity"),
+                ("group", "financial"),
+                (
+                    "field",
+                    "trial.completion_rate",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 7
+    #
+    # Catalog metadata view
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="catalog",
+            name="ontology",
+            description=(
+                "Ontology metadata."
+            ),
+            entries=[
+                (
+                    "group",
+                    "catalog_metadata",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 8
+    #
+    # Provenance view
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="catalog",
+            name="provenance",
+            description=(
+                "Lineage and provenance."
+            ),
+            entries=[
+                (
+                    "group",
+                    "provenance",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 9
+    #
+    # Full catalog view
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="catalog",
+            name="full",
+            description=(
+                "Comprehensive catalog."
+            ),
+            entries=[
+                (
+                    "group",
+                    "catalog_metadata",
+                ),
+                (
+                    "group",
+                    "provenance",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 10
+    #
+    # Nested group expansion
+    #
+    # Demonstrates recursive
+    # group expansion through
+    # DisplayRegistry.
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="summary",
+            description=(
+                "Summary view."
+            ),
+            entries=[
+                (
+                    "group",
+                    "case_summary",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 11
+    #
+    # Session-level view
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="session",
+            name="overview",
+            description=(
+                "Session overview."
+            ),
+            entries=[
+                ("field", "session.date"),
+                ("field", "session.time"),
+                (
+                    "field",
+                    "session.description",
+                ),
+                (
+                    "field",
+                    "session.count",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 12
+    #
+    # Run-level view
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="run",
+            name="summary",
+            description=(
+                "Run summary."
+            ),
+            entries=[
+                ("field", "run_id"),
+                ("field", "run.count"),
+                (
+                    "field",
+                    "run_timing.elapsed_seconds",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 13
+    #
+    # Pivot-friendly view
+    #
+    # Views define logical field
+    # collections. Pivoting is a
+    # later transformation.
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="pivot_demo",
+            description=(
+                "Fields commonly used "
+                "in pivots."
+            ),
+            entries=[
+                ("field", "case_name"),
+                (
+                    "field",
+                    "display.net_worth",
+                ),
+                (
+                    "field",
+                    "display.fixed_income",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 14
+    #
+    # Debug view
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="debug",
+            description=(
+                "Developer diagnostics."
+            ),
+            entries=[
+                ("field", "case_id"),
+                ("field", "session_id"),
+                ("field", "run_id"),
+                ("field", "trial_id"),
+            ],
+        )
+    )

@@ -9,13 +9,13 @@ from owlroost.metrics.bootstrap import (
     build_metrics_registry,
 )
 from owlroost.schema.bootstrap import (
-    build_registry,
+    build_schema_registry,
 )
 
 
 @pytest.fixture
 def registries():
-    schema_registry = build_registry()
+    schema_registry = build_schema_registry()
 
     metrics_registry = build_metrics_registry()
 
@@ -26,7 +26,7 @@ def registries():
 
 
 @pytest.fixture
-def catalog_dataset(
+def catalog_rows(
     registries,
 ):
     (

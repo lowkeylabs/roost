@@ -1,5 +1,20 @@
 # src/owlroost/catalog/loaders.py
 
+"""
+Catalog loader services.
+
+Provides filtered and searchable access
+to the canonical semantic catalog.
+
+Notes
+-----
+The catalog subsystem owns semantic
+identity and ontology.
+
+Catalog returns semantic rows and does
+not return renderer-facing structures.
+"""
+
 from __future__ import annotations
 
 from owlroost.catalog.ontology import (
@@ -16,31 +31,11 @@ from owlroost.catalog.service import (
 )
 
 # =========================================================
-# Helpers
-# =========================================================
-
-
-def _rebuild_dataset(
-    dataset,
-    rows,
-):
-    """
-    Rebuild dataset preserving dataset type
-    and semantic level metadata.
-    """
-
-    return type(dataset)(
-        rows=list(rows),
-        level=dataset.level,
-    )
-
-
-# =========================================================
 # Public Loader
 # =========================================================
 
 
-def load_catalog_dataset(
+def load_catalog_rows(
     *,
     schema_registry,
     metrics_registry,
@@ -59,18 +54,10 @@ def load_catalog_dataset(
     search: str | None = None,
 ):
     """
-    Load ontology-centered catalog dataset.
+    Load filtered catalog rows.
 
     Notes
     -----
-    The catalog subsystem models:
-
-        canonical semantic entities
-
-    rather than display overlays,
-    registry rows, or renderer-facing
-    structures.
-
     Catalog synthesis integrates:
 
         - schema ontology
@@ -87,68 +74,19 @@ def load_catalog_dataset(
 
     Display owns presentation identity.
 
-    Catalog therefore returns:
-
-        Dataset(level="catalog")
-
-    rather than renderer-facing
-    objects such as:
+    Catalog therefore returns semantic
+    rows rather than renderer-facing
+    structures such as:
 
         - RoostTable
         - TableColumn
-
-    Parameters
-    ----------
-    layer
-        Optional ontology layer filter.
-
-        Examples:
-
-            schema
-            metrics
-
-    owner
-        Semantic ownership filter.
-
-        Examples:
-
-            OWL
-            ROOST
-
-    semantic_domain
-        Scientific workflow role filter.
-
-        Examples:
-
-            decision
-            design
-            execution
-
-    value_origin
-        Fundamental value provenance filter.
-
-        Examples:
-
-            user-specified
-            owl-computed
-            roost-computed
-
-    projection_kind
-        Analytical realization filter.
-
-    node_type
-        Optional catalog graph filter.
-
-    search
-        Optional case-insensitive substring
-        search across catalog semantics.
     """
 
     # =====================================================
-    # Canonical Catalog Dataset
+    # Canonical Catalog
     # =====================================================
 
-    dataset = load_catalog(
+    rows = load_catalog(
         schema_registry=schema_registry,
         metrics_registry=metrics_registry,
     )
@@ -158,9 +96,8 @@ def load_catalog_dataset(
     # =====================================================
 
     if layer:
-
-        dataset = filter_catalog_by_layer(
-            dataset,
+        rows = filter_catalog_by_layer(
+            rows,
             layer,
         )
 
@@ -171,67 +108,37 @@ def load_catalog_dataset(
     def matches(
         row,
     ) -> bool:
-
-        if (
-            owner is not None
-            and row.get("owner") != owner
-        ):
+        if owner is not None and row.get("owner") != owner:
             return False
 
-        if (
-            semantic_domain is not None
-            and row.get("semantic_domain")
-            != semantic_domain
-        ):
+        if semantic_domain is not None and row.get("semantic_domain") != semantic_domain:
             return False
 
-        if (
-            value_origin is not None
-            and row.get("value_origin")
-            != value_origin
-        ):
+        if value_origin is not None and row.get("value_origin") != value_origin:
             return False
 
-        if (
-            projection_kind is not None
-            and row.get("projection_kind")
-            != projection_kind
-        ):
+        if projection_kind is not None and row.get("projection_kind") != projection_kind:
             return False
 
-        if (
-            node_type is not None
-            and row.get("node_type")
-            != node_type
-        ):
+        if node_type is not None and row.get("node_type") != node_type:
             return False
 
         return True
 
-    rows = [
-        row
-        for row in dataset.rows
-        if matches(row)
-    ]
-
-    dataset = _rebuild_dataset(
-        dataset,
-        rows,
-    )
+    rows = [row for row in rows if matches(row)]
 
     # =====================================================
     # Search Filter
     # =====================================================
 
     if search:
-
-        dataset = search_catalog(
-            dataset,
+        rows = search_catalog(
+            rows,
             search,
         )
 
     # =====================================================
-    # Final Dataset
+    # Final Rows
     # =====================================================
 
-    return dataset
+    return rows

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 
 def test_display_does_not_duplicate_semantic_rows(
-    catalog_dataset,
+    catalog_rows,
 ):
     counts = {}
 
-    for row in catalog_dataset.rows:
+    for row in catalog_rows:
         name = row["field_name"]
 
         counts[name] = counts.get(name, 0) + 1

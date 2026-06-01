@@ -1,5 +1,14 @@
 # src/owlroost/display/bootstrap.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
 from owlroost.display.fields import (
@@ -17,9 +26,6 @@ from owlroost.display.sync import (
 )
 from owlroost.display.views import (
     register_display_views,
-)
-from owlroost.metrics.aggregation.aggregate_metrics import (
-    register_aggregate_display_fields,
 )
 
 # =========================================================
@@ -61,11 +67,10 @@ def build_display_registry(
 
     1. schema ontology overlays
     2. metrics ontology overlays
-    3. aggregate analytical overlays
-    4. explicit display field overlays
-    5. display groups
-    6. display views
-    7. validation
+    3. explicit display field overlays
+    4. display groups
+    5. display views
+    6. validation
     """
 
     reg = DisplayRegistry()
@@ -94,15 +99,6 @@ def build_display_registry(
     sync_metrics_registry(
         metrics_registry=(metrics_registry),
         display_registry=reg,
-    )
-
-    # =====================================================
-    # Aggregate Projection Overlays
-    # =====================================================
-
-    register_aggregate_display_fields(
-        reg=reg,
-        metrics_registry=(metrics_registry),
     )
 
     # =====================================================

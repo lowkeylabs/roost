@@ -1,3 +1,14 @@
+# src/owlroost/metrics/specs.py
+
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable

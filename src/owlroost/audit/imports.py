@@ -1,5 +1,14 @@
 # src/owlroost/audit/imports.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
 import ast
@@ -32,13 +41,7 @@ def discover_modules() -> set[str]:
     modules: set[str] = set()
 
     for path in ROOT.rglob("*.py"):
-
-        module = (
-            path.relative_to("src")
-            .with_suffix("")
-            .as_posix()
-            .replace("/", ".")
-        )
+        module = path.relative_to("src").with_suffix("").as_posix().replace("/", ".")
 
         modules.add(module)
 
@@ -46,12 +49,7 @@ def discover_modules() -> set[str]:
         # Package alias
         #
         if path.name == "__init__.py":
-
-            package = (
-                path.parent.relative_to("src")
-                .as_posix()
-                .replace("/", ".")
-            )
+            package = path.parent.relative_to("src").as_posix().replace("/", ".")
 
             modules.add(package)
 
@@ -74,7 +72,6 @@ def discover_imports(
     imports: list[str] = []
 
     try:
-
         tree = ast.parse(
             path.read_text(
                 encoding="utf-8",
@@ -82,11 +79,9 @@ def discover_imports(
         )
 
     except SyntaxError:
-
         return imports
 
     for node in ast.walk(tree):
-
         # -------------------------------------
         # from x import y
         # -------------------------------------
@@ -95,16 +90,8 @@ def discover_imports(
             node,
             ast.ImportFrom,
         ):
-
-            if (
-                node.module
-                and node.module.startswith(
-                    "owlroost"
-                )
-            ):
-                imports.append(
-                    node.module
-                )
+            if node.module and node.module.startswith("owlroost"):
+                imports.append(node.module)
 
         # -------------------------------------
         # import x
@@ -114,15 +101,9 @@ def discover_imports(
             node,
             ast.Import,
         ):
-
             for alias in node.names:
-
-                if alias.name.startswith(
-                    "owlroost"
-                ):
-                    imports.append(
-                        alias.name
-                    )
+                if alias.name.startswith("owlroost"):
+                    imports.append(alias.name)
 
     return imports
 
@@ -143,51 +124,30 @@ def audit_imports() -> int:
         list[Path],
     ] = defaultdict(list)
 
-    for path in sorted(
-        ROOT.rglob("*.py")
-    ):
-
+    for path in sorted(ROOT.rglob("*.py")):
         for module in discover_imports(
             path,
         ):
-
             if module not in modules:
-
-                missing[module].append(
-                    path
-                )
+                missing[module].append(path)
 
     failures = 0
 
     for (
         module,
         refs,
-    ) in sorted(
-        missing.items()
-    ):
-
+    ) in sorted(missing.items()):
         failures += len(refs)
 
         print()
-        print(
-            "MISSING MODULE"
-        )
-        print(
-            f"  {module}"
-        )
+        print("MISSING MODULE")
+        print(f"  {module}")
         print()
 
-        print(
-            "Referenced By"
-        )
+        print("Referenced By")
 
-        for ref in sorted(
-            refs
-        ):
-
-            print(
-                f"  {ref}"
-            )
+        for ref in sorted(refs):
+            print(f"  {ref}")
 
     print()
 

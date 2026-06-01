@@ -1,5 +1,14 @@
 # src/owlroost/audit/tree.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
 import ast
@@ -18,9 +27,7 @@ CANONICAL_DOCSTRING = [
     '"""',
 ]
 
-FUTURE_IMPORT = (
-    "from __future__ import annotations"
-)
+FUTURE_IMPORT = "from __future__ import annotations"
 
 
 # =========================================================
@@ -36,10 +43,7 @@ def _has_module_docstring(
     except SyntaxError:
         return False
 
-    return (
-        ast.get_docstring(tree)
-        is not None
-    )
+    return ast.get_docstring(tree) is not None
 
 
 def _has_future_import(
@@ -51,7 +55,6 @@ def _has_future_import(
         return False
 
     for node in tree.body:
-
         if not isinstance(
             node,
             ast.ImportFrom,
@@ -62,10 +65,7 @@ def _has_future_import(
             continue
 
         for alias in node.names:
-            if (
-                alias.name
-                == "annotations"
-            ):
+            if alias.name == "annotations":
                 return True
 
     return False
@@ -74,15 +74,7 @@ def _has_future_import(
 def _strip_existing_header(
     lines: list[str],
 ) -> list[str]:
-
-    if (
-        lines
-        and lines[0]
-        .strip()
-        .startswith(
-            "# src/owlroost/"
-        )
-    ):
+    if lines and lines[0].strip().startswith("# src/owlroost/"):
         return lines[1:]
 
     return lines
@@ -91,13 +83,7 @@ def _strip_existing_header(
 def _strip_existing_future_import(
     lines: list[str],
 ) -> list[str]:
-
-    return [
-        line
-        for line in lines
-        if line.strip()
-        != FUTURE_IMPORT
-    ]
+    return [line for line in lines if line.strip() != FUTURE_IMPORT]
 
 
 def _find_docstring_bounds(
@@ -156,14 +142,11 @@ def canonicalize_file_structure(
         module docstring
         \"\"\"
 
-        from __future__ import annotations
 
         ...
     """
 
-    expected_header = (
-        f"# {path.as_posix()}"
-    )
+    expected_header = f"# {path.as_posix()}"
 
     source = path.read_text(
         encoding="utf-8",
@@ -189,9 +172,7 @@ def canonicalize_file_structure(
         lines,
     )
 
-    source_without_header = (
-        "\n".join(lines)
-    )
+    source_without_header = "\n".join(lines)
 
     # =====================================================
     # Preserve docstring if found
@@ -204,23 +185,14 @@ def canonicalize_file_structure(
     )
 
     if bounds:
-
         start, end = bounds
 
-        doc_lines = lines[
-            start - 1 : end
-        ]
+        doc_lines = lines[start - 1 : end]
 
-        body_lines = (
-            lines[: start - 1]
-            + lines[end:]
-        )
+        body_lines = lines[: start - 1] + lines[end:]
 
     else:
-
-        doc_lines = (
-            CANONICAL_DOCSTRING.copy()
-        )
+        doc_lines = CANONICAL_DOCSTRING.copy()
 
         body_lines = lines
 
@@ -228,10 +200,7 @@ def canonicalize_file_structure(
     # Trim leading blank lines
     # =====================================================
 
-    while (
-        body_lines
-        and not body_lines[0].strip()
-    ):
+    while body_lines and not body_lines[0].strip():
         body_lines.pop(0)
 
     # =====================================================
@@ -248,10 +217,7 @@ def canonicalize_file_structure(
         *body_lines,
     ]
 
-    new_source = (
-        "\n".join(rebuilt)
-        + "\n"
-    )
+    new_source = "\n".join(rebuilt) + "\n"
 
     if new_source == original:
         return False
@@ -279,61 +245,34 @@ def audit_tree(
     failures = 0
     fixes = 0
 
-    for path in sorted(
-        ROOT.rglob("*.py")
-    ):
-
+    for path in sorted(ROOT.rglob("*.py")):
         source = path.read_text(
             encoding="utf-8",
         )
 
         lines = source.splitlines()
 
-        expected_header = (
-            f"# {path.as_posix()}"
-        )
+        expected_header = f"# {path.as_posix()}"
 
         # =================================================
         # Path Header
         # =================================================
 
-        header_ok = (
-            bool(lines)
-            and lines[0].strip()
-            == expected_header
-        )
+        header_ok = bool(lines) and lines[0].strip() == expected_header
 
         if not header_ok:
-
             failures += 1
 
             print()
-            print(
-                "PATH HEADER ISSUE"
-            )
-            print(
-                f"  file: {path}"
-            )
+            print("PATH HEADER ISSUE")
+            print(f"  file: {path}")
 
-            if (
-                lines
-                and lines[0]
-                .strip()
-                .startswith(
-                    "# src/owlroost/"
-                )
-            ):
-                print(
-                    f"  found:    {lines[0].strip()}"
-                )
+            if lines and lines[0].strip().startswith("# src/owlroost/"):
+                print(f"  found:    {lines[0].strip()}")
             else:
-                print(
-                    "  found:    missing"
-                )
+                print("  found:    missing")
 
-            print(
-                f"  expected: {expected_header}"
-            )
+            print(f"  expected: {expected_header}")
 
         # =================================================
         # Docstring
@@ -342,16 +281,11 @@ def audit_tree(
         if not _has_module_docstring(
             source,
         ):
-
             failures += 1
 
             print()
-            print(
-                "MISSING MODULE DOCSTRING"
-            )
-            print(
-                f"  file: {path}"
-            )
+            print("MISSING MODULE DOCSTRING")
+            print(f"  file: {path}")
 
         # =================================================
         # Future Import
@@ -360,45 +294,29 @@ def audit_tree(
         if not _has_future_import(
             source,
         ):
-
             failures += 1
 
             print()
-            print(
-                "MISSING FUTURE IMPORT"
-            )
-            print(
-                f"  file: {path}"
-            )
+            print("MISSING FUTURE IMPORT")
+            print(f"  file: {path}")
 
         # =================================================
         # Fix
         # =================================================
 
         if fix:
-
-            changed = (
-                canonicalize_file_structure(
-                    path
-                )
-            )
+            changed = canonicalize_file_structure(path)
 
             if changed:
-
                 fixes += 1
 
                 print()
-                print(
-                    f"FIXED: {path}"
-                )
+                print(f"FIXED: {path}")
 
     print()
 
     if fix and fixes:
-
-        print(
-            f"UPDATED {fixes} file(s)"
-        )
+        print(f"UPDATED {fixes} file(s)")
         print()
 
     return failures

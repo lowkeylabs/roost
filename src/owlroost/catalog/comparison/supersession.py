@@ -1,5 +1,14 @@
 # src/owlroost/catalog/comparison/supersession.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
 from owlroost.display.fields.identity import (
@@ -61,7 +70,6 @@ def find_superseded_rows(
     obsolete_ids = set()
 
     for i, row_a in enumerate(rows):
-
         row_a_id = compact_id_display(
             row_a,
         )
@@ -70,7 +78,6 @@ def find_superseded_rows(
             continue
 
         for row_b in rows[i + 1 :]:
-
             row_b_id = compact_id_display(
                 row_b,
             )
@@ -99,9 +106,7 @@ def find_superseded_rows(
                 {},
             )["is_superseded"] = True
 
-            obsolete["_meta"][
-                "superseded_by"
-            ] = compact_id_display(
+            obsolete["_meta"]["superseded_by"] = compact_id_display(
                 active,
             )
 
@@ -125,7 +130,4 @@ def collect_superseded_rows(
         dataset,
     )
 
-    return [
-        pair["superseded"]
-        for pair in pairs
-    ]
+    return [pair["superseded"] for pair in pairs]

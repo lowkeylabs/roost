@@ -1,5 +1,14 @@
 # src/owlroost/display/sync.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
 from owlroost.display.registry import (
@@ -99,7 +108,7 @@ def _register_field_if_missing(
     field_name: str,
     description: str | None,
     display_registry: DisplayRegistry,
-    semantic_field=None,
+    ontology_field=None,
     profiles=None,
 ):
     """
@@ -143,7 +152,7 @@ def _register_field_if_missing(
         DisplayField(
             field_name=field_name,
             description=description,
-            semantic_field=semantic_field,
+            ontology_field=ontology_field,
             profiles=profiles,
         )
     )
@@ -168,7 +177,7 @@ def sync_schema_registry(
             field_name=schema_field.name,
             description=(schema_field.description),
             display_registry=(display_registry),
-            semantic_field=schema_field,
+            ontology_field=schema_field,
             profiles=getattr(
                 schema_field,
                 "profiles",
@@ -199,7 +208,7 @@ def sync_metrics_registry(
                 "description",
                 None,
             ),
-            semantic_field=metrics_field,
+            ontology_field=metrics_field,
             display_registry=(display_registry),
             profiles=getattr(
                 metrics_field,

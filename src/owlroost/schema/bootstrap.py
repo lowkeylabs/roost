@@ -1,66 +1,79 @@
 # src/owlroost/schema/bootstrap.py
 
-from .plugins.case import CasePlugin
-from .plugins.hydra_helpers import HydraHelperPlugin
-from .plugins.longevity import LongevityPlugin
-from .plugins.owl import OwlSchemaPlugin
-from .plugins.roost_runtime import RoostRuntimePlugin
-from .plugins.runtime_environment import RuntimeEnvironmentPlugin
-from .plugins.spending_policy import SpendingPolicyPlugin
-from .plugins.ui_bridge import OwlUiBridgePlugin
-from .registry import SchemaRegistry
-from .runtime_defaults import (
-    build_runtime_defaults,
+"""
+Schema bootstrap.
+
+Notes
+-----
+Constructs the canonical SchemaRegistry.
+
+Initialization Order
+--------------------
+
+1. OWL bridge fields
+2. ROOST schema sections
+3. Hydra sweep fields
+
+Architectural Invariant
+-----------------------
+
+Schema owns executable input ontology.
+
+Catalog consumes schema ontology.
+
+Display consumes catalog ontology.
+"""
+
+from __future__ import annotations
+
+from owlroost.schema.owl import (
+    register_owl_fields,
+)
+from owlroost.schema.registry import (
+    SchemaRegistry,
+)
+from owlroost.schema.sections import (
+    register_sections,
+)
+from owlroost.schema.sweeps import (
+    register_sweeps,
 )
 
+# =========================================================
+# Bootstrap
+# =========================================================
 
-def build_registry(
-    return_plugins: bool = False,
-):
+
+def build_schema_registry():
+    """
+    Construct fully initialized
+    SchemaRegistry.
+    """
+
     reg = SchemaRegistry()
 
     # =====================================================
-    # Plugins
+    # OWL Canonical Inputs
     # =====================================================
 
-    plugins = [
-        OwlSchemaPlugin(),
-        LongevityPlugin(),
-        SpendingPolicyPlugin(),
-        RoostRuntimePlugin(),
-        RuntimeEnvironmentPlugin(),
-        OwlUiBridgePlugin(),
-        HydraHelperPlugin(),
-        CasePlugin(),
-    ]
+    register_owl_fields(
+        reg,
+    )
 
     # =====================================================
-    # Register plugins
+    # ROOST Sections
     # =====================================================
 
-    for p in plugins:
-        p.register(reg)
+    register_sections(
+        reg,
+    )
 
     # =====================================================
-    # Discover runtime-expanded OWL defaults
+    # Sweep Variables
     # =====================================================
 
-    _discovered_defaults = build_runtime_defaults()
-
-    #    reg.register_discovered_fields(
-    #        discovered_defaults,
-    #    )
-
-    #    reg.attach_discovered_defaults(
-    #        discovered_defaults,
-    #        get_from_path,
-    #    )
-
-    # =====================================================
-    # Return
-    # =====================================================
-
-    if return_plugins:
-        return reg, plugins
+    register_sweeps(
+        reg,
+    )
 
     return reg

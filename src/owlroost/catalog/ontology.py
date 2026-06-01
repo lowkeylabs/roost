@@ -1,8 +1,18 @@
 # src/owlroost/catalog/ontology.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Literal
 
 # =========================================================
@@ -150,24 +160,83 @@ MaterializationLevel = Literal[
 # Catalog Graph Structure
 # =========================================================
 #
-# variable:
-#     Canonical semantic entity.
+# VARIABLE
+#     Semantic entity originating from
+#     schema, metrics, aggregates,
+#     synthetic variables, or catalog
+#     synthesis.
 #
-# namespace:
-#     Synthetic hierarchical grouping
-#     node used for ontology navigation.
+#     Examples:
 #
-# overlay:
-#     Projection or presentation layer
+#         case_name
+#         description
+#         solver_options.bequest
+#         timing.elapsed_seconds__mean
+#
+# NAMESPACE
+#     Synthetic hierarchy node used
+#     for ontology navigation.
+#
+#     Examples:
+#
+#         solver_options
+#         aca_settings
+#         timing
+#
+# OVERLAY
+#     Presentation or projection layer
 #     attached to a canonical entity.
+#
+#     Examples:
+#
+#         display.net_worth
+#         display.fixed_income
+#
+# Notes
+# -----
+# CatalogNodeType answers:
+#
+#     "What kind of graph node is this?"
+#
+# ProjectionKind answers:
+#
+#     "What kind of semantic realization
+#      is this?"
+#
+# These dimensions intentionally remain
+# orthogonal.
 #
 # =========================================================
 
-CatalogNodeType = Literal[
-    "variable",
-    "namespace",
-    "overlay",
-]
+
+class CatalogNodeType(
+    StrEnum,
+):
+    """
+    Catalog graph structure.
+
+    Notes
+    -----
+    Node type describes how an entity
+    participates in the catalog graph.
+
+    This classification is orthogonal
+    to ProjectionKind.
+
+    Examples
+    --------
+
+    aca_settings.slcsp_annual
+        VARIABLE
+
+    display.net_worth
+        OVERLAY
+    """
+
+    VARIABLE = "variable"
+
+    OVERLAY = "overlay"
+
 
 # =========================================================
 # Shared Ontology Specification
@@ -254,4 +323,16 @@ class OntologySpec:
     # Catalog Graph Structure
     # =====================================================
 
-    node_type: CatalogNodeType | None = "variable"
+    node_type: CatalogNodeType | None = None
+
+    # =====================================================
+    # Semantic Relationships
+    # =====================================================
+
+    derived_from: list[str] = field(
+        default_factory=list,
+    )
+
+    expands_to: list[str] = field(
+        default_factory=list,
+    )

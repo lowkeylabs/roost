@@ -1,5 +1,14 @@
 # src/owlroost/schema/specs.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -9,6 +18,11 @@ from dataclasses import (
 )
 from typing import (
     Literal,
+)
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
 )
 
 from owlroost.catalog.ontology import (
@@ -27,7 +41,7 @@ RuntimeSource = Literal[
     "derived",
     "discovered",
     "internal",
-    "helper",
+    "sweep",
 ]
 
 # =========================================================
@@ -130,10 +144,6 @@ class FieldSpec(
 
     defined_in: str | None = None
 
-    derived_from: list[str] = field(
-        default_factory=list,
-    )
-
     # =====================================================
     # Defaults
     # =====================================================
@@ -170,3 +180,12 @@ class FieldSpec(
 
         if self.path is None:
             self.path = ()
+
+
+# =========================================================
+# Base
+# =========================================================
+
+
+class BaseSectionConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")

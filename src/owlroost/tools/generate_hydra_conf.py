@@ -1,3 +1,5 @@
+# src/owlroost/tools/generate_hydra_conf.py
+
 """
 Generate Hydra conf/**/default.yaml and config.yaml from schema registry.
 
@@ -9,12 +11,14 @@ Run:
     python -m owlroost.tools.generate_hydra_conf
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from owlroost.schema.bootstrap import build_registry
+from owlroost.schema.bootstrap import build_schema_registry
 from owlroost.schema.utils import unwrap_annotation
 
 CONF_ROOT = Path("src/owlroost/conf")
@@ -316,7 +320,7 @@ def generate_hydra_scaffolding():
 # Main
 # =========================================================
 def generate():
-    reg, plugins = build_registry(return_plugins=True)
+    reg, plugins = build_schema_registry(return_plugins=True)
 
     model_index = build_model_index(plugins)
 

@@ -1,3 +1,16 @@
+# src/owlroost/display/materializers/compare.py
+
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
+from __future__ import annotations
+
 # =========================================================
 # Table Materialization
 # =========================================================
@@ -173,4 +186,3 @@ def materialize_compare_table(
         rows=table_rows,
         row_meta=row_meta,
     )
-

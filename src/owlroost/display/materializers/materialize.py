@@ -1,20 +1,29 @@
 # src/owlroost/display/materializers/materialize.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
 from owlroost.display.explain import (
     build_field_explanation,
     normalize_explain_facets,
 )
+from owlroost.display.operations.resolution import (
+    resolve_field_value,
+)
 from owlroost.display.registry import DisplayRegistry
-from owlroost.display.specs import DisplayProfile
 from owlroost.display.renderers.specs import (
     RoostTable,
     TableColumn,
 )
-from owlroost.display.utils import (
-    resolve_field_value,
-)
+from owlroost.display.specs import DisplayProfile
 
 # =========================================================
 # Visibility
@@ -226,7 +235,6 @@ def pivot_table(
     new_row_meta = []
 
     for col_idx, column in enumerate(table.columns):
-        print(column)
         row = [column.label]
 
         row_values = []
@@ -283,27 +291,33 @@ def pivot_table(
 
 
 def materialize_view(
-    dataset,
+    *,
+    rows,
     registry,
-    level,
     view_name,
+    level="case",
     mode="table",
     explain=None,
 ):
     """
-    Materialize dataset + view into RoostTable.
+    Materialize rows + view into a RoostTable.
 
-    Responsibilities:
-    - expand view/group definitions
-    - resolve display fields
-    - resolve semantic values
-    - build renderer-facing tables
+    Responsibilities
+    ----------------
+    - resolve DisplayView
+    - expand DisplayGroups
+    - apply visibility rules
+    - resolve DisplayFields
+    - resolve row values
+    - construct renderer-facing RoostTable
 
-    Does NOT:
-    - aggregate datasets
-    - pivot tables
+    Does NOT
+    --------
     - render output
+    - aggregate rows
+    - discover rows
     """
+
     explain_facets = normalize_explain_facets(
         explain,
     )
@@ -321,7 +335,9 @@ def materialize_view(
     # Visibility Context
     # =====================================================
 
-    visibility = build_visibility_context(mode)
+    visibility = build_visibility_context(
+        mode,
+    )
 
     # =====================================================
     # Explain Requires Pivot
@@ -331,7 +347,7 @@ def materialize_view(
         raise ValueError("--explain requires pivot mode")
 
     # =====================================================
-    # Expand Groups
+    # Expand View
     # =====================================================
 
     expanded_entries = expand_view_entries(
@@ -343,98 +359,107 @@ def materialize_view(
     # Apply Visibility
     # =====================================================
 
-    visible_entries = []
-
-    for entry in expanded_entries:
+    visible_entries = [
+        entry
+        for entry in expanded_entries
         if entry_is_visible(
             entry,
             visibility,
-        ):
-            visible_entries.append(entry)
+        )
+    ]
 
     # =====================================================
-    # Final Field Names
+    # Field Names
     # =====================================================
 
     field_names = [entry["field"] for entry in visible_entries]
 
     # =====================================================
-    # Build Columns
+    # Columns
     # =====================================================
 
-    columns = []
+    columns: list[TableColumn] = []
 
     for field_name in field_names:
-        display_field = registry.get_display_field(field_name)
-
-        profile = (
-            display_field.profiles.get(mode)
-            or display_field.profiles.get("table")
-            or DisplayProfile()
+        display_field = registry.get_display_field(
+            field_name,
         )
 
-        label = profile.label or field_name
-        label_align = profile.label_align
-        content_align = profile.content_align
-        fmt = profile.fmt
-        width = profile.width
-        wrap = profile.wrap
+        profile = (
+            display_field.profiles.get(
+                mode,
+            )
+            or display_field.profiles.get(
+                "table",
+            )
+            or DisplayProfile()
+        )
 
         columns.append(
             TableColumn(
                 key=field_name,
-                label=label,
-                label_align=label_align,
-                content_align=content_align,
-                fmt=fmt,
-                width=width,
-                wrap=wrap,
+                label=(profile.label or field_name),
+                label_align=(profile.label_align),
+                content_align=(profile.content_align),
+                fmt=profile.fmt,
+                width=profile.width,
+                wrap=profile.wrap,
             )
         )
 
     # =====================================================
-    # Build Rows
+    # Rows
     # =====================================================
 
-    rows = []
+    materialized_rows = []
+
     row_meta = []
 
-    for dataset_row in dataset.rows:
-        row = []
+    for source_row in rows:
+        materialized_row = []
 
         for field_name in field_names:
-            display_field = registry.get_display_field(field_name)
+            display_field = registry.get_display_field(
+                field_name,
+            )
 
             value = resolve_field_value(
-                row=dataset_row,
+                row=source_row,
                 field_name=field_name,
                 display_field=display_field,
             )
 
-            row.append(value)
+            materialized_row.append(
+                value,
+            )
 
-        rows.append(row)
+        materialized_rows.append(
+            materialized_row,
+        )
 
         meta = {
-            "dataset_row": dataset_row,
+            "row": source_row,
         }
 
-        # -----------------------------------------------------
-        # Superseded rows
-        # -----------------------------------------------------
-
-        if dataset_row.get("_meta", {}).get("is_superseded"):
+        if source_row.get(
+            "_meta",
+            {},
+        ).get(
+            "is_superseded",
+        ):
             meta["dim"] = True
 
-        row_meta.append(meta)
+        row_meta.append(
+            meta,
+        )
 
     # =====================================================
-    # Final Table
+    # Table
     # =====================================================
 
     table = RoostTable(
         columns=columns,
-        rows=rows,
+        rows=materialized_rows,
         row_meta=row_meta,
     )
 

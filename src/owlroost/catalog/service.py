@@ -1,5 +1,25 @@
 # src/owlroost/catalog/service.py
 
+"""
+Catalog semantic services.
+
+Notes
+-----
+The catalog subsystem owns semantic
+identity and ontology synthesis.
+
+Catalog integrates:
+
+    - schema ontology
+    - metrics ontology
+
+into a unified collection of canonical
+semantic entities.
+
+Catalog returns semantic rows and does
+not return renderer-facing structures.
+"""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -15,9 +35,6 @@ from owlroost.catalog.ontology import (
     ProjectionKind,
     SemanticDomain,
     ValueOrigin,
-)
-from owlroost.display.dataset import (
-    Dataset,
 )
 
 # =========================================================
@@ -81,15 +98,10 @@ def _merge_row(
     # =====================================================
 
     if incoming_layer == "display":
-        # -------------------------------------------------
-        # Overlay non-null metadata only
-        # -------------------------------------------------
-
         for key, value in row.items():
             if value is None:
                 continue
 
-            # Preserve canonical ontology
             if key in {
                 "layer",
                 "field_name",
@@ -97,10 +109,6 @@ def _merge_row(
                 continue
 
             existing[key] = value
-
-        # -------------------------------------------------
-        # Track overlay provenance
-        # -------------------------------------------------
 
         overlays = existing.setdefault(
             "_overlay_layers",
@@ -131,7 +139,7 @@ def load_catalog(
     metrics_registry,
 ):
     """
-    Build unified semantic catalog dataset.
+    Build unified semantic catalog rows.
 
     Notes
     -----
@@ -160,10 +168,6 @@ def load_catalog(
     Display consumes catalog semantics
     downstream.
     """
-
-    # =====================================================
-    # Canonical Semantic Entity Map
-    # =====================================================
 
     entities: dict[
         str,
@@ -198,7 +202,7 @@ def load_catalog(
     # Stable Ordering
     # =====================================================
 
-    rows = sorted(
+    return sorted(
         entities.values(),
         key=lambda r: (
             r.get("owner") or "",
@@ -210,15 +214,6 @@ def load_catalog(
         ),
     )
 
-    # =====================================================
-    # Dataset
-    # =====================================================
-
-    return Dataset(
-        rows,
-        level="catalog",
-    )
-
 
 # =========================================================
 # Ontology Filters
@@ -226,118 +221,83 @@ def load_catalog(
 
 
 def filter_catalog_by_layer(
-    dataset,
+    rows,
     layer: str,
 ):
     """
-    Filter catalog dataset by ontology layer.
+    Filter catalog rows by ontology layer.
     """
 
-    rows = [row for row in dataset.rows if row.get("layer") == layer]
-
-    return Dataset(
-        rows,
-        level=dataset.level,
-    )
+    return [row for row in rows if row.get("layer") == layer]
 
 
 def filter_catalog_by_owner(
-    dataset,
+    rows,
     owner: Owner,
 ):
     """
-    Filter catalog dataset by ontology owner.
+    Filter catalog rows by ontology owner.
     """
 
-    rows = [row for row in dataset.rows if row.get("owner") == owner]
-
-    return Dataset(
-        rows,
-        level=dataset.level,
-    )
+    return [row for row in rows if row.get("owner") == owner]
 
 
 def filter_catalog_by_semantic_domain(
-    dataset,
+    rows,
     semantic_domain: SemanticDomain,
 ):
     """
-    Filter catalog dataset by semantic domain.
+    Filter catalog rows by semantic domain.
     """
 
-    rows = [row for row in dataset.rows if row.get("semantic_domain") == semantic_domain]
-
-    return Dataset(
-        rows,
-        level=dataset.level,
-    )
+    return [row for row in rows if row.get("semantic_domain") == semantic_domain]
 
 
 def filter_catalog_by_value_origin(
-    dataset,
+    rows,
     value_origin: ValueOrigin,
 ):
     """
-    Filter catalog dataset by value origin.
+    Filter catalog rows by value origin.
     """
 
-    rows = [row for row in dataset.rows if row.get("value_origin") == value_origin]
-
-    return Dataset(
-        rows,
-        level=dataset.level,
-    )
+    return [row for row in rows if row.get("value_origin") == value_origin]
 
 
 def filter_catalog_by_projection_kind(
-    dataset,
+    rows,
     projection_kind: ProjectionKind,
 ):
     """
-    Filter catalog dataset by analytical
+    Filter catalog rows by analytical
     projection realization.
     """
 
-    rows = [row for row in dataset.rows if row.get("projection_kind") == projection_kind]
-
-    return Dataset(
-        rows,
-        level=dataset.level,
-    )
+    return [row for row in rows if row.get("projection_kind") == projection_kind]
 
 
 def filter_catalog_by_analytic_kind(
-    dataset,
+    rows,
     analytic_kind: AnalyticKind,
 ):
     """
-    Filter catalog dataset by analytical
+    Filter catalog rows by analytical
     interpretation semantics.
     """
 
-    rows = [row for row in dataset.rows if row.get("analytic_kind") == analytic_kind]
-
-    return Dataset(
-        rows,
-        level=dataset.level,
-    )
+    return [row for row in rows if row.get("analytic_kind") == analytic_kind]
 
 
 def filter_catalog_by_node_type(
-    dataset,
+    rows,
     node_type: CatalogNodeType,
 ):
     """
-    Filter catalog dataset by catalog
+    Filter catalog rows by catalog
     graph structure semantics.
     """
 
-    rows = [row for row in dataset.rows if row.get("node_type") == node_type]
-
-    return Dataset(
-        rows,
-        level=dataset.level,
-    )
+    return [row for row in rows if row.get("node_type") == node_type]
 
 
 # =========================================================
@@ -346,7 +306,7 @@ def filter_catalog_by_node_type(
 
 
 def search_catalog(
-    dataset,
+    rows,
     query: str,
 ):
     """
@@ -365,9 +325,9 @@ def search_catalog(
 
     query = query.lower()
 
-    rows = []
+    results = []
 
-    for row in dataset.rows:
+    for row in rows:
         haystack = " ".join(
             str(v or "")
             for v in [
@@ -383,9 +343,6 @@ def search_catalog(
         ).lower()
 
         if query in haystack:
-            rows.append(row)
+            results.append(row)
 
-    return Dataset(
-        rows,
-        level=dataset.level,
-    )
+    return results

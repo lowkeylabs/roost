@@ -1,5 +1,14 @@
 # src/owlroost/tools/generate_explain_metadata.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
 import re
@@ -13,7 +22,7 @@ THIS_FILE = Path(__file__).resolve()
 
 OWLROOST_ROOT = THIS_FILE.parents[1]
 
-OUTPUT_DIR = OWLROOST_ROOT / "display" / "generated"
+OUTPUT_DIR = OWLROOST_ROOT / "schema" / "generated"
 
 OUTPUT_FILE = OUTPUT_DIR / "owl_parameter_docs.py"
 
@@ -213,7 +222,7 @@ def parse_parameters_md(
             docs[param_name] = {
                 "section": current_section,
                 "type": param_type,
-                "variable": description,
+                "description": description,
                 "units": infer_units(description),
                 "notes": None,
             }

@@ -1,5 +1,14 @@
 # src/owlroost/catalog/comparison/structure.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -49,7 +58,6 @@ def flatten_structure(
         full = key if not prefix else f"{prefix}.{key}"
 
         if isinstance(value, dict):
-
             if full not in seen_sections:
                 out.append(
                     (
@@ -68,7 +76,6 @@ def flatten_structure(
             )
 
         else:
-
             out.append(
                 (
                     "field",
@@ -92,7 +99,6 @@ def resolve_path(
     current = obj
 
     for part in path.split("."):
-
         if not isinstance(
             current,
             dict,
@@ -114,15 +120,11 @@ def values_differ(
     Return True if values differ across rows.
     """
 
-    normalized = [
-        deepcopy(v)
-        for v in values
-    ]
+    normalized = [deepcopy(v) for v in values]
 
     first = normalized[0]
 
     for value in normalized[1:]:
-
         if value != first:
             return True
 
@@ -152,7 +154,6 @@ def build_compare_entries(
     seen_entries = set()
 
     for row in rows:
-
         inputs = row.get(
             "_inputs",
             {},
@@ -163,7 +164,6 @@ def build_compare_entries(
         )
 
         for entry in entries:
-
             if entry in seen_entries:
                 continue
 
@@ -180,7 +180,6 @@ def build_compare_entries(
     emitted_sections = set()
 
     for kind, value in ordered_entries:
-
         if kind == "section":
             continue
 
@@ -192,28 +191,22 @@ def build_compare_entries(
         if value in STRUCTURAL_COMPARE_EXCLUDES:
             continue
 
-        if any(
-            part in STRUCTURAL_COMPARE_EXCLUDES
-            for part in parts
-        ):
+        if any(part in STRUCTURAL_COMPARE_EXCLUDES for part in parts):
             continue
 
         if "." in value:
-
             section_name, field_name = value.rsplit(
                 ".",
                 1,
             )
 
         else:
-
             section_name = "_root"
             field_name = value
 
         vals = []
 
         for row in rows:
-
             vals.append(
                 resolve_path(
                     row.get(
@@ -224,17 +217,10 @@ def build_compare_entries(
                 )
             )
 
-        if (
-            diff_only
-            and not values_differ(vals)
-        ):
+        if diff_only and not values_differ(vals):
             continue
 
-        if (
-            section_name != "_root"
-            and section_name not in emitted_sections
-        ):
-
+        if section_name != "_root" and section_name not in emitted_sections:
             emitted_sections.add(
                 section_name,
             )

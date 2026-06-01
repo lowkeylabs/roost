@@ -1,3 +1,16 @@
+# src/owlroost/display/formatting/formatting.py
+
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
+from __future__ import annotations
+
 PREFERRED_ORDER = {
     "method": 0,
     "from": 1,

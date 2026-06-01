@@ -1,0 +1,158 @@
+"""
+Display view examples.
+
+These examples are intentionally loadable
+and serve as architectural conformance
+fixtures for testing.
+"""
+
+from __future__ import annotations
+
+from owlroost.display.specs import (
+    DisplayView,
+)
+
+
+def register_display_views(
+    reg,
+):
+    # =====================================================
+    # Minimal
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="example-minimal",
+            description=(
+                "Minimal example view."
+            ),
+            entries=[
+                (
+                    "field",
+                    "solver_options.bequest",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Schema
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="example-schema",
+            description=(
+                "Schema-backed example."
+            ),
+            entries=[
+                (
+                    "group",
+                    "example.schema",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Metrics
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="example-metrics",
+            description=(
+                "Metric-backed example."
+            ),
+            entries=[
+                (
+                    "group",
+                    "example.metrics",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Synthetic
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="example-synthetic",
+            description=(
+                "Synthetic example."
+            ),
+            entries=[
+                (
+                    "group",
+                    "example.synthetic",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Nested expansion
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="example-summary",
+            description=(
+                "Nested group expansion."
+            ),
+            entries=[
+                (
+                    "group",
+                    "example.summary",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Catalog
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="catalog",
+            name="example-catalog",
+            description=(
+                "Catalog metadata example."
+            ),
+            entries=[
+                (
+                    "group",
+                    "example.catalog",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Architecture
+    # =====================================================
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="example-architecture",
+            description=(
+                "Exercises schema, metrics, "
+                "synthetics, groups, and views."
+            ),
+            entries=[
+                (
+                    "group",
+                    "example.summary",
+                ),
+            ],
+        )
+    )

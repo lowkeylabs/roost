@@ -1,5 +1,14 @@
 # src/owlroost/metrics/plugins/execution_metrics.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
 from ..specs import MetricSpec

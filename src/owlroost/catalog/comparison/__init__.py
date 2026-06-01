@@ -1,5 +1,14 @@
 # src/owlroost/catalog/comparison/__init__.py
 
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
 from __future__ import annotations
 
 from .structure import (
@@ -9,18 +18,15 @@ from .structure import (
     rows_are_equivalent,
     values_differ,
 )
-
 from .supersession import (
     collect_superseded_rows,
     find_superseded_rows,
 )
 
 __all__ = [
-
     # structure
     "build_compare_entries",
     "rows_are_equivalent",
-
     # supersession
     "collect_superseded_rows",
     "find_superseded_rows",
