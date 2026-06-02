@@ -1,23 +1,8 @@
-asset_allocation:
-  interpolation_method: linear
-  type: individual
-  generic:
-  - &id001
-    - - 60.0
-      - 40.0
-      - 0.0
-      - 0.0
-    - - 60.0
-      - 40.0
-      - 0.0
-      - 0.0
-interpolation_method: linear
+interpolation_method: null
 interpolation_center: null
 interpolation_width: null
-type: individual
-generic:
-- *id001
+type: null
+generic: null
 taxable: null
-tax_deferred: null
-tax_free: null
-hsa: null
+tax-deferred: null
+tax-free: null

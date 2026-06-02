@@ -25,6 +25,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 from owlroost.catalog.builders import (
+    build_display_rows,
     build_metric_rows,
     build_schema_rows,
 )
@@ -55,9 +56,14 @@ def _merge_row(
     ROOST maintains exactly one canonical
     semantic identity per field_name.
 
-    Display overlays enrich existing
-    semantic identities rather than
-    creating competing rows.
+    Display presentation overlays are not
+    canonical semantic entities.
+
+    Synthetic semantic variables declared
+    within display modules participate in
+    catalog synthesis and are merged into
+    the canonical catalog graph.
+
     """
 
     field_name = row["field_name"]
@@ -98,6 +104,22 @@ def _merge_row(
     # =====================================================
 
     if incoming_layer == "display":
+        #
+        # Presentation metadata only.
+        #
+        # Display must not overwrite
+        # canonical ontology.
+        #
+
+        overlay_keys = {
+            "_display",
+            "_profiles",
+            "_views",
+            "_groups",
+            "display_fn",
+            "profiles",
+        }
+
         for key, value in row.items():
             if value is None:
                 continue
@@ -108,6 +130,9 @@ def _merge_row(
             }:
                 continue
 
+            if key not in overlay_keys:
+                continue
+
             existing[key] = value
 
         overlays = existing.setdefault(
@@ -115,7 +140,9 @@ def _merge_row(
             [],
         )
 
-        overlays.append("display")
+        overlays.append(
+            "display",
+        )
 
         return
 
@@ -137,6 +164,7 @@ def load_catalog(
     *,
     schema_registry,
     metrics_registry,
+    display_registry,
 ):
     """
     Build unified semantic catalog rows.
@@ -149,6 +177,7 @@ def load_catalog(
         - schema ontology
         - metrics ontology
         - aggregation ontology
+        - synthetic display ontology
 
     The catalog intentionally models:
 
@@ -192,6 +221,18 @@ def load_catalog(
 
     for row in build_metric_rows(
         metrics_registry,
+    ):
+        _merge_row(
+            entities,
+            row,
+        )
+
+    # =====================================================
+    # Display Ontology
+    # =====================================================
+
+    for row in build_display_rows(
+        display_registry,
     ):
         _merge_row(
             entities,

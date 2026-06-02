@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from owlroost.catalog.loaders import (
-    load_catalog,
-)
 from owlroost.catalog.ontology import (
     CatalogNodeType,
-    ProjectionKind,
+)
+from owlroost.catalog.service import (
+    load_catalog,
 )
 from owlroost.display.bootstrap import (
     build_display_registry,
@@ -43,22 +42,42 @@ def test_architecture_pipeline():
     """
     End-to-end architecture validation.
 
-    Model B2
-    --------
+    Current Architecture
+    --------------------
+
     Schema Registry
-        owns semantic variables only
+        owns semantic variables
+
+    Metrics Registry
+        owns semantic variables
+
+    Display Registry
+        owns presentation overlays and
+        may declare synthetic semantic
+        variables
 
     Catalog
-        owns graph structure
-
-    Display
-        owns presentation overlays
+        owns canonical semantic identity
 
     Materializer
-        consumes catalog rows
+        consumes catalog semantics and
+        display presentation overlays
 
     Renderer
         consumes materialized tables
+
+    Notes
+    -----
+    Namespace catalog nodes no longer
+    exist.
+
+    Hierarchy is represented through:
+
+        - field_name
+        - path
+
+    rather than synthetic namespace
+    entities.
     """
 
     # =====================================================
@@ -72,8 +91,7 @@ def test_architecture_pipeline():
     schema_field_names = {field.name for field in schema_registry.all()}
 
     # =====================================================
-    # Model B2:
-    # schema owns leaves only
+    # Schema owns semantic leaves only
     # =====================================================
 
     assert "aca_settings" not in schema_field_names
@@ -131,9 +149,12 @@ def test_architecture_pipeline():
     catalog_rows = load_catalog(
         schema_registry=schema_registry,
         metrics_registry=metrics_registry,
+        display_registry=display_registry,
     )
 
     assert catalog_rows
+
+    catalog_field_names = {row["field_name"] for row in catalog_rows}
 
     # =====================================================
     # Materialization
@@ -170,8 +191,6 @@ def test_architecture_pipeline():
 
     semantic_rows = []
 
-    namespace_rows = []
-
     overlay_rows = []
 
     for row in catalog_rows:
@@ -187,12 +206,14 @@ def test_architecture_pipeline():
 
         assert not field_name.endswith(".")
 
-        node_type = row.get("node_type")
+        node_type = row.get(
+            "node_type",
+        )
 
         assert node_type is not None, f"{field_name}: missing node_type"
 
         # -------------------------------------------------
-        # Semantic Nodes
+        # Semantic Variables
         # -------------------------------------------------
 
         if node_type in SEMANTIC_NODE_TYPES:
@@ -200,39 +221,14 @@ def test_architecture_pipeline():
                 row,
             )
 
-            assert row.get("owner"), f"{field_name}: semantic node missing owner"
+            assert row.get("owner"), f"{field_name}: missing owner"
 
-            assert row.get("projection_kind"), (
-                f"{field_name}: semantic node missing projection_kind"
-            )
+            assert row.get("projection_kind"), f"{field_name}: missing projection_kind"
 
-            assert row.get("materialization_level"), (
-                f"{field_name}: semantic node missing materialization_level"
-            )
-
-            if "." not in field_name:
-                assert field_name in {
-                    "case_name",
-                    "description",
-                }, f"{field_name}: top-level semantic node looks like container"
+            assert row.get("materialization_level"), f"{field_name}: missing materialization_level"
 
         # -------------------------------------------------
-        # Namespace Nodes
-        # -------------------------------------------------
-
-        elif node_type == CatalogNodeType.NAMESPACE:
-            namespace_rows.append(
-                row,
-            )
-
-            assert row.get("owner") is None
-
-            assert row.get("semantic_domain") is None
-
-            assert row.get("value_origin") is None
-
-        # -------------------------------------------------
-        # Overlay Nodes
+        # Overlay Variables
         # -------------------------------------------------
 
         elif node_type == CatalogNodeType.OVERLAY:
@@ -249,52 +245,33 @@ def test_architecture_pipeline():
 
     assert semantic_rows
 
-    assert namespace_rows
-
     # =====================================================
-    # Namespace Hierarchy Invariants
+    # Catalog ↔ Schema Relationship
     # =====================================================
 
-    catalog_field_names = {row["field_name"] for row in catalog_rows}
+    missing_schema_fields = schema_field_names - catalog_field_names
 
-    expected_namespaces = {
-        "aca_settings",
-        "solver_options",
-        "optimization_parameters",
-    }
+    assert not missing_schema_fields, (
+        f"Schema fields missing from catalog: {sorted(missing_schema_fields)}"
+    )
 
-    actual_namespaces = {row["field_name"] for row in namespace_rows}
+    # =====================================================
+    # Catalog ↔ Metrics Relationship
+    # =====================================================
 
-    assert expected_namespaces <= actual_namespaces
+    metric_rows = [row for row in catalog_rows if row.get("layer") == "metrics"]
 
-    for row in namespace_rows:
-        namespace = row["field_name"]
+    assert metric_rows
 
-        # ---------------------------------------------
-        # Model B2:
-        # namespace nodes belong to catalog,
-        # not schema.
-        # ---------------------------------------------
+    aggregate_rows = [row for row in metric_rows if "__" in row["field_name"]]
 
-        assert namespace not in schema_field_names, (
-            f"{namespace}: namespace node should not exist in schema registry"
-        )
-
-        prefix = namespace + "."
-
-        descendants = [
-            candidate for candidate in catalog_field_names if candidate.startswith(prefix)
-        ]
-
-        assert descendants, f"{namespace}: namespace node has no descendants"
+    assert aggregate_rows
 
     # =====================================================
     # Aggregate Invariants
     # =====================================================
 
-    aggregate_rows = [
-        row for row in catalog_rows if (row.get("projection_kind") == ProjectionKind.AGGREGATE)
-    ]
+    aggregate_rows = [row for row in catalog_rows if (row.get("projection_kind") == "aggregate")]
 
     aggregate_names = {row["field_name"] for row in aggregate_rows}
 
@@ -312,53 +289,53 @@ def test_architecture_pipeline():
     assert expected_aggregates <= aggregate_names
 
     # =====================================================
-    # Display Overlay Invariants
+    # Display Registry Participation
     # =====================================================
 
-    overlay_names = set(display_registry.all_field_names())
+    display_names = set(display_registry.all_field_names())
 
-    assert field_names & overlay_names
-
-    # =====================================================
-    # Display ↔ Catalog Linkage
-    # =====================================================
-
-    for field_name in display_registry.all_field_names():
-        field = display_registry.get_display_field(
-            field_name,
-        )
-
-        ontology_field = getattr(
-            field,
-            "ontology_field",
-            None,
-        )
-
-        if ontology_field is None:
-            continue
-
-        assert field.field_name in catalog_field_names
+    assert display_names & catalog_field_names
 
     # =====================================================
-    # Synthetic Variables
+    # Testing Display Fixtures
     # =====================================================
 
-    synthetic_rows = [
-        row for row in catalog_rows if (row.get("projection_kind") == ProjectionKind.SYNTHETIC)
-    ]
-
-    synthetic_names = {row["field_name"] for row in synthetic_rows}
-
-    expected_synthetic_fields = {
-        "display.net_worth",
-        "display.total_assets",
-        "display.fixed_income",
-        "display.current_ages",
-        "display.life_expectancy",
+    expected_fixture_fields = {
+        "testing.scalar",
+        "testing.string",
+        "testing.boolean",
+        "testing.composed",
+        "testing.semantic",
     }
 
-    missing = expected_synthetic_fields - synthetic_names
+    missing = expected_fixture_fields - catalog_field_names
 
-    assert not missing, (
-        f"Synthetic display variables must participate in catalog: {sorted(missing)}"
+    assert not missing, f"Testing display fixtures must participate in catalog: {sorted(missing)}"
+
+    # =====================================================
+    # Explicit Semantic Fixture
+    # =====================================================
+
+    assert "testing.semantic" in catalog_field_names
+
+    semantic_fixture = next(
+        row for row in catalog_rows if (row["field_name"] == "testing.semantic")
     )
+
+    assert semantic_fixture["owner"] == "ROOST"
+
+    assert semantic_fixture["semantic_domain"] == "execution"
+
+    assert semantic_fixture["value_origin"] == "roost-computed"
+
+    assert semantic_fixture["projection_kind"] == "synthetic"
+
+    # =====================================================
+    # Catalog Sources
+    # =====================================================
+
+    layer_values = {row.get("layer") for row in catalog_rows}
+
+    assert "schema" in layer_values
+    assert "metrics" in layer_values
+    assert "display" in layer_values

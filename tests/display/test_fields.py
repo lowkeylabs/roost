@@ -1,3 +1,5 @@
+# tests/display/test_fields.py
+
 from __future__ import annotations
 
 from owlroost.display.fields import (
@@ -64,54 +66,81 @@ def test_testing_fields_load():
 
 
 # =========================================================
-# Ontology
+# Catalog Declarations
 # =========================================================
 
 
-def test_example_synthetic_field_has_ontology():
+def test_example_synthetic_field_has_catalog_declaration():
+    """
+    Synthetic display variables should
+    create semantic catalog declarations.
+    """
+
     reg = build_registry()
 
     field = reg.get_display_field(
         "example.synthetic",
     )
 
-    assert field.owner
-    assert field.semantic_domain
-    assert field.value_origin
-    assert field.projection_kind
-    assert field.materialization_level
+    declaration = field.catalog_declaration
+
+    assert declaration is not None
+
+    assert declaration.owner == "ROOST"
+
+    assert declaration.semantic_domain == "execution"
+
+    assert declaration.value_origin == "roost-computed"
+
+    assert declaration.projection_kind == "synthetic"
 
 
 def test_testing_semantic_field_has_explicit_ontology():
+    """
+    Explicit ontology declarations
+    should be preserved.
+    """
+
     reg = build_registry()
 
     field = reg.get_display_field(
         "testing.semantic",
     )
 
-    assert field.owner == "ROOST"
-    assert field.semantic_domain
-    assert field.value_origin
-    assert field.projection_kind
+    declaration = field.catalog_declaration
 
+    assert declaration is not None
 
-# =========================================================
-# Lineage
-# =========================================================
+    assert declaration.owner == "ROOST"
+
+    assert declaration.semantic_domain
+
+    assert declaration.value_origin
+
+    assert declaration.projection_kind
 
 
 def test_composed_field_has_lineage():
+    """
+    Lineage metadata should be stored
+    within the catalog declaration.
+    """
+
     reg = build_registry()
 
     field = reg.get_display_field(
         "example.composed",
     )
 
-    assert field.derived_from
+    declaration = field.catalog_declaration
 
-    assert "example.synthetic" in field.derived_from
+    assert declaration is not None
 
-    assert "example.runtime_metric" in field.derived_from
+    assert declaration.derived_from
+
+    assert "example.synthetic" in declaration.derived_from
+
+    assert "example.runtime_metric" in declaration.derived_from
 
 
 # =========================================================
@@ -127,7 +156,9 @@ def test_multiple_profiles_exist():
     )
 
     assert "table" in field.profiles
+
     assert "pivot" in field.profiles
+
     assert "export" in field.profiles
 
 

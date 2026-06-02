@@ -47,6 +47,14 @@ AUDITS: dict[
         "owlroost.audit.display",
         "audit_display",
     ),
+    "hydra": (
+        "owlroost.audit.hydra",
+        "audit_hydra",
+    ),
+    "owl_docs": (
+        "owlroost.audit.owl_docs",
+        "audit_owl_docs",
+    ),
 }
 
 
@@ -251,6 +259,34 @@ def packages() -> None:
 def ontology() -> None:
     failures = run_audit(
         "ontology",
+    )
+
+    raise SystemExit(1 if failures else 0)
+
+
+# =========================================================
+# Ontology Audit
+# =========================================================
+
+
+@cli.command()
+def owl_docs() -> None:
+    failures = run_audit(
+        "owl_docs",
+    )
+
+    raise SystemExit(1 if failures else 0)
+
+
+# =========================================================
+# hydra drift
+# =========================================================
+
+
+@cli.command()
+def hydra() -> None:
+    failures = run_audit(
+        "hydra",
     )
 
     raise SystemExit(1 if failures else 0)

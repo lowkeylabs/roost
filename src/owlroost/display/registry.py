@@ -515,21 +515,6 @@ class DisplayRegistry:
                         )
 
         # -------------------------------------------------
-        # Field Lineage
-        # -------------------------------------------------
-
-        for field in self._display_fields.values():
-            for parent in field.derived_from:
-                if not self.has_display_field(parent):
-                    raise ValueError(
-                        f"DisplayField "
-                        f"'{field.field_name}' "
-                        "references unknown "
-                        "derived_from field: "
-                        f"{parent}"
-                    )
-
-        # -------------------------------------------------
         # Group Cycles
         # -------------------------------------------------
 

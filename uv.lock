@@ -1778,7 +1778,7 @@ requires-dist = [
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "mosek", specifier = ">=11.1.9" },
-    { name = "owlplanner", git = "https://github.com/mdlacasse/Owl.git?rev=47bd1ae4b162f7ba8777cc5dfb17fa88c2fe9d8a" },
+    { name = "owlplanner", git = "https://github.com/mdlacasse/Owl.git?rev=c2195c008cf189fa4eac9b2d0a24cb212117b340" },
     { name = "plotly", specifier = ">=6.5.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.7.0" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.400" },
@@ -1795,8 +1795,8 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "owlplanner"
-version = "2026.5.24"
-source = { git = "https://github.com/mdlacasse/Owl.git?rev=47bd1ae4b162f7ba8777cc5dfb17fa88c2fe9d8a#47bd1ae4b162f7ba8777cc5dfb17fa88c2fe9d8a" }
+version = "2026.5.27"
+source = { git = "https://github.com/mdlacasse/Owl.git?rev=c2195c008cf189fa4eac9b2d0a24cb212117b340#c2195c008cf189fa4eac9b2d0a24cb212117b340" }
 dependencies = [
     { name = "click" },
     { name = "highspy" },

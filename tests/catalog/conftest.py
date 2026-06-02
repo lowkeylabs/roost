@@ -5,6 +5,9 @@ import pytest
 from owlroost.catalog.service import (
     load_catalog,
 )
+from owlroost.display.bootstrap import (
+    build_display_registry,
+)
 from owlroost.metrics.bootstrap import (
     build_metrics_registry,
 )
@@ -19,9 +22,15 @@ def registries():
 
     metrics_registry = build_metrics_registry()
 
+    display_registry = build_display_registry(
+        schema_registry=schema_registry,
+        metrics_registry=metrics_registry,
+    )
+
     return (
         schema_registry,
         metrics_registry,
+        display_registry,
     )
 
 
@@ -32,9 +41,11 @@ def catalog_rows(
     (
         schema_registry,
         metrics_registry,
+        display_registry,
     ) = registries
 
     return load_catalog(
         schema_registry=schema_registry,
         metrics_registry=metrics_registry,
+        display_registry=display_registry,
     )

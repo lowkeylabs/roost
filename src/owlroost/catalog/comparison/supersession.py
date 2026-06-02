@@ -11,10 +11,9 @@ and architectural role.
 
 from __future__ import annotations
 
-from owlroost.display.fields.identity import (
-    compact_id_display,
-)
-
+# from owlroost.display.fields.identity import (
+#    compact_id_display,
+# )
 from .structure import (
     rows_are_equivalent,
 )
@@ -22,6 +21,87 @@ from .structure import (
 # =========================================================
 # Helpers
 # =========================================================
+
+
+def compact_id_display(
+    row,
+):
+    """
+    Return compact hierarchical identifier.
+
+    Examples:
+
+        Case:
+            0
+
+        Session:
+            0/1
+
+        Run:
+            0/1/0
+
+        Trial:
+            0/1/0/12
+    """
+
+    try:
+        meta = row.get(
+            "_meta",
+            {},
+        )
+
+        case_id = meta.get(
+            "case_id",
+        )
+
+        session_id = meta.get(
+            "session_id",
+        )
+
+        run_id = meta.get(
+            "run_id",
+        )
+
+        trial_id = meta.get(
+            "trial_id",
+        )
+
+        # =================================================
+        # Missing Core IDs
+        # =================================================
+
+        if case_id is None:
+            return None
+
+        # =================================================
+        # Case Level
+        # =================================================
+
+        if session_id is None:
+            return f"{case_id}"
+
+        # =================================================
+        # Session Level
+        # =================================================
+
+        if run_id is None:
+            return f"{case_id}/{session_id}"
+
+        # =================================================
+        # Run Level
+        # =================================================
+
+        if trial_id is None:
+            return f"{case_id}/{session_id}/{run_id}"
+
+        # =================================================
+        # Trial Level
+        # =================================================
+
+        return f"{case_id}/{session_id}/{run_id}/{trial_id}"
+
+    except Exception:
+        return None
 
 
 def _row_timestamp(

@@ -12,10 +12,8 @@ and architectural role.
 from __future__ import annotations
 
 from owlroost.catalog.ontology import (
-    AnalyticKind,
     MaterializationLevel,
     ProjectionKind,
-    SemanticDomain,
     ValueOrigin,
 )
 from owlroost.catalog.rows import (
@@ -33,8 +31,6 @@ from owlroost.catalog.specs import (
 DEFAULT_SCHEMA_VALUE_ORIGIN: ValueOrigin = "user-specified"
 
 DEFAULT_METRIC_VALUE_ORIGIN: ValueOrigin = "owl-computed"
-
-DEFAULT_DISPLAY_VALUE_ORIGIN: ValueOrigin = "roost-computed"
 
 DEFAULT_CANONICAL_PROJECTION: ProjectionKind = "canonical"
 
@@ -274,14 +270,18 @@ def infer_display_source(
     field,
 ):
     """
-    Infer runtime source realization
-    for display overlays.
+    Infer runtime realization source for a
+    display-authored catalog declaration.
     """
 
-    if field.display_fn is not None:
-        return "display_fn"
-
-    path = field.path or ""
+    path = (
+        getattr(
+            field,
+            "path",
+            None,
+        )
+        or ""
+    )
 
     if path.startswith("_metrics"):
         return "_metrics"
@@ -295,163 +295,101 @@ def infer_display_source(
     if path.startswith("_inputs"):
         return "_inputs"
 
-    semantic_field = field.semantic_field
-
-    if semantic_field is not None:
-        source = getattr(
-            semantic_field,
-            "source",
-            None,
-        )
-
-        if source == "metrics":
-            return "_metrics"
-
-        return "_inputs"
-
     return "display"
-
-
-def infer_display_projection_kind(
-    field,
-) -> ProjectionKind:
-    """
-    Infer analytical projection semantics
-    for display overlays.
-    """
-
-    # -----------------------------------------------------
-    # Synthetic analytical projection
-    # -----------------------------------------------------
-
-    if field.display_fn is not None:
-        return "synthetic"
-
-    # -----------------------------------------------------
-    # Multi-field composition
-    # -----------------------------------------------------
-
-    if field.field_name.startswith("compact_"):
-        return "composed"
-
-    # -----------------------------------------------------
-    # Presentation refinement
-    # -----------------------------------------------------
-
-    return "formatted"
 
 
 def build_display_rows(
     display_registry,
 ):
     """
-    Build catalog overlay rows from
-    display registry.
+    Build catalog rows from display-authored
+    catalog declarations.
 
     Notes
     -----
-    Display fields no longer define
-    canonical semantic ontology.
+    Model B3 Architecture
+    ---------------------
 
-    Instead they represent:
+    Display owns presentation metadata.
 
-        projection overlays
+    Catalog owns semantic identity.
 
-    layered on top of existing semantic
-    entities originating from:
+    Display modules may optionally author
+    semantic declarations through:
 
-        - schema ontology
-        - metrics ontology
-        - runtime metadata
+        DisplayField.field(...)
+
+    Those declarations are represented as
+    CatalogSpec instances attached to the
+    DisplayField and participate in catalog
+    synthesis.
+
+    Presentation-only overlays do not
+    contribute semantic rows.
     """
 
     rows = []
 
     for field in display_registry.all_display_fields():
-        semantic_field = field.semantic_field
-
-        owner = None
-
-        semantic_domain: SemanticDomain | None = None
-
-        analytic_kind: AnalyticKind | None = None
-
-        value_origin: ValueOrigin = DEFAULT_DISPLAY_VALUE_ORIGIN
-
-        materialization_level: MaterializationLevel = DEFAULT_RUN_LEVEL
+        declaration = getattr(
+            field,
+            "catalog_declaration",
+            None,
+        )
 
         # -------------------------------------------------
-        # Semantic inheritance
+        # Presentation Overlay
         # -------------------------------------------------
 
-        if semantic_field is not None:
-            owner = getattr(
-                semantic_field,
-                "owner",
-                None,
-            )
+        if declaration is None:
+            continue
 
-            semantic_domain = getattr(
-                semantic_field,
-                "semantic_domain",
-                None,
-            )
-
-            analytic_kind = getattr(
-                semantic_field,
-                "analytic_kind",
-                None,
-            )
-
-            value_origin = (
-                getattr(
-                    semantic_field,
-                    "value_origin",
-                    None,
-                )
-                or value_origin
-            )
-
-            materialization_level = (
-                getattr(
-                    semantic_field,
-                    "materialization_level",
-                    None,
-                )
-                or materialization_level
-            )
+        # -------------------------------------------------
+        # Display-Authored Semantic Declaration
+        # -------------------------------------------------
 
         spec = CatalogSpec(
-            # -------------------------------------------------
+            # =============================================
             # Canonical Identity
-            # -------------------------------------------------
-            field_name=field.field_name,
-            node_type="variable",
-            # -------------------------------------------------
+            # =============================================
+            field_name=declaration.field_name,
+            node_type=declaration.node_type,
+            # =============================================
             # Ontology
-            # -------------------------------------------------
-            owner=owner,
-            semantic_domain=(semantic_domain),
-            value_origin=(value_origin),
-            projection_kind=(infer_display_projection_kind(field)),
-            analytic_kind=(analytic_kind),
-            materialization_level=(materialization_level),
-            # -------------------------------------------------
+            # =============================================
+            owner=declaration.owner,
+            semantic_domain=(declaration.semantic_domain),
+            value_origin=(declaration.value_origin),
+            projection_kind=(declaration.projection_kind),
+            analytic_kind=(declaration.analytic_kind),
+            materialization_level=(declaration.materialization_level),
+            derived_from=list(declaration.derived_from),
+            expands_to=list(declaration.expands_to),
+            # =============================================
             # Runtime Realization
-            # -------------------------------------------------
-            source=infer_display_source(field),
-            path=field.path,
-            # -------------------------------------------------
+            # =============================================
+            source=(
+                infer_display_source(
+                    field,
+                )
+            ),
+            path=getattr(
+                field,
+                "path",
+                None,
+            ),
+            # =============================================
             # Explainability
-            # -------------------------------------------------
-            description=(field.description),
-            # -------------------------------------------------
+            # =============================================
+            description=(field.description or declaration.description),
+            # =============================================
             # Provenance
-            # -------------------------------------------------
+            # =============================================
             provenance_chain=(
-                _build_provenance(
+                list(declaration.provenance_chain)
+                + _build_provenance(
                     stage="display",
-                    operation="OVERLAYED",
+                    operation="REGISTERED",
                     source=field,
                 )
             ),
@@ -461,7 +399,6 @@ def build_display_rows(
             build_catalog_row(
                 spec=spec,
                 layer="display",
-                semantic_field=(semantic_field),
                 display_field=field,
             )
         )

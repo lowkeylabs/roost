@@ -133,6 +133,23 @@ Those concerns belong elsewhere.
 
 Display may enrich semantic variables but SHOULD NOT redefine their meaning.
 
+### Important
+
+DisplayField declarations may include metadata that ultimately belongs to catalog or ontology.
+
+This does **not** imply that Display owns those concepts.
+
+The registration layer may consume declaration metadata and synthesize:
+
+* CatalogSpec entities
+* ontology relationships
+* provenance relationships
+* display overlays
+
+as appropriate.
+
+Ownership remains with the catalog subsystem even when metadata is authored through DisplayField.field.
+
 ---
 
 # Display Fields
@@ -273,10 +290,107 @@ Field authors should not need to reason about the underlying registration path.
 The preferred authoring experience is:
 
 ```python
-DisplayField(...)
+DisplayField.field(...)
 ```
 
 while the registration layer handles ontology integration automatically.
+
+## DisplayField.field as an Authoring Helper
+
+`DisplayField.field(...)` is primarily an authoring convenience API.
+
+Its purpose is to simplify registration of analytical fields without requiring authors to manually construct catalog entities and display overlays separately.
+
+Conceptually:
+
+```text
+Author
+    ↓
+DisplayField.field(...)
+    ↓
+Registration Layer
+    ↓
+CatalogSpec
+    +
+DisplayField
+```
+
+Field authors should think in terms of:
+
+```text
+I want this analytical field to exist.
+```
+
+rather than:
+
+```text
+I need to construct catalog metadata,
+ontology metadata, and display metadata
+separately.
+```
+
+The registration layer is responsible for routing metadata to the appropriate subsystem.
+
+DisplayField.field therefore acts as a declaration DSL rather than a semantic authority.
+
+```text
+Ontology metadata supplied through
+DisplayField.field SHOULD be treated as
+declaration metadata and transferred to
+CatalogSpec ownership during registration.
+```
+
+## Catalog Declaration Lifecycle
+
+`DisplayField.field(...)` serves as an authoring convenience API.
+
+Field authors may declare both:
+
+* presentation metadata
+* ontology metadata
+
+through a single declaration.
+
+Conceptually:
+
+```text
+Author
+    ↓
+DisplayField.field(...)
+    ↓
+DisplayField
+    +
+CatalogSpec declaration
+    ↓
+Catalog synthesis
+    ↓
+Canonical CatalogSpec
+```
+
+The helper may construct a temporary CatalogSpec declaration describing the intended semantic entity.
+
+This declaration is not itself authoritative.
+
+Authoritative semantic ownership is established only during catalog synthesis, where declarations from:
+
+* schema
+* metrics
+* display
+
+are merged into a unified catalog.
+
+This distinction is important.
+
+`DisplayField.field(...)` may accept ontology metadata for authoring convenience, but it does not perform:
+
+* catalog lookups
+* catalog merges
+* provenance updates
+* ontology reconciliation
+
+Those responsibilities belong to the catalog subsystem.
+
+The display subsystem therefore remains independent from catalog construction while still providing a simple authoring experience.
 
 ---
 
@@ -304,6 +418,281 @@ Views SHOULD remain declarative.
 Views SHOULD NOT contain business logic.
 
 ---
+
+The current README is very good on **Catalog vs Display ownership**, but it does not yet lock in the newer concepts we've been discussing:
+
+1. **Display Modes** (`table`, `pivot`)
+2. **Display Profiles**
+3. **Mode-aware view/group entries**
+4. The distinction between:
+
+   * View composition
+   * Mode participation
+   * Profile selection
+
+Without documenting these, a future LLM (or future John) will almost certainly drift back toward:
+
+```text
+Views are column lists.
+Pivot is a table transformation.
+Profiles are optional formatting helpers.
+```
+
+when the architecture is actually becoming:
+
+```text
+Views
+    define analytical presentations
+
+Modes
+    define user workflows
+
+Profiles
+    define renderer behavior
+```
+
+---
+
+# Recommended New Section
+
+I would insert a new section immediately after:
+
+```text
+# Views
+```
+
+and before:
+
+```text
+# Groups
+```
+
+because modes and profiles are really part of view composition.
+
+---
+
+# New Section: Display Modes
+
+````markdown
+# Display Modes
+
+Display views support multiple display modes.
+
+A display mode represents a user workflow rather than a rendering layout.
+
+Current modes include:
+
+* `table`
+* `pivot`
+
+## Table Mode
+
+Table mode is optimized for:
+
+* discovery
+* filtering
+* navigation
+* object selection
+
+Characteristics:
+
+* many rows
+* few fields
+* compact presentation
+
+Examples:
+
+```text
+roost vars
+roost results
+````
+
+Table mode helps users locate rows of interest.
+
+## Pivot Mode
+
+Pivot mode is optimized for:
+
+* inspection
+* comparison
+* explainability
+
+Characteristics:
+
+* few rows
+* many fields
+* detailed presentation
+
+Examples:
+
+```text
+roost vars 10 --pivot
+roost vars 10,11,12 --pivot
+
+roost results 5 --pivot
+```
+
+Pivot mode helps users understand and compare selected entities.
+
+## Important
+
+Display modes are not merely rendering layouts.
+
+Conceptually:
+
+```text
+table
+    = selection workflow
+
+pivot
+    = inspection workflow
+```
+
+The renderer may implement pivot mode through row/column transposition, but that implementation detail does not define the mode.
+
+````
+
+---
+
+# New Section: Display Profiles
+
+Immediately after the new Display Modes section.
+
+```markdown
+# Display Profiles
+
+Display profiles provide renderer-facing presentation customization.
+
+Profiles may define:
+
+* labels
+* widths
+* alignment
+* formatting
+* precision
+* visibility behavior
+
+Examples:
+
+```text
+Owner
+Semantic Domain
+Projection Kind
+````
+
+vs
+
+```text
+Owner
+Domain
+Projection
+```
+
+depending on the active profile.
+
+## Architectural Role
+
+Display profiles do not determine whether a field participates in a view.
+
+Profiles determine how a participating field appears.
+
+Conceptually:
+
+```text
+DisplayField
+    ↓
+DisplayProfile
+    ↓
+Renderer
+```
+
+## Profile Selection
+
+Every DisplayField MUST have at least one profile.
+
+When rendering:
+
+1. Explicitly requested profile wins.
+2. Otherwise a profile matching the active display mode is used.
+3. Otherwise the sole available profile is used.
+
+This guarantees deterministic presentation behavior.
+
+---
+
+# View Entries
+
+Views and groups contain ordered entries.
+
+Entries define:
+
+* participation
+* ordering
+* mode visibility
+
+Entries do not define semantic identity.
+
+Examples:
+
+```python
+entries=[
+    "field_name",
+    (
+        "description",
+        {
+            "modes": ["pivot"],
+        },
+    ),
+]
+````
+
+Conceptually:
+
+```text
+DisplayField
+        +
+View Entry Metadata
+        ↓
+Participating View Field
+```
+
+## Entry Metadata
+
+Entry metadata belongs to the owning view or group.
+
+It does not belong to the DisplayField itself.
+
+For example:
+
+```python
+(
+    "description",
+    {
+        "modes": ["pivot"],
+    },
+)
+```
+
+means:
+
+```text
+show description only in pivot mode
+```
+
+This does not modify the DisplayField definition.
+
+## Architectural Invariant
+
+DisplayField objects remain reusable across many views.
+
+Mode participation is owned by:
+
+* DisplayView
+* DisplayGroup
+
+rather than DisplayField.
+
+```
 
 # Groups
 
@@ -460,6 +849,22 @@ Views SHOULD NOT contain business logic.
 
 Display fields SHOULD enrich semantic variables rather than duplicate ontology.
 
+Ontology metadata SHOULD have a single canonical owner.
+
+DisplayField.field may accept ontology-related declaration metadata for authoring convenience, but the registration layer SHOULD transfer semantic ownership to catalog entities rather than storing duplicate ontology state inside DisplayField objects.
+
+Architectural Invariant
+
+```text
+Catalog
+    owns meaning
+
+Display
+    owns presentation
+```
+
+while preserving a simple authoring experience for field contributors.
+
 ## Semantic identity is unique
 
 ROOST maintains:
@@ -470,6 +875,227 @@ per variable
 ```
 
 Display overlays should attach to that identity rather than redefine it.
+
+## Views and modes are independent
+
+Views define:
+
+* analytical scope
+* included fields
+* field ordering
+* analytical organization
+
+Modes define:
+
+* user workflow
+* presentation behavior
+
+Conceptually:
+
+```text
+View
+    answers:
+        What information is relevant?
+
+Mode
+    answers:
+        How is the information being consumed?
+```
+
+Switching between:
+
+```text
+table
+pivot
+```
+
+SHOULD NOT normally require switching views.
+
+A single view may define both:
+
+* table presentation
+* pivot presentation
+
+through mode-aware entries.
+
+## Modes own workflow behavior
+
+Display modes define user workflows.
+
+```text
+table
+    → selection
+
+pivot
+    → inspection
+```
+
+Table mode is optimized for:
+
+* discovery
+* filtering
+* navigation
+* object selection
+
+Pivot mode is optimized for:
+
+* inspection
+* comparison
+* explainability
+
+Views may present different subsets of fields depending on the active mode.
+
+Mode participation belongs to views and groups rather than DisplayField declarations.
+
+## Analytical workflows follow selection → inspection
+
+ROOST analytical workflows generally follow:
+
+```text
+discover
+    ↓
+filter
+    ↓
+select
+    ↓
+inspect
+```
+
+Typical examples include:
+
+```text
+roost vars
+roost vars 10
+roost vars 10 --pivot
+
+roost results
+roost results 15
+roost results 15 --pivot
+```
+
+Table mode supports discovery and selection.
+
+Pivot mode supports inspection and comparison.
+
+## Participation is owned by views and groups
+
+DisplayField objects remain reusable.
+
+DisplayField definitions SHOULD NOT contain:
+
+* mode participation
+* view participation
+* group participation
+
+Those concerns belong to:
+
+* DisplayView
+* DisplayGroup
+
+through entry metadata.
+
+Conceptually:
+
+```text
+DisplayField
+        +
+View Entry Metadata
+        ↓
+Participating View Field
+```
+
+## Entry metadata determines participation
+
+Entry metadata determines:
+
+* whether a field appears
+* where a field appears
+* which modes include a field
+
+Entry metadata does NOT determine:
+
+* labels
+* formatting
+* widths
+* alignment
+
+Conceptually:
+
+```text
+Entry Metadata
+    answers:
+        Should this field appear?
+
+DisplayProfile
+    answers:
+        How should this field appear?
+```
+
+## Profiles own presentation behavior
+
+Display profiles determine how fields appear.
+
+Profiles may alter:
+
+* labels
+* formatting
+* widths
+* alignment
+* precision
+
+without altering:
+
+* semantic identity
+* ontology
+* catalog ownership
+* mode participation
+
+## Every field has at least one profile
+
+Every DisplayField MUST possess at least one DisplayProfile.
+
+Fields registered without explicit profiles SHOULD receive a synthesized default profile.
+
+This guarantees deterministic rendering behavior.
+
+## Profile selection is deterministic
+
+Profile resolution MUST follow:
+
+```text
+1. Explicit profile request
+
+2. Profile matching the active mode
+
+3. Sole available profile
+```
+
+This guarantees stable presentation behavior regardless of rendering context.
+
+## Views define analytical presentations
+
+Views are not merely column lists.
+
+Views define:
+
+* analytical scope
+* field ordering
+* mode-aware participation
+* default analytical presentations
+
+Conceptually:
+
+```text
+View
+    =
+        analytical presentation
+
+Mode
+    =
+        analytical workflow
+```
+
+A view may present different subsets of fields in different modes while remaining a single analytical presentation.
 
 ---
 

@@ -8,8 +8,8 @@ Notes
 Validates ontology invariants across the
 canonical semantic catalog.
 
-This audit operates on catalog rows rather
-than CatalogSpec objects.
+This audit intentionally operates on
+catalog rows rather than registry objects.
 
 Model B2 Architecture
 ---------------------
@@ -20,11 +20,12 @@ Schema Registry
 Metrics Registry
     owns semantic variables
 
-Catalog
-    owns semantic identity
+Display Registry
+    owns presentation overlays and may
+    declare synthetic semantic variables
 
-Display
-    owns presentation overlays
+Catalog
+    owns canonical semantic identity
 
 Ontology Responsibilities
 -------------------------
@@ -33,10 +34,11 @@ This audit validates:
 
     - semantic ontology completeness
     - aggregate semantic consistency
+    - synthetic semantic variable ontology
 
 The goal is to identify ontology gaps
-early and point directly to the plugin
-responsible for the missing metadata.
+early and point directly to the owning
+module responsible for missing metadata.
 """
 
 from __future__ import annotations
@@ -45,6 +47,9 @@ from collections import Counter
 
 from owlroost.catalog.service import (
     load_catalog,
+)
+from owlroost.display.bootstrap import (
+    build_display_registry,
 )
 from owlroost.metrics.bootstrap import (
     build_metrics_registry,
@@ -64,19 +69,27 @@ def _defined_in(
     """
     Best-effort source attribution.
 
-    Helps identify which plugin likely
+    Helps identify which module likely
     owns a missing ontology field.
     """
 
-    value = row.get("defined_in")
+    value = row.get(
+        "defined_in",
+    )
 
     if value:
-        return str(value)
+        return str(
+            value,
+        )
 
-    source = row.get("source")
+    source = row.get(
+        "source",
+    )
 
     if source:
-        return str(source)
+        return str(
+            source,
+        )
 
     return "unknown"
 
@@ -87,6 +100,15 @@ def _defined_in(
 
 
 def audit_ontology() -> int:
+    """
+    Execute ontology consistency audit.
+
+    Returns
+    -------
+    int
+        Number of ontology violations.
+    """
+
     print("ONTOLOGY")
     print("--------")
 
@@ -100,13 +122,19 @@ def audit_ontology() -> int:
 
     metrics_registry = build_metrics_registry()
 
+    display_registry = build_display_registry(
+        schema_registry=schema_registry,
+        metrics_registry=metrics_registry,
+    )
+
     # =====================================================
     # Catalog
     # =====================================================
 
     rows = load_catalog(
-        schema_registry=(schema_registry),
-        metrics_registry=(metrics_registry),
+        schema_registry=schema_registry,
+        metrics_registry=metrics_registry,
+        display_registry=display_registry,
     )
 
     # =====================================================
@@ -114,6 +142,7 @@ def audit_ontology() -> int:
     # =====================================================
 
     semantic_failures = 0
+
     aggregate_failures = 0
 
     # =====================================================
@@ -142,10 +171,13 @@ def audit_ontology() -> int:
 
         for required in required_fields:
             if row.get(required) is None:
-                missing.append(required)
+                missing.append(
+                    required,
+                )
 
         if missing:
             failures += 1
+
             semantic_failures += 1
 
             print(f"{field_name}: missing {', '.join(missing)} [defined_in={_defined_in(row)}]")
@@ -162,9 +194,13 @@ def audit_ontology() -> int:
     print("-------------------")
 
     for row in rows:
-        projection_kind = row.get("projection_kind")
+        projection_kind = row.get(
+            "projection_kind",
+        )
 
-        analytic_kind = row.get("analytic_kind")
+        analytic_kind = row.get(
+            "analytic_kind",
+        )
 
         field_name = row.get(
             "field_name",
@@ -176,6 +212,7 @@ def audit_ontology() -> int:
             "distributional",
         }:
             failures += 1
+
             aggregate_failures += 1
 
             print(
@@ -190,7 +227,7 @@ def audit_ontology() -> int:
         print("OK")
 
     # =====================================================
-    # Ontology Distribution
+    # Ownership Distribution
     # =====================================================
 
     print()
@@ -205,8 +242,31 @@ def audit_ontology() -> int:
         for row in rows
     )
 
-    for owner in sorted(owner_counts):
+    for owner in sorted(
+        owner_counts,
+    ):
         print(f"{str(owner):<20}{owner_counts[owner]}")
+
+    # =====================================================
+    # Projection Distribution
+    # =====================================================
+
+    print()
+    print("PROJECTION KINDS")
+    print("----------------")
+
+    projection_counts = Counter(
+        row.get(
+            "projection_kind",
+            "<missing>",
+        )
+        for row in rows
+    )
+
+    for kind in sorted(
+        projection_counts,
+    ):
+        print(f"{str(kind):<20}{projection_counts[kind]}")
 
     # =====================================================
     # Summary

@@ -15,6 +15,9 @@ from owlroost.display.explain import (
     build_field_explanation,
     normalize_explain_facets,
 )
+from owlroost.display.operations.profiles import (
+    resolve_display_profile,
+)
 from owlroost.display.operations.resolution import (
     resolve_field_value,
 )
@@ -23,44 +26,6 @@ from owlroost.display.renderers.specs import (
     RoostTable,
     TableColumn,
 )
-from owlroost.display.specs import DisplayProfile
-
-# =========================================================
-# Visibility
-# =========================================================
-
-
-def build_visibility_context(
-    mode,
-):
-    """
-    Build visibility context flags.
-    """
-
-    return {
-        "is_table": mode == "table",
-        "is_pivot": mode == "pivot",
-    }
-
-
-def entry_is_visible(
-    entry,
-    visibility,
-):
-    """
-    Evaluate show_if visibility.
-    """
-
-    show_if = entry.get("show_if")
-
-    if not show_if:
-        return True
-
-    if isinstance(show_if, str):
-        show_if = [show_if]
-
-    return all(visibility.get(flag, False) for flag in show_if)
-
 
 # =========================================================
 # Entry Normalization
@@ -73,20 +38,22 @@ def normalize_entry(
     """
     Normalize all entry styles into dict form.
 
-    Supported:
+    Supported
+    ---------
 
         "field_name"
 
-        ("field", "field_name")
-
-        {
-            "field": "field_name",
-            "show_if": ...
-        }
+        (
+            "field_name",
+            {
+                "modes": ["pivot"],
+                ...
+            },
+        )
     """
 
     # -----------------------------------------------------
-    # Simple string
+    # Simple field
     # -----------------------------------------------------
 
     if isinstance(entry, str):
@@ -95,23 +62,26 @@ def normalize_entry(
         }
 
     # -----------------------------------------------------
-    # Explicit tuple field
+    # Decorated field
     # -----------------------------------------------------
 
-    if isinstance(entry, tuple) and len(entry) == 2 and entry[0] == "field":
-        return {
-            "field": entry[1],
+    if (
+        isinstance(entry, tuple)
+        and len(entry) == 2
+        and isinstance(entry[0], str)
+        and isinstance(entry[1], dict)
+    ):
+        field_name, metadata = entry
+
+        spec = {
+            "field": field_name,
         }
 
-    # -----------------------------------------------------
-    # Already normalized
-    # -----------------------------------------------------
+        spec.update(
+            metadata,
+        )
 
-    if isinstance(entry, dict):
-        if "field" not in entry:
-            raise ValueError(f"Entry dict missing 'field': {entry}")
-
-        return entry
+        return spec
 
     raise ValueError(f"Unsupported entry: {entry}")
 
@@ -137,8 +107,8 @@ def expand_view_entries(
             },
             {
                 "field": "compact_id",
-                "show_if": ["is_table"],
-            },
+                "modes": ["table"],
+            }
         ]
     """
 
@@ -186,91 +156,173 @@ def pivot_table(
 ):
     """
     Flip rows/columns for pivot display.
+
+    Notes
+    -----
+    Pivot rendering uses synthetic display
+    fields:
+
+        pivot_metric
+        pivot_value
+        pivot_explanation
+
+    so pivot presentation participates in
+    the normal display/profile system.
     """
-    explain_enabled = bool(explain_facets)
+
+    explain_enabled = bool(
+        explain_facets,
+    )
 
     field_names = [c.key for c in table.columns]
 
-    # -----------------------------------------------------
+    # =====================================================
+    # Synthetic Pivot Profiles
+    # =====================================================
+
+    metric_profile = None
+    value_profile = None
+    explanation_profile = None
+
+    if registry is not None:
+        try:
+            metric_profile = resolve_display_profile(
+                registry.get_display_field(
+                    "pivot_metric",
+                ),
+                mode="pivot",
+            )
+        except KeyError:
+            pass
+
+        try:
+            value_profile = resolve_display_profile(
+                registry.get_display_field(
+                    "pivot_value",
+                ),
+                mode="pivot",
+            )
+        except KeyError:
+            pass
+
+        try:
+            explanation_profile = resolve_display_profile(
+                registry.get_display_field(
+                    "pivot_explanation",
+                ),
+                mode="pivot",
+            )
+        except KeyError:
+            pass
+
+    # =====================================================
     # New Columns
-    # -----------------------------------------------------
+    # =====================================================
 
     new_columns = [
         TableColumn(
-            key="metric",
-            label="Metric",
+            key="pivot_metric",
+            label=(metric_profile.label if metric_profile else "Metric"),
+            width=(metric_profile.width if metric_profile else 25),
+            wrap=(metric_profile.wrap if metric_profile else True),
+            content_align="left",
         )
     ]
 
-    for idx, _ in enumerate(table.rows):
+    for idx, _ in enumerate(
+        table.rows,
+    ):
         new_columns.append(
             TableColumn(
                 key=str(idx),
                 label=str(idx),
+                width=(value_profile.width if value_profile else 80),
+                wrap=(value_profile.wrap if value_profile else True),
                 content_align="right",
             )
         )
 
-    # -----------------------------------------------------
+    # =====================================================
     # Optional Explanation Column
-    # -----------------------------------------------------
+    # =====================================================
 
     if explain_enabled:
         new_columns.append(
             TableColumn(
-                key="explanation",
-                label="Explanation",
+                key="pivot_explanation",
+                label=(explanation_profile.label if explanation_profile else "Explanation"),
+                width=(explanation_profile.width if explanation_profile else 50),
+                wrap=(explanation_profile.wrap if explanation_profile else True),
                 content_align="left",
-                width=50,
-                wrap=True,
             )
         )
 
-    # -----------------------------------------------------
+    # =====================================================
     # New Rows
-    # -----------------------------------------------------
+    # =====================================================
 
     new_rows = []
 
     new_row_meta = []
 
-    for col_idx, column in enumerate(table.columns):
-        row = [column.label]
+    for col_idx, column in enumerate(
+        table.columns,
+    ):
+        row = [
+            column.label,
+        ]
 
         row_values = []
 
         for original_row in table.rows:
             value = original_row[col_idx]
-            row.append(value)
-            row_values.append(value)
+
+            row.append(
+                value,
+            )
+
+            row_values.append(
+                value,
+            )
 
         # -------------------------------------------------
         # Explanation Cell
         # -------------------------------------------------
+
         if explain_enabled:
             explanation = ""
 
             try:
                 field_name = field_names[col_idx]
-                display_field = registry.get_display_field(field_name)
 
-                result = build_field_explanation(
+                display_field = registry.get_display_field(
+                    field_name,
+                )
+
+                explanation = build_field_explanation(
                     display_field,
                     explain_facets,
                     row_values=row_values,
                 )
-                explanation = result
+
             except KeyError:
                 explanation = f"Key error: {col_idx}"
 
             except Exception as ex:
                 explanation = f"[explain error: {ex}]"
 
-            row.append(explanation)
+            row.append(
+                explanation,
+            )
 
-        new_rows.append(row)
+        new_rows.append(
+            row,
+        )
 
-        # Preserve original column metadata
+        # -------------------------------------------------
+        # Preserve Original Column Metadata
+        # -------------------------------------------------
+
         new_row_meta.append(
             {
                 "column": column,
@@ -332,14 +384,6 @@ def materialize_view(
     )
 
     # =====================================================
-    # Visibility Context
-    # =====================================================
-
-    visibility = build_visibility_context(
-        mode,
-    )
-
-    # =====================================================
     # Explain Requires Pivot
     # =====================================================
 
@@ -359,14 +403,16 @@ def materialize_view(
     # Apply Visibility
     # =====================================================
 
-    visible_entries = [
-        entry
-        for entry in expanded_entries
-        if entry_is_visible(
-            entry,
-            visibility,
-        )
-    ]
+    visible_entries = []
+
+    for entry in expanded_entries:
+        modes = entry.get("modes")
+
+        if modes is not None:
+            if mode not in modes:
+                continue
+
+        visible_entries.append(entry)
 
     # =====================================================
     # Field Names
@@ -385,14 +431,9 @@ def materialize_view(
             field_name,
         )
 
-        profile = (
-            display_field.profiles.get(
-                mode,
-            )
-            or display_field.profiles.get(
-                "table",
-            )
-            or DisplayProfile()
+        profile = resolve_display_profile(
+            display_field,
+            mode=mode,
         )
 
         columns.append(

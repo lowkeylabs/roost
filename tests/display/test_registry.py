@@ -441,101 +441,85 @@ def test_validate_missing_view_field_raises():
 
 
 # =========================================================
-# Synthetic Fields
+# Catalog Declarations
 # =========================================================
 
 
-def test_register_synthetic_field():
-    reg = DisplayRegistry()
+def test_catalog_declaration_defaults_none():
+    """
+    Presentation-only display fields should
+    not require catalog declarations.
+    """
 
     field = DisplayField.field(
-        "display.net_worth",
-        derived_from=[
-            "display.total_savings",
-        ],
+        "runtime.trial_jobs",
     )
 
-    reg.register_display_field(
-        field,
-    )
-
-    loaded = reg.get_display_field(
-        "display.net_worth",
-    )
-
-    assert loaded.is_synthetic
+    assert field.catalog_declaration is None
 
 
-def test_synthetic_field_defaults():
-    field = DisplayField.field(
-        "display.net_worth",
-        derived_from=[
-            "display.total_savings",
-        ],
-    )
-
-    assert field.is_synthetic
-
-    assert field.owner == "ROOST"
-
-    assert field.semantic_domain == "decision"
-
-    assert field.value_origin == "roost-computed"
-
-    assert field.projection_kind == "synthetic"
-
-    assert field.analytic_kind == "synthetic"
-
-    assert field.materialization_level == "case"
-
-
-def test_synthetic_field_preserves_lineage():
-    field = DisplayField.field(
-        "display.net_worth",
-        derived_from=[
-            "display.total_savings",
-            "display.net_hfp_assets",
-        ],
-    )
-
-    assert field.derived_from == [
-        "display.total_savings",
-        "display.net_hfp_assets",
-    ]
-
-
-def test_display_fn_implies_synthetic():
-    def compute(row):
-        return 123
+def test_synthetic_field_creates_catalog_declaration():
+    """
+    Ontology declarations should produce a
+    catalog declaration.
+    """
 
     field = DisplayField.field(
-        "display.net_worth",
-        display_fn=compute,
-    )
-
-    assert field.is_synthetic
-
-
-def test_projection_kind_implies_synthetic():
-    field = DisplayField.field(
-        "display.net_worth",
+        "example.synthetic",
+        owner="ROOST",
+        semantic_domain="execution",
+        value_origin="roost-computed",
         projection_kind="synthetic",
     )
 
-    assert field.is_synthetic
+    assert field.catalog_declaration is not None
+
+    assert field.catalog_declaration.owner == "ROOST"
 
 
-# =========================================================
-# Ordinary Fields
-# =========================================================
+def test_lineage_requires_ontology():
+    """
+    Lineage metadata represents semantic
+    lineage and therefore requires
+    ontology metadata.
+    """
+
+    with pytest.raises(
+        ValueError,
+        match=("lineage metadata requires ontology metadata"),
+    ):
+        DisplayField.field(
+            "example.overlay",
+            derived_from=[
+                "solver_options.bequest",
+            ],
+        )
 
 
-def test_ordinary_field_not_synthetic():
+def test_lineage_with_ontology_creates_catalog_declaration():
+    """
+    Semantic declarations carrying lineage
+    should synthesize a CatalogSpec.
+    """
+
     field = DisplayField.field(
-        "solver_options.bequest",
+        "example.overlay",
+        owner="ROOST",
+        semantic_domain="execution",
+        value_origin="roost-computed",
+        projection_kind="synthetic",
+        derived_from=[
+            "solver_options.bequest",
+        ],
     )
 
-    assert not field.is_synthetic
+    declaration = field.catalog_declaration
+
+    assert declaration is not None
+
+    assert declaration.derived_from == [
+        "solver_options.bequest",
+    ]
 
 
 # =========================================================

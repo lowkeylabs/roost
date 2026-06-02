@@ -27,21 +27,20 @@ from owlroost.core.run_owl_executor import (
 from owlroost.display.bootstrap import (
     build_display_registry,
 )
-from owlroost.display.derived import (
-    apply_derived_metrics,
-)
+
+# from owlroost.display.derived import (
+#    apply_derived_metrics,
+# )
 from owlroost.display.loaders import (
     load_runs,
 )
 from owlroost.metrics.bootstrap import (
     build_metrics_registry,
 )
-from owlroost.schema.bootstrap import (
-    build_registry,
-)
-from owlroost.schema.plugins.group_derived import (
-    apply_group_derived_metrics,
-)
+
+# from owlroost.schema.plugins.group_derived import (
+#    apply_group_derived_metrics,
+# )
 
 # =========================================================
 # CLI

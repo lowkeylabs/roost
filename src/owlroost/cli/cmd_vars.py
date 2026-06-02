@@ -5,36 +5,39 @@ TODO: Document module.
 
 Notes
 -----
-Describe responsibilities, ownership,
-and architectural role.
+Display canonical catalog semantics.
+
+Architecture
+------------
+Schema Registry
+    -> Metrics Registry
+    -> Display Registry
+    -> Catalog Rows
+    -> Materialized View
+    -> RoostTable
+    -> Renderer
 """
 
 from __future__ import annotations
 
 import click
 
-from owlroost.catalog.loaders import (
-    load_catalog_dataset,
+from owlroost.catalog.loaders import load_catalog_rows
+from owlroost.cli.dashboards.catalog import (
+    render_catalog_dashboard,
+    render_catalog_ontology_dashboard,
+    render_catalog_pivot_dashboard,
 )
-from owlroost.cli.utils import (
-    prepare_dataset,
-    render_table,
-    resolve_renderer,
-)
-from owlroost.display.bootstrap import (
-    build_display_registry,
-)
-from owlroost.display.utils import (
-    attach_row_ids,
-    inject_id_column,
-    render_field_help,
-)
-from owlroost.metrics.bootstrap import (
-    build_metrics_registry,
-)
-from owlroost.schema.bootstrap import (
-    build_registry,
-)
+from owlroost.cli.utils import render_table, resolve_renderer, select_rows_by_id, split_catalog_args
+from owlroost.display.bootstrap import build_display_registry
+from owlroost.display.materializers.materialize import materialize_view
+from owlroost.display.operations.filtering import apply_filters
+from owlroost.display.operations.help import render_field_help
+from owlroost.display.operations.row_ops import apply_top, attach_row_ids
+from owlroost.display.operations.sorting import apply_canonical_sort, apply_sort
+from owlroost.display.operations.table_ops import inject_id_column
+from owlroost.metrics.bootstrap import build_metrics_registry
+from owlroost.schema.bootstrap import build_schema_registry
 
 # =========================================================
 # Defaults
@@ -45,14 +48,33 @@ DEFAULT_LEVEL = "catalog"
 DEFAULT_VIEW = "summary"
 
 # =========================================================
+# Temporary Compatibility Wrapper
+# =========================================================
+
+
+class _RowsAdapter:
+    """
+    Temporary compatibility adapter for
+    help.py until it is migrated from
+    dataset.rows to raw rows.
+    """
+
+    def __init__(
+        self,
+        rows,
+    ):
+        self.rows = rows
+
+
+# =========================================================
 # CLI
 # =========================================================
 
 
 @click.command("vars")
 @click.argument(
-    "search",
-    required=False,
+    "args",
+    nargs=-1,
 )
 @click.option(
     "--layer",
@@ -119,6 +141,62 @@ DEFAULT_VIEW = "summary"
     help="Filter by projection kind.",
 )
 @click.option(
+    "--analytic",
+    "analytic_kind",
+    type=click.Choice(
+        [
+            "observed",
+            "synthetic",
+            "comparative",
+            "distributional",
+            "inferential",
+            "aggregate",
+        ],
+        case_sensitive=False,
+    ),
+    help="Filter by analytic kind.",
+)
+@click.option(
+    "--materialization",
+    "materialization_level",
+    type=click.Choice(
+        [
+            "case",
+            "session",
+            "run",
+            "trial",
+        ],
+        case_sensitive=False,
+    ),
+    help="Filter by materialization level.",
+)
+@click.option(
+    "--node",
+    "node_type",
+    type=click.Choice(
+        [
+            "variable",
+            "overlay",
+        ],
+        case_sensitive=False,
+    ),
+    help="Filter by catalog node type.",
+)
+@click.option(
+    "--dashboard",
+    type=click.Choice(
+        [
+            "ontology",
+            "inventory",
+            "pivot",
+        ],
+        case_sensitive=False,
+    ),
+    default="ontology",
+    show_default=True,
+    help="Catalog dashboard.",
+)
+@click.option(
     "--view",
     default=DEFAULT_VIEW,
     show_default=True,
@@ -136,7 +214,7 @@ DEFAULT_VIEW = "summary"
     "--filter",
     "filters",
     multiple=True,
-    help=("Filter rows. Examples: layer=metrics source=_metrics owner=OWL"),
+    help=("Filter rows. Examples: layer=metrics owner=OWL projection_kind=aggregate"),
 )
 @click.option(
     "--sort",
@@ -148,52 +226,43 @@ DEFAULT_VIEW = "summary"
     type=int,
     help="Limit number of rows.",
 )
+@click.option(
+    "--pivot",
+    is_flag=True,
+    help="Render transposed layout.",
+)
 def cmd_vars(
-    search,
+    args,
     layer,
     owner,
     semantic_domain,
     value_origin,
     projection_kind,
+    analytic_kind,
+    materialization_level,
+    node_type,
+    dashboard,
     view,
     markdown,
     latex,
     filters,
     sort,
     top,
+    pivot,
 ):
     """
     Display ROOST ontology and variable catalog.
-
-    Examples
-    --------
-
-      roost vars
-
-      roost vars spending
-
-      roost vars --view ontology
-
-      roost vars --view provenance
-
-      roost vars --layer metrics
-
-      roost vars --owner OWL
-
-      roost vars --domain decision
-
-      roost vars --projection aggregate
-
-      roost vars --filter source=_metrics
-
-      roost vars --sort field_name
     """
 
+    selectors, search_terms = split_catalog_args(
+        args,
+    )
+
     # =====================================================
-    # Build Registries
+    # Registries
     # =====================================================
 
-    schema_registry = build_registry()
+    schema_registry = build_schema_registry()
 
     metrics_registry = build_metrics_registry()
 
@@ -202,11 +271,25 @@ def cmd_vars(
         metrics_registry=metrics_registry,
     )
 
+    ontology_filters_present = any(
+        [
+            layer,
+            owner,
+            semantic_domain,
+            value_origin,
+            projection_kind,
+            analytic_kind,
+            materialization_level,
+            node_type,
+        ]
+    )
+    show_dashboard = not selectors and not args and not filters and not ontology_filters_present
+
     # =====================================================
-    # Load Catalog Dataset
+    # Catalog Rows
     # =====================================================
 
-    ds = load_catalog_dataset(
+    rows = load_catalog_rows(
         schema_registry=schema_registry,
         metrics_registry=metrics_registry,
         display_registry=display_registry,
@@ -215,35 +298,54 @@ def cmd_vars(
         semantic_domain=semantic_domain,
         value_origin=value_origin,
         projection_kind=projection_kind,
-        search=search,
+        analytic_kind=analytic_kind,
+        materialization_level=materialization_level,
+        node_type=node_type,
+        search=search_terms,
     )
 
+    if show_dashboard:
+        if dashboard == "ontology":
+            render_catalog_ontology_dashboard(
+                rows,
+            )
+
+        elif dashboard == "pivot":
+            render_catalog_pivot_dashboard(
+                rows,
+            )
+
+        else:
+            render_catalog_dashboard(
+                rows,
+            )
+
+        return
+
     # =====================================================
-    # Add Row IDs
+    # Help
     # =====================================================
 
-    ds = attach_row_ids(
-        ds,
+    help_dataset = _RowsAdapter(
+        rows,
     )
-
-    # =====================================================
-    # Context-sensitive Help
-    # =====================================================
 
     if "help" in (filters or ()):
         render_field_help(
-            dataset=ds,
+            rows=rows,
             registry=display_registry,
             level=DEFAULT_LEVEL,
             view_name=view,
             mode="view",
             title="Available filter fields",
             examples=[
-                "--filter layer=schema",
-                "--filter source=_metrics",
-                "--filter owner=OWL",
-                "--filter semantic_domain=decision",
-                "--filter projection_kind=aggregate",
+                "--owner OWL",
+                "--domain decision",
+                "--projection aggregate",
+                "--origin owl-computed",
+                "--analytic aggregate",
+                "--node overlay",
+                "--materialization run",
                 "--filter field_name=in:spending,bequest",
             ],
         )
@@ -252,7 +354,7 @@ def cmd_vars(
 
     if "help-all" in (filters or ()):
         render_field_help(
-            dataset=ds,
+            rows=rows,
             registry=display_registry,
             level=DEFAULT_LEVEL,
             view_name=view,
@@ -263,27 +365,50 @@ def cmd_vars(
         return
 
     # =====================================================
-    # Dataset Pipeline
+    # Row Pipeline
     # =====================================================
 
-    ds = prepare_dataset(
-        ds,
-        selectors=[],
-        filters=filters,
-        sort=sort,
-        top=top,
+    rows = apply_canonical_sort(
+        rows,
+    )
+
+    rows = apply_filters(
+        rows,
+        filters,
+    )
+
+    rows = apply_sort(
+        rows,
+        sort,
+    )
+
+    rows = apply_top(
+        rows,
+        top,
+    )
+
+    rows = attach_row_ids(
+        rows,
     )
 
     # =====================================================
     # No Results
     # =====================================================
 
-    if not ds.rows:
-        click.echo("No matching variables found.")
+    if not rows:
+        click.echo(
+            "No matching variables found.",
+        )
         return
 
+    if selectors:
+        rows = select_rows_by_id(
+            rows,
+            selectors,
+        )
+
     # =====================================================
-    # Resolve Renderer
+    # Renderer
     # =====================================================
 
     renderer = resolve_renderer(
@@ -292,23 +417,26 @@ def cmd_vars(
     )
 
     # =====================================================
-    # Materialize View
+    # Materialize
     # =====================================================
 
-    table = ds.view(
+    table = materialize_view(
+        rows=rows,
         registry=display_registry,
-        name=view,
-        layout="table",
+        level=DEFAULT_LEVEL,
+        view_name=view,
+        mode="pivot" if pivot else "table",
     )
 
     # =====================================================
-    # Inject Row IDs
+    # Inject IDs
     # =====================================================
 
-    table = inject_id_column(
-        table,
-        ds,
-    )
+    if not pivot:
+        table = inject_id_column(
+            table,
+            rows,
+        )
 
     # =====================================================
     # Render
@@ -320,6 +448,7 @@ def cmd_vars(
     )
 
     if output:
+        click.echo(f"viewing: {DEFAULT_LEVEL}/{view}")
         click.echo(
             output,
         )

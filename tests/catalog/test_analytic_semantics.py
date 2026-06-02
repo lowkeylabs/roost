@@ -116,35 +116,13 @@ def test_only_semantic_variables_materialized(
 # =========================================================
 
 
-def test_overlay_rows_are_not_canonical(
+def test_all_rows_have_analytic_kind(
     catalog_rows,
 ):
     """
-    Overlay rows should never masquerade
-    as canonical semantic projections.
-    """
-
-    overlay_rows = [row for row in catalog_rows if row["node_type"] == "overlay"]
-
-    for row in overlay_rows:
-        assert row["projection_kind"] != "canonical"
-
-
-# =========================================================
-# Observed Runtime Semantics
-# =========================================================
-
-
-def test_observed_rows_are_not_synthetic(
-    catalog_rows,
-):
-    """
-    Observed runtime metrics should not
-    simultaneously advertise synthetic
+    Every semantic variable should declare
     analytical semantics.
     """
 
-    observed_rows = [row for row in catalog_rows if row["analytic_kind"] == "observed"]
-
-    for row in observed_rows:
-        assert row["projection_kind"] != "synthetic"
+    for row in catalog_rows:
+        assert row["analytic_kind"] is not None

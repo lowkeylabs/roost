@@ -1,17 +1,40 @@
-solver_options:
-  solver: default
-  startRothConversions: 2026
-  bequest: 0.0
-  withMedicare: loop
-  withSSTaxability: loop
-  withSCLoop: true
-  withLTCG: loop
-  withNIIT: loop
-solver: default
-startRothConversions: 2026
-bequest: 0.0
-withMedicare: loop
-withSSTaxability: loop
-withSCLoop: true
-withLTCG: loop
-withNIIT: loop
+solver: null
+max_time: null
+gap: null
+verbose: null
+absTol: null
+relTol: null
+epsilon: null
+maxIter: null
+bendersMaxIter: null
+maxRothConversion: null
+noRothConversions: null
+startRothConversions: null
+swapRothConverters: null
+bequest: null
+netSpending: null
+timePreference: null
+minTaxableBalance: null
+spendingSlack: null
+noLateSurplus: null
+amoConstraints: null
+amoRoth: null
+amoSurplus: null
+bigMamo: null
+bigMaca: null
+bigMss: null
+bigMltcg: null
+bigMniit: null
+withMedicare: null
+includeMedicarePartD: null
+medicarePartDBasePremium: null
+withACA: null
+withLTCG: null
+withNIIT: null
+withSSTaxability: null
+withDecomposition: null
+withSSAges: null
+withSCLoop: null
+previousMAGIs: null
+oppCostX: null
+units: null

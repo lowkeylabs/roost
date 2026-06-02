@@ -1,20 +1,7 @@
-savings_assets:
-  taxable_savings_balances:
-  - 0.0
-  tax_deferred_savings_balances:
-  - 0.0
-  tax_free_savings_balances:
-  - 0.0
-  hsa_savings_balances:
-  - 0.0
-taxable_savings_balances:
-- 0.0
-tax_deferred_savings_balances:
-- 0.0
-tax_free_savings_balances:
-- 0.0
-hsa_savings_balances:
-- 0.0
+taxable_savings_balances: null
+tax_deferred_savings_balances: null
+tax_free_savings_balances: null
+hsa_savings_balances: null
 taxable_cost_basis: null
 beneficiary_fractions: null
 spousal_surplus_deposit_fraction: null

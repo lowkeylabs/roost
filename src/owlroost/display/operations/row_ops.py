@@ -1,41 +1,50 @@
-# src/owlroost/display/operations/dataset_ops.py
+# src/owlroost/display/operations/row_ops.py
 
 """
-TODO: Document module.
+Row operations.
 
 Notes
 -----
-Describe responsibilities, ownership,
-and architectural role.
+Utilities operating on catalog rows and
+result rows.
+
+These helpers intentionally operate on:
+
+    list[dict]
+
+rather than Dataset abstractions.
 """
 
 from __future__ import annotations
 
 # =========================================================
-# Dataset Utilities
+# Row IDs
 # =========================================================
 
 
 def attach_row_ids(
-    dataset,
+    rows,
 ):
     """
     Attach stable row IDs.
+
+    Returns
+    -------
+    New row list with contiguous IDs.
     """
 
-    rows = []
+    output = []
 
-    for i, r in enumerate(dataset.rows):
-        new = dict(r)
+    for i, row in enumerate(rows):
+        new_row = dict(row)
 
-        new["_row_id"] = i
+        new_row["_row_id"] = i
 
-        rows.append(new)
+        output.append(
+            new_row,
+        )
 
-    return type(dataset)(
-        rows,
-        level=dataset.level,
-    )
+    return output
 
 
 # =========================================================

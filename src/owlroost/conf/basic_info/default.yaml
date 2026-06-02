@@ -1,21 +1,6 @@
-basic_info:
-  status: single
-  names:
-  - A
-  date_of_birth:
-  - '1960-01-01'
-  life_expectancy:
-  - 90
-  sexes:
-  - M
-  start_date: '2026-01-01'
-status: single
-names:
-- A
-date_of_birth:
-- '1960-01-01'
-life_expectancy:
-- 90
-sexes:
-- M
-start_date: '2026-01-01'
+status: null
+names: null
+date_of_birth: null
+life_expectancy: null
+sexes: null
+start_date: null

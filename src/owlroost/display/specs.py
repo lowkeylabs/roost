@@ -27,8 +27,26 @@ Display does NOT own:
 
 Synthetic semantic variables may be
 declared within display modules for
-convenience, but their semantic identity
-ultimately belongs to the catalog layer.
+authoring convenience, but semantic
+ownership ultimately belongs to the
+catalog subsystem.
+
+Architectural Invariant
+-----------------------
+DisplayField.field(...) acts as an
+authoring DSL.
+
+Ontology declarations supplied through
+DisplayField.field(...) are converted
+into catalog declarations.
+
+Catalog synthesis later determines
+whether those declarations:
+
+    - create new semantic entities
+    - overlay existing semantic entities
+
+Display itself remains presentation-only.
 """
 
 from __future__ import annotations
@@ -38,6 +56,29 @@ from dataclasses import (
     dataclass,
     field,
 )
+from typing import TYPE_CHECKING, Literal, TypedDict
+
+if TYPE_CHECKING:
+    from owlroost.catalog.specs import CatalogSpec
+
+DisplayMode = Literal[
+    "table",
+    "pivot",
+]
+
+
+class OntologyKwargs(
+    TypedDict,
+    total=False,
+):
+    owner: str
+    semantic_domain: str
+    value_origin: str
+    projection_kind: str
+    analytic_kind: str
+    materialization_level: str
+    node_type: str
+
 
 # =========================================================
 # Display Profile
@@ -50,29 +91,13 @@ class DisplayProfile:
     Renderer-facing presentation profile.
     """
 
-    # =====================================================
-    # Labeling
-    # =====================================================
-
     label: str | None = None
 
-    # =====================================================
-    # Formatting
-    # =====================================================
-
     fmt: str | None = None
-
-    # =====================================================
-    # Alignment
-    # =====================================================
 
     label_align: str = "left"
 
     content_align: str = "left"
-
-    # =====================================================
-    # Layout
-    # =====================================================
 
     width: int | None = None
 
@@ -90,6 +115,7 @@ DisplayValueFn = Callable[
     object,
 ]
 
+
 # =========================================================
 # Display Field
 # =========================================================
@@ -100,32 +126,18 @@ class DisplayField:
     """
     Renderer-facing display field.
 
-    DisplayField represents a presentation
-    entity layered atop ROOST ontology.
+    DisplayField owns presentation metadata
+    only.
 
-    The semantic classification of the field
-    is determined by ontology metadata and
-    lineage rather than constructor type.
+    Semantic identity, ontology, lineage,
+    and provenance remain owned by the
+    catalog subsystem.
 
-    Examples
-    --------
+    Existing catalog variables may be
+    referenced directly.
 
-    Existing ontology field:
-
-        DisplayField.field(
-            "solver_options.bequest",
-        )
-
-    Synthetic display field:
-
-        DisplayField.field(
-            "display.net_worth",
-            display_fn=net_worth_display,
-            derived_from=[
-                "display.total_savings",
-                "display.net_hfp_assets",
-            ],
-        )
+    Synthetic semantic variables may be
+    declared through the authoring DSL.
     """
 
     # =====================================================
@@ -143,30 +155,10 @@ class DisplayField:
     display_fn: DisplayValueFn | None = None
 
     # =====================================================
-    # Existing Ontology Link
+    # Catalog Declaration
     # =====================================================
 
-    ontology_field: object | None = None
-
-    # =====================================================
-    # Ontology Metadata
-    # =====================================================
-
-    owner: str | None = None
-
-    semantic_domain: str | None = None
-
-    value_origin: str | None = None
-
-    projection_kind: str | None = None
-
-    analytic_kind: str | None = None
-
-    materialization_level: str | None = None
-
-    derived_from: list[str] = field(
-        default_factory=list,
-    )
+    catalog_declaration: CatalogSpec | None = None
 
     # =====================================================
     # Presentation Profiles
@@ -180,20 +172,18 @@ class DisplayField:
     )
 
     # =====================================================
-    # Conditional Visibility
-    # =====================================================
-
-    show_if: list[str] = field(
-        default_factory=list,
-    )
-
-    # =====================================================
-    # Metadata
+    # Documentation
     # =====================================================
 
     description: str | None = None
 
     notes: str = ""
+
+    @staticmethod
+    def default_profiles():
+        return {
+            "table": DisplayProfile(),
+        }
 
     # =====================================================
     # Constructor
@@ -208,60 +198,155 @@ class DisplayField:
         """
         Preferred DisplayField constructor.
 
-        Supports:
+        DisplayField.field(...) acts as an
+        authoring DSL.
 
-            - schema-backed fields
-            - metric-backed fields
-            - aggregate fields
-            - synthetic fields
-            - future derived fields
+        Authors may optionally declare
+        semantic ontology metadata.
 
-        Ontology metadata determines
-        semantic behavior.
+        When ontology metadata is supplied,
+        a CatalogSpec declaration is
+        synthesized automatically and
+        attached to the DisplayField.
+
+        Architectural Invariant
+        -----------------------
+        Every semantic catalog entity must
+        have complete ontology metadata.
+
+        Therefore:
+
+            - ontology without lineage
+            is valid
+
+            - ontology with lineage
+            is valid
+
+            - lineage without ontology
+            is invalid
+
+        DisplayField remains a presentation
+        construct. CatalogSpec remains the
+        semantic construct.
         """
+
+        from owlroost.catalog.specs import (
+            CatalogSpec,
+        )
+
+        ontology_keys = {
+            "owner",
+            "semantic_domain",
+            "value_origin",
+            "projection_kind",
+            "analytic_kind",
+            "materialization_level",
+            "node_type",
+        }
+
+        lineage_keys = {
+            "derived_from",
+            "expands_to",
+        }
+
+        ontology: OntologyKwargs = {}
+
+        lineage: dict[
+            str,
+            list[str],
+        ] = {}
+        # =====================================================
+        # Extract Catalog Metadata
+        # =====================================================
+
+        for key in list(kwargs):
+            if key in ontology_keys:
+                ontology[key] = kwargs.pop(
+                    key,
+                )
+
+            elif key in lineage_keys:
+                lineage[key] = kwargs.pop(
+                    key,
+                )
+
+        # =====================================================
+        # Pure Presentation Overlay
+        # =====================================================
+
+        if not ontology and not lineage:
+            return cls(
+                field_name=field_name,
+                catalog_declaration=None,
+                **kwargs,
+            )
+
+        # =====================================================
+        # Invalid Semantic Declaration
+        # =====================================================
+
+        if lineage and not ontology:
+            raise ValueError(f"{field_name}: lineage metadata requires ontology metadata")
+
+        # =====================================================
+        # Default display profiles
+        # =====================================================
+
+        profiles = kwargs.pop(
+            "profiles",
+            {},
+        )
+
+        if not profiles:
+            profiles = cls.default_profiles()
+
+        # =====================================================
+        # Required Ontology Validation
+        # =====================================================
+
+        required = {
+            "owner",
+            "semantic_domain",
+            "value_origin",
+            "projection_kind",
+        }
+
+        missing = required - set(
+            ontology,
+        )
+
+        if missing:
+            raise ValueError(
+                f"{field_name}: semantic declaration missing ontology metadata: {sorted(missing)}"
+            )
+
+        # =====================================================
+        # Catalog Declaration
+        # =====================================================
+
+        catalog_declaration = CatalogSpec(
+            field_name=field_name,
+            derived_from=list(
+                lineage.get(
+                    "derived_from",
+                    [],
+                )
+            ),
+            expands_to=list(
+                lineage.get(
+                    "expands_to",
+                    [],
+                )
+            ),
+            **ontology,
+        )
 
         return cls(
             field_name=field_name,
+            catalog_declaration=(catalog_declaration),
+            profiles=profiles,
             **kwargs,
         )
-
-    # =====================================================
-    # Classification
-    # =====================================================
-
-    @property
-    def is_synthetic(
-        self,
-    ) -> bool:
-        """
-        Infer synthetic semantics from
-        lineage and ontology metadata.
-        """
-
-        return (
-            self.display_fn is not None
-            or bool(self.derived_from)
-            or self.projection_kind == "synthetic"
-        )
-
-    # =====================================================
-    # Helper to set default values for synthetic fields
-    # =====================================================
-
-    def _apply_synthetic_defaults(
-        self,
-    ):
-        self.owner = self.owner or "ROOST"
-
-        self.semantic_domain = self.semantic_domain or "decision"
-
-        self.value_origin = self.value_origin or "roost-computed"
-
-        self.projection_kind = self.projection_kind or "synthetic"
-
-        self.analytic_kind = self.analytic_kind or "synthetic"
-
-        self.materialization_level = self.materialization_level or "case"
 
     # =====================================================
     # Post Init
@@ -270,11 +355,15 @@ class DisplayField:
     def __post_init__(
         self,
     ):
+        """
+        Normalize lightweight metadata.
+        """
+
+        if not self.profiles:
+            self.profiles = self.default_profiles()
+
         if self.path is None:
             self.path = self.field_name
-
-        if self.is_synthetic:
-            self._apply_synthetic_defaults()
 
 
 # =========================================================
@@ -310,6 +399,6 @@ class DisplayView:
 
     name: str
 
-    entries: list
+    entries: list[str | tuple[str, dict]]
 
     description: str = ""

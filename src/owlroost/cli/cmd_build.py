@@ -26,12 +26,13 @@ from owlroost.cli.utils import (
 )
 from owlroost.core.run_owl_executor import execute_runs
 from owlroost.display.bootstrap import build_display_registry
-from owlroost.display.compare import materialize_compare_table
 from owlroost.display.discovery import find_runs
 from owlroost.display.loaders import load_cases
-from owlroost.display.utils import attach_row_ids, inject_id_column, render_field_help
+from owlroost.display.materializers.compare import materialize_compare_table
+from owlroost.display.operations.help import render_field_help
+from owlroost.display.operations.row_ops import attach_row_ids
+from owlroost.display.operations.table_ops import inject_id_column
 from owlroost.metrics.bootstrap import build_metrics_registry
-from owlroost.schema.bootstrap import build_registry
 
 
 # ---------------------------------------------------------

@@ -1,9 +1,0 @@
-apply_to_plan: false
-use_stochastic_model: false
-life_expectancy_seed: null
-model_name: null
-partnered: false
-lifetime_percentile: null
-sex: null
-health: null
-smoker: null

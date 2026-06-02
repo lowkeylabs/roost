@@ -13,10 +13,10 @@ from __future__ import annotations
 
 import click
 
+from owlroost.display.operations.row_ops import attach_row_ids
 from owlroost.display.renderers.latex_table import render_latex_table
 from owlroost.display.renderers.markdown_table import render_markdown_table
 from owlroost.display.renderers.rich_table import render_rich_table
-from owlroost.display.utils import attach_row_ids
 
 # =========================================================
 # Renderer Helpers
@@ -122,30 +122,27 @@ def parse_id_selection(
     return sorted(selected)
 
 
-def select_dataset_rows(
-    dataset,
+def select_rows_by_id(
+    rows,
     selections,
 ):
     """
-    Return dataset rows matching parsed selections.
+    Return rows matching selected IDs.
 
-    Assumes attach_row_ids() has already run.
+    Assumes attach_row_ids() has already
+    attached _row_id values.
     """
 
     if not selections:
-        return dataset.rows
+        return rows
 
-    wanted = {int(x) for x in selections}
+    wanted = set(
+        parse_id_selection(
+            selections,
+        )
+    )
 
-    selected_rows = []
-
-    for row in dataset.rows:
-        row_id = row.get("_row_id")
-
-        if row_id in wanted:
-            selected_rows.append(row)
-
-    return selected_rows
+    return [row for row in rows if row.get("_row_id") in wanted]
 
 
 def prepare_dataset(
@@ -174,6 +171,46 @@ def prepare_dataset(
     ds = ds.top(top)
 
     return ds
+
+
+def split_catalog_args(
+    args,
+):
+    """
+    Split catalog CLI args into:
+
+        selectors
+        search
+
+    Examples
+    --------
+
+        spending
+            -> search
+
+        3
+            -> selector
+
+        1,3,5
+            -> selector
+
+        1-5
+            -> selector
+    """
+
+    selectors = []
+    search_terms = []
+
+    for arg in args:
+        if any(c.isdigit() for c in arg) and all(c.isdigit() or c in ",-" for c in arg):
+            selectors.append(arg)
+
+        else:
+            search_terms.append(arg)
+
+    search = " ".join(search_terms) if search_terms else None
+
+    return selectors, search
 
 
 def split_build_args(

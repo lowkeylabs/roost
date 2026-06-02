@@ -23,6 +23,16 @@ from owlroost.display.specs import (
     DisplayProfile,
 )
 
+EXAMPLE_ONTOLOGY = dict(
+    owner="ROOST",
+    semantic_domain="execution",
+    value_origin="roost-computed",
+    projection_kind="synthetic",
+    analytic_kind="observed",
+    materialization_level="case",
+    node_type="variable",
+)
+
 
 def register_display_fields(
     reg,
@@ -34,10 +44,8 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField.field(
             "example.bequest_overlay",
+            **EXAMPLE_ONTOLOGY,
             description=("Example field modeled after solver_options.bequest."),
-            derived_from=[
-                "solver_options.bequest",
-            ],
             profiles={
                 "table": DisplayProfile(
                     label="Example\nBequest",
@@ -55,6 +63,13 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField.field(
             "example.runtime_metric",
+            owner="ROOST",
+            semantic_domain="execution",
+            value_origin="roost-computed",
+            projection_kind="synthetic",
+            analytic_kind="observed",
+            materialization_level="case",
+            node_type="variable",
             description=("Example field modeled after elapsed runtime."),
             derived_from=[
                 "timing.elapsed_seconds__median",
@@ -77,6 +92,13 @@ def register_display_fields(
         DisplayField.field(
             "example.synthetic",
             display_fn=lambda row: 42,
+            owner="ROOST",
+            semantic_domain="execution",
+            value_origin="roost-computed",
+            projection_kind="synthetic",
+            analytic_kind="observed",
+            materialization_level="case",
+            node_type="variable",
             description=("Simple synthetic example."),
         )
     )
@@ -89,6 +111,13 @@ def register_display_fields(
         DisplayField.field(
             "example.composed",
             display_fn=lambda row: 100,
+            owner="ROOST",
+            semantic_domain="execution",
+            value_origin="roost-computed",
+            projection_kind="synthetic",
+            analytic_kind="observed",
+            materialization_level="case",
+            node_type="variable",
             derived_from=[
                 "example.synthetic",
                 "example.runtime_metric",
@@ -112,6 +141,13 @@ def register_display_fields(
         DisplayField.field(
             "example.hidden",
             display_fn=lambda row: 0,
+            owner="ROOST",
+            semantic_domain="execution",
+            value_origin="roost-computed",
+            projection_kind="synthetic",
+            analytic_kind="observed",
+            materialization_level="case",
+            node_type="variable",
             description=("Hidden helper example."),
             profiles={
                 "table": DisplayProfile(
@@ -133,6 +169,9 @@ def register_display_fields(
             semantic_domain="execution",
             value_origin="roost-computed",
             projection_kind="synthetic",
+            analytic_kind="observed",
+            materialization_level="case",
+            node_type="variable",
             description=("Example carrying explicit ontology."),
         )
     )
@@ -145,6 +184,13 @@ def register_display_fields(
         DisplayField.field(
             "example.multiple_profiles",
             display_fn=lambda row: "X",
+            owner="ROOST",
+            semantic_domain="execution",
+            value_origin="roost-computed",
+            projection_kind="synthetic",
+            analytic_kind="observed",
+            materialization_level="case",
+            node_type="variable",
             profiles={
                 "table": DisplayProfile(
                     label="Table",
@@ -156,5 +202,28 @@ def register_display_fields(
                     label="Export",
                 ),
             },
+        )
+    )
+
+    # =====================================================
+    # Expansion example
+    # =====================================================
+
+    reg.register_display_field(
+        DisplayField.field(
+            "example.expansion",
+            display_fn=lambda row: None,
+            owner="ROOST",
+            semantic_domain="execution",
+            value_origin="roost-computed",
+            projection_kind="synthetic",
+            analytic_kind="observed",
+            materialization_level="case",
+            node_type="variable",
+            expands_to=[
+                "example.synthetic",
+                "example.composed",
+            ],
+            description=("Example expansion relationship."),
         )
     )

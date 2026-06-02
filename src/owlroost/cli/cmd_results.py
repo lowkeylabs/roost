@@ -13,29 +13,34 @@ from __future__ import annotations
 
 import click
 
+from owlroost.catalog.comparison import (
+    collect_superseded_rows,
+    find_superseded_rows,
+)
 from owlroost.cli.utils import (
     parse_id_selection,
     prepare_dataset,
     render_table,
     resolve_renderer,
-    select_dataset_rows,
+    select_rows_by_id,
     split_build_args,
 )
 from owlroost.display.bootstrap import build_display_registry
-from owlroost.display.compare import (
-    collect_superseded_rows,
-    find_superseded_rows,
+from owlroost.display.loaders import load_runs
+from owlroost.display.materializers.compare import (
     materialize_compare_table,
 )
-from owlroost.display.derived import apply_derived_metrics
-from owlroost.display.loaders import load_runs
+from owlroost.display.operations.help import (
+    render_field_help,
+)
+from owlroost.display.operations.row_ops import (
+    attach_row_ids,
+)
+from owlroost.display.operations.table_ops import (
+    inject_id_column,
+)
 from owlroost.display.projection import (
     project_dataset,
-)
-from owlroost.display.utils import (
-    attach_row_ids,
-    inject_id_column,
-    render_field_help,
 )
 from owlroost.metrics.bootstrap import (
     build_metrics_registry,
@@ -48,12 +53,10 @@ from owlroost.operations.promote import (
     collect_promote_targets,
     promote_runs,
 )
-from owlroost.schema.bootstrap import (
-    build_registry,
-)
-from owlroost.schema.plugins.group_derived import (
-    apply_group_derived_metrics,
-)
+
+# from owlroost.schema.plugins.group_derived import (
+#    apply_group_derived_metrics,
+# )
 
 # =========================================================
 # Helpers
@@ -572,7 +575,7 @@ def cmd_results(
             [delete_selection],
         )
 
-        rows_to_delete = select_dataset_rows(
+        rows_to_delete = select_rows_by_id(
             ds,
             selected_ids,
         )

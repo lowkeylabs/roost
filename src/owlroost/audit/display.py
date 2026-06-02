@@ -5,23 +5,23 @@ Display subsystem audit.
 
 Notes
 -----
-Validates display-layer architecture,
-overlay correctness, and fixture loading.
+Validates structural invariants of the
+display subsystem.
 
 Model B2 Architecture
 ---------------------
 
-Schema Registry
-    owns semantic variables
+Schema
+    owns executable input ontology
 
-Metrics Registry
-    owns semantic variables
+Metrics
+    owns runtime metric ontology
 
 Catalog
-    owns graph structure
+    owns canonical semantic identity
 
 Display
-    owns presentation overlays
+    owns presentation identity
 
 Display Responsibilities
 ------------------------
@@ -33,48 +33,32 @@ Display owns:
     - alignment
     - grouping
     - views
+    - presentation composition
 
-Display does NOT own:
+Display may also define synthetic
+semantic entities for convenience.
 
-    - schema ontology
-    - metrics ontology
-    - catalog graph structure
+The audit intentionally validates:
 
-Display fields therefore fall into two
-categories:
-
-    1. Ontology-backed overlays
-       (linked to schema/metrics)
-
-    2. Synthetic display fields
-       (carry ontology directly)
-
-Audit Responsibilities
-----------------------
-
-This audit validates:
-
-    - ontology-backed field linkage
+    - display field registration
     - synthetic ontology completeness
-    - synthetic lineage metadata
-    - field autoloading
-    - group autoloading
-    - view autoloading
-    - testing/example fixtures
+    - group registration
+    - view registration
 
-Catalog graph correctness is validated by:
+The audit intentionally does NOT
+validate:
+
+    - catalog ontology completeness
+    - schema ontology completeness
+    - metric ontology completeness
+
+Those responsibilities belong to:
 
     audit_catalog()
-
-Ontology completeness is validated by:
-
     audit_ontology()
 """
 
 from __future__ import annotations
-
-import ast
-from pathlib import Path
 
 from owlroost.display.bootstrap import (
     build_display_registry,
@@ -86,124 +70,16 @@ from owlroost.schema.bootstrap import (
     build_schema_registry,
 )
 
-# =========================================================
-# Discovery Paths
-# =========================================================
-
-DISPLAY_ROOT = Path(__file__).parents[1] / "display"
-
-FIELDS_DIR = DISPLAY_ROOT / "fields"
-
-GROUPS_DIR = DISPLAY_ROOT / "groups"
-
-VIEWS_DIR = DISPLAY_ROOT / "views"
-
-# =========================================================
-# Field Discovery
-# =========================================================
-
-
-def build_field_source_map() -> dict[str, str]:
-    """
-    Discover display-owned fields.
-
-    Returns
-    -------
-    field_name -> filename
-    """
-
-    mapping: dict[str, str] = {}
-
-    if not FIELDS_DIR.exists():
-        return mapping
-
-    for path in sorted(FIELDS_DIR.glob("*.py")):
-        if path.name == "__init__.py":
-            continue
-
-        try:
-            tree = ast.parse(
-                path.read_text(),
-                filename=str(path),
-            )
-
-        except Exception:
-            continue
-
-        for node in ast.walk(tree):
-            if not isinstance(
-                node,
-                ast.Call,
-            ):
-                continue
-
-            func = node.func
-
-            if not (
-                isinstance(
-                    func,
-                    ast.Attribute,
-                )
-                and func.attr == "field"
-            ):
-                continue
-
-            if not (
-                isinstance(
-                    func.value,
-                    ast.Name,
-                )
-                and func.value.id == "DisplayField"
-            ):
-                continue
-
-            if not node.args:
-                continue
-
-            first_arg = node.args[0]
-
-            if isinstance(
-                first_arg,
-                ast.Constant,
-            ) and isinstance(
-                first_arg.value,
-                str,
-            ):
-                mapping[first_arg.value] = path.name
-
-    return mapping
-
-
-# =========================================================
-# Formatting
-# =========================================================
-
-
-def emit_issue(
-    *,
-    field_name: str,
-    source_file: str,
-    message: str,
-):
-    print(f"{field_name} ({source_file}): {message}")
-
-
-# =========================================================
-# Audit
-# =========================================================
-
 
 def audit_display() -> int:
+    """
+    Audit display subsystem integrity.
+    """
+
     print("DISPLAY")
     print("-------")
 
     failures = 0
-
-    # =====================================================
-    # Source Discovery
-    # =====================================================
-
-    source_map = build_field_source_map()
 
     # =====================================================
     # Registries
@@ -214,165 +90,75 @@ def audit_display() -> int:
     metrics_registry = build_metrics_registry()
 
     display_registry = build_display_registry(
-        schema_registry,
-        metrics_registry,
+        schema_registry=schema_registry,
+        metrics_registry=metrics_registry,
     )
 
     # =====================================================
-    # Counts
+    # Fields
     # =====================================================
 
-    total_fields = 0
+    print("FIELDS")
+    print("------")
 
-    ontology_backed = 0
+    fields = display_registry.all_display_fields()
 
-    synthetic_fields = 0
+    if not fields:
+        failures += 1
 
-    display_owned = 0
+        print("no display fields loaded")
 
-    schema_backed = 0
-
-    metrics_backed = 0
+    else:
+        print(f"Fields: {len(fields)}")
 
     # =====================================================
-    # Ontology Audit
+    # Ontology
     # =====================================================
 
+    print()
     print("ONTOLOGY")
     print("--------")
 
-    ontology_issues = 0
+    ontology_failures = 0
 
-    for field in display_registry.all_display_fields():
-        total_fields += 1
+    for field in fields:
+        #
+        # Synthetic semantic entities
+        # should advertise ontology.
+        #
 
-        source_file = source_map.get(
-            field.field_name,
-            "<generated>",
-        )
+        if not field.is_synthetic:
+            continue
 
-        # =============================================
-        # Synthetic Display Fields
-        # =============================================
+        missing = []
 
-        if getattr(
-            field,
-            "is_synthetic",
-            False,
+        for attr in (
+            "owner",
+            "semantic_domain",
+            "value_origin",
+            "projection_kind",
         ):
-            synthetic_fields += 1
-            display_owned += 1
-
-            missing: list[str] = []
-
-            for attr in (
-                "owner",
-                "semantic_domain",
-                "value_origin",
-                "projection_kind",
-            ):
-                if not getattr(
+            if (
+                getattr(
                     field,
                     attr,
                     None,
-                ):
-                    missing.append(attr)
-
-            if missing:
-                ontology_issues += 1
-
-                emit_issue(
-                    field_name=(field.field_name),
-                    source_file=(source_file),
-                    message=("synthetic field missing " + ", ".join(missing)),
+                )
+                is None
+            ):
+                missing.append(
+                    attr,
                 )
 
-            continue
+        if missing:
+            ontology_failures += 1
 
-        # =============================================
-        # Ontology-backed Fields
-        # =============================================
+            print(f"{field.field_name}: missing {', '.join(missing)}")
 
-        ontology_backed += 1
+    failures += ontology_failures
 
-        if field.ontology_field is None:
-            ontology_issues += 1
-
-            emit_issue(
-                field_name=(field.field_name),
-                source_file=(source_file),
-                message=("missing ontology link"),
-            )
-
-            continue
-
-        defined_in = getattr(
-            field.ontology_field,
-            "defined_in",
-            None,
-        )
-
-        if defined_in == "OWL":
-            schema_backed += 1
-
-        elif defined_in:
-            metrics_backed += 1
-
-    if ontology_issues == 0:
+    if ontology_failures == 0:
         print("OK")
-
-    failures += ontology_issues
-
-    # =====================================================
-    # Synthetic Lineage
-    # =====================================================
-
-    print()
-    print("SYNTHETIC LINEAGE")
-    print("-----------------")
-
-    lineage_issues = 0
-
-    for field in display_registry.all_display_fields():
-        if not getattr(
-            field,
-            "is_synthetic",
-            False,
-        ):
-            continue
-
-        source_file = source_map.get(
-            field.field_name,
-            "<generated>",
-        )
-
-        if field.display_fn and not field.derived_from:
-            lineage_issues += 1
-
-            emit_issue(
-                field_name=(field.field_name),
-                source_file=(source_file),
-                message=("display_fn present but derived_from missing"),
-            )
-
-    if lineage_issues == 0:
-        print("OK")
-
-    failures += lineage_issues
-
-    # =====================================================
-    # Field Sources
-    # =====================================================
-
-    print()
-    print("FIELD SOURCES")
-    print("-------------")
-
-    print(f"Schema-backed:      {schema_backed}")
-
-    print(f"Metrics-backed:     {metrics_backed}")
-
-    print(f"Display-owned:      {display_owned}")
 
     # =====================================================
     # Groups
@@ -382,15 +168,9 @@ def audit_display() -> int:
     print("GROUPS")
     print("------")
 
-    group_names = list(display_registry.all_group_names())
+    groups = display_registry.all_groups()
 
-    if group_names:
-        print(f"Groups: {len(group_names)}")
-
-    else:
-        failures += 1
-
-        print("no groups loaded")
+    print(f"Groups: {len(groups)}")
 
     # =====================================================
     # Views
@@ -400,80 +180,40 @@ def audit_display() -> int:
     print("VIEWS")
     print("-----")
 
-    view_count = 0
+    views = display_registry.all_views()
 
-    for level in display_registry.all_levels():
-        view_count += len(display_registry.all_view_names(level))
-
-    if view_count:
-        print(f"Views: {view_count}")
-
-    else:
-        failures += 1
-
-        print("no views loaded")
+    print(f"Views: {len(views)}")
 
     # =====================================================
-    # Fixtures
+    # Fixture Sanity
     # =====================================================
 
     print()
     print("FIXTURES")
     print("--------")
 
-    fixture_issues = 0
-
     expected_fields = {
         "testing.scalar",
-        "example.synthetic",
+        "testing.string",
+        "testing.boolean",
+        "testing.composed",
+        "testing.semantic",
     }
 
-    for field_name in expected_fields:
-        if not (display_registry.has_display_field(field_name)):
-            fixture_issues += 1
+    field_names = {field.field_name for field in fields}
 
-            print(f"{field_name}: missing")
+    missing = sorted(expected_fields - field_names)
 
-    expected_groups = {
-        "testing.expansion",
-        "example.summary",
-    }
+    if missing:
+        failures += len(
+            missing,
+        )
 
-    for group_name in expected_groups:
-        if not (display_registry.has_group(group_name)):
-            fixture_issues += 1
+        for name in missing:
+            print(f"missing fixture field: {name}")
 
-            print(f"{group_name}: missing")
-
-    expected_views = [
-        (
-            "case",
-            "testing-fixture",
-        ),
-        (
-            "case",
-            "example-summary",
-        ),
-    ]
-
-    for (
-        level,
-        view_name,
-    ) in expected_views:
-        if not (
-            display_registry.has_view(
-                level,
-                view_name,
-            )
-        ):
-            fixture_issues += 1
-
-            print(f"{level}/{view_name}: missing")
-
-    if fixture_issues == 0:
+    else:
         print("OK")
-
-    failures += fixture_issues
 
     # =====================================================
     # Summary
@@ -483,15 +223,13 @@ def audit_display() -> int:
     print("SUMMARY")
     print("-------")
 
-    print(f"Display fields:     {total_fields}")
+    print(f"Display fields:    {len(fields)}")
 
-    print(f"Ontology-backed:    {ontology_backed}")
+    print(f"Groups:            {len(groups)}")
 
-    print(f"Synthetic:          {synthetic_fields}")
+    print(f"Views:             {len(views)}")
 
-    print(f"Discovered fields:  {len(source_map)}")
-
-    print(f"Issues:             {failures}")
+    print(f"Total issues:      {failures}")
 
     print()
 

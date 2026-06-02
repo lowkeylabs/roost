@@ -1,12 +1,42 @@
 # src/owlroost/display/sync.py
 
 """
-TODO: Document module.
+Display overlay synchronization.
 
 Notes
 -----
-Describe responsibilities, ownership,
-and architectural role.
+Synchronizes canonical schema and metric
+registries into renderer-facing display
+overlays.
+
+Responsibilities
+----------------
+This module generates default DisplayField
+instances for variables discovered in:
+
+    - SchemaRegistry
+    - MetricsRegistry
+
+These generated overlays provide:
+
+    - labels
+    - formatting profiles
+    - visibility defaults
+
+without duplicating ontology metadata.
+
+Architectural Invariant
+-----------------------
+Display owns presentation.
+
+Catalog owns semantic identity.
+
+SchemaRegistry and MetricsRegistry own
+canonical ontology.
+
+Therefore this module generates only
+presentation overlays and must not attach
+ontology objects to DisplayField instances.
 """
 
 from __future__ import annotations
@@ -108,26 +138,29 @@ def _register_field_if_missing(
     field_name: str,
     description: str | None,
     display_registry: DisplayRegistry,
-    ontology_field=None,
     profiles=None,
 ):
     """
-    Register DisplayField overlay if missing.
+    Register default display overlay.
 
     Notes
     -----
-    Display fields are presentation overlays
-    layered atop canonical ontology.
+    Explicitly registered display fields
+    always take precedence.
 
-    Existing explicit registrations are
-    preserved.
+    This helper creates only presentation
+    overlays and intentionally does not
+    copy ontology metadata from schema
+    or metrics registries.
     """
 
     # -----------------------------------------------------
-    # Preserve explicit registrations
+    # Preserve Explicit Registrations
     # -----------------------------------------------------
 
-    if display_registry.has_display_field(field_name):
+    if display_registry.has_display_field(
+        field_name,
+    ):
         return
 
     # -----------------------------------------------------
@@ -137,22 +170,25 @@ def _register_field_if_missing(
     if profiles is None:
         profiles = {
             "table": DisplayProfile(
-                label=path_to_table_label(field_name),
+                label=path_to_table_label(
+                    field_name,
+                ),
             ),
             "pivot": DisplayProfile(
-                label=path_to_pivot_label(field_name),
+                label=path_to_pivot_label(
+                    field_name,
+                ),
             ),
         }
 
     # -----------------------------------------------------
-    # Overlay Registration
+    # Register Overlay
     # -----------------------------------------------------
 
     display_registry.register_display_field(
         DisplayField(
             field_name=field_name,
             description=description,
-            ontology_field=ontology_field,
             profiles=profiles,
         )
     )
@@ -168,8 +204,8 @@ def sync_schema_registry(
     display_registry: DisplayRegistry,
 ):
     """
-    Generate DisplayField overlays from
-    canonical schema ontology.
+    Generate default display overlays for
+    schema variables.
     """
 
     for schema_field in schema_registry.all():
@@ -177,7 +213,6 @@ def sync_schema_registry(
             field_name=schema_field.name,
             description=(schema_field.description),
             display_registry=(display_registry),
-            ontology_field=schema_field,
             profiles=getattr(
                 schema_field,
                 "profiles",
@@ -196,8 +231,8 @@ def sync_metrics_registry(
     display_registry: DisplayRegistry,
 ):
     """
-    Generate DisplayField overlays from
-    canonical metrics ontology.
+    Generate default display overlays for
+    metric variables.
     """
 
     for metrics_field in metrics_registry.all():
@@ -208,7 +243,6 @@ def sync_metrics_registry(
                 "description",
                 None,
             ),
-            ontology_field=metrics_field,
             display_registry=(display_registry),
             profiles=getattr(
                 metrics_field,

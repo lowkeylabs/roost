@@ -1,165 +1,189 @@
 # src/owlroost/tools/generate_hydra_conf.py
 
 """
-Generate Hydra conf/**/default.yaml and config.yaml from schema registry.
+Generate Hydra conf/**/default.yaml and config.yaml
+from the canonical schema registry.
 
-- Uses full schema registry (all sources)
-- Emits complete tree (including None values)
-- Ensures Hydra override compatibility
+Notes
+-----
+Uses the SchemaRegistry as the sole source
+of truth.
 
-Run:
-    python -m owlroost.tools.generate_hydra_conf
+All Hydra-configurable variables originate
+from schema registration:
+
+    - OWL bridge fields
+    - ROOST section fields
+    - sweep fields
+
+Defaults are sourced directly from
+FieldSpec.default.
+
+Architectural Invariant
+-----------------------
+Hydra configuration generation consumes
+SchemaRegistry only.
+
+It does not inspect section models,
+plugins, or Pydantic classes.
 """
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from owlroost.schema.bootstrap import build_schema_registry
-from owlroost.schema.utils import unwrap_annotation
+from owlroost.schema.bootstrap import (
+    build_schema_registry,
+)
 
 CONF_ROOT = Path("src/owlroost/conf")
 
-
 # =========================================================
-# Plugin model discovery
+# Tree Helpers
 # =========================================================
-def build_model_index(plugins):
-    model_index = {}
-
-    for p in plugins:
-        model = getattr(p, "model", None)
-        root = getattr(p, "root", None)
-
-        if model is None:
-            continue
-
-        if root is None:
-            model_index["_owl"] = model
-        else:
-            model_index[root] = model
-
-    return model_index
 
 
-# =========================================================
-# Default extraction (Pydantic fallback)
-# =========================================================
-def get_default(path: tuple[str, ...], model_index):
-    root = path[0]
+def insert_path(
+    tree: dict,
+    path: tuple[str, ...],
+    value: Any,
+):
+    """
+    Insert value into nested dictionary tree.
+    """
 
-    model = model_index.get(root)
-
-    if model is None:
-        model = model_index.get("_owl")
-
-    if model is None:
-        return None
-
-    cur = model
-    parts = path[1:] if root in model_index else path
-
-    for i, part in enumerate(parts):
-        if not hasattr(cur, "model_fields"):
-            return None
-
-        field = cur.model_fields.get(part)
-        if field is None:
-            return None
-
-        annotation = unwrap_annotation(field.annotation)
-
-        if i == len(parts) - 1:
-            if field.default is not None:
-                return field.default
-
-            if field.default_factory is not None:
-                try:
-                    return field.default_factory()
-                except Exception:
-                    return None
-
-            return None
-
-        cur = annotation
-
-    return None
-
-
-# =========================================================
-# Tree helpers
-# =========================================================
-def insert_path(tree: dict, path: tuple[str, ...], value: Any):
     cur = tree
 
     for key in path[:-1]:
-        # -------------------------------------
-        # If key missing OR not a dict → fix it
-        # -------------------------------------
-        if key not in cur or not isinstance(cur[key], dict):
+        if key not in cur or not isinstance(
+            cur[key],
+            dict,
+        ):
             cur[key] = {}
 
         cur = cur[key]
 
-    # -------------------------------------
-    # Assign leaf value
-    # -------------------------------------
     cur[path[-1]] = value
 
 
-def split_by_root(fields):
+def split_by_root(
+    fields,
+):
+    """
+    Group fields by top-level Hydra section.
+    """
+
     groups = {}
-    for f in fields:
-        if not f.path:
+
+    for field in fields:
+        if not field.path:
             continue
-        root = f.path[0]
-        groups.setdefault(root, []).append(f)
+
+        root = field.path[0]
+
+        groups.setdefault(
+            root,
+            [],
+        ).append(field)
+
     return groups
 
 
 # =========================================================
-# Value normalization
+# Value Normalization
 # =========================================================
-def normalize_value(v):
-    if isinstance(v, (str, int, float, bool)) or v is None:
-        return v
-    if isinstance(v, (list, tuple)):
-        return list(v)
-    if isinstance(v, dict):
-        return v
-    return str(v)
+
+
+def normalize_value(
+    value,
+):
+    """
+    Normalize values for YAML emission.
+    """
+
+    if (
+        isinstance(
+            value,
+            (
+                str,
+                int,
+                float,
+                bool,
+            ),
+        )
+        or value is None
+    ):
+        return value
+
+    if isinstance(
+        value,
+        (
+            list,
+            tuple,
+        ),
+    ):
+        return list(value)
+
+    if isinstance(
+        value,
+        dict,
+    ):
+        return value
+
+    return str(value)
 
 
 # =========================================================
 # Hydra Field Selection
 # =========================================================
 
-HYDRA_SOURCES = {"input", "discovered", "helper"}
+HYDRA_SOURCES = {
+    "input",
+    "discovered",
+    "sweep",
+}
 
 
-def hydra_fields(reg):
+def hydra_fields(
+    reg,
+):
+    """
+    Return fields eligible for Hydra config.
+    """
+
     out = []
 
-    for f in reg.all():
-        if not f.path:
+    for field in reg.all():
+        if not field.path:
             continue
 
-        if f.source not in HYDRA_SOURCES:
+        if field.source not in HYDRA_SOURCES:
             continue
 
-        out.append(f)
+        out.append(field)
 
     return out
 
 
 # =========================================================
-# Generate default.yaml files
+# Generate Group Configs
 # =========================================================
-def generate_group_configs(reg, model_index):
-    groups = split_by_root(hydra_fields(reg))
+
+
+def generate_group_configs(
+    reg,
+):
+    """
+    Generate conf/<group>/default.yaml files.
+    """
+
+    groups = split_by_root(
+        hydra_fields(reg),
+    )
 
     generated_groups = []
 
@@ -168,40 +192,56 @@ def generate_group_configs(reg, model_index):
             continue
 
         group_dir = CONF_ROOT / group_name
-        group_dir.mkdir(parents=True, exist_ok=True)
+
+        group_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
         tree = {}
 
-        for f in fields:
-            subpath = f.path[1:] if len(f.path) > 1 else f.path
+        for field in fields:
+            subpath = field.path[1:] if len(field.path) > 1 else field.path
 
-            # -------------------------------------------------
-            # Priority: registry default → model → None
-            # -------------------------------------------------
-            value = f.default
+            value = normalize_value(
+                field.default,
+            )
 
-            if value is None:
-                value = get_default(f.path, model_index)
+            insert_path(
+                tree,
+                subpath,
+                value,
+            )
 
-            value = normalize_value(value) if value is not None else None
+        # -------------------------------------------------
+        # Minimal OWL validity safeguard
+        # -------------------------------------------------
 
-            # -------------------------------------------------
-            # ALWAYS insert (critical for Hydra)
-            # -------------------------------------------------
-            insert_path(tree, subpath, value)
-
-        # ---------------------------------------------------------
-        # Minimal OWL validity safety (optional)
-        # ---------------------------------------------------------
         if group_name == "basic_info":
-            tree.setdefault("status", "single")
-            tree.setdefault("names", ["A"])
-            tree.setdefault("life_expectancy", [90])
+            tree.setdefault(
+                "status",
+                "single",
+            )
+            tree.setdefault(
+                "names",
+                ["A"],
+            )
+            tree.setdefault(
+                "life_expectancy",
+                [90],
+            )
 
         file_path = group_dir / "default.yaml"
 
-        with open(file_path, "w") as fh:
-            yaml.dump(tree, fh, sort_keys=False)
+        with open(
+            file_path,
+            "w",
+        ) as fh:
+            yaml.dump(
+                tree,
+                fh,
+                sort_keys=False,
+            )
 
         print(f"Generated: {file_path}")
 
@@ -213,16 +253,22 @@ def generate_group_configs(reg, model_index):
 # =========================================================
 # Generate config.yaml
 # =========================================================
-def generate_config_yaml(groups):
+
+
+def generate_config_yaml(
+    groups,
+):
     defaults = []
 
     defaults.extend(
         [
-            {"case": "default"},
+            {
+                "case": "default",
+            },
         ]
     )
 
-    defaults.extend([{g: "default"} for g in groups if g != "case"])
+    defaults.extend([{group: "default"} for group in groups if group != "case"])
 
     defaults.extend(
         [
@@ -236,7 +282,7 @@ def generate_config_yaml(groups):
 
     config = {
         "defaults": defaults,
-        "session": {"id": "${now:%Y-%m-%d}_${now:%H-%M-%S}"},
+        "session": {"id": ("${now:%Y-%m-%d}_${now:%H-%M-%S}")},
         "hydra": {
             "job": {
                 "chdir": True,
@@ -247,47 +293,70 @@ def generate_config_yaml(groups):
 
     file_path = CONF_ROOT / "config.yaml"
 
-    with open(file_path, "w") as fh:
-        yaml.dump(config, fh, sort_keys=False)
+    with open(
+        file_path,
+        "w",
+    ) as fh:
+        yaml.dump(
+            config,
+            fh,
+            sort_keys=False,
+        )
 
     print(f"Generated: {file_path}")
 
 
 # =========================================================
-# Generate Hydra scaffolding
+# Generate Hydra Scaffolding
 # =========================================================
+
+
 def generate_hydra_scaffolding():
     hydra_root = CONF_ROOT / "hydra"
 
-    # sweep/basic.yaml
     sweep_basic = hydra_root / "sweep" / "basic.yaml"
-    sweep_basic.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(sweep_basic, "w") as fh:
-        yaml.dump({"dir": "."}, fh, sort_keys=False)
+    sweep_basic.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
-    print(f"Generated: {sweep_basic}")
+    with open(
+        sweep_basic,
+        "w",
+    ) as fh:
+        yaml.dump(
+            {"dir": "."},
+            fh,
+            sort_keys=False,
+        )
 
-    # sweep/flat.yaml (corrected)
     sweep_flat = hydra_root / "sweep" / "flat.yaml"
 
-    with open(sweep_flat, "w") as fh:
+    with open(
+        sweep_flat,
+        "w",
+    ) as fh:
         yaml.dump(
             {
-                "dir": "results/${case.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}",
+                "dir": ("results/${case.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}"),
                 "subdir": "run_${hydra:job.num}",
             },
             fh,
             sort_keys=False,
         )
 
-    print(f"Generated: {sweep_flat}")
-
-    # hydra logging disabled
     hydra_logging = hydra_root / "hydra_logging" / "disabled.yaml"
-    hydra_logging.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(hydra_logging, "w") as fh:
+    hydra_logging.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    with open(
+        hydra_logging,
+        "w",
+    ) as fh:
         yaml.dump(
             {
                 "version": 1,
@@ -297,13 +366,17 @@ def generate_hydra_scaffolding():
             sort_keys=False,
         )
 
-    print(f"Generated: {hydra_logging}")
-
-    # job logging disabled
     job_logging = hydra_root / "job_logging" / "disabled.yaml"
-    job_logging.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(job_logging, "w") as fh:
+    job_logging.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    with open(
+        job_logging,
+        "w",
+    ) as fh:
         yaml.dump(
             {
                 "version": 1,
@@ -312,27 +385,40 @@ def generate_hydra_scaffolding():
             fh,
             sort_keys=False,
         )
-
-    print(f"Generated: {job_logging}")
 
 
 # =========================================================
 # Main
 # =========================================================
+
+
 def generate():
-    reg, plugins = build_schema_registry(return_plugins=True)
+    if CONF_ROOT.exists():
+        shutil.rmtree(
+            CONF_ROOT,
+        )
 
-    model_index = build_model_index(plugins)
+    CONF_ROOT.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
-    groups = generate_group_configs(reg, model_index)
+    reg = build_schema_registry()
 
-    generate_config_yaml(groups)
+    groups = generate_group_configs(
+        reg,
+    )
+
+    generate_config_yaml(
+        groups,
+    )
 
     generate_hydra_scaffolding()
 
 
 # =========================================================
-# Entry point
+# Entry Point
 # =========================================================
+
 if __name__ == "__main__":
     generate()

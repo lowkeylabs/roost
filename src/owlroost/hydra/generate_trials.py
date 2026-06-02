@@ -29,12 +29,14 @@ from omegaconf import DictConfig, OmegaConf
 from owlroost.core.progress_renderers import (
     create_renderer,
 )
-from owlroost.schema.hydra_expanders import (
-    expand_hydra_helpers,
-)
-from owlroost.schema.system_models import (
+from owlroost.schema.sections.roost_runtime import (
     RoostRuntimeConfig,
+)
+from owlroost.schema.sections.runtime_environment import (
     RuntimeEnvironmentConfig,
+)
+from owlroost.schema.sweeps import (
+    expand_sweeps,
 )
 
 
@@ -289,9 +291,7 @@ def generate_trials(cfg: DictConfig):
     # Expand Hydra helper fields (e.g. rates_selection.from_to)
     # ----------------------------------------
 
-    run_dict = expand_hydra_helpers(
-        run_dict,
-    )
+    run_dict = expand_sweeps(run_dict)
 
     # -------------------------
     # Runtime / roost config
@@ -304,7 +304,7 @@ def generate_trials(cfg: DictConfig):
         )
     )
 
-    cfg_dict = expand_hydra_helpers(cfg_dict)
+    cfg_dict = expand_sweeps(cfg_dict)
 
     SECTION_MODELS = {
         "roost_runtime": RoostRuntimeConfig,

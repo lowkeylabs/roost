@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import click
 
-from owlroost.schema.bootstrap import build_registry
+from owlroost.schema.bootstrap import build_schema_registry
 
 
 # ---------------------------------------------------------
@@ -31,7 +31,7 @@ def cmd_schema():
 @cmd_schema.command("list")
 def list_fields():
     """List all schema fields."""
-    reg = build_registry()
+    reg = build_schema_registry()
 
     for field in sorted(reg.all(), key=lambda f: f.name):
         click.echo(field.name)

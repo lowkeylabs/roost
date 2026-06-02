@@ -15,7 +15,7 @@ from pathlib import Path
 
 import click
 
-from owlroost.display.reports import (
+from owlroost.reports.reports import (
     collect_report_diagnostics,
     initialize_templates,
     sync_reports,

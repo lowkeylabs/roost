@@ -1,12 +1,12 @@
 # src/owlroost/display/operations/table_ops.py
 
 """
-TODO: Document module.
+Table operations.
 
 Notes
 -----
-Describe responsibilities, ownership,
-and architectural role.
+Utilities operating on materialized
+RoostTable instances.
 """
 
 from __future__ import annotations
@@ -22,10 +22,16 @@ from owlroost.display.renderers.specs import (
 
 def inject_id_column(
     table,
-    dataset,
+    rows,
 ):
     """
-    Inject dataset row IDs into table.
+    Inject row IDs into a materialized table.
+
+    Assumes rows already contain:
+
+        _row_id
+
+    as attached by attach_row_ids().
     """
 
     table.columns = [
@@ -35,17 +41,17 @@ def inject_id_column(
             label_align="right",
             content_align="right",
         )
-    ] + list(table.columns)
+    ] + list(
+        table.columns,
+    )
 
-    new_rows = []
-
-    for row_data, r in zip(
-        table.rows,
-        dataset.rows,
-        strict=False,
-    ):
-        new_rows.append([str(r["_row_id"])] + list(row_data))
-
-    table.rows = new_rows
+    table.rows = [
+        [str(row["_row_id"])] + list(table_row)
+        for table_row, row in zip(
+            table.rows,
+            rows,
+            strict=False,
+        )
+    ]
 
     return table

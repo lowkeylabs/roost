@@ -1,12 +1,7 @@
 # src/owlroost/display/operations/help.py
 
 """
-TODO: Document module.
-
-Notes
------
-Describe responsibilities, ownership,
-and architectural role.
+Help and field discovery utilities.
 """
 
 from __future__ import annotations
@@ -32,10 +27,10 @@ def discover_view_fields(
 
 
 def discover_queryable_fields(
-    dataset,
+    rows,
 ):
     """
-    Discover queryable fields from dataset.
+    Discover queryable fields from rows.
     """
 
     fields = set()
@@ -48,15 +43,23 @@ def discover_queryable_fields(
         obj,
         prefix="",
     ):
-        if not isinstance(obj, dict):
+        if not isinstance(
+            obj,
+            dict,
+        ):
             return
 
         for key, value in obj.items():
             full = key if not prefix else f"{prefix}.{key}"
 
-            fields.add(full)
+            fields.add(
+                full,
+            )
 
-            if isinstance(value, dict):
+            if isinstance(
+                value,
+                dict,
+            ):
                 walk(
                     value,
                     full,
@@ -66,12 +69,31 @@ def discover_queryable_fields(
     # Scan Rows
     # =====================================================
 
-    for row in dataset.rows:
-        walk(row.get("_inputs", {}))
-        walk(row.get("_metrics", {}))
-        walk(row.get("_meta", {}))
+    for row in rows:
+        walk(
+            row.get(
+                "_inputs",
+                {},
+            )
+        )
 
-    return sorted(fields)
+        walk(
+            row.get(
+                "_metrics",
+                {},
+            )
+        )
+
+        walk(
+            row.get(
+                "_meta",
+                {},
+            )
+        )
+
+    return sorted(
+        fields,
+    )
 
 
 # =========================================================
@@ -80,7 +102,8 @@ def discover_queryable_fields(
 
 
 def render_field_help(
-    dataset,
+    *,
+    rows,
     registry,
     level,
     view_name,
@@ -115,20 +138,29 @@ def render_field_help(
 
     else:
         fields = discover_queryable_fields(
-            dataset,
+            rows,
         )
 
     synthetic_fields = [
         "id",
     ]
 
-    fields = list(fields)
+    fields = list(
+        fields,
+    )
 
-    for sf in reversed(synthetic_fields):
+    for sf in reversed(
+        synthetic_fields,
+    ):
         if sf not in fields:
-            fields.insert(0, sf)
+            fields.insert(
+                0,
+                sf,
+            )
 
-    for field in sorted(fields):
+    for field in sorted(
+        fields,
+    ):
         click.echo(f"  {field}")
 
     if examples:

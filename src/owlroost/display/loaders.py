@@ -22,7 +22,6 @@ from owlroost.metrics.aggregation.service import (
     aggregate_dataset,
 )
 
-from .dataset import Dataset
 from .discovery.cases import (
     find_case_files,
 )

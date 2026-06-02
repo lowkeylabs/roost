@@ -18,7 +18,7 @@ from typing import Any
 from owlroost.catalog.ontology import OntologySpec
 
 
-@dataclass
+@dataclass(kw_only=True)
 class MetricSpec(OntologySpec):
     """
     Canonical semantic definition
@@ -62,8 +62,6 @@ class MetricSpec(OntologySpec):
     # =====================================================
 
     defined_in: str | None = None
-
-    derived_from: list[str] = field(default_factory=list)
 
     # =====================================================
     # Typing

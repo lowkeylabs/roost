@@ -119,9 +119,10 @@ owl-upgrade:
 
 	uv run src/owlroost/tools/generate_hydra_conf.py
 
-	uv run src/owlroost/tools/schema_coverage.py
-
 	uv run scripts/sync_owl_examples.py
+
+	uv run scripts/sync_owl_parameters_md.py
+	uv run src/owlroost/tools/generate_explain_metadata.py
 
 	uv run pytest
 
