@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+from owlroost.core.utils import normalize_module_path
 from owlroost.display.specs import (
     DisplayField,
     DisplayProfile,
 )
-from owlroost.core.utils import normalize_module_path
 
 # =========================================================
 # Basic Construction
@@ -207,7 +207,6 @@ def test_lineage_with_ontology_creates_catalog_declaration():
             "solver_options.bequest",
         ],
         defined_in=normalize_module_path(__file__),
-
     )
 
     assert field.catalog_declaration is not None

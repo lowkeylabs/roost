@@ -40,6 +40,7 @@ from pprint import pformat
 
 VALID_EXPLAIN_FACETS = {
     "variables",
+    "values",
     "sources",
     "display",
     "provenance",
@@ -95,9 +96,11 @@ def normalize_explain_facets(
 
         facets |= {
             "variables",
+            "values",
             "sources",
             "display",
             "provenance",
+            "ontology",
         }
 
     return facets & VALID_EXPLAIN_FACETS
@@ -127,6 +130,26 @@ def _render_parts(
 # =========================================================
 
 
+def _values_explanation(
+    *,
+    field_name: str,
+    row_values,
+) -> str:
+    """
+    Value facet.
+
+    Displays the materialized values
+    associated with this field.
+    """
+
+    def clip(text: str, width: int = 22) -> str:
+        return text if len(text) <= width else text[: width - 3] + "..."
+
+    return_str = f"{field_name}: ['" + "','".join([clip(rv) for rv in row_values]) + "']"
+
+    return return_str
+
+
 def _description_explanation(
     display_field,
 ) -> str:
@@ -145,7 +168,7 @@ def _description_explanation(
 
 
 def _sources_explanation(
-    catalog_spec,
+    catalog_row,
 ) -> str:
     """
     Source facet.
@@ -156,55 +179,46 @@ def _sources_explanation(
         - semantic origin
     """
 
-    if catalog_spec is None:
+    if catalog_row is None:
         return ""
 
-    lines = []
-
-    source = getattr(
-        catalog_spec,
+    source = catalog_row.get(
         "source",
-        None,
     )
 
-    if source:
-        lines.append(f"Source: {source}")
-
-    origin = getattr(
-        catalog_spec,
+    origin = catalog_row.get(
         "value_origin",
-        None,
     )
 
-    if origin:
-        lines.append(f"Origin: {origin}")
-
-    return "\n".join(
-        lines,
-    )
+    return f"{origin} / {source}"
 
 
 def _ontology_explanation(
-    catalog_spec,
+    catalog_row,
 ) -> str:
     """
     Ontology facet.
     """
 
+    if catalog_row is None:
+        return ""
+
     lines = [
-        f"Owner: {catalog_spec.owner}",
-        f"Domain: {catalog_spec.semantic_domain}",
-        f"Origin: {catalog_spec.value_origin}",
-        f"Projection: {catalog_spec.projection_kind}",
-        f"Analytic: {catalog_spec.analytic_kind}",
-        f"Level: {catalog_spec.materialization_level}",
-        f"Type: {catalog_spec.node_type}",
+        f"Owner: {catalog_row.get('owner')}",
+        f"Domain: {catalog_row.get('semantic_domain')}",
+        f"Origin: {catalog_row.get('value_origin')}",
+        f"Projection: {catalog_row.get('projection_kind')}",
+        f"Analytic: {catalog_row.get('analytic_kind')}",
+        f"Level: {catalog_row.get('materialization_level')}",
+        f"Type: {catalog_row.get('node_type')}",
     ]
 
-    derived_from = getattr(
-        catalog_spec,
-        "derived_from",
-        [],
+    derived_from = (
+        catalog_row.get(
+            "derived_from",
+            [],
+        )
+        or []
     )
 
     if derived_from:
@@ -258,7 +272,9 @@ def _display_explanation(
                 "\\n",
             )
 
-            profile_lines.append(f"{name}({label})")
+            profile_lines.append(
+                f"{name}({label})",
+            )
 
         lines.append(
             "Profiles: "
@@ -273,16 +289,21 @@ def _display_explanation(
 
 
 def _provenance_explanation(
-    catalog_spec,
+    catalog_row,
 ) -> str:
     """
     Provenance facet.
     """
 
-    chain = getattr(
-        catalog_spec,
-        "provenance_chain",
-        [],
+    if catalog_row is None:
+        return ""
+
+    chain = (
+        catalog_row.get(
+            "provenance_chain",
+            [],
+        )
+        or []
     )
 
     if not chain:
@@ -290,16 +311,32 @@ def _provenance_explanation(
 
     lines = []
 
-    if catalog_spec.origin_file:
-        lines.append(f"Origin File: {catalog_spec.origin_file}")
+    origin_file = catalog_row.get(
+        "origin_file",
+    )
 
-    if catalog_spec.defined_in:
-        lines.append(f"Defined In: {catalog_spec.defined_in}")
+    defined_in = catalog_row.get(
+        "defined_in",
+    )
 
-    lines.append("")
+    if origin_file:
+        lines.append(
+            f"Origin File: {origin_file}",
+        )
+
+    if defined_in:
+        lines.append(
+            f"Defined In: {defined_in}",
+        )
+
+    lines.append(
+        "",
+    )
 
     for event in chain:
-        operation = event.operation
+        operation = event.get(
+            "operation",
+        )
 
         if hasattr(
             operation,
@@ -307,7 +344,9 @@ def _provenance_explanation(
         ):
             operation = operation.value
 
-        lines.append(f"{event.stage}:{operation}")
+        lines.append(
+            f"{event.get('stage')}:{operation}",
+        )
 
     return "\n".join(
         lines,
@@ -317,7 +356,7 @@ def _provenance_explanation(
 def _debug_explanation(
     *,
     display_field,
-    catalog_spec,
+    catalog_row,
 ) -> str:
     """
     Debug facet.
@@ -325,11 +364,7 @@ def _debug_explanation(
 
     return pformat(
         {
-            "catalog_spec": vars(
-                catalog_spec,
-            )
-            if catalog_spec
-            else None,
+            "catalog_row": catalog_row,
             "display_field": vars(
                 display_field,
             )
@@ -349,7 +384,7 @@ def _debug_explanation(
 def build_field_explanation(
     *,
     display_field,
-    catalog_spec,
+    catalog_row=None,
     explain_facets: set[str],
     row_values=None,
 ) -> str:
@@ -378,17 +413,18 @@ def build_field_explanation(
             )
         )
 
-    if "sources" in explain_facets and catalog_spec is not None:
+    if "values" in explain_facets:
         parts.append(
-            _sources_explanation(
-                catalog_spec,
+            _values_explanation(
+                field_name=display_field.field_name,
+                row_values=row_values,
             )
         )
 
-    if "ontology" in explain_facets and catalog_spec is not None:
+    if "sources" in explain_facets and catalog_row is not None:
         parts.append(
-            _ontology_explanation(
-                catalog_spec,
+            _sources_explanation(
+                catalog_row,
             )
         )
 
@@ -399,10 +435,17 @@ def build_field_explanation(
             )
         )
 
-    if "provenance" in explain_facets and catalog_spec is not None:
+    if "ontology" in explain_facets and catalog_row is not None:
+        parts.append(
+            _ontology_explanation(
+                catalog_row,
+            )
+        )
+
+    if "provenance" in explain_facets and catalog_row is not None:
         parts.append(
             _provenance_explanation(
-                catalog_spec,
+                catalog_row,
             )
         )
 
@@ -410,7 +453,7 @@ def build_field_explanation(
         parts.append(
             _debug_explanation(
                 display_field=display_field,
-                catalog_spec=catalog_spec,
+                catalog_row=catalog_row,
             )
         )
 

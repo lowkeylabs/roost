@@ -35,7 +35,6 @@ from dataclasses import (
 from enum import StrEnum
 from typing import Any
 
-
 # =========================================================
 # Provenance Operations
 # =========================================================
@@ -174,11 +173,7 @@ def provenance_summary(
     Compact human-readable provenance summary.
     """
 
-    files = [
-        event.file
-        for event in provenance_chain
-        if event.file
-    ]
+    files = [event.file for event in provenance_chain if event.file]
 
     return " -> ".join(
         files,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from owlroost.core.utils import normalize_module_path
 from owlroost.display.registry import (
     DisplayRegistry,
 )
@@ -13,7 +14,6 @@ from owlroost.display.specs import (
     DisplayProfile,
     DisplayView,
 )
-from owlroost.core.utils import normalize_module_path
 
 # =========================================================
 # Helpers
@@ -471,7 +471,7 @@ def test_synthetic_field_creates_catalog_declaration():
         semantic_domain="execution",
         value_origin="roost-computed",
         projection_kind="synthetic",
-        defined_in=normalize_module_path( __file__ ),
+        defined_in=normalize_module_path(__file__),
     )
 
     assert field.catalog_declaration is not None
@@ -513,7 +513,7 @@ def test_lineage_with_ontology_creates_catalog_declaration():
         derived_from=[
             "solver_options.bequest",
         ],
-        defined_in=normalize_module_path( __file__ ),
+        defined_in=normalize_module_path(__file__),
     )
 
     declaration = field.catalog_declaration

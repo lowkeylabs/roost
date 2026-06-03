@@ -17,7 +17,9 @@ from owlroost.catalog.comparison.supersession import (
     collect_superseded_rows,
     find_superseded_rows,
 )
+from owlroost.catalog.loaders import load_catalog_rows
 from owlroost.cli.utils import (
+    parse_id_selection,
     render_table,
     resolve_renderer,
     select_rows_by_id,
@@ -38,6 +40,8 @@ from owlroost.display.operations.sorting import apply_canonical_sort, apply_sort
 from owlroost.display.operations.table_ops import inject_id_column
 from owlroost.display.projection import project_rows
 from owlroost.metrics.bootstrap import build_metrics_registry
+from owlroost.operations.delete import collect_delete_targets, delete_paths
+from owlroost.operations.promote import collect_promote_targets, promote_runs
 from owlroost.schema.bootstrap import build_schema_registry
 
 # =========================================================
@@ -296,6 +300,12 @@ def cmd_results(
         schema_registry=schema_registry,
         metrics_registry=metrics_registry,
     )
+    catalog_rows = load_catalog_rows(
+        schema_registry=schema_registry,
+        metrics_registry=metrics_registry,
+        display_registry=display_registry,
+    )
+    catalog_index = {row["field_name"]: row for row in catalog_rows}
 
     # =====================================================
     # Discover + Load Runs
@@ -487,25 +497,19 @@ def cmd_results(
 
             return
 
-        purge_ds = ds.clone(
+        purge_table = materialize_view(
             rows=superseded_rows,
-        )
-
-        purge_table = purge_ds.view(
             registry=display_registry,
-            name=view,
-            layout="table",
+            catalog_index=catalog_index,
+            level=level,
+            view_name=view,
+            mode="table",
             explain=explain_facets,
         )
 
         purge_table = inject_id_column(
             purge_table,
-            purge_ds,
-        )
-
-        preview = render_table(
-            purge_table,
-            renderer,
+            superseded_rows,
         )
 
         click.echo()
@@ -514,8 +518,10 @@ def cmd_results(
 
         click.echo()
 
-        if preview:
-            click.echo(preview)
+        preview = render_table(
+            purge_table,
+            renderer,
+        )
 
         click.echo()
 
@@ -568,32 +574,26 @@ def cmd_results(
         )
 
         rows_to_delete = select_rows_by_id(
-            ds,
+            rows,
             selected_ids,
         )
 
         if not rows_to_delete:
             raise click.ClickException("No matching row IDs selected.")
 
-        delete_ds = ds.clone(
+        delete_table = materialize_view(
             rows=rows_to_delete,
-        )
-
-        delete_table = delete_ds.view(
             registry=display_registry,
-            name=view,
-            layout="table",
+            catalog_index=catalog_index,
+            level=level,
+            view_name=view,
+            mode="table",
             explain=explain_facets,
         )
 
         delete_table = inject_id_column(
             delete_table,
-            delete_ds,
-        )
-
-        preview = render_table(
-            delete_table,
-            renderer,
+            rows_to_delete,
         )
 
         click.echo()
@@ -602,8 +602,10 @@ def cmd_results(
 
         click.echo()
 
-        if preview:
-            click.echo(preview)
+        preview = render_table(
+            delete_table,
+            renderer,
+        )
 
         click.echo()
 
@@ -645,28 +647,27 @@ def cmd_results(
             [promote_selection],
         )
 
-        rows_to_promote = select_dataset_rows(
-            ds,
+        rows_to_promote = select_rows_by_id(
+            rows,
             selected_ids,
         )
 
         if not rows_to_promote:
             raise click.ClickException("No matching row IDs selected.")
 
-        promote_ds = ds.clone(
+        promote_table = materialize_view(
             rows=rows_to_promote,
-        )
-
-        promote_table = promote_ds.view(
             registry=display_registry,
-            name=view,
-            layout="table",
+            catalog_index=catalog_index,
+            level=level,
+            view_name=view,
+            mode="table",
             explain=explain_facets,
         )
 
         promote_table = inject_id_column(
             promote_table,
-            promote_ds,
+            rows_to_promote,
         )
 
         preview = render_table(
@@ -766,6 +767,7 @@ def cmd_results(
     table = materialize_view(
         rows=rows,
         registry=display_registry,
+        catalog_index=catalog_index,
         level=level,
         view_name=view,
         mode="pivot" if pivot else "table",

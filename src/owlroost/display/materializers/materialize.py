@@ -153,6 +153,7 @@ def pivot_table(
     table,
     registry: DisplayRegistry | None = None,
     explain_facets=None,
+    catalog_index=None,
 ):
     """
     Flip rows/columns for pivot display.
@@ -297,18 +298,16 @@ def pivot_table(
                     None,
                 )
 
-                catalog_spec = column.catalog_spec
+                catalog_row = None
 
-                print(
-                    column.key,
-                    column.field_name,
-                    column.display_field is not None,
-                    column.catalog_spec is not None,
-                )
+                if catalog_index is not None:
+                    catalog_row = catalog_index.get(
+                        column.field_name,
+                    )
 
                 explanation = build_field_explanation(
                     display_field=display_field,
-                    catalog_spec=catalog_spec,
+                    catalog_row=catalog_row,
                     explain_facets=explain_facets,
                     row_values=row_values,
                 )
@@ -351,6 +350,7 @@ def materialize_view(
     *,
     rows,
     registry,
+    catalog_index=None,
     view_name,
     level="case",
     mode="table",
@@ -459,7 +459,7 @@ def materialize_view(
                 # Explain Metadata
                 # =========================
                 display_field=display_field,
-                #catalog_spec=display_field.catalog_spec,
+                # catalog_spec=display_field.catalog_spec,
             )
         )
 
@@ -528,6 +528,7 @@ def materialize_view(
             table,
             registry=registry,
             explain_facets=explain_facets,
+            catalog_index=catalog_index,
         )
 
     return table

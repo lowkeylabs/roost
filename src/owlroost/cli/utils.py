@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import click
 
-from owlroost.display.operations.row_ops import attach_row_ids
 from owlroost.display.renderers.latex_table import render_latex_table
 from owlroost.display.renderers.markdown_table import render_markdown_table
 from owlroost.display.renderers.rich_table import render_rich_table
@@ -143,34 +142,6 @@ def select_rows_by_id(
     )
 
     return [row for row in rows if row.get("_row_id") in wanted]
-
-
-def prepare_dataset(
-    ds,
-    selectors=None,
-    filters=None,
-    sort=None,
-    top=None,
-):
-    ds = ds.canonical_sort()
-
-    ds = attach_row_ids(ds)
-
-    selected_ids = parse_id_selection(selectors)
-
-    if selected_ids:
-        ds.rows = select_dataset_rows(
-            ds,
-            selected_ids,
-        )
-
-    ds = ds.filter(*(filters or []))
-
-    ds = ds.sort(sort)
-
-    ds = ds.top(top)
-
-    return ds
 
 
 def split_catalog_args(

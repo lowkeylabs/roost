@@ -1,3 +1,5 @@
+# src/owlroost/display/fields/identity.py
+
 """
 Identity display fields.
 
@@ -33,6 +35,7 @@ IDENTITY_ONTOLOGY = dict(
 # =========================================================
 # Registration
 # =========================================================
+
 
 def register_display_fields(
     reg,
