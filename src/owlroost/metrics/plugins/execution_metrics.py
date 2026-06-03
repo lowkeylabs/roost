@@ -156,7 +156,7 @@ def compute_worker_utilization(row):
 
     workers = _get_value(
         row,
-        "roost_runtime.workers_per_run",
+        "roost_settings.workers_per_run",
     )
 
     return _safe_div(
@@ -173,7 +173,7 @@ def compute_trials_per_worker(row):
 
     workers = _get_value(
         row,
-        "roost_runtime.workers_per_run",
+        "roost_settings.workers_per_run",
     )
 
     return _safe_div(

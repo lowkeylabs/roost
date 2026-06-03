@@ -13,50 +13,28 @@ from __future__ import annotations
 
 import click
 
-from owlroost.catalog.comparison import (
+from owlroost.catalog.comparison.supersession import (
     collect_superseded_rows,
     find_superseded_rows,
 )
 from owlroost.cli.utils import (
-    parse_id_selection,
-    prepare_dataset,
     render_table,
     resolve_renderer,
     select_rows_by_id,
     split_build_args,
 )
 from owlroost.display.bootstrap import build_display_registry
-from owlroost.display.loaders import load_runs
-from owlroost.display.materializers.compare import (
-    materialize_compare_table,
-)
-from owlroost.display.operations.help import (
-    render_field_help,
-)
-from owlroost.display.operations.row_ops import (
-    attach_row_ids,
-)
-from owlroost.display.operations.table_ops import (
-    inject_id_column,
-)
-from owlroost.display.projection import (
-    project_dataset,
-)
-from owlroost.metrics.bootstrap import (
-    build_metrics_registry,
-)
-from owlroost.operations.delete import (
-    collect_delete_targets,
-    delete_paths,
-)
-from owlroost.operations.promote import (
-    collect_promote_targets,
-    promote_runs,
-)
-
-# from owlroost.schema.plugins.group_derived import (
-#    apply_group_derived_metrics,
-# )
+from owlroost.display.loaders import load_run_rows
+from owlroost.display.materializers.compare import materialize_compare_table
+from owlroost.display.materializers.materialize import materialize_view
+from owlroost.display.operations.filtering import apply_filters
+from owlroost.display.operations.help import render_field_help
+from owlroost.display.operations.row_ops import apply_top, attach_row_ids
+from owlroost.display.operations.sorting import apply_canonical_sort, apply_sort
+from owlroost.display.operations.table_ops import inject_id_column
+from owlroost.display.projection import project_rows
+from owlroost.metrics.bootstrap import build_metrics_registry
+from owlroost.schema.bootstrap import build_schema_registry
 
 # =========================================================
 # Helpers
@@ -296,10 +274,8 @@ def cmd_results(
     # Build Registries
     # =====================================================
 
-    schema_registry = build_registry()
-
+    schema_registry = build_schema_registry()
     metrics_registry = build_metrics_registry()
-
     display_registry = build_display_registry(
         schema_registry=schema_registry,
         metrics_registry=metrics_registry,
@@ -309,7 +285,7 @@ def cmd_results(
     # Discover + Load Runs
     # =====================================================
 
-    ds = load_runs(
+    rows = load_run_rows(
         metrics_registry=metrics_registry,
         results_root="results",
     )
@@ -318,7 +294,7 @@ def cmd_results(
     # No Results
     # =====================================================
 
-    if not ds.rows:
+    if not rows:
         click.echo("No runs found.")
         return
 
@@ -326,23 +302,23 @@ def cmd_results(
     # Derived Metrics
     # =====================================================
 
-    for row in ds.rows:
-        apply_derived_metrics(
-            row,
-            display_registry,
-        )
+    #    for row in rows:
+    #        apply_derived_metrics(
+    #            row,
+    #            display_registry,#
+    #         )
 
     # =====================================================
-    # Project Dataset
+    # Project rows
     # =====================================================
 
-    ds = project_dataset(
-        ds,
+    rows = project_rows(
+        rows,
         level=level,
     )
 
-    ds = attach_row_ids(
-        ds,
+    rows = attach_row_ids(
+        rows,
     )
 
     # =====================================================
@@ -351,7 +327,7 @@ def cmd_results(
 
     if "help" in (filters or ()):
         render_field_help(
-            dataset=ds,
+            rows=rows,
             registry=display_registry,
             level=level,
             view_name=view,
@@ -366,7 +342,7 @@ def cmd_results(
 
     if "help-all" in (filters or ()):
         render_field_help(
-            dataset=ds,
+            rows=rows,
             registry=display_registry,
             level=level,
             view_name=view,
@@ -378,7 +354,7 @@ def cmd_results(
 
     if sort == "help":
         render_field_help(
-            dataset=ds,
+            rows=rows,
             registry=display_registry,
             level=level,
             view_name=view,
@@ -393,7 +369,7 @@ def cmd_results(
 
     if sort == "help-all":
         render_field_help(
-            dataset=ds,
+            rows=rows,
             registry=display_registry,
             level=level,
             view_name=view,
@@ -422,32 +398,49 @@ def cmd_results(
     # Dataset Pipeline
     # =====================================================
 
-    ds = prepare_dataset(
-        ds,
-        selectors=selectors,
-        filters=filters,
-        sort=sort,
-        top=top,
+    rows = apply_canonical_sort(
+        rows,
     )
 
-    ds = apply_group_derived_metrics(
-        ds,
-        use_working_set=(bool(filters) or top is not None),
+    rows = apply_filters(
+        rows,
+        filters,
     )
+
+    rows = apply_sort(
+        rows,
+        sort,
+    )
+
+    rows = apply_top(
+        rows,
+        top,
+    )
+
+    rows = attach_row_ids(
+        rows,
+    )
+
+    if selectors:
+        rows = select_rows_by_id(
+            rows,
+            selectors,
+        )
+
     # =====================================================
     # Detect superseded runs
     # =====================================================
 
     if level == "run":
         find_superseded_rows(
-            ds,
+            rows,
         )
 
     # =====================================================
     # No Matching Results
     # =====================================================
 
-    if not ds.rows:
+    if not rows:
         click.echo(f"No matching {level}s found.")
         return
 
@@ -483,7 +476,7 @@ def cmd_results(
 
     if purge:
         superseded_rows = collect_superseded_rows(
-            ds,
+            rows,
         )
 
         if not superseded_rows:
@@ -750,7 +743,7 @@ def cmd_results(
 
     if compare or diff:
         table = materialize_compare_table(
-            dataset=ds,
+            rows=rows,
             diff_only=diff,
             explain=explain_facets,
         )
@@ -771,10 +764,12 @@ def cmd_results(
     # Materialize View
     # =====================================================
 
-    table = ds.view(
+    table = materialize_view(
+        rows=rows,
         registry=display_registry,
-        name=view,
-        layout="pivot" if pivot else "table",
+        level=level,
+        view_name=view,
+        mode="pivot" if pivot else "table",
         explain=explain_facets,
     )
 
@@ -785,7 +780,7 @@ def cmd_results(
     if not pivot:
         table = inject_id_column(
             table,
-            ds,
+            rows,
         )
 
     # =====================================================

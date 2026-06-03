@@ -231,7 +231,7 @@ def classify_toml_fields(toml_fields):
     excluded_prefixes = (
         "case.",
         "cache.",
-        "runtime_environment.",
+        "roost_environment.",
     )
 
     toml_fields = {f for f in toml_fields if not any(f.startswith(p) for p in excluded_prefixes)}

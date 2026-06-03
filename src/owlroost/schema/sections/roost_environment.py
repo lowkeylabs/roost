@@ -1,7 +1,7 @@
-# src/owlroost/schema/sections/runtime_environment.py
+# src/owlroost/schema/sections/roost_environment.py
 
 """
-Runtime environment schema section.
+Roost environment schema section.
 
 Notes
 -----
@@ -21,7 +21,7 @@ This module owns:
     - schema registration
     - ontology metadata
 
-for the runtime_environment TOML section.
+for the roost_environment TOML section.
 """
 
 from __future__ import annotations
@@ -37,6 +37,7 @@ from owlroost.schema.registry import (
     FieldSpec,
 )
 from owlroost.schema.utils import (
+    resolve_field_default,
     unwrap_annotation,
     walk_model,
 )
@@ -50,7 +51,7 @@ from ..specs import (
 # =========================================================
 
 
-class RuntimeEnvironmentConfig(
+class RoostEnvironmentConfig(
     BaseSectionConfig,
 ):
     """
@@ -116,9 +117,9 @@ def register_schema_fields(
 
     for name, field in walk_model(
         "",
-        RuntimeEnvironmentConfig,
+        RoostEnvironmentConfig,
     ):
-        full_name = f"runtime_environment.{name}"
+        full_name = f"roost_environment.{name}"
 
         if full_name in reg:
             continue
@@ -135,8 +136,9 @@ def register_schema_fields(
                 # =========================================
                 # Runtime Realization
                 # =========================================
-                path=("runtime_environment",) + tuple(name.split(".")),
+                path=("roost_environment",) + tuple(name.split(".")),
                 source="input",
+                default=resolve_field_default(field),
                 # =========================================
                 # Ontology
                 # =========================================
@@ -151,6 +153,6 @@ def register_schema_fields(
                 # Documentation
                 # =========================================
                 description=(field.description or ""),
-                defined_in="runtime_environment",
+                defined_in="roost_environment",
             )
         )

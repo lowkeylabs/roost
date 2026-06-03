@@ -1,7 +1,7 @@
 # src/owlroost/schema/sweeps/optimization_goal.py
 
 """
-roost_runtime.optimization_goal sweep variable.
+roost_sweeps.optimization_goal sweep variable.
 
 Notes
 -----
@@ -63,13 +63,13 @@ def register_schema_fields(
             # =================================================
             # Identity
             # =================================================
-            name=("roost_runtime.optimization_goal"),
+            name=("roost_sweeps.optimization_goal"),
             dtype=str,
             # =================================================
             # Runtime Realization
             # =================================================
             path=(
-                "roost_runtime",
+                "roost_sweeps",
                 "optimization_goal",
             ),
             source="sweep",
@@ -133,7 +133,7 @@ def expand(
     """
 
     runtime = run_dict.setdefault(
-        "roost_runtime",
+        "roost_sweeps",
         {},
     )
 
@@ -156,7 +156,7 @@ def expand(
         )
 
     except Exception as err:
-        raise ValueError(f"Invalid roost_runtime.optimization_goal value: {value}") from err
+        raise ValueError(f"Invalid roost_sweeps.optimization_goal value: {value}") from err
 
     optimization = run_dict.setdefault(
         "optimization_parameters",

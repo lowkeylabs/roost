@@ -122,7 +122,7 @@ def _row_timestamp(
 
 
 def find_superseded_rows(
-    dataset,
+    input_rows,
 ):
     """
     Detect superseded equivalent runs.
@@ -140,7 +140,7 @@ def find_superseded_rows(
     """
 
     rows = sorted(
-        dataset.rows,
+        input_rows,
         key=_row_timestamp,
         reverse=True,
     )
@@ -200,14 +200,14 @@ def find_superseded_rows(
 
 
 def collect_superseded_rows(
-    dataset,
+    rows,
 ):
     """
     Return rows safe to purge.
     """
 
     pairs = find_superseded_rows(
-        dataset,
+        rows,
     )
 
     return [pair["superseded"] for pair in pairs]

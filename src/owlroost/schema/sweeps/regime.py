@@ -26,10 +26,10 @@ def register_schema_fields(
 ):
     reg.register(
         FieldSpec(
-            name="rates_selection.regime",
+            name="roost_sweeps.regime",
             dtype=str,
             path=(
-                "rates_selection",
+                "roost_sweeps",
                 "regime",
             ),
             source="sweep",
@@ -53,14 +53,19 @@ def register_schema_fields(
 def expand(
     run_dict,
 ):
-    rates = run_dict.setdefault(
-        "rates_selection",
+    roost = run_dict.setdefault(
+        "roost_sweeps",
         {},
     )
 
-    regime = rates.pop(
+    regime = roost.pop(
         "regime",
         None,
+    )
+
+    rates = run_dict.setdefault(
+        "rates_selection",
+        {},
     )
 
     if not regime:

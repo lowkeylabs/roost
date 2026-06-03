@@ -241,7 +241,7 @@ Examples:
 | ------------------------------ | ----- |
 | `solver_options.bequest`       | OWL   |
 | `rates_selection.method`       | OWL   |
-| `roost_runtime.trials_per_run` | ROOST |
+| `roost_settings.trials_per_run` | ROOST |
 | `compact_id`                   | ROOST |
 
 Ownership is stable and SHOULD NOT change because of:
@@ -334,7 +334,7 @@ Examples:
 | `workers_per_run`       |
 | `OMP_NUM_THREADS`       |
 | `worker_timeout`        |
-| `runtime_environment.*` |
+| `roost_environment.*` |
 
 Execution variables SHOULD ideally NOT change:
 

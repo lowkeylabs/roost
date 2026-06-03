@@ -68,7 +68,7 @@ def validate_execution_plan(run_dirs):
     for run_dir in run_dirs:
         cfg = load_run_config(run_dir)
 
-        solver = cfg.get("roost_runtime", {}).get("resolved_solver")
+        solver = cfg.get("roost_settings", {}).get("resolved_solver")
 
         if solver:
             required_solvers.add(solver)
@@ -246,7 +246,7 @@ def runtime_environment_scope(
     """
 
     runtime_env = run_cfg.get(
-        "runtime_environment",
+        "roost_environment",
         {},
     )
 
@@ -493,8 +493,8 @@ def execute_run(
     start = time.time()
 
     with runtime_environment_scope(run_cfg):
-        solver = run_cfg["roost_runtime"]["resolved_solver"]
-        workers_per_run = run_cfg["roost_runtime"]["resolved_workers_per_run"]
+        solver = run_cfg["roost_settings"]["resolved_solver"]
+        workers_per_run = run_cfg["roost_settings"]["resolved_workers_per_run"]
 
         case_name = run_cfg.get("case", {}).get("name")
 
@@ -639,7 +639,7 @@ def execute_runs(
         run_cfg = load_run_config(run_dir)
 
         runtime = run_cfg.get(
-            "roost_runtime",
+            "roost_settings",
             {},
         )
 
@@ -676,7 +676,7 @@ def execute_runs(
     if single_trial_runs:
         first_cfg = load_run_config(single_trial_runs[0])
 
-        bundled_workers = first_cfg.get("roost_runtime", {}).get("resolved_workers_per_run", 1)
+        bundled_workers = first_cfg.get("roost_settings", {}).get("resolved_workers_per_run", 1)
 
         # logger.info("Executing bundled single-trial runs " f"with {bundled_workers} workers")
 

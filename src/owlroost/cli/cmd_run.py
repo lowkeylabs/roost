@@ -17,30 +17,18 @@ from pathlib import Path
 import click
 
 from owlroost.cli.utils import (
-    prepare_dataset,
     render_table,
     resolve_renderer,
 )
-from owlroost.core.run_owl_executor import (
-    execute_runs,
-)
-from owlroost.display.bootstrap import (
-    build_display_registry,
-)
-
-# from owlroost.display.derived import (
-#    apply_derived_metrics,
-# )
-from owlroost.display.loaders import (
-    load_runs,
-)
-from owlroost.metrics.bootstrap import (
-    build_metrics_registry,
-)
-
-# from owlroost.schema.plugins.group_derived import (
-#    apply_group_derived_metrics,
-# )
+from owlroost.core.run_owl_executor import execute_runs
+from owlroost.display.bootstrap import build_display_registry
+from owlroost.display.loaders import load_run_rows
+from owlroost.display.materializers.materialize import materialize_view
+from owlroost.display.operations.filtering import apply_filters
+from owlroost.display.operations.row_ops import apply_top, attach_row_ids
+from owlroost.display.operations.sorting import apply_canonical_sort, apply_sort
+from owlroost.metrics.bootstrap import build_metrics_registry
+from owlroost.schema.bootstrap import build_schema_registry
 
 # =========================================================
 # CLI
@@ -144,7 +132,7 @@ def cmd_run(
     # Build Registries
     # =====================================================
 
-    schema_registry = build_registry()
+    schema_registry = build_schema_registry()
 
     metrics_registry = build_metrics_registry()
 
@@ -152,29 +140,18 @@ def cmd_run(
         schema_registry=schema_registry,
         metrics_registry=metrics_registry,
     )
-
     # =====================================================
     # Discover + Load Runs
     # =====================================================
 
-    ds = load_runs(
+    rows = load_run_rows(
         metrics_registry=metrics_registry,
         results_root=str(root),
     )
 
-    if not ds.rows:
+    if not rows:
         click.echo("No runs found.")
         return
-
-    # =====================================================
-    # Derived Metrics
-    # =====================================================
-
-    for row in ds.rows:
-        apply_derived_metrics(
-            row,
-            display_registry,
-        )
 
     # =====================================================
     # Default Pending Filter
@@ -185,32 +162,34 @@ def cmd_run(
     if not rerun:
         filter_list.append("trial.pending>0")
 
-    # =====================================================
-    # Dataset Pipeline
-    # =====================================================
-
-    ds = prepare_dataset(
-        ds,
-        selectors=selectors,
-        filters=filter_list,
-        sort=sort,
-        top=top,
+    rows = apply_canonical_sort(
+        rows,
     )
 
-    # =====================================================
-    # Group Derived Metrics
-    # =====================================================
+    rows = apply_filters(
+        rows,
+        filter_list,
+    )
 
-    ds = apply_group_derived_metrics(
-        ds,
-        use_working_set=(bool(filter_list) or top is not None),
+    rows = apply_sort(
+        rows,
+        sort,
+    )
+
+    rows = apply_top(
+        rows,
+        top,
+    )
+
+    rows = attach_row_ids(
+        rows,
     )
 
     # =====================================================
     # No Matching Runs
     # =====================================================
 
-    if not ds.rows:
+    if not rows:
         if rerun:
             click.echo("No matching runs found.")
 
@@ -232,10 +211,12 @@ def cmd_run(
     # Materialize View
     # =====================================================
 
-    table = ds.view(
+    table = materialize_view(
+        rows=rows,
         registry=display_registry,
-        name=view,
-        layout="pivot" if pivot else "table",
+        level="run",
+        view_name=view,
+        mode="pivot" if pivot else "table",
     )
 
     # =====================================================
@@ -263,7 +244,7 @@ def cmd_run(
 
     selected_runs = []
 
-    for row in ds.rows:
+    for row in rows:
         run_dir = row.get("_path")
 
         if run_dir:

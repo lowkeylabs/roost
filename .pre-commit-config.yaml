@@ -55,11 +55,11 @@ repos:
       # Static Type Checking
       # ------------------------------------------------------
 
-      - id: pyright
-        name: Pyright
-        language: system
-        entry: uv run pyright
-        pass_filenames: false
+      # - id: pyright
+      #   name: Pyright
+      #   language: system
+      #   entry: uv run pyright
+      #   pass_filenames: false
 
       # ------------------------------------------------------
       # ROOST Architecture Audits

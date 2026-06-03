@@ -73,7 +73,7 @@ def format_value(value, fmt: str | None):
             def normalize_key(k):
                 if isinstance(k, str):
                     k = k.replace(
-                        "fixed_income.social_security_ages",
+                        "roost_sweeps.social_security_ages",
                         "ss_ages",
                     )
 
@@ -88,7 +88,7 @@ def format_value(value, fmt: str | None):
                     )
 
                     k = k.replace(
-                        "roost_runtime.optimization_goal",
+                        "roost_sweeps.optimization_goal",
                         "goal",
                     )
 

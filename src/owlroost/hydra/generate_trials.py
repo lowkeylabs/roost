@@ -17,6 +17,7 @@ import shutil
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 import hydra
 import numpy as np
@@ -29,11 +30,11 @@ from omegaconf import DictConfig, OmegaConf
 from owlroost.core.progress_renderers import (
     create_renderer,
 )
-from owlroost.schema.sections.roost_runtime import (
-    RoostRuntimeConfig,
+from owlroost.schema.sections.roost_environment import (
+    RoostEnvironmentConfig,
 )
-from owlroost.schema.sections.runtime_environment import (
-    RuntimeEnvironmentConfig,
+from owlroost.schema.sections.roost_settings import (
+    RoostSettingsConfig,
 )
 from owlroost.schema.sweeps import (
     expand_sweeps,
@@ -156,7 +157,7 @@ def resolve_workers_per_run(
     """
 
     runtime = run_cfg.get(
-        "roost_runtime",
+        "roost_settings",
         {},
     )
 
@@ -206,7 +207,7 @@ def materialize_execution_plan(run_dict):
     )
 
     runtime_section = run_dict.setdefault(
-        "roost_runtime",
+        "roost_settings",
         {},
     )
 
@@ -307,8 +308,8 @@ def generate_trials(cfg: DictConfig):
     cfg_dict = expand_sweeps(cfg_dict)
 
     SECTION_MODELS = {
-        "roost_runtime": RoostRuntimeConfig,
-        "runtime_environment": RuntimeEnvironmentConfig,
+        "roost_settings": RoostSettingsConfig,
+        "roost_environment": RoostEnvironmentConfig,
     }
 
     section_models = {}
@@ -319,6 +320,11 @@ def generate_trials(cfg: DictConfig):
                 section_name,
                 {},
             )
+        )
+
+        section_cfg = cast(
+            dict[str, object],
+            section_cfg,
         )
 
         model = model_cls(**section_cfg)
@@ -374,12 +380,12 @@ def generate_trials(cfg: DictConfig):
 
     run_dict = materialize_execution_plan(run_dict)
 
-    runtime_cfg = section_models.get("roost_runtime")
-    env_cfg = section_models.get("runtime_environment")
+    runtime_cfg = section_models.get("roost_settings")
+    env_cfg = section_models.get("roost_environment")
 
     if runtime_cfg and env_cfg:
         runtime_section = run_dict.get(
-            "roost_runtime",
+            "roost_settings",
             {},
         )
 
@@ -436,7 +442,7 @@ def generate_trials(cfg: DictConfig):
             # Re-sync updated model back into run_dict
             # ---------------------------------------------
 
-        run_dict["runtime_environment"] = env_cfg.model_dump(
+        run_dict["roost_environment"] = env_cfg.model_dump(
             exclude_none=True,
         )
 
@@ -491,9 +497,9 @@ def generate_trials(cfg: DictConfig):
     # Trial setup
     # ----------------------------------------
 
-    roost_runtime = section_models["roost_runtime"]
-    trials_per_run = roost_runtime.trials_per_run
-    master_seed = roost_runtime.master_seed or 0
+    roost_settings = section_models["roost_settings"]
+    trials_per_run = roost_settings.trials_per_run
+    master_seed = roost_settings.master_seed or 0
 
     trial_ids = list(range(trials_per_run))
     seed_map = spawn_trial_seeds(master_seed, trial_ids)

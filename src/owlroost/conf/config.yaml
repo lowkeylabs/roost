@@ -10,8 +10,9 @@ defaults:
 - optimization_parameters: default
 - rates_selection: default
 - results: default
-- roost_runtime: default
-- runtime_environment: default
+- roost_environment: default
+- roost_settings: default
+- roost_sweeps: default
 - savings_assets: default
 - solver_options: default
 - spending_policy: default

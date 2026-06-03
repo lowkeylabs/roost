@@ -17,7 +17,7 @@ from __future__ import annotations
 
 
 def materialize_compare_table(
-    dataset,
+    rows,
     diff_only=False,
     explain=None,
 ):
@@ -30,8 +30,6 @@ def materialize_compare_table(
     explain_facets = normalize_explain_facets(
         explain,
     )
-
-    rows = dataset.rows
 
     entries = build_compare_entries(
         rows,

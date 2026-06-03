@@ -19,7 +19,7 @@ import yaml
 
 from owlroost.core.hfp import summarize_hfp
 from owlroost.metrics.aggregation.service import (
-    aggregate_dataset,
+    aggregate_rows,
 )
 
 from .discovery.cases import (
@@ -261,7 +261,7 @@ def _load_case_file(
     load_hfp=True,
 ):
     """
-    Load a single TOML case file into dataset row format.
+    Load a single TOML case file into row format.
 
     Parameters
     ----------
@@ -309,7 +309,7 @@ def _load_case_file(
         }
 
     # =====================================================
-    # Dataset row
+    # Case row
     # =====================================================
 
     resolved_path = path.resolve()
@@ -471,7 +471,7 @@ def _load_run_dir(
     completion_rate = completed / total if total > 0 else 0.0
 
     # =====================================================
-    # Load Trial Dataset
+    # Load Trial Rows
     # =====================================================
 
     trial_rows = []
@@ -488,11 +488,6 @@ def _load_run_dir(
         if row is not None:
             trial_rows.append(row)
 
-    trial_dataset = Dataset(
-        trial_rows,
-        level="trial",
-    )
-
     # =====================================================
     # Aggregate Trial Metrics
     # =====================================================
@@ -500,8 +495,8 @@ def _load_run_dir(
     agg_metrics = {}
 
     if trial_rows:
-        agg_metrics = aggregate_dataset(
-            dataset=trial_dataset,
+        agg_metrics = aggregate_rows(
+            rows=trial_rows,
             metrics_registry=metrics_registry,
         )
 
@@ -583,13 +578,13 @@ def load_hydra_overrides(
     )
 
 
-def load_cases(
+def load_case_rows(
     source=".",
     *,
     load_hfp=True,
 ):
     """
-    Load case dataset from:
+    Load case rows from:
 
         - directory of TOML case files
         - YAML list of TOML paths
@@ -624,10 +619,7 @@ def load_cases(
             row.setdefault("_meta", {})
             row["_meta"]["case_id"] = idx
 
-        return Dataset(
-            rows,
-            level="case",
-        )
+        return rows
 
     # =====================================================
     # YAML → explicit TOML file list
@@ -654,10 +646,7 @@ def load_cases(
             row.setdefault("_meta", {})
             row["_meta"]["case_id"] = idx
 
-        return Dataset(
-            rows,
-            level="case",
-        )
+        return rows
 
     # =====================================================
     # Unsupported source
@@ -671,7 +660,7 @@ def load_cases(
 # =========================================================
 
 
-def load_runs(
+def load_run_rows(
     metrics_registry,
     results_root="results",
 ):
@@ -751,7 +740,12 @@ def load_runs(
         if row is not None:
             rows.append(row)
 
-    return Dataset(
-        rows,
-        level="run",
-    )
+    return rows
+
+
+def load_cases():
+    pass
+
+
+def load_runs():
+    pass

@@ -551,8 +551,9 @@ def compute_diff(
 
     ignored_prefixes = (
         "promotion.",
-        "roost_runtime.",
-        "runtime_environment.",
+        "roost_settings.",
+        "roost_environment.",
+        "roost_sweeps.",
     )
 
     ignored_exact = {

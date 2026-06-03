@@ -1,4 +1,4 @@
-# src/owlroost/display/views/views.py
+# src/owlroost/display/views/catalog.py
 
 """
 TODO: Document module.

@@ -19,20 +19,27 @@ from pathlib import Path
 import click
 
 from owlroost.cli.utils import (
-    prepare_dataset,
     render_table,
     resolve_renderer,
+    select_rows_by_id,
     split_build_args,
 )
 from owlroost.core.run_owl_executor import execute_runs
 from owlroost.display.bootstrap import build_display_registry
 from owlroost.display.discovery import find_runs
-from owlroost.display.loaders import load_cases
+from owlroost.display.loaders import load_case_rows
 from owlroost.display.materializers.compare import materialize_compare_table
+from owlroost.display.materializers.materialize import materialize_view
+from owlroost.display.operations.filtering import apply_filters
 from owlroost.display.operations.help import render_field_help
-from owlroost.display.operations.row_ops import attach_row_ids
+from owlroost.display.operations.row_ops import apply_top, attach_row_ids
+from owlroost.display.operations.sorting import apply_canonical_sort, apply_sort
 from owlroost.display.operations.table_ops import inject_id_column
 from owlroost.metrics.bootstrap import build_metrics_registry
+from owlroost.schema.bootstrap import build_schema_registry
+
+DEFAULT_LEVEL = "case"
+DEFAULT_VIEW = "build"
 
 
 # ---------------------------------------------------------
@@ -294,7 +301,7 @@ def cmd_build(
     # set default view to "build" or "cases"
     # will automatically load as "case" view
     if view is None:
-        view = ctx.info_name
+        view = ctx.info_name or DEFAULT_VIEW
 
     selectors, overrides = split_build_args(args)
     is_cases_command = _invoked_as == "cases"
@@ -305,7 +312,7 @@ def cmd_build(
     #
     #        build_only = True
 
-    schema_registry = build_registry()
+    schema_registry = build_schema_registry()
     metrics_registry = build_metrics_registry()
     display_registry = build_display_registry(
         schema_registry=schema_registry,
@@ -316,12 +323,12 @@ def cmd_build(
     # Context-sensitive CLI help
     # =====================================================
 
-    ds = load_cases(".")
-    ds = attach_row_ids(ds)
+    rows = load_case_rows(".")
+    rows = attach_row_ids(rows)
 
     if "help" in (filters or ()):
         render_field_help(
-            dataset=ds,
+            rows=rows,
             registry=display_registry,
             level="case",
             view_name=view,
@@ -339,7 +346,7 @@ def cmd_build(
 
     if "help-all" in (filters or ()):
         render_field_help(
-            dataset=ds,
+            rows=rows,
             registry=display_registry,
             level="case",
             view_name=view,
@@ -351,7 +358,7 @@ def cmd_build(
 
     if sort == "help":
         render_field_help(
-            dataset=ds,
+            rows=rows,
             registry=display_registry,
             level="case",
             view_name=view,
@@ -368,7 +375,7 @@ def cmd_build(
 
     if sort == "help-all":
         render_field_help(
-            dataset=ds,
+            rows=rows,
             registry=display_registry,
             level="case",
             view_name=view,
@@ -398,17 +405,38 @@ def cmd_build(
     # ----------------------------------------
     # Discover + load case dataset
     # ----------------------------------------
-    ds = prepare_dataset(
-        ds,
-        selectors=selectors,
-        filters=filters,
-        sort=sort,
-        top=top,
+    rows = apply_canonical_sort(
+        rows,
     )
 
-    if not ds.rows:
+    rows = apply_filters(
+        rows,
+        filters,
+    )
+
+    rows = apply_sort(
+        rows,
+        sort,
+    )
+
+    rows = apply_top(
+        rows,
+        top,
+    )
+
+    rows = attach_row_ids(
+        rows,
+    )
+
+    if not rows:
         click.echo("No case TOML files found.")
         return
+
+    if selectors:
+        rows = select_rows_by_id(
+            rows,
+            selectors,
+        )
 
     # ----------------------------------------
     # Resolve renderer
@@ -447,7 +475,7 @@ def cmd_build(
 
     auto_compare = (
         is_cases_command
-        and len(ds.rows) == 1
+        and len(rows) == 1
         and not compare
         and not diff
         and not pivot
@@ -456,7 +484,7 @@ def cmd_build(
 
     if compare or diff or auto_compare:
         table = materialize_compare_table(
-            dataset=ds,
+            rows,
             diff_only=diff,
             explain=explain_facets,
         )
@@ -475,17 +503,18 @@ def cmd_build(
     # List available cases
     # ----------------------------------------
     if is_cases_command or (not selectors and not overrides):
-        table = ds.view(
+        table = materialize_view(
+            rows=rows,
             registry=display_registry,
-            name=view,
-            layout="pivot" if pivot else "table",
-            explain=explain_facets,
+            level=DEFAULT_LEVEL,
+            view_name=view,
+            mode="pivot" if pivot else "table",
         )
 
         if not pivot:
             table = inject_id_column(
                 table,
-                ds,
+                rows,
             )
 
         output = render_table(
@@ -501,7 +530,7 @@ def cmd_build(
     # ----------------------------------------
     # Resolve selected case
     # ----------------------------------------
-    selected_rows = ds.rows
+    selected_rows = rows
 
     if not selected_rows:
         raise click.ClickException("No matching case selections.")

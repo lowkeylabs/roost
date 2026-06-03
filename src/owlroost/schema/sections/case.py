@@ -36,6 +36,7 @@ from owlroost.schema.registry import (
     FieldSpec,
 )
 from owlroost.schema.utils import (
+    resolve_field_default,
     unwrap_annotation,
     walk_model,
 )
@@ -103,6 +104,7 @@ def register_schema_fields(
                 # =====================================
                 path=("case",) + tuple(name.split(".")),
                 source="input",
+                default=resolve_field_default(field),
                 # =====================================
                 # Ontology
                 # =====================================

@@ -18,12 +18,12 @@ from collections import defaultdict
 # =========================================================
 
 
-def project_dataset(
-    dataset,
+def project_rows(
+    rows,
     level,
 ):
     """
-    Project dataset into operational hierarchy level.
+    Project rows into session or case provenance rows.
 
     Levels:
         run
@@ -31,17 +31,14 @@ def project_dataset(
         case
     """
 
-    if level == dataset.level:
-        return dataset
-
     if level == "run":
-        return dataset
+        return rows
 
     if level == "session":
-        return project_run_to_session(dataset)
+        return project_run_to_session(rows)
 
     if level == "case":
-        return project_run_to_case(dataset)
+        return project_run_to_case(rows)
 
     raise ValueError(f"Unsupported projection level: {level}")
 
@@ -52,7 +49,7 @@ def project_dataset(
 
 
 def project_run_to_session(
-    dataset,
+    input_rows,
 ):
     """
     Aggregate run rows into session provenance rows.
@@ -63,7 +60,7 @@ def project_run_to_session(
 
     groups = defaultdict(list)
 
-    for row in dataset.rows:
+    for row in input_rows:
         meta = row.get("_meta", {})
 
         key = (
@@ -124,10 +121,7 @@ def project_run_to_session(
             }
         )
 
-    return Dataset(
-        rows,
-        level="session",
-    )
+    return rows
 
 
 # =========================================================
@@ -136,7 +130,7 @@ def project_run_to_session(
 
 
 def project_run_to_case(
-    dataset,
+    input_rows,
 ):
     """
     Aggregate run rows into case provenance rows.
@@ -144,7 +138,7 @@ def project_run_to_case(
 
     groups = defaultdict(list)
 
-    for row in dataset.rows:
+    for row in input_rows:
         case_id = row.get("_meta", {}).get("case_id")
 
         groups[case_id].append(row)
@@ -191,7 +185,4 @@ def project_run_to_case(
             }
         )
 
-    return Dataset(
-        rows,
-        level="case",
-    )
+    return rows

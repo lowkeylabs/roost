@@ -1,7 +1,7 @@
-# src/owlroost/schema/sections/roost_runtime.py
+# src/owlroost/schema/sections/roost_settings.py
 
 """
-ROOST runtime schema section.
+ROOST settings schema section.
 
 Notes
 -----
@@ -19,7 +19,7 @@ This module owns:
     - schema registration
     - ontology metadata
 
-for the roost_runtime TOML section.
+for the roost_settings TOML section.
 """
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ from owlroost.schema.registry import (
     FieldSpec,
 )
 from owlroost.schema.utils import (
+    resolve_field_default,
     unwrap_annotation,
     walk_model,
 )
@@ -48,7 +49,7 @@ from ..specs import (
 # =========================================================
 
 
-class RoostRuntimeConfig(
+class RoostSettingsConfig(
     BaseSectionConfig,
 ):
     """
@@ -185,14 +186,14 @@ def register_schema_fields(
     reg,
 ):
     """
-    Register roost runtime fields.
+    Register roost settings fields.
     """
 
     for name, field in walk_model(
         "",
-        RoostRuntimeConfig,
+        RoostSettingsConfig,
     ):
-        full_name = f"roost_runtime.{name}"
+        full_name = f"roost_settings.{name}"
 
         if full_name in reg:
             continue
@@ -209,8 +210,9 @@ def register_schema_fields(
                 # =========================================
                 # Runtime Realization
                 # =========================================
-                path=("roost_runtime",) + tuple(name.split(".")),
+                path=("roost_settings",) + tuple(name.split(".")),
                 source="input",
+                default=resolve_field_default(field),
                 # =========================================
                 # Ontology
                 # =========================================
@@ -225,6 +227,6 @@ def register_schema_fields(
                 # Documentation
                 # =========================================
                 description=(field.description or ""),
-                defined_in="roost_runtime",
+                defined_in="roost_settings",
             )
         )

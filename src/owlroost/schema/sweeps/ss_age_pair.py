@@ -20,10 +20,10 @@ def register_schema_fields(
 ):
     reg.register(
         FieldSpec(
-            name="fixed_income.ss_age_pair",
+            name="roost_sweeps.ss_age_pair",
             dtype=str,
             path=(
-                "fixed_income",
+                "roost_sweeps",
                 "ss_age_pair",
             ),
             source="sweep",

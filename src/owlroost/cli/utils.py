@@ -253,11 +253,11 @@ def overrides_request_trials(
 
     Supports Hydra sweep syntax like:
 
-        roost_runtime.trials_per_run=1,10,50
+        roost_settings.trials_per_run=1,10,50
     """
 
     keys = {
-        "roost_runtime.trials_per_run",
+        "roost_settings.trials_per_run",
         "roost.trials_per_run",
         "runtime.trials_per_run",
     }
