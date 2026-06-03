@@ -25,6 +25,11 @@ Display does NOT own:
     - lineage graphs
     - provenance graphs
 
+Authoring metadata may be supplied by
+display declarations, but provenance
+history is synthesized by the catalog
+subsystem.
+
 Synthetic semantic variables may be
 declared within display modules for
 authoring convenience, but semantic
@@ -57,6 +62,10 @@ from dataclasses import (
     field,
 )
 from typing import TYPE_CHECKING, Literal, TypedDict
+
+from owlroost.catalog.provenance import (
+    ProvenanceOperation,
+)
 
 if TYPE_CHECKING:
     from owlroost.catalog.specs import CatalogSpec
@@ -177,6 +186,12 @@ class DisplayField:
 
     description: str | None = None
 
+    # =====================================================
+    # Authoring Metadata
+    # =====================================================
+
+    defined_in: str | None = None
+
     notes: str = ""
 
     @staticmethod
@@ -249,12 +264,19 @@ class DisplayField:
             "expands_to",
         }
 
+        authoring_keys = {
+            "defined_in",
+        }
+
         ontology: OntologyKwargs = {}
 
         lineage: dict[
             str,
             list[str],
         ] = {}
+
+        authoring: dict[str, str] = {}
+
         # =====================================================
         # Extract Catalog Metadata
         # =====================================================
@@ -264,9 +286,12 @@ class DisplayField:
                 ontology[key] = kwargs.pop(
                     key,
                 )
-
             elif key in lineage_keys:
                 lineage[key] = kwargs.pop(
+                    key,
+                )
+            elif key in authoring_keys:
+                authoring[key] = kwargs.pop(
                     key,
                 )
 
@@ -275,9 +300,14 @@ class DisplayField:
         # =====================================================
 
         if not ontology and not lineage:
+            defined_in = authoring.get(
+                "defined_in",
+            )
+
             return cls(
                 field_name=field_name,
                 catalog_declaration=None,
+                defined_in=defined_in,
                 **kwargs,
             )
 
@@ -341,10 +371,25 @@ class DisplayField:
             **ontology,
         )
 
+        defined_in = authoring.get(
+            "defined_in",
+        )
+
+        if ontology and not defined_in:
+            raise ValueError(f"{field_name}: missing defined_in")
+
+        if 0 and defined_in:
+            catalog_declaration.add_provenance(
+                stage="display",
+                operation=ProvenanceOperation.REGISTERED,
+                file=defined_in,
+            )
+
         return cls(
             field_name=field_name,
             catalog_declaration=(catalog_declaration),
             profiles=profiles,
+            defined_in=defined_in,
             **kwargs,
         )
 

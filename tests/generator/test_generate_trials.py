@@ -56,7 +56,7 @@ def hydra_cfg(
             "case": {
                 "file": str(tmp_case),
             },
-            "roost_runtime": {
+            "roost_settings": {
                 "master_seed": 123,
                 "trials_per_run": 3,
                 "workers_per_run": 4,
@@ -283,7 +283,7 @@ def test_effective_config_written(
 
     assert "case" in data
 
-    assert "roost_runtime" in data
+    assert "roost_settings" in data
 
 
 # =========================================================
@@ -296,7 +296,7 @@ def test_explicit_solver_is_preserved():
         "solver_options": {
             "solver": "HiGHS",
         },
-        "roost_runtime": {
+        "roost_settings": {
             "workers_per_run_mode": "auto",
             "auto_workers_by_solver": {
                 "HiGHS": 14,
@@ -308,9 +308,9 @@ def test_explicit_solver_is_preserved():
 
     assert out["solver_options"]["solver"] == "HiGHS"
 
-    assert out["roost_runtime"]["resolved_solver"] == "HiGHS"
+    assert out["roost_settings"]["resolved_solver"] == "HiGHS"
 
-    assert out["roost_runtime"]["resolved_workers_per_run"] == 14
+    assert out["roost_settings"]["resolved_workers_per_run"] == 14
 
 
 def test_default_solver_materialized_when_auto_workers(
@@ -325,7 +325,7 @@ def test_default_solver_materialized_when_auto_workers(
         "solver_options": {
             "solver": "default",
         },
-        "roost_runtime": {
+        "roost_settings": {
             "workers_per_run_mode": "auto",
             "auto_workers_by_solver": {
                 "MOSEK": 6,
@@ -338,9 +338,9 @@ def test_default_solver_materialized_when_auto_workers(
 
     assert out["solver_options"]["solver"] == "MOSEK"
 
-    assert out["roost_runtime"]["resolved_solver"] == "MOSEK"
+    assert out["roost_settings"]["resolved_solver"] == "MOSEK"
 
-    assert out["roost_runtime"]["resolved_workers_per_run"] == 6
+    assert out["roost_settings"]["resolved_workers_per_run"] == 6
 
 
 def test_default_solver_preserved_when_workers_explicit(
@@ -355,7 +355,7 @@ def test_default_solver_preserved_when_workers_explicit(
         "solver_options": {
             "solver": "default",
         },
-        "roost_runtime": {
+        "roost_settings": {
             "workers_per_run": 8,
         },
     }
@@ -364,9 +364,9 @@ def test_default_solver_preserved_when_workers_explicit(
 
     assert out["solver_options"]["solver"] == "default"
 
-    assert out["roost_runtime"]["resolved_solver"] == "MOSEK"
+    assert out["roost_settings"]["resolved_solver"] == "MOSEK"
 
-    assert out["roost_runtime"]["resolved_workers_per_run"] == 8
+    assert out["roost_settings"]["resolved_workers_per_run"] == 8
 
 
 def test_default_solver_materializes_to_highs(
@@ -381,7 +381,7 @@ def test_default_solver_materializes_to_highs(
         "solver_options": {
             "solver": "default",
         },
-        "roost_runtime": {
+        "roost_settings": {
             "workers_per_run_mode": "auto",
             "auto_workers_by_solver": {
                 "HiGHS": 14,
@@ -393,9 +393,9 @@ def test_default_solver_materializes_to_highs(
 
     assert out["solver_options"]["solver"] == "HiGHS"
 
-    assert out["roost_runtime"]["resolved_solver"] == "HiGHS"
+    assert out["roost_settings"]["resolved_solver"] == "HiGHS"
 
-    assert out["roost_runtime"]["resolved_workers_per_run"] == 14
+    assert out["roost_settings"]["resolved_workers_per_run"] == 14
 
 
 def test_execution_metadata_always_materialized(
@@ -410,7 +410,7 @@ def test_execution_metadata_always_materialized(
 
     out = materialize_execution_plan(deepcopy(run_dict))
 
-    runtime = out["roost_runtime"]
+    runtime = out["roost_settings"]
 
     assert "resolved_solver" in runtime
 
@@ -429,7 +429,7 @@ def test_explicit_workers_override_auto_mapping(
         "solver_options": {
             "solver": "MOSEK",
         },
-        "roost_runtime": {
+        "roost_settings": {
             "workers_per_run": 3,
             "workers_per_run_mode": "auto",
             "auto_workers_by_solver": {
@@ -440,4 +440,4 @@ def test_explicit_workers_override_auto_mapping(
 
     out = materialize_execution_plan(deepcopy(run_dict))
 
-    assert out["roost_runtime"]["resolved_workers_per_run"] == 3
+    assert out["roost_settings"]["resolved_workers_per_run"] == 3

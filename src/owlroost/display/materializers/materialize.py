@@ -174,8 +174,6 @@ def pivot_table(
         explain_facets,
     )
 
-    field_names = [c.key for c in table.columns]
-
     # =====================================================
     # Synthetic Pivot Profiles
     # =====================================================
@@ -222,7 +220,7 @@ def pivot_table(
     new_columns = [
         TableColumn(
             key="pivot_metric",
-            label=(metric_profile.label if metric_profile else "Metric"),
+            label=str(metric_profile.label if metric_profile is not None else "Metric"),
             width=(metric_profile.width if metric_profile else 25),
             wrap=(metric_profile.wrap if metric_profile else True),
             content_align="left",
@@ -250,7 +248,7 @@ def pivot_table(
         new_columns.append(
             TableColumn(
                 key="pivot_explanation",
-                label=(explanation_profile.label if explanation_profile else "Explanation"),
+                label=str(explanation_profile.label if explanation_profile else "Explanation"),
                 width=(explanation_profile.width if explanation_profile else 50),
                 wrap=(explanation_profile.wrap if explanation_profile else True),
                 content_align="left",
@@ -293,20 +291,27 @@ def pivot_table(
             explanation = ""
 
             try:
-                field_name = field_names[col_idx]
+                display_field = getattr(
+                    column,
+                    "display_field",
+                    None,
+                )
 
-                display_field = registry.get_display_field(
-                    field_name,
+                catalog_spec = column.catalog_spec
+
+                print(
+                    column.key,
+                    column.field_name,
+                    column.display_field is not None,
+                    column.catalog_spec is not None,
                 )
 
                 explanation = build_field_explanation(
-                    display_field,
-                    explain_facets,
+                    display_field=display_field,
+                    catalog_spec=catalog_spec,
+                    explain_facets=explain_facets,
                     row_values=row_values,
                 )
-
-            except KeyError:
-                explanation = f"Key error: {col_idx}"
 
             except Exception as ex:
                 explanation = f"[explain error: {ex}]"
@@ -406,13 +411,17 @@ def materialize_view(
     visible_entries = []
 
     for entry in expanded_entries:
-        modes = entry.get("modes")
+        modes = entry.get(
+            "modes",
+        )
 
         if modes is not None:
             if mode not in modes:
                 continue
 
-        visible_entries.append(entry)
+        visible_entries.append(
+            entry,
+        )
 
     # =====================================================
     # Field Names
@@ -439,12 +448,18 @@ def materialize_view(
         columns.append(
             TableColumn(
                 key=field_name,
+                field_name=field_name,
                 label=(profile.label or field_name),
-                label_align=(profile.label_align),
-                content_align=(profile.content_align),
+                label_align=profile.label_align,
+                content_align=profile.content_align,
                 fmt=profile.fmt,
                 width=profile.width,
                 wrap=profile.wrap,
+                # =========================
+                # Explain Metadata
+                # =========================
+                display_field=display_field,
+                #catalog_spec=display_field.catalog_spec,
             )
         )
 

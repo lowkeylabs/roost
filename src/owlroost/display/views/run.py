@@ -60,6 +60,10 @@ def register_display_views(
                 # Identity
                 # =====================================
                 "case_name",
+                "compact_id",
+                "case_id",
+                "session_id",
+                "run_id",
                 ("description", {"modes": ["pivot"]}),
             ],
             description=(""),

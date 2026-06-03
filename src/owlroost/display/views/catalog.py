@@ -52,6 +52,7 @@ def register_display_views(
                 ("path", {"modes": ["pivot"]}),
                 ("layer", {"modes": ["pivot"]}),
                 ("source", {"modes": ["pivot"]}),
+                ("overlay_layers", {"modes": ["pivot"]}),
                 # =====================================
                 # Ontology
                 # =====================================
@@ -65,13 +66,15 @@ def register_display_views(
                 # Provenance
                 # =====================================
                 ("derived_from", {"modes": ["pivot"]}),
+                ("origin_file", {"modes": ["pivot"]}),
+                ("defined_in", {"modes": ["pivot"]}),
+                ("provenance_depth", {"modes": ["pivot"]}),
                 ("provenance_chain", {"modes": ["pivot"]}),
                 # =====================================
                 # Display
                 # =====================================
                 ("display_name", {"modes": ["pivot"]}),
                 ("profiles", {"modes": ["pivot"]}),
-                ("is_synthetic", {"modes": ["pivot"]}),
                 # =====================================
                 # Documentation
                 # =====================================

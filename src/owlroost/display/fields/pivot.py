@@ -16,6 +16,7 @@ pivot rendering.
 
 from __future__ import annotations
 
+from owlroost.core.utils import normalize_module_path
 from owlroost.display.specs import (
     DisplayField,
     DisplayProfile,
@@ -33,6 +34,7 @@ PIVOT_ONTOLOGY = dict(
     analytic_kind="observed",
     materialization_level="display",
     node_type="variable",
+    defined_in=normalize_module_path(__file__),
 )
 
 
@@ -59,7 +61,7 @@ def register_display_fields(
             profiles={
                 "table": DisplayProfile(
                     label="Metric",
-                    width=25,
+                    width=20,
                     wrap=True,
                 ),
             },
@@ -78,7 +80,7 @@ def register_display_fields(
             profiles={
                 "table": DisplayProfile(
                     label="Value",
-                    width=40,
+                    width=50,
                     wrap=True,
                 ),
             },

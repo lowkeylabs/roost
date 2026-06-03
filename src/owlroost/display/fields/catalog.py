@@ -16,6 +16,7 @@ views exactly like any other row source.
 
 from __future__ import annotations
 
+from owlroost.core.utils import normalize_module_path
 from owlroost.display.specs import (
     DisplayField,
     DisplayProfile,
@@ -33,6 +34,7 @@ CATALOG_ONTOLOGY = dict(
     analytic_kind="observed",
     materialization_level="catalog",
     node_type="variable",
+    defined_in=normalize_module_path(__file__),
 )
 
 
@@ -226,6 +228,88 @@ def register_display_fields(
         )
     )
 
+    reg.register_display_field(
+        DisplayField.field(
+            "defined_in",
+            description="Module where the field is defined.",
+            display_fn=debug_defined_in,
+            profiles={
+                "table": DisplayProfile(
+                    label="Defined In",
+                    width=20,
+                    wrap=True,
+                ),
+            },
+            **CATALOG_ONTOLOGY,
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField.field(
+            "origin_file",
+            description="Module where the variable was originally registered.",
+            display_fn=lambda row: (
+                row.get("_catalog", {}).get("provenance_chain", [{}])[0].get("file")
+                if row.get("_catalog", {}).get("provenance_chain")
+                else None
+            ),
+            profiles={
+                "table": DisplayProfile(
+                    label="Origin File",
+                    width=25,
+                    wrap=True,
+                ),
+            },
+            **CATALOG_ONTOLOGY,
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField.field(
+            "provenance_depth",
+            description="Number of provenance events.",
+            display_fn=lambda row: len(row.get("_catalog", {}).get("provenance_chain", [])),
+            profiles={
+                "table": DisplayProfile(
+                    label="Prov Depth",
+                ),
+            },
+            **CATALOG_ONTOLOGY,
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField.field(
+            "overlay_layers",
+            description="Catalog layers contributing to this variable.",
+            display_fn=lambda row: ", ".join(row.get("_catalog", {}).get("overlay_layers", [])),
+            profiles={
+                "table": DisplayProfile(
+                    label="Layers",
+                    width=20,
+                    wrap=True,
+                ),
+            },
+            **CATALOG_ONTOLOGY,
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField.field(
+            "provenance_summary",
+            description="Compact provenance summary.",
+            display_fn=provenance_summary_display,
+            profiles={
+                "table": DisplayProfile(
+                    label="Prov Summary",
+                    width=40,
+                    wrap=True,
+                ),
+            },
+            **CATALOG_ONTOLOGY,
+        )
+    )
+
     # =====================================================
     # Diagnostics
     # =====================================================
@@ -237,19 +321,6 @@ def register_display_fields(
             profiles={
                 "table": DisplayProfile(
                     label="Display Name",
-                ),
-            },
-            **CATALOG_ONTOLOGY,
-        )
-    )
-
-    reg.register_display_field(
-        DisplayField.field(
-            "is_synthetic",
-            description="Synthetic semantic variable flag.",
-            profiles={
-                "table": DisplayProfile(
-                    label="Synthetic",
                 ),
             },
             **CATALOG_ONTOLOGY,
@@ -278,10 +349,11 @@ def register_display_fields(
         DisplayField.field(
             "profiles",
             description=("Registered display profile names."),
+            display_fn=profiles_display,
             profiles={
                 "table": DisplayProfile(
-                    label="Profiles",
-                    width=20,
+                    label="Defined Profiles",
+                    width=30,
                     wrap=True,
                 ),
             },
@@ -293,9 +365,10 @@ def register_display_fields(
         DisplayField.field(
             "provenance_chain",
             description=("Complete provenance evolution history."),
+            display_fn=provenance_chain_display,
             profiles={
                 "table": DisplayProfile(
-                    label="Provenance",
+                    label="Provenance Chain",
                     width=40,
                     wrap=True,
                 ),
@@ -333,4 +406,86 @@ def register_display_fields(
             },
             **CATALOG_ONTOLOGY,
         )
+    )
+
+
+def debug_defined_in(row):
+    chain = row.get("_catalog", {}).get("provenance_chain", [])
+
+    if not chain:
+        return None
+
+    return chain[-1]["file"]
+
+
+def provenance_chain_display(
+    row,
+):
+    chain = row.get("_catalog", {}).get("provenance_chain", [])
+
+    if not chain:
+        return None
+
+    return "\n".join(
+        (f"{event.get('stage')}:{event.get('operation').value}\n  {event.get('file')}")
+        for event in chain
+    )
+
+
+def provenance_summary_display(
+    row,
+):
+    """
+    Compact provenance summary.
+    """
+
+    chain = row.get("_catalog", {}).get("provenance_chain", [])
+
+    if not chain:
+        return None
+
+    return " → ".join(
+        event.get(
+            "stage",
+            "?",
+        )
+        for event in chain
+    )
+
+
+def profiles_display(
+    row,
+):
+    details = row.get(
+        "_display",
+        {},
+    ).get(
+        "profile_details",
+        {},
+    )
+
+    if not details:
+        return None
+
+    lines = []
+
+    for name, profile in sorted(
+        details.items(),
+    ):
+        label = str(
+            profile.get(
+                "label",
+                "",
+            )
+        ).replace(
+            "\n",
+            "\\n",
+        )
+
+        lines.append(
+            f"{name}: {{ label='{label}', fmt={profile.get('fmt')}, width={profile.get('width')} }}"
+        )
+
+    return "\n".join(
+        lines,
     )

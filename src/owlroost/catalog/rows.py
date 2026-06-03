@@ -1,12 +1,30 @@
 # src/owlroost/catalog/rows.py
 
 """
-TODO: Document module.
+Catalog row materialization.
 
 Notes
 -----
-Describe responsibilities, ownership,
-and architectural role.
+Transforms canonical catalog specifications
+into lightweight runtime rows suitable for:
+
+    - filtering
+    - sorting
+    - rendering
+    - explainability
+    - CLI inspection
+
+Architectural Invariant
+-----------------------
+
+Catalog rows are the canonical runtime
+representation of semantic entities.
+
+Catalog rows intentionally contain all
+metadata required for inspection and
+rendering.
+
+Authoring objects are not retained.
 """
 
 from __future__ import annotations
@@ -16,49 +34,19 @@ from dataclasses import (
     is_dataclass,
 )
 
+from owlroost.catalog.provenance import (
+    defined_in,
+    origin_file,
+    provenance_depth,
+)
 from owlroost.catalog.specs import (
     CatalogSpec,
     ProvenanceEvent,
 )
 
 # =========================================================
-# Safe Export Helpers
+# Provenance Export
 # =========================================================
-
-
-def _safe_export(
-    obj,
-):
-    """
-    Safely export lightweight renderer-friendly
-    metadata representations.
-
-    Notes
-    -----
-    Catalog rows intentionally avoid storing
-    large runtime object graphs directly.
-
-    Exported objects should remain:
-
-        - serializable
-        - renderer-safe
-        - debugging-friendly
-        - stable across CLI/renderers
-    """
-
-    if obj is None:
-        return None
-
-    if is_dataclass(obj):
-        return asdict(obj)
-
-    # -----------------------------------------------------
-    # Avoid leaking large object graphs
-    # -----------------------------------------------------
-
-    return {
-        "type": type(obj).__name__,
-    }
 
 
 def _export_provenance_chain(
@@ -74,9 +62,14 @@ def _export_provenance_chain(
     for event in chain:
         if is_dataclass(event):
             rows.append(asdict(event))
-
         else:
-            rows.append({"type": str(type(event).__name__)})
+            rows.append(
+                {
+                    "type": str(
+                        type(event).__name__,
+                    )
+                }
+            )
 
     return rows
 
@@ -94,35 +87,61 @@ def build_catalog_row(
     display_field=None,
 ):
     """
-    Construct canonical catalog dataset row.
-
-    Notes
-    -----
-    Catalog rows intentionally model:
-
-        semantic entities
-
-    rather than merely registry emissions.
-
-    Rows are shaped for natural integration
-    with:
-
-        - filtering
-        - sorting
-        - rendering
-        - explainability
-        - provenance tracing
-        - CLI workflows
-        - reporting systems
-
-    while preserving ontology semantics.
+    Construct canonical catalog row.
     """
 
     # =====================================================
     # Provenance
     # =====================================================
 
-    provenance_chain = _export_provenance_chain(spec.provenance_chain)
+    provenance_chain = _export_provenance_chain(
+        spec.provenance_chain,
+    )
+
+    origin = origin_file(
+        spec.provenance_chain,
+    )
+
+    defined = defined_in(
+        spec.provenance_chain,
+    )
+
+    prov_depth = provenance_depth(
+        spec.provenance_chain,
+    )
+
+    # =====================================================
+    # Display Metadata
+    # =====================================================
+
+    display_name = None
+    profiles = []
+    profile_details = {}
+
+    if display_field is not None:
+        profiles = sorted(
+            display_field.profiles.keys(),
+        )
+
+        profile_details = {
+            name: {
+                "label": profile.label,
+                "fmt": profile.fmt,
+                "width": profile.width,
+                "label_align": profile.label_align,
+                "content_align": profile.content_align,
+                "wrap": profile.wrap,
+                "visible": profile.visible,
+            }
+            for name, profile in display_field.profiles.items()
+        }
+
+        table_profile = display_field.profiles.get(
+            "table",
+        )
+
+        if table_profile is not None:
+            display_name = table_profile.label
 
     # =====================================================
     # Overlay Metadata
@@ -131,7 +150,9 @@ def build_catalog_row(
     overlay_layers: list[str] = []
 
     if layer == "display":
-        overlay_layers.append("display")
+        overlay_layers.append(
+            "display",
+        )
 
     # =====================================================
     # Canonical Row
@@ -148,87 +169,59 @@ def build_catalog_row(
         # Canonical Ontology
         # -------------------------------------------------
         "_catalog": {
-            # ---------------------------------------------
-            # Canonical Identity
-            # ---------------------------------------------
             "field_name": spec.field_name,
-            # ---------------------------------------------
-            # Semantic Ontology
-            # ---------------------------------------------
             "owner": spec.owner,
-            "semantic_domain": (spec.semantic_domain),
-            "value_origin": (spec.value_origin),
-            # ---------------------------------------------
-            # Extended Ontology Semantics
-            # ---------------------------------------------
-            "projection_kind": (spec.projection_kind),
-            "analytic_kind": (spec.analytic_kind),
-            "materialization_level": (spec.materialization_level),
-            "node_type": (spec.node_type),
-            # ---------------------------------------------
-            # Runtime Realization
-            # ---------------------------------------------
+            "semantic_domain": spec.semantic_domain,
+            "value_origin": spec.value_origin,
+            "projection_kind": spec.projection_kind,
+            "analytic_kind": spec.analytic_kind,
+            "materialization_level": spec.materialization_level,
+            "node_type": spec.node_type,
             "source": spec.source,
             "path": spec.path,
-            # ---------------------------------------------
-            # Lineage / Provenance
-            # ---------------------------------------------
-            "derived_from": (spec.derived_from),
-            "provenance_chain": (provenance_chain),
-            "overlay_layers": (overlay_layers),
+            "derived_from": list(
+                spec.derived_from,
+            ),
+            "provenance_chain": provenance_chain,
+            "overlay_layers": overlay_layers,
+            "origin_file": origin,
+            "defined_in": defined,
         },
         # -------------------------------------------------
-        # Explainability / Presentation
+        # Display Metadata
         # -------------------------------------------------
         "_display": {
-            "description": (spec.description),
-        },
-        # -------------------------------------------------
-        # Lightweight Registry References
-        # -------------------------------------------------
-        "_objects": {
-            "semantic_field": (_safe_export(semantic_field)),
-            "display_field": (_safe_export(display_field)),
+            "description": spec.description,
+            "display_name": display_name,
+            "profiles": profiles,
+            "profile_details": profile_details,
         },
         # -------------------------------------------------
         # Flattened Convenience Aliases
-        #
-        # These simplify:
-        #   - filtering
-        #   - sorting
-        #   - rendering
-        #   - CLI workflows
         # -------------------------------------------------
         "field_name": spec.field_name,
         "layer": layer,
         "owner": spec.owner,
-        "semantic_domain": (spec.semantic_domain),
-        "value_origin": (spec.value_origin),
-        # -------------------------------------------------
-        # Extended Ontology Semantics
-        # -------------------------------------------------
-        "projection_kind": (spec.projection_kind),
-        "analytic_kind": (spec.analytic_kind),
-        "materialization_level": (spec.materialization_level),
-        "node_type": (spec.node_type),
-        # -------------------------------------------------
-        # Runtime Realization
-        # -------------------------------------------------
+        "semantic_domain": spec.semantic_domain,
+        "value_origin": spec.value_origin,
+        "projection_kind": spec.projection_kind,
+        "analytic_kind": spec.analytic_kind,
+        "materialization_level": spec.materialization_level,
+        "node_type": spec.node_type,
         "source": spec.source,
         "path": spec.path,
-        # -------------------------------------------------
-        # Explainability
-        # -------------------------------------------------
-        "description": (spec.description),
-        # -------------------------------------------------
-        # Lineage
-        # -------------------------------------------------
-        "derived_from": (", ".join(spec.derived_from) if spec.derived_from else ""),
-        # -------------------------------------------------
-        # Provenance
-        # -------------------------------------------------
-        "provenance_depth": len(provenance_chain),
-        "overlay_layers": (", ".join(overlay_layers) if overlay_layers else ""),
+        "description": spec.description,
+        "derived_from": list(
+            spec.derived_from,
+        ),
+        "origin_file": origin,
+        "defined_in": defined,
+        "provenance_depth": prov_depth,
+        "overlay_layers": list(
+            overlay_layers,
+        ),
+        "display_name": display_name,
+        "profiles": profiles,
     }
 
     return row

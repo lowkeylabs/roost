@@ -31,6 +31,7 @@ from owlplanner.config.schema import (
 from owlroost.catalog.ontology import (
     CatalogNodeType,
 )
+from owlroost.core.utils import normalize_module_path
 
 from ..generated.owl_parameter_docs import (
     OWL_PARAMETER_DOCS,
@@ -108,6 +109,6 @@ def register_schema_fields(
                 # =========================================
                 # Provenance
                 # =========================================
-                defined_in="OWL",
+                defined_in=normalize_module_path(__file__),
             )
         )

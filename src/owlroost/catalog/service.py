@@ -56,14 +56,12 @@ def _merge_row(
     ROOST maintains exactly one canonical
     semantic identity per field_name.
 
-    Display presentation overlays are not
-    canonical semantic entities.
+    Schema and metrics rows define
+    canonical ontology.
 
-    Synthetic semantic variables declared
-    within display modules participate in
-    catalog synthesis and are merged into
-    the canonical catalog graph.
-
+    Display rows contribute presentation
+    overlays only and must never overwrite
+    canonical semantic identity.
     """
 
     field_name = row["field_name"]
@@ -73,7 +71,9 @@ def _merge_row(
     # =====================================================
 
     if field_name not in entities:
-        entities[field_name] = deepcopy(row)
+        entities[field_name] = deepcopy(
+            row,
+        )
         return
 
     existing = entities[field_name]
@@ -82,21 +82,24 @@ def _merge_row(
     # Layer Validation
     # =====================================================
 
-    existing_layer = existing.get("layer")
+    existing_layer = existing.get(
+        "layer",
+    )
 
-    incoming_layer = row.get("layer")
+    incoming_layer = row.get(
+        "layer",
+    )
 
     # -----------------------------------------------------
     # Canonical ontology collisions are illegal
     # -----------------------------------------------------
 
-    if existing_layer in {
+    canonical_layers = {
         "schema",
         "metrics",
-    } and incoming_layer in {
-        "schema",
-        "metrics",
-    }:
+    }
+
+    if existing_layer in canonical_layers and incoming_layer in canonical_layers:
         raise ValueError(f"Duplicate canonical semantic identity detected: {field_name}")
 
     # =====================================================
@@ -104,45 +107,53 @@ def _merge_row(
     # =====================================================
 
     if incoming_layer == "display":
-        #
-        # Presentation metadata only.
-        #
-        # Display must not overwrite
-        # canonical ontology.
-        #
+        # -------------------------------------------------
+        # Merge display metadata
+        # -------------------------------------------------
 
-        overlay_keys = {
+        existing.setdefault(
             "_display",
-            "_profiles",
-            "_views",
-            "_groups",
-            "display_fn",
+            {},
+        )
+
+        existing["_display"].update(
+            row.get(
+                "_display",
+                {},
+            )
+        )
+
+        # -------------------------------------------------
+        # Flattened convenience aliases
+        # -------------------------------------------------
+
+        for key in (
+            "display_name",
             "profiles",
-        }
+        ):
+            value = row.get(
+                key,
+            )
 
-        for key, value in row.items():
-            if value is None:
-                continue
+            if value is not None:
+                existing[key] = value
 
-            if key in {
-                "layer",
-                "field_name",
-            }:
-                continue
+        # -------------------------------------------------
+        # Track overlay participation
+        # -------------------------------------------------
 
-            if key not in overlay_keys:
-                continue
-
-            existing[key] = value
-
-        overlays = existing.setdefault(
-            "_overlay_layers",
+        overlay_layers = existing.get(
+            "_catalog",
+            {},
+        ).setdefault(
+            "overlay_layers",
             [],
         )
 
-        overlays.append(
-            "display",
-        )
+        if "display" not in overlay_layers:
+            overlay_layers.append(
+                "display",
+            )
 
         return
 

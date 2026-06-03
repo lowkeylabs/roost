@@ -16,6 +16,7 @@ from owlroost.catalog.ontology import (
     ProjectionKind,
     ValueOrigin,
 )
+from owlroost.catalog.provenance import ProvenanceOperation
 from owlroost.catalog.rows import (
     build_catalog_row,
 )
@@ -66,7 +67,7 @@ def _normalize_path(
 def _build_provenance(
     *,
     stage: str,
-    operation: str,
+    operation: ProvenanceOperation,
     source,
 ):
     """
@@ -157,7 +158,7 @@ def build_schema_rows(
             provenance_chain=(
                 _build_provenance(
                     stage="schema",
-                    operation="REGISTERED",
+                    operation=ProvenanceOperation.REGISTERED,
                     source=field,
                 )
             ),
@@ -244,7 +245,7 @@ def build_metric_rows(
             provenance_chain=(
                 _build_provenance(
                     stage="metrics",
-                    operation="REGISTERED",
+                    operation=ProvenanceOperation.REGISTERED,
                     source=metric,
                 )
             ),
@@ -389,7 +390,7 @@ def build_display_rows(
                 list(declaration.provenance_chain)
                 + _build_provenance(
                     stage="display",
-                    operation="REGISTERED",
+                    operation=ProvenanceOperation.REGISTERED,
                     source=field,
                 )
             ),

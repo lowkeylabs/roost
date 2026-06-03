@@ -6,6 +6,7 @@ from owlroost.display.specs import (
     DisplayField,
     DisplayProfile,
 )
+from owlroost.core.utils import normalize_module_path
 
 # =========================================================
 # Basic Construction
@@ -20,6 +21,7 @@ def test_field_constructor():
 
     field = DisplayField.field(
         "solver_options.bequest",
+        defined_in=normalize_module_path(__file__),
     )
 
     assert field.field_name == ("solver_options.bequest")
@@ -115,7 +117,7 @@ def test_profiles_default_profile_created():
         "solver_options.bequest",
     )
 
-    assert "default" in field.profiles
+    assert "table" in field.profiles
     assert len(field.profiles) == 1
 
 
@@ -204,6 +206,8 @@ def test_lineage_with_ontology_creates_catalog_declaration():
         derived_from=[
             "solver_options.bequest",
         ],
+        defined_in=normalize_module_path(__file__),
+
     )
 
     assert field.catalog_declaration is not None

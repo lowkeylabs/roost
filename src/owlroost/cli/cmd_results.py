@@ -24,6 +24,10 @@ from owlroost.cli.utils import (
     split_build_args,
 )
 from owlroost.display.bootstrap import build_display_registry
+from owlroost.display.explain import (
+    VALID_EXPLAIN_FACETS,
+    normalize_explain_facets,
+)
 from owlroost.display.loaders import load_run_rows
 from owlroost.display.materializers.compare import materialize_compare_table
 from owlroost.display.materializers.materialize import materialize_view
@@ -259,6 +263,18 @@ def cmd_results(
     if promote_selection and level != "run":
         raise click.ClickException("--promote only supported at run level.")
 
+    if explain:
+        requested = {x.strip() for x in explain.split(",") if x.strip()}
+
+        invalid = requested - VALID_EXPLAIN_FACETS
+
+        if invalid:
+            raise click.BadParameter(f"Unknown explain facet(s): {', '.join(sorted(invalid))}")
+
+    explain_facets = normalize_explain_facets(
+        explain,
+    )
+
     # =====================================================
     # Parse CLI args
     # =====================================================
@@ -452,23 +468,6 @@ def cmd_results(
         markdown,
         latex,
     )
-
-    # =====================================================
-    # Normalize explain facets
-    # =====================================================
-
-    explain_facets = set()
-
-    if explain:
-        explain_facets = {x.strip() for x in explain.split(",") if x.strip()}
-
-        if "all" in explain_facets:
-            explain_facets = {
-                "variables",
-                "values",
-                "sources",
-                "debug",
-            }
 
     # =====================================================
     # Purge Superseded Runs

@@ -18,6 +18,7 @@ not override production display fields.
 
 from __future__ import annotations
 
+from owlroost.core.utils import normalize_module_path
 from owlroost.display.specs import (
     DisplayField,
     DisplayProfile,
@@ -31,6 +32,7 @@ EXAMPLE_ONTOLOGY = dict(
     analytic_kind="observed",
     materialization_level="case",
     node_type="variable",
+    defined_in=normalize_module_path(__file__),
 )
 
 
@@ -63,13 +65,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField.field(
             "example.runtime_metric",
-            owner="ROOST",
-            semantic_domain="execution",
-            value_origin="roost-computed",
-            projection_kind="synthetic",
-            analytic_kind="observed",
-            materialization_level="case",
-            node_type="variable",
+            **EXAMPLE_ONTOLOGY,
             description=("Example field modeled after elapsed runtime."),
             derived_from=[
                 "timing.elapsed_seconds__median",
@@ -99,6 +95,7 @@ def register_display_fields(
             analytic_kind="observed",
             materialization_level="case",
             node_type="variable",
+            defined_in=normalize_module_path(__file__),
             description=("Simple synthetic example."),
         )
     )
@@ -118,6 +115,7 @@ def register_display_fields(
             analytic_kind="observed",
             materialization_level="case",
             node_type="variable",
+            defined_in=normalize_module_path(__file__),
             derived_from=[
                 "example.synthetic",
                 "example.runtime_metric",
@@ -149,6 +147,7 @@ def register_display_fields(
             materialization_level="case",
             node_type="variable",
             description=("Hidden helper example."),
+            defined_in=normalize_module_path(__file__),
             profiles={
                 "table": DisplayProfile(
                     visible=False,
@@ -172,6 +171,7 @@ def register_display_fields(
             analytic_kind="observed",
             materialization_level="case",
             node_type="variable",
+            defined_in=normalize_module_path(__file__),
             description=("Example carrying explicit ontology."),
         )
     )
@@ -191,6 +191,7 @@ def register_display_fields(
             analytic_kind="observed",
             materialization_level="case",
             node_type="variable",
+            defined_in=normalize_module_path(__file__),
             profiles={
                 "table": DisplayProfile(
                     label="Table",
@@ -220,6 +221,7 @@ def register_display_fields(
             analytic_kind="observed",
             materialization_level="case",
             node_type="variable",
+            defined_in=normalize_module_path(__file__),
             expands_to=[
                 "example.synthetic",
                 "example.composed",

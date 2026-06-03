@@ -35,7 +35,7 @@ def test_registry_contains_owl_fields(
         for f in schema_registry
         if getattr(
             f,
-            "defined_in",
+            "owner",
             None,
         )
         == "OWL"

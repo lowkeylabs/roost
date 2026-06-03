@@ -1,12 +1,30 @@
 # src/owlroost/catalog/specs.py
 
 """
-TODO: Document module.
+Catalog semantic specifications.
 
 Notes
 -----
-Describe responsibilities, ownership,
-and architectural role.
+CatalogSpec represents the canonical
+semantic identity tracked by the ROOST
+catalog subsystem.
+
+The catalog acts as the semantic
+integration layer across:
+
+    - schema ontology
+    - metrics ontology
+    - display overlays
+    - aggregation synthesis
+    - runtime realization
+
+while preserving:
+
+    - canonical semantic identity
+    - ontology semantics
+    - workflow semantics
+    - projection lineage
+    - provenance evolution
 """
 
 from __future__ import annotations
@@ -15,69 +33,17 @@ from dataclasses import (
     dataclass,
     field,
 )
-from typing import (
-    Any,
-)
 
 from owlroost.catalog.ontology import (
     OntologySpec,
 )
-
-# =========================================================
-# Provenance
-# =========================================================
-
-
-@dataclass
-class ProvenanceEvent:
-    """
-    Record semantic evolution of a variable
-    through the ROOST analytical pipeline.
-
-    Notes
-    -----
-    Provenance intentionally captures:
-
-        - ontology registration
-        - aggregation derivation
-        - projection overlays
-        - analytical synthesis
-        - formatting refinement
-        - runtime materialization
-
-    without redefining canonical semantic
-    identity.
-    """
-
-    # =====================================================
-    # Pipeline Stage
-    # =====================================================
-
-    stage: str
-
-    # =====================================================
-    # Operation
-    # =====================================================
-
-    operation: str
-
-    # =====================================================
-    # Source File
-    # =====================================================
-
-    file: str
-
-    # =====================================================
-    # Optional Metadata
-    # =====================================================
-
-    detail: dict[
-        str,
-        Any,
-    ] = field(
-        default_factory=dict,
-    )
-
+from owlroost.catalog.provenance import (
+    ProvenanceEvent,
+    defined_in,
+    origin_file,
+    provenance_depth,
+    provenance_summary,
+)
 
 # =========================================================
 # Catalog Specification
@@ -93,42 +59,9 @@ class CatalogSpec(
 
     Notes
     -----
-    CatalogSpec represents the normalized
-    semantic identity tracked by the ROOST
-    catalog subsystem.
-
-    OntologySpec intentionally acts as a
-    lightweight semantic mixin defining:
-
-        - ownership semantics
-        - workflow semantics
-        - analytical semantics
-        - projection semantics
-        - operational semantics
-        - catalog graph semantics
-
-    The catalog intentionally acts as:
-
-        - semantic integration infrastructure
-        - provenance infrastructure
-        - explainability infrastructure
-        - analytical navigation infrastructure
-
-    layered across:
-
-        - schema ontology
-        - metrics ontology
-        - display overlays
-        - aggregation synthesis
-        - runtime realization
-
-    while preserving:
-
-        - canonical semantic identity
-        - ontology semantics
-        - workflow semantics
-        - projection lineage
-        - provenance evolution
+    CatalogSpec represents a semantic
+    entity rather than a flattened
+    registry row.
 
     Architectural Invariant
     -----------------------
@@ -137,12 +70,10 @@ class CatalogSpec(
         one canonical semantic identity
         per variable
 
-    CatalogSpec therefore models:
-
-        semantic entities
-
-    rather than merely flattened
-    registry rows.
+    CatalogSpec therefore accumulates
+    semantic enrichment from multiple
+    registries while preserving a single
+    canonical ontology node.
     """
 
     # =====================================================
@@ -167,11 +98,106 @@ class CatalogSpec(
 
     # =====================================================
     # Provenance Evolution
+    #
+    # Invariant:
+    #
+    #     oldest -> newest
+    #
+    # First event:
+    #
+    #     semantic origin
+    #
+    # Last event:
+    #
+    #     most recent modification
     # =====================================================
 
     provenance_chain: list[ProvenanceEvent] = field(
         default_factory=list,
     )
+
+    # =====================================================
+    # Derived Provenance
+    # =====================================================
+
+    @property
+    def origin_file(
+        self,
+    ) -> str | None:
+        """
+        File where this semantic entity
+        first entered the catalog.
+        """
+
+        return origin_file(
+            self.provenance_chain,
+        )
+
+    @property
+    def defined_in(
+        self,
+    ) -> str | None:
+        """
+        File associated with the most
+        recent semantic modification.
+        """
+
+        return defined_in(
+            self.provenance_chain,
+        )
+
+    @property
+    def provenance_depth(
+        self,
+    ) -> int:
+        """
+        Number of provenance events.
+        """
+
+        return provenance_depth(
+            self.provenance_chain,
+        )
+
+    @property
+    def provenance_summary(
+        self,
+    ) -> str:
+        """
+        Compact provenance rendering.
+        """
+
+        return provenance_summary(
+            self.provenance_chain,
+        )
+
+    # =====================================================
+    # Provenance Mutation
+    # =====================================================
+
+    def add_provenance(
+        self,
+        *,
+        stage: str,
+        operation: str,
+        file: str,
+        detail: dict | None = None,
+    ):
+        """
+        Append provenance event.
+
+        Events are appended in temporal
+        order and therefore preserve the
+        oldest -> newest invariant.
+        """
+
+        self.provenance_chain.append(
+            ProvenanceEvent(
+                stage=stage,
+                operation=operation,
+                file=file,
+                detail=detail or {},
+            )
+        )
 
     # =====================================================
     # Post Init

@@ -26,6 +26,7 @@ must declare complete ontology metadata.
 
 from __future__ import annotations
 
+from owlroost.core.utils import normalize_module_path
 from owlroost.display.specs import (
     DisplayField,
 )
@@ -42,6 +43,7 @@ TEST_ONTOLOGY = dict(
     analytic_kind="observed",
     materialization_level="case",
     node_type="variable",
+    defined_in=normalize_module_path(__file__),
 )
 
 # =========================================================

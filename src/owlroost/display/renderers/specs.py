@@ -23,24 +23,49 @@ class TableColumn:
     """
     Fully resolved presentation column.
 
+    Notes
+    -----
     This object is renderer-facing.
 
     Materialization is responsible for resolving:
-    - labels
-    - alignment
-    - formatting
-    - visibility
-    - wrapping metadata
 
-    Renderers should not perform semantic lookups.
+        - labels
+        - alignment
+        - formatting
+        - visibility
+        - wrapping metadata
+        - explain metadata
+
+    Renderers must not perform:
+
+        - semantic lookups
+        - catalog lookups
+        - display registry lookups
+
+    All metadata required for rendering and
+    explanation should already be attached
+    to the column.
     """
+
+    # =====================================================
+    # Identity
+    # =====================================================
 
     key: str
 
     label: str
 
+    # =====================================================
+    # Alignment
+    # =====================================================
+
     label_align: str = "left"
+
     content_align: str = "left"
+
+    # =====================================================
+    # Formatting
+    # =====================================================
 
     wrap: bool = False
 
@@ -51,6 +76,20 @@ class TableColumn:
     # =====================================================
 
     width: int | None = None
+
+    # =====================================================
+    # Explain Metadata
+    #
+    # Attached during materialization so
+    # explain systems do not need access
+    # to registries or catalogs.
+    # =====================================================
+
+    field_name: str | None = None
+
+    display_field: object | None = None
+
+    catalog_spec: object | None = None
 
 
 # =========================================================

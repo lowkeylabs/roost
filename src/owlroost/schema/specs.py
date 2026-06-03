@@ -83,7 +83,7 @@ class FieldSpec(
 
         - executable configuration ontology
         - runtime realization
-        - lightweight provenance
+        - authoring origin metadata
         - lightweight default presentation intent
 
     while avoiding:
@@ -139,7 +139,17 @@ class FieldSpec(
     units: str | None = None
 
     # =====================================================
-    # Provenance
+    # Authoring Metadata
+    # =====================================================
+    #
+    # Identifies the schema module or source
+    # responsible for declaring this field.
+    #
+    # This is NOT catalog provenance.
+    #
+    # Catalog provenance is synthesized later
+    # from schema, metrics, display, and
+    # aggregation layers.
     # =====================================================
 
     defined_in: str | None = None

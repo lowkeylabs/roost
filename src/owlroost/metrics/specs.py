@@ -42,6 +42,10 @@ class MetricSpec(OntologySpec):
         - explainability systems
         - reporting pipelines
 
+    MetricSpec also records authoring
+    metadata used during catalog provenance
+    synthesis.
+
     Ontology semantics are inherited from:
 
         OntologySpec
@@ -58,7 +62,7 @@ class MetricSpec(OntologySpec):
     description: str = ""
 
     # =====================================================
-    # Provenance
+    # Authoring metadata (different from catalog provenance)
     # =====================================================
 
     defined_in: str | None = None
