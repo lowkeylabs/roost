@@ -50,3 +50,18 @@ def register_display_views(
             description=(""),
         )
     )
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="cases",
+            entries=[
+                # =====================================
+                # Identity
+                # =====================================
+                "case_name",
+                ("description", {"modes": ["pivot"]}),
+            ],
+            description=(""),
+        )
+    )

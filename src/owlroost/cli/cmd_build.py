@@ -515,9 +515,11 @@ def cmd_build(
         table = materialize_view(
             rows=rows,
             registry=display_registry,
+            catalog_index=catalog_index,
             level=DEFAULT_LEVEL,
             view_name=view,
             mode="pivot" if pivot else "table",
+            explain=explain_facets,
         )
 
         if not pivot:

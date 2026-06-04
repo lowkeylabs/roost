@@ -37,10 +37,11 @@ from owlroost.display.renderers.specs import (
 
 def materialize_compare_table(
     rows,
+    *,
     diff_only=False,
-    explain=None,
     registry: DisplayRegistry | None = None,
     catalog_index=None,
+    explain=None,
 ):
     """
     Materialize structural compare/diff table.
@@ -205,24 +206,31 @@ def materialize_compare_table(
                 explanation = ""
 
                 try:
-                    display_field = field_name
+                    display_field = None
+
+                    if registry is not None:
+                        try:
+                            display_field = registry.get_display_field(
+                                entry["path"],
+                            )
+                        except KeyError:
+                            pass
 
                     catalog_row = None
 
                     if catalog_index is not None:
                         catalog_row = catalog_index.get(
-                            display_field,
+                            entry["path"],
                         )
 
                     explanation = build_field_explanation(
                         display_field=display_field,
                         catalog_row=catalog_row,
                         explain_facets=explain_facets,
-                        row_values=None,
+                        row_values=vals,
                     )
-
                 except Exception as ex:
-                    explanation = f"[explain error: {ex}]"
+                    explanation = f"explain error: {ex}"
 
                 row.append(
                     explanation,
