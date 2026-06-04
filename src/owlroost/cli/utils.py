@@ -11,6 +11,8 @@ and architectural role.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import click
 
 from owlroost.display.renderers.latex_table import render_latex_table
@@ -264,3 +266,85 @@ def overrides_request_trials(
                 pass
 
     return False
+
+
+def select_case_rows(
+    rows,
+    selections,
+):
+    """
+    Return rows matching either:
+
+        0
+        1-3
+        1,3,5
+
+    or
+
+        case.toml
+        ./cases/case.toml
+        /full/path/case.toml
+
+    Explicit TOML files bypass catalog
+    discovery and are accepted directly.
+    """
+
+    if not selections:
+        return rows
+
+    selected_rows = []
+
+    for selection in selections:
+        path = Path(selection)
+
+        # ----------------------------------------
+        # Explicit TOML file selection
+        # ----------------------------------------
+
+        if path.exists() and path.is_file() and path.suffix.lower() == ".toml":
+            selected_rows.append(
+                {
+                    "_path": str(
+                        path.resolve(),
+                    ),
+                    "_row_id": None,
+                }
+            )
+
+            continue
+
+        # ----------------------------------------
+        # ID/range selection
+        # ----------------------------------------
+
+        matches = select_rows_by_id(
+            rows,
+            [selection],
+        )
+
+        if not matches:
+            raise click.ClickException(f"No cases matched selection: {selection}")
+
+        selected_rows.extend(matches)
+
+    # ----------------------------------------
+    # Remove duplicates
+    # ----------------------------------------
+
+    seen = set()
+    out = []
+
+    for row in selected_rows:
+        resolved = str(
+            Path(
+                row["_path"],
+            ).resolve()
+        )
+
+        if resolved in seen:
+            continue
+
+        seen.add(resolved)
+        out.append(row)
+
+    return out

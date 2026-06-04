@@ -18,10 +18,11 @@ from pathlib import Path
 
 import click
 
+from owlroost.catalog.loaders import load_catalog_rows
 from owlroost.cli.utils import (
     render_table,
     resolve_renderer,
-    select_rows_by_id,
+    select_case_rows,
     split_build_args,
 )
 from owlroost.core.run_owl_executor import execute_runs
@@ -318,6 +319,12 @@ def cmd_build(
         schema_registry=schema_registry,
         metrics_registry=metrics_registry,
     )
+    catalog_rows = load_catalog_rows(
+        schema_registry=schema_registry,
+        metrics_registry=metrics_registry,
+        display_registry=display_registry,
+    )
+    catalog_index = {row["field_name"]: row for row in catalog_rows}
 
     # =====================================================
     # Context-sensitive CLI help
@@ -433,7 +440,7 @@ def cmd_build(
         return
 
     if selectors:
-        rows = select_rows_by_id(
+        rows = select_case_rows(
             rows,
             selectors,
         )
@@ -485,6 +492,8 @@ def cmd_build(
     if compare or diff or auto_compare:
         table = materialize_compare_table(
             rows,
+            registry=display_registry,
+            catalog_index=catalog_index,
             diff_only=diff,
             explain=explain_facets,
         )

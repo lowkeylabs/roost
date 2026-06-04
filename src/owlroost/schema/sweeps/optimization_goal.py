@@ -85,7 +85,7 @@ def register_schema_fields(
             node_type=(CatalogNodeType.VARIABLE),
             expands_to=[
                 ("optimization_parameters.objective"),
-                "solver_options.bequest",
+                ("solver_options.bequest"),
                 ("solver_options.netSpending"),
             ],
             # =================================================

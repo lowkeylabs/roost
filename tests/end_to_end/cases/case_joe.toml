@@ -1,0 +1,66 @@
+case_name = "joe"
+description = """
+Joe is a single professional in his late fifties, planning to retire in a few years.  He's built a solid nest egg across taxable, tax-deferred, and Roth accounts—and has been contributing to an HSA while on a high-deductible health plan. He also owns a rental property he plans to sell when he retires to simplify his life and fund his early retirement years.
+
+This case demonstrates Owl's handling of a single retiree: HSA accounts (with contributions stopping at Medicare), fixed assets (real estate disposition with capital gains), and the full optimization of Roth conversions and withdrawal sequencing. Run with different rate assumptions to see how sequence-of-returns risk affects the optimal strategy. Joe anticipates $3k/y in qualified medical expenses on top of Medicare.
+"""
+
+[basic_info]
+status = "single"
+names = [ "Joe",]
+sexes = [ "M",]
+date_of_birth = [ "1967-01-15",]
+life_expectancy = [ 89,]
+start_date = "2026-01-01"
+
+[savings_assets]
+taxable_savings_balances = [ 338.5,]
+tax_deferred_savings_balances = [ 650.2,]
+tax_free_savings_balances = [ 60.6,]
+hsa_savings_balances = [ 32.0,]
+taxable_cost_basis = [ 135.0,]
+
+[household_financial_profile]
+HFP_file_name = "HFP_joe.xlsx"
+
+[fixed_income]
+pension_monthly_amounts = [ 0,]
+pension_ages = [ 65.0,]
+pension_indexed = [ true,]
+social_security_pia_amounts = [ 2_360,]
+social_security_ages = [ 67.0,]
+
+[rates_selection]
+heirs_rate_on_tax_deferred_estate = 30.0
+dividend_rate = 1.80
+obbba_expiration_year = 2032
+method = "historical average"
+from = 1969
+to = 2002
+
+[asset_allocation]
+interpolation_method = "s-curve"
+interpolation_center = 15.0
+interpolation_width = 5.0
+type = "individual"
+generic = [ [ [ 60, 40, 0, 0,], [ 70, 30, 0, 0,],],]
+
+[optimization_parameters]
+spending_profile = "smile"
+surviving_spouse_spending_percent = 60
+smile_dip = 15
+smile_increase = 12
+smile_delay = 0
+objective = "maxSpending"
+other_medical_expenses = 3.0
+
+[solver_options]
+maxRothConversion = 50
+startRothConversions = 2026
+bequest = 300
+withSCLoop = true
+withMedicare = "loop"
+solver = "default"
+
+[results]
+default_plots = "nominal"

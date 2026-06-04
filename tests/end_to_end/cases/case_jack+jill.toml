@@ -1,0 +1,72 @@
+case_name = "jack+jill"
+description = """
+Jack and Jill are a married couple in their early sixties, a few years from retirement.  Jill has a modest pension from her teaching career, and they've elected a 50% joint-and-survivor option so the survivor receives half of her benefit. Both have built solid nest eggs across taxable, tax-deferred, and Roth accounts—plus they've been maxing out their HSAs while still on an HDHP (high-deductible health plan). They're carrying a small mortgage on their home and plan to sell a vacation property in 2035 to simplify their life.
+
+This case showcases Owl's full feature set: pension survivor benefits, HSA accounts, fixed assets (real estate disposition), and debt (mortgage payments). It uses the historical rate sequence of 1969—a near worst-case scenario—to stress-test their plan.  You'll see that optimal Roth conversion strategy doesn't always mean surfing a tax bracket; sometimes converting more in down years pays off. Try duplicating this case and comparing with and without Roth conversions, or swap in a different historical sequence like 1966.
+"""
+
+[basic_info]
+status = "married"
+names = [ "Jack", "Jill",]
+sexes = [ "M", "F",]
+date_of_birth = [ "1963-01-15", "1966-01-15",]
+life_expectancy = [ 89, 92,]
+start_date = "2026-01-01"
+
+[savings_assets]
+taxable_savings_balances = [ 90.5, 60.2,]
+tax_deferred_savings_balances = [ 600.5, 150.0,]
+tax_free_savings_balances = [ 70.6, 40.8,]
+hsa_savings_balances = [ 25.0, 18.0,]
+taxable_cost_basis = [ 45.0, 30.0,]
+beneficiary_fractions = [ 1.0, 1.0, 1.0, 1.0,]
+spousal_surplus_deposit_fraction = 0.5
+
+[household_financial_profile]
+HFP_file_name = "HFP_jack+jill.xlsx"
+
+[fixed_income]
+pension_monthly_amounts = [ 0.0, 10.5,]
+pension_ages = [ 65.0, 65.0,]
+pension_indexed = [ false, false,]
+pension_survivor_fraction = [ 0.0, 0.5,]
+social_security_pia_amounts = [ 2_360, 1_642,]
+social_security_ages = [ 70.0, 62.08333,]
+
+[rates_selection]
+heirs_rate_on_tax_deferred_estate = 30.0
+dividend_rate = 1.7
+obbba_expiration_year = 2032
+method = "historical"
+from = 1969
+to = 2001
+
+[asset_allocation]
+interpolation_method = "s-curve"
+interpolation_center = 15.0
+interpolation_width = 5.0
+type = "individual"
+generic = [ [ [ 60, 40, 0, 0,], [ 70, 30, 0, 0,],], [ [ 50, 50, 0, 0,], [ 70, 30, 0, 0,],],]
+
+[optimization_parameters]
+spending_profile = "smile"
+surviving_spouse_spending_percent = 60
+smile_dip = 15
+smile_increase = 12
+smile_delay = 0
+objective = "maxSpending"
+
+[solver_options]
+maxRothConversion = 100
+noRothConversions = "Jill"
+startRothConversions = 2026
+withSCLoop = true
+withMedicare = "optimize"
+withSSTaxability = "loop"
+withDecomposition = "benders"
+bequest = 400
+solver = "default"
+spendingSlack = 0
+
+[results]
+default_plots = "today"

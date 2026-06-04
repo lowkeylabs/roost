@@ -12,6 +12,7 @@ and architectural role.
 from __future__ import annotations
 
 from copy import deepcopy
+from pathlib import Path
 
 # =========================================================
 # Constants
@@ -25,6 +26,89 @@ STRUCTURAL_COMPARE_EXCLUDES = {
 # =========================================================
 # Helpers
 # =========================================================
+
+
+def format_nested_list(
+    value,
+    indent=0,
+):
+    """
+    Recursively format nested lists
+    with line breaks.
+    """
+
+    # =====================================================
+    # Non-list
+    # =====================================================
+
+    if not isinstance(value, list):
+        if isinstance(value, float):
+            return f"{value:g}"
+
+        return str(value)
+
+    # =====================================================
+    # Flat list
+    # =====================================================
+
+    if not any(isinstance(x, list) for x in value):
+        inner = ", ".join(format_nested_list(x) for x in value)
+
+        return f"[{inner}]"
+
+    # =====================================================
+    # Nested list
+    # =====================================================
+
+    lines = []
+
+    for item in value:
+        lines.append(
+            format_nested_list(
+                item,
+                indent + 2,
+            )
+        )
+
+    return "\n".join(lines)
+
+
+def format_compare_value(
+    value,
+):
+    """
+    Format arbitrary TOML value for comparison display.
+    """
+
+    if value is None:
+        return ""
+
+    if isinstance(value, bool):
+        return "true" if value else "false"
+
+    if isinstance(value, float):
+        return f"{value:g}"
+
+    # -----------------------------------------------------
+    # Path-like strings
+    # -----------------------------------------------------
+
+    if isinstance(value, str):
+        # ---------------------------------------------
+        # Show only basename for TOML files
+        # ---------------------------------------------
+
+        if value.endswith(".toml"):
+            return str(Path(value).name)
+
+        return value
+
+    if isinstance(value, list):
+        return format_nested_list(
+            value,
+        )
+
+    return str(value)
 
 
 def flatten_structure(

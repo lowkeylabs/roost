@@ -282,7 +282,11 @@ def generate_config_yaml(
 
     config = {
         "defaults": defaults,
-        "session": {"id": ("${now:%Y-%m-%d}_${now:%H-%M-%S}")},
+        "session": {
+            "id": ("${now:%Y-%m-%d}_${now:%H-%M-%S}"),
+            "date": ("${now:%Y-%m-%d}"),
+            "time": ("${now:%H-%M-%S}"),
+        },
         "hydra": {
             "job": {
                 "chdir": True,
@@ -339,7 +343,7 @@ def generate_hydra_scaffolding():
     ) as fh:
         yaml.dump(
             {
-                "dir": ("results/${case.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}"),
+                "dir": ("results/${case.name}/${session.date}/${session.time}"),
                 "subdir": "run_${hydra:job.num}",
             },
             fh,

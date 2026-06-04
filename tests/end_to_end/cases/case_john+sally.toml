@@ -1,0 +1,66 @@
+case_name = "john+sally"
+description = """
+John and Sally are identical-age twins who retired together with substantial tax-deferred balances. John has a corporate pension with a 75% joint-and-survivor election—so when he passes, Sally will receive three-quarters of his benefit for life. Both have been maxing out their HSAs in their final working years.
+
+This case, inspired by Eric Sajdak's work, compares the heuristic of \"surfing a tax bracket\" for Roth conversions to a solution optimized by linear programming.  With constant rates, bracket-surfing works well; when rates vary and markets drop, the optimizer may recommend converting between brackets. Run with different rate assumptions to explore the effects on Roth conversion strategy.
+"""
+
+[basic_info]
+status = "married"
+names = [ "John", "Sally",]
+sexes = [ "M", "F",]
+date_of_birth = [ "1963-01-15", "1963-01-15",]
+life_expectancy = [ 92, 92,]
+start_date = "2026-01-01"
+
+[savings_assets]
+taxable_savings_balances = [ 200.0, 200.0,]
+tax_deferred_savings_balances = [ 750.0, 750.0,]
+tax_free_savings_balances = [ 50.0, 50.0,]
+hsa_savings_balances = [ 22.0, 18.0,]
+beneficiary_fractions = [ 1.0, 1.0, 1.0,]
+spousal_surplus_deposit_fraction = 0.5
+
+[household_financial_profile]
+HFP_file_name = "HFP_john+sally.xlsx"
+
+[fixed_income]
+pension_monthly_amounts = [ 2_500.0, 0.0,]
+pension_ages = [ 65.0, 65.0,]
+pension_indexed = [ true, false,]
+pension_survivor_fraction = [ 0.75, 0.0,]
+social_security_pia_amounts = [ 3_000, 1_800,]
+social_security_ages = [ 67.0, 67.0,]
+
+[rates_selection]
+heirs_rate_on_tax_deferred_estate = 30.0
+dividend_rate = 1.80
+obbba_expiration_year = 2032
+method = "historical average"
+from = 1990
+to = 2023
+
+[asset_allocation]
+interpolation_method = "linear"
+interpolation_center = 15.0
+interpolation_width = 5.0
+type = "individual"
+generic = [ [ [ 60, 40, 0, 0,], [ 60, 40, 0, 0,],], [ [ 60, 40, 0, 0,], [ 60, 40, 0, 0,],],]
+
+[optimization_parameters]
+spending_profile = "flat"
+surviving_spouse_spending_percent = 60
+objective = "maxBequest"
+
+[solver_options]
+netSpending = 100
+maxRothConversion = 200
+noRothConversions = "none"
+startRothConversions = 2026
+withSCLoop = true
+withMedicare = "loop"
+solver = "default"
+spendingSlack = 0
+
+[results]
+default_plots = "today"

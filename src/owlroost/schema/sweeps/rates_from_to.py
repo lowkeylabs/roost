@@ -20,11 +20,11 @@ def register_schema_fields(
 ):
     reg.register(
         FieldSpec(
-            name="rates_selection.from_to",
+            name="roost_sweeps.rates_from_to",
             dtype=str,
             path=(
-                "rates_selection",
-                "from_to",
+                "roost_sweeps",
+                "rates_from_to",
             ),
             source="sweep",
             owner="ROOST",
@@ -47,13 +47,13 @@ def register_schema_fields(
 def expand(
     run_dict,
 ):
-    rates = run_dict.setdefault(
-        "rates_selection",
+    roost = run_dict.setdefault(
+        "roost_sweeps",
         {},
     )
 
-    value = rates.pop(
-        "from_to",
+    value = roost.pop(
+        "rates_from_to",
         None,
     )
 
@@ -63,6 +63,11 @@ def expand(
     start, end = value.split(
         "-",
         1,
+    )
+
+    rates = run_dict.setdefault(
+        "rates_selection",
+        {},
     )
 
     rates["from"] = int(start)

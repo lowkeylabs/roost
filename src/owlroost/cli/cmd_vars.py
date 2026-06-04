@@ -326,9 +326,7 @@ def cmd_vars(
     # Help
     # =====================================================
 
-    help_dataset = _RowsAdapter(
-        rows,
-    )
+    _x = _RowsAdapter(rows)
 
     if "help" in (filters or ()):
         render_field_help(

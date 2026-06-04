@@ -744,6 +744,8 @@ def cmd_results(
     if compare or diff:
         table = materialize_compare_table(
             rows=rows,
+            registry=display_registry,
+            catalog_index=catalog_index,
             diff_only=diff,
             explain=explain_facets,
         )

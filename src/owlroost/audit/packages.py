@@ -24,8 +24,6 @@ def audit_packages() -> int:
     failures = 0
 
     for init_file in ROOT.rglob("__init__.py"):
-        package = init_file.parent
-
         exported = set()
 
         tree = ast.parse(init_file.read_text(encoding="utf-8"))

@@ -46,12 +46,8 @@ def register_schema_fields(
 def expand(
     run_dict,
 ):
-    fixed_income = run_dict.setdefault(
-        "fixed_income",
-        {},
-    )
-
-    value = fixed_income.pop(
+    roost_sweeps = run_dict.setdefault("roost_sweeps", {})
+    value = roost_sweeps.pop(
         "ss_age_pair",
         None,
     )
@@ -62,6 +58,11 @@ def expand(
     p1, p2 = value.split(
         "-",
         1,
+    )
+
+    fixed_income = run_dict.setdefault(
+        "fixed_income",
+        {},
     )
 
     fixed_income["social_security_ages"] = [

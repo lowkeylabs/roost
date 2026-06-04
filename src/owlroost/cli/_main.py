@@ -21,7 +21,6 @@ from .cmd_build import cmd_build
 from .cmd_reports import cmd_reports
 from .cmd_results import cmd_results
 from .cmd_run import cmd_run
-from .cmd_schema import cmd_schema
 from .cmd_vars import cmd_vars
 
 
@@ -77,8 +76,6 @@ def info(ctx):
 #        click.echo(f"OWL-Planner commit:  {solver.commit}")
 #    click.echo(f"{solver}")
 
-
-cli.add_command(cmd_schema)
 
 cli.add_command(cmd_build, name="cases")
 cli.add_command(cmd_build, name="build")

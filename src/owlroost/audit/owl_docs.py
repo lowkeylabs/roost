@@ -99,7 +99,7 @@ def audit_owl_docs() -> int:
         list,
     )
 
-    for name, field in walk_model(
+    for name, _field in walk_model(
         "",
         CaseConfig,
         expansions=EXPANSIONS,

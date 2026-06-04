@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from owlroost.display.materializers.materialize import (
     expand_view_entries,
     materialize_view,
@@ -86,12 +88,10 @@ def build_registry():
             level="case",
             name="basic",
             entries=[
-                (
-                    "group",
-                    "identity",
-                ),
+                ("group", "identity"),
                 "runtime.trial_jobs",
             ],
+            description="x",
         )
     )
 
@@ -364,7 +364,7 @@ def test_materialize_missing_profile_uses_defaults():
 def test_materialize_unknown_entry_raises():
     reg = DisplayRegistry()
 
-    try:
+    with pytest.raises(ValueError):
         expand_view_entries(
             reg,
             [
@@ -373,8 +373,3 @@ def test_materialize_unknown_entry_raises():
                 },
             ],
         )
-
-        assert False
-
-    except ValueError:
-        pass

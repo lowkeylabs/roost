@@ -23,6 +23,8 @@ defaults:
 - _self_
 session:
   id: ${now:%Y-%m-%d}_${now:%H-%M-%S}
+  date: ${now:%Y-%m-%d}
+  time: ${now:%H-%M-%S}
 hydra:
   job:
     chdir: true

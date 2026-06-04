@@ -1,0 +1,69 @@
+case_name = "robin"
+description = """
+Robin is a 65-year-old single retiree who spent a 30-year career in school administration. Robin owns a home outright — the mortgage was paid off in the mid-2050s — and does not plan to sell it; the home passes to heirs as part of the estate. Social Security will be claimed at 67 with the belief to maximize the monthly benefits. Optimizing for SS gives a different answer however - try it out and compare results.
+
+Robin built retirement savings steadily throughout the career: a 403(b) plan through the school district, with contributions ramping up significantly in the final decade. In the last five working years Robin contributed ~$14–16k per year to the 403(b) while also maxing out a Roth IRA ($7–7.5k/yr) and an HSA ($3.6–4.3k/yr) while on a high-deductible health plan. The starting account balances reflect those 30 years of accumulated savings and investment growth, including a difficult 2022 market.
+
+This case demonstrates Owl's account-type asset allocation (keeping equities in Roth and HSA, bonds in tax-deferred), a common tax-location strategy recommended by financial advisors. The HFP file records the final five working years for Roth five-year rule tracking.
+"""
+
+[basic_info]
+status = "single"
+names = [ "Robin",]
+sexes = [ "F",]
+date_of_birth = [ "1961-01-15",]
+life_expectancy = [ 91,]
+start_date = "2026-01-01"
+
+[savings_assets]
+taxable_savings_balances = [ 22.0,]
+tax_deferred_savings_balances = [ 310.0,]
+tax_free_savings_balances = [ 45.0,]
+hsa_savings_balances = [ 12.0,]
+taxable_cost_basis = [ 11.0,]
+
+[household_financial_profile]
+HFP_file_name = "HFP_robin.xlsx"
+
+[fixed_income]
+pension_monthly_amounts = [ 0,]
+pension_ages = [ 65.0,]
+pension_indexed = [ false,]
+social_security_pia_amounts = [ 1_984,]
+social_security_ages = [ 67.0,]
+
+[rates_selection]
+heirs_rate_on_tax_deferred_estate = 30.0
+dividend_rate = 1.8
+obbba_expiration_year = 2032
+method = "historical average"
+from = 1990
+to = 2025
+
+[asset_allocation]
+interpolation_method = "linear"
+interpolation_center = 15.0
+interpolation_width = 5.0
+type = "account"
+taxable = [ [ [ 50, 50, 0, 0,], [ 30, 70, 0, 0,],],]
+tax-deferred = [ [ [ 35, 65, 0, 0,], [ 20, 80, 0, 0,],],]
+tax-free = [ [ [ 80, 20, 0, 0,], [ 60, 40, 0, 0,],],]
+hsa = [ [ [ 80, 20, 0, 0,], [ 60, 40, 0, 0,],],]
+
+[optimization_parameters]
+spending_profile = "flat"
+surviving_spouse_spending_percent = 60
+objective = "maxSpending"
+
+[solver_options]
+maxRothConversion = 50
+startRothConversions = 2026
+bequest = 50
+withSCLoop = true
+withMedicare = "loop"
+previousMAGIs = [71.0, 72.0]
+solver = "default"
+spendingSlack = 0
+
+[results]
+default_plots = "today"

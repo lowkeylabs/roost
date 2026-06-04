@@ -1,0 +1,65 @@
+case_name = "jon+jane"
+description = """
+Jon and Jane are close to retirement with a classic 60/40 split—he has the taxable and tax-deferred assets, she has the Roth. They've chosen an optimistic return assumption (10% equity, 3.5% inflation) and a 100% stock allocation to stress-test their plan. Roth conversions are disabled, so this case focuses on withdrawal sequencing and spending sustainability.
+
+Inspired by discussions on retirement forums, this scenario shows how couples with asymmetric account ownership can optimize their retirement cash flow. Try enabling Roth conversions to see how the strategy changes.
+"""
+
+[basic_info]
+status = "married"
+names = [ "Jon", "Jane",]
+sexes = [ "M", "F",]
+date_of_birth = [ "1966-01-15", "1969-01-15",]
+life_expectancy = [ 92, 92,]
+start_date = "2026-01-01"
+
+[savings_assets]
+taxable_savings_balances = [ 50.0, 0.0,]
+tax_deferred_savings_balances = [ 900.0, 500.0,]
+tax_free_savings_balances = [ 0.0, 50.0,]
+beneficiary_fractions = [ 1.0, 1.0, 1.0,]
+spousal_surplus_deposit_fraction = 0.0
+
+[household_financial_profile]
+HFP_file_name = "HFP_jon+jane.xlsx"
+
+[fixed_income]
+pension_monthly_amounts = [ 0, 0,]
+pension_ages = [ 65.0, 65.0,]
+pension_indexed = [ false, false,]
+social_security_pia_amounts = [ 1_750, 1_750,]
+social_security_ages = [ 65.0, 65.0,]
+
+[rates_selection]
+heirs_rate_on_tax_deferred_estate = 30.0
+dividend_rate = 1.8
+obbba_expiration_year = 2032
+method = "user"
+values = [ 10.0, 6.0, 5.0, 3.5,]
+from = 1928
+to = 2024
+
+[asset_allocation]
+interpolation_method = "linear"
+interpolation_center = 15.0
+interpolation_width = 5.0
+type = "individual"
+generic = [ [ [ 100, 0, 0, 0,], [ 100, 0, 0, 0,],], [ [ 100, 0, 0, 0,], [ 100, 0, 0, 0,],],]
+
+[optimization_parameters]
+spending_profile = "flat"
+surviving_spouse_spending_percent = 60
+objective = "maxSpending"
+
+[solver_options]
+maxRothConversion = 0.0
+noRothConversions = "none"
+startRothConversions = 2026
+bequest = 30.0
+solver = "default"
+spendingSlack = 0
+withSCLoop = true
+withMedicare = "loop"
+
+[results]
+default_plots = "today"

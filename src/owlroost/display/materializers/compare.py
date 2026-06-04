@@ -11,6 +11,25 @@ and architectural role.
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from owlroost.catalog.comparison import (
+    build_compare_entries,
+    format_compare_value,
+)
+from owlroost.display.explain import (
+    build_field_explanation,
+    normalize_explain_facets,
+)
+from owlroost.display.operations.profiles import (
+    resolve_display_profile,
+)
+from owlroost.display.registry import DisplayRegistry
+from owlroost.display.renderers.specs import (
+    RoostTable,
+    TableColumn,
+)
+
 # =========================================================
 # Table Materialization
 # =========================================================
@@ -20,6 +39,8 @@ def materialize_compare_table(
     rows,
     diff_only=False,
     explain=None,
+    registry: DisplayRegistry | None = None,
+    catalog_index=None,
 ):
     """
     Materialize structural compare/diff table.
@@ -29,6 +50,9 @@ def materialize_compare_table(
 
     explain_facets = normalize_explain_facets(
         explain,
+    )
+    explain_enabled = bool(
+        explain_facets,
     )
 
     entries = build_compare_entries(
@@ -77,14 +101,27 @@ def materialize_compare_table(
     # Optional Explanation Column
     # =====================================================
 
-    if explain_facets:
+    explanation_profile = None
+
+    if registry is not None:
+        try:
+            explanation_profile = resolve_display_profile(
+                registry.get_display_field(
+                    "pivot_explanation",
+                ),
+                mode="pivot",
+            )
+        except KeyError:
+            pass
+
+    if explain_enabled:
         columns.append(
             TableColumn(
-                key="explanation",
-                label="Explanation",
+                key="pivot_explanation",
+                label=str(explanation_profile.label if explanation_profile else "Explanation"),
+                width=(explanation_profile.width if explanation_profile else 50),
+                wrap=(explanation_profile.wrap if explanation_profile else True),
                 content_align="left",
-                width=70,
-                wrap=True,
             )
         )
 
@@ -135,7 +172,7 @@ def materialize_compare_table(
             row = [section_label]
             row.extend([" " for _ in rows])
 
-            if explain_facets:
+            if explain_enabled:
                 row.append(" ")
 
             table_rows.append(row)
@@ -164,13 +201,32 @@ def materialize_compare_table(
             # Explanation column
             # ---------------------------------------------
 
-            if explain_facets:
-                explanation = build_raw_field_explanation(
-                    field_name,
-                    explain_facets,
-                )
+            if explain_enabled:
+                explanation = ""
 
-                row.append(explanation)
+                try:
+                    display_field = field_name
+
+                    catalog_row = None
+
+                    if catalog_index is not None:
+                        catalog_row = catalog_index.get(
+                            display_field,
+                        )
+
+                    explanation = build_field_explanation(
+                        display_field=display_field,
+                        catalog_row=catalog_row,
+                        explain_facets=explain_facets,
+                        row_values=None,
+                    )
+
+                except Exception as ex:
+                    explanation = f"[explain error: {ex}]"
+
+                row.append(
+                    explanation,
+                )
 
             table_rows.append(row)
             row_meta.append({})
