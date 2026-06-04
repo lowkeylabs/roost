@@ -132,21 +132,12 @@ def canonicalize_file_structure(
     path: Path,
 ) -> bool:
     """
-    Rewrite file into canonical form.
+    Ensure required module structure exists
+    without reformatting the file.
 
-    Canonical layout:
-
-        # src/owlroost/...
-
-        \"\"\"
-        module docstring
-        \"\"\"
-
-
-        ...
+    Ruff owns formatting.
+    TREE owns structural requirements.
     """
-
-    expected_header = f"# {path.as_posix()}"
 
     source = path.read_text(
         encoding="utf-8",
@@ -156,68 +147,79 @@ def canonicalize_file_structure(
 
     lines = source.splitlines()
 
-    # =====================================================
-    # Remove path header
-    # =====================================================
-
-    lines = _strip_existing_header(
-        lines,
-    )
+    expected_header = f"# {path.as_posix()}"
 
     # =====================================================
-    # Remove future import
+    # Path Header
     # =====================================================
 
-    lines = _strip_existing_future_import(
-        lines,
-    )
+    if not lines or lines[0].strip() != expected_header:
+        if lines and lines[0].strip().startswith("# src/owlroost/"):
+            lines[0] = expected_header
+        else:
+            lines.insert(
+                0,
+                expected_header,
+            )
 
-    source_without_header = "\n".join(lines)
-
-    # =====================================================
-    # Preserve docstring if found
-    # =====================================================
-
-    doc_lines: list[str]
-
-    bounds = _find_docstring_bounds(
-        source_without_header,
-    )
-
-    if bounds:
-        start, end = bounds
-
-        doc_lines = lines[start - 1 : end]
-
-        body_lines = lines[: start - 1] + lines[end:]
-
-    else:
-        doc_lines = CANONICAL_DOCSTRING.copy()
-
-        body_lines = lines
+    source = "\n".join(lines)
 
     # =====================================================
-    # Trim leading blank lines
+    # Module Docstring
     # =====================================================
 
-    while body_lines and not body_lines[0].strip():
-        body_lines.pop(0)
+    if not _has_module_docstring(
+        source,
+    ):
+        lines = source.splitlines()
+
+        insert_at = 1
+
+        doc_block = [
+            "",
+            *CANONICAL_DOCSTRING,
+            "",
+        ]
+
+        lines[insert_at:insert_at] = doc_block
+
+        source = "\n".join(lines)
 
     # =====================================================
-    # Rebuild file
+    # Future Import
     # =====================================================
 
-    rebuilt = [
-        expected_header,
-        "",
-        *doc_lines,
-        "",
-        FUTURE_IMPORT,
-        "",
-        *body_lines,
-    ]
+    if not _has_future_import(
+        source,
+    ):
+        lines = source.splitlines()
 
-    new_source = "\n".join(rebuilt) + "\n"
+        bounds = _find_docstring_bounds(
+            source,
+        )
+
+        if bounds:
+            _start, end = bounds
+            insert_at = end
+        else:
+            insert_at = 1
+
+        lines.insert(insert_at, "")
+
+        lines.insert(
+            insert_at + 1,
+            FUTURE_IMPORT,
+        )
+
+        lines.insert(insert_at + 2, "")
+
+        source = "\n".join(lines)
+
+    # =====================================================
+    # Preserve Ruff formatting
+    # =====================================================
+
+    new_source = source.rstrip() + "\n"
 
     if new_source == original:
         return False

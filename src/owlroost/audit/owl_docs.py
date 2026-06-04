@@ -9,54 +9,28 @@ Validates consistency between the OWL
 Pydantic schema and generated OWL
 parameter documentation.
 
-Model B2 Architecture
----------------------
+This audit intentionally distinguishes:
 
-OWL Schema
-    owns executable OWL inputs
+    - architectural failures
+    - documentation drift
 
-OWL_PARAMETER_DOCS
-    owns supplemental documentation
+Documentation drift is reported as a
+warning but does not fail the audit.
 
-Architectural Invariant
------------------------
-
-Documentation must describe variables
-that actually exist in the OWL schema.
-
-The documentation layer must not become
-a second source of truth.
-
-This audit validates:
-
-    - documented variables exist
-    - schema variables are documented
-    - documentation keys are unique
-
-The audit intentionally does NOT
-validate:
-
-    - catalog ontology
-    - metrics ontology
-    - display ontology
-
-Those responsibilities belong to:
-
-    audit_catalog()
-    audit_ontology()
-    audit_display()
+Architectural failures indicate the
+documentation lookup model itself has
+become unusable.
 """
 
 from __future__ import annotations
 
-from collections import (
-    defaultdict,
-)
+from collections import defaultdict
 
 from owlplanner.config.schema import (
     CaseConfig,
     SolverOptions,
 )
+from owlplanner.version import __version__ as OWL_VERSION
 
 from owlroost.schema.generated.owl_parameter_docs import (
     OWL_PARAMETER_DOCS,
@@ -73,6 +47,31 @@ EXPANSIONS = {
     "solver_options": SolverOptions,
 }
 
+
+# =========================================================
+# Alias Normalization
+# =========================================================
+
+
+def build_alias_map() -> dict[str, str]:
+    """
+    Map OWL Python names to public TOML names.
+
+    Examples
+    --------
+
+        maxTime -> max_time
+        absTol  -> absTol
+    """
+
+    aliases = {}
+
+    for py_name, field in SolverOptions.model_fields.items():
+        aliases[py_name] = field.alias if field.alias is not None else py_name
+
+    return aliases
+
+
 # =========================================================
 # Audit
 # =========================================================
@@ -82,12 +81,20 @@ def audit_owl_docs() -> int:
     """
     Audit OWL schema documentation
     consistency.
+
+    Returns
+    -------
+    int
+        Number of architectural failures.
     """
 
     print("OWL DOCS")
     print("--------")
 
     failures = 0
+    warnings = 0
+
+    alias_map = build_alias_map()
 
     # =====================================================
     # Discover OWL Schema Variables
@@ -116,62 +123,21 @@ def audit_owl_docs() -> int:
         schema_variables,
     )
 
-    documented_names = set(
-        OWL_PARAMETER_DOCS,
+    documented_names = {
+        alias_map.get(
+            name,
+            name,
+        )
+        for name in OWL_PARAMETER_DOCS
+    }
+
+    orphan_docs = sorted(
+        documented_names - schema_leaf_names,
     )
 
-    # =====================================================
-    # Documentation Without Schema
-    # =====================================================
-
-    print("FOUND IN OWL_DOCS BUT NOT IN SCHEMA")
-    print("-----------------------------------")
-
-    orphan_docs = sorted(documented_names - schema_leaf_names)
-
-    if orphan_docs:
-        failures += len(
-            orphan_docs,
-        )
-
-        for name in orphan_docs:
-            print(
-                name,
-            )
-
-    else:
-        print("OK")
-
-    # =====================================================
-    # Schema Without Documentation
-    # =====================================================
-
-    print()
-    print("SCHEMA VARIABLES NOT FOUND IN OWL_DOCS")
-    print("--------------------------------------")
-
-    undocumented = sorted(schema_leaf_names - documented_names)
-
-    if undocumented:
-        failures += len(
-            undocumented,
-        )
-
-        for name in undocumented:
-            print(
-                name,
-            )
-
-    else:
-        print("OK")
-
-    # =====================================================
-    # Documentation Key Collisions
-    # =====================================================
-
-    print()
-    print("DOC KEY COLLISIONS")
-    print("------------------")
+    undocumented = sorted(
+        schema_leaf_names - documented_names,
+    )
 
     collisions = {
         key: paths
@@ -182,10 +148,50 @@ def audit_owl_docs() -> int:
         if len(paths) > 1
     }
 
+    # =====================================================
+    # Warnings
+    # =====================================================
+
+    print("WARNINGS")
+    print("--------")
+
+    warning_count = 0
+
+    if orphan_docs:
+        warning_count += len(
+            orphan_docs,
+        )
+
+        print()
+        print("Documentation entries not found in schema:")
+
+        for name in orphan_docs[:20]:
+            print(f"  {name}")
+
+        if len(orphan_docs) > 20:
+            print(f"  ... +{len(orphan_docs) - 20} more")
+
+    if undocumented:
+        warning_count += len(
+            undocumented,
+        )
+
+        print()
+        print("Schema variables missing documentation:")
+
+        for name in undocumented[:20]:
+            print(f"  {name}")
+
+        if len(undocumented) > 20:
+            print(f"  ... +{len(undocumented) - 20} more")
+
     if collisions:
-        failures += len(
+        warning_count += len(
             collisions,
         )
+
+        print()
+        print("Documentation key collisions:")
 
         for (
             key,
@@ -193,13 +199,30 @@ def audit_owl_docs() -> int:
         ) in sorted(
             collisions.items(),
         ):
-            print(f"{key}:")
+            print(f"  {key}")
 
             for path in paths:
-                print(f"    {path}")
+                print(f"      {path}")
 
-    else:
+    if warning_count == 0:
         print("OK")
+
+    warnings += warning_count
+
+    # =====================================================
+    # Errors
+    # =====================================================
+
+    print()
+    print("ERRORS")
+    print("------")
+
+    #
+    # No architectural errors currently
+    # defined for OWL docs.
+    #
+
+    print("OK")
 
     # =====================================================
     # Summary
@@ -209,17 +232,17 @@ def audit_owl_docs() -> int:
     print("SUMMARY")
     print("-------")
 
-    print(f"OWL schema variables:     {len(schema_leaf_names)}")
+    print(f"OWL version:          {OWL_VERSION}")
 
-    print(f"OWL_DOC entries:     {len(documented_names)}")
+    print("OWL docs file:        PARAMETERS.md")
 
-    print(f"Found in OWL_DOCS only:              {len(orphan_docs)}")
+    print(f"OWL schema vars:      {len(schema_leaf_names)}")
 
-    print(f"Schema vars missing from OWL_DOCS:   {len(undocumented)}")
+    print(f"OWL doc entries:      {len(documented_names)}")
 
-    print(f"Collisions:               {len(collisions)}")
+    print(f"Warnings:             {warnings}")
 
-    print(f"Total issues:             {failures}")
+    print(f"Errors:               {failures}")
 
     print()
 

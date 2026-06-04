@@ -1,5 +1,3 @@
-# src/owlroost/schema/generated/owl_parameter_docs.py
-
 """
 AUTO-GENERATED FILE.
 
@@ -148,7 +146,7 @@ OWL_PARAMETER_DOCS = {
     "crisis_years": {
         "section": 'for_method_=_"bootstrap_sor"',
         "type": "list of integers",
-        "description": "*(TOML only)* Calendar years to overweight in sampling (e.g. [1929, 2008])",
+        "description": "*(TOML only)* Calendar years to overweight in sampling (e.g. [1929, 2008]). Default omitted = no overweighting",
         "units": "years",
         "notes": None,
     },
@@ -195,9 +193,9 @@ OWL_PARAMETER_DOCS = {
         "notes": None,
     },
     "from": {
-        "section": 'for_method_=_"historical",_"historical_average",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_or_"garch_dcc"',
+        "section": 'for_method_=_"historical",_"historical_average",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"gmm",_or_"hmm"',
         "type": "integer",
-        "description": "Starting year for historical data range (must be between 1928 and 2025)",
+        "description": "Starting year for historical data range (must be between 1928 and 2025). Default is 1928",
         "units": "years",
         "notes": None,
     },
@@ -240,6 +238,13 @@ OWL_PARAMETER_DOCS = {
         "section": "solver_options",
         "type": "boolean",
         "description": "Whether to include Medicare Part D premiums (IRMAA surcharges use same MAGI brackets as Part B). Set to false if you have other drug coverage (e.g., employer, VA).",
+        "units": None,
+        "notes": None,
+    },
+    "init_regime": {
+        "section": 'for_method_=_"hmm"',
+        "type": "integer",
+        "description": "*(Optional)* Index of the starting regime for sequence generation (0 to n_components − 1). Default omitted = start from the stationary distribution",
         "units": None,
         "notes": None,
     },
@@ -302,7 +307,7 @@ OWL_PARAMETER_DOCS = {
     "method": {
         "section": "units_of_measure",
         "type": "string",
-        "description": 'Method for determining rates. Valid values: "trailing-30", "optimistic", "conservative", "user", "historical", "historical average", "gaussian", "histogaussian", "lognormal", "histolognormal", "bootstrap_sor", "var", "garch_dcc", "dataframe"',
+        "description": 'Method for determining rates. Valid values: "trailing-30", "optimistic", "conservative", "user", "historical", "historical average", "gaussian", "histogaussian", "lognormal", "histolognormal", "bootstrap_sor", "var", "garch_dcc", "gmm", "hmm", "dataframe"',
         "units": None,
         "notes": None,
     },
@@ -311,6 +316,13 @@ OWL_PARAMETER_DOCS = {
         "type": "array",
         "description": "Minimum taxable account balance per spouse (in today's units). Values are indexed for inflation. Constraints apply from year 2 through each individual's life horizon.",
         "units": "years",
+        "notes": None,
+    },
+    "n_components": {
+        "section": 'for_method_=_"hmm"',
+        "type": "integer",
+        "description": "*(Optional)* Number of hidden states (market regimes). Default is 3. Must be ≥ 2",
+        "units": None,
         "notes": None,
     },
     "names": {
@@ -405,9 +417,16 @@ OWL_PARAMETER_DOCS = {
         "notes": None,
     },
     "rate_seed": {
-        "section": 'for_method_=_"gaussian",_"histogaussian",_"lognormal",_"histolognormal",_"bootstrap_sor",_"var",_or_"garch_dcc"',
+        "section": 'for_method_=_"gaussian",_"histogaussian",_"lognormal",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"gmm",_or_"hmm"',
         "type": "integer",
-        "description": "Random seed for reproducible stochastic rates",
+        "description": "Random seed for reproducible stochastic rates. Default omitted = seed chosen randomly",
+        "units": None,
+        "notes": None,
+    },
+    "reg_trans": {
+        "section": 'for_method_=_"hmm"',
+        "type": "float",
+        "description": "*(Optional)* Additive Laplace smoothing applied to transition counts to prevent zero-probability transitions. Default is 0.001. Must be > 0",
         "units": None,
         "notes": None,
     },
@@ -419,21 +438,21 @@ OWL_PARAMETER_DOCS = {
         "notes": None,
     },
     "reproducible_rates": {
-        "section": 'for_method_=_"gaussian",_"histogaussian",_"lognormal",_"histolognormal",_"bootstrap_sor",_"var",_or_"garch_dcc"',
+        "section": 'for_method_=_"gaussian",_"histogaussian",_"lognormal",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"gmm",_or_"hmm"',
         "type": "boolean",
-        "description": "Whether stochastic rates should be reproducible",
+        "description": "Whether stochastic rates should be reproducible. Default is false",
         "units": None,
         "notes": None,
     },
     "reverse_sequence": {
-        "section": 'for_method_=_"historical",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"gaussian",_or_"lognormal"_(varying_rates_only)',
+        "section": 'for_method_=_"historical",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"gmm",_"hmm",_"gaussian",_or_"lognormal"_(varying_rates_only)',
         "type": "boolean",
         "description": "If true, reverse the rate sequence along the time axis (e.g. last year first). Default is false. Ignored for fixed/constant rate methods. Used for both single-scenario and Historical Range runs.",
         "units": "years",
         "notes": None,
     },
     "roll_sequence": {
-        "section": 'for_method_=_"historical",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"gaussian",_or_"lognormal"_(varying_rates_only)',
+        "section": 'for_method_=_"historical",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"gmm",_"hmm",_"gaussian",_or_"lognormal"_(varying_rates_only)',
         "type": "integer",
         "description": "Number of years to roll (shift) the rate sequence; positive shifts toward the end, values wrap. Default is 0. Ignored for fixed/constant rate methods. Used for both single-scenario and Historical Range runs.",
         "units": "years",
@@ -692,9 +711,9 @@ OWL_PARAMETER_DOCS = {
         "notes": None,
     },
     "to": {
-        "section": 'for_method_=_"historical",_"historical_average",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_or_"garch_dcc"',
+        "section": 'for_method_=_"historical",_"historical_average",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"gmm",_or_"hmm"',
         "type": "integer",
-        "description": "Ending year for historical data range (must be between 1928 and 2025, and greater than from). garch_dcc requires at least 15 years of data (to - from ≥ 15)",
+        "description": "Ending year for historical data range (must be between 1928 and 2025, and greater than from). Default is 2025. garch_dcc requires at least 15 years of data (to - from ≥ 15)",
         "units": "years",
         "notes": None,
     },

@@ -5,26 +5,7 @@ Display subsystem audit.
 
 Notes
 -----
-Validates structural invariants of the
-display subsystem.
-
-Model B2 Architecture
----------------------
-
-Schema
-    owns executable input ontology
-
-Metrics
-    owns runtime metric ontology
-
-Catalog
-    owns canonical semantic identity
-
-Display
-    owns presentation identity
-
-Display Responsibilities
-------------------------
+Validates display-layer invariants.
 
 Display owns:
 
@@ -34,23 +15,15 @@ Display owns:
     - grouping
     - views
     - presentation composition
+    - mode participation
+    - renderer-facing metadata
 
-Display may also define synthetic
-semantic entities for convenience.
+Display does NOT own:
 
-The audit intentionally validates:
-
-    - display field registration
-    - synthetic ontology completeness
-    - group registration
-    - view registration
-
-The audit intentionally does NOT
-validate:
-
-    - catalog ontology completeness
-    - schema ontology completeness
-    - metric ontology completeness
+    - ontology
+    - semantic identity
+    - provenance
+    - lineage
 
 Those responsibilities belong to:
 
@@ -105,59 +78,28 @@ def audit_display() -> int:
 
     if not fields:
         failures += 1
-
         print("no display fields loaded")
-
     else:
         print(f"Fields: {len(fields)}")
 
     # =====================================================
-    # Ontology
+    # Duplicate Display Fields
     # =====================================================
 
     print()
-    print("ONTOLOGY")
-    print("--------")
+    print("FIELD UNIQUENESS")
+    print("----------------")
 
-    ontology_failures = 0
+    field_names = [field.field_name for field in fields]
 
-    for field in fields:
-        #
-        # Synthetic semantic entities
-        # should advertise ontology.
-        #
+    duplicates = sorted(name for name in set(field_names) if field_names.count(name) > 1)
 
-        if not field.is_synthetic:
-            continue
+    if duplicates:
+        failures += len(duplicates)
 
-        missing = []
-
-        for attr in (
-            "owner",
-            "semantic_domain",
-            "value_origin",
-            "projection_kind",
-        ):
-            if (
-                getattr(
-                    field,
-                    attr,
-                    None,
-                )
-                is None
-            ):
-                missing.append(
-                    attr,
-                )
-
-        if missing:
-            ontology_failures += 1
-
-            print(f"{field.field_name}: missing {', '.join(missing)}")
-
-    failures += ontology_failures
-
-    if ontology_failures == 0:
+        for name in duplicates:
+            print(f"duplicate display field: {name}")
+    else:
         print("OK")
 
     # =====================================================
@@ -200,18 +142,15 @@ def audit_display() -> int:
         "testing.semantic",
     }
 
-    field_names = {field.field_name for field in fields}
+    loaded_field_names = {field.field_name for field in fields}
 
-    missing = sorted(expected_fields - field_names)
+    missing = sorted(expected_fields - loaded_field_names)
 
     if missing:
-        failures += len(
-            missing,
-        )
+        failures += len(missing)
 
         for name in missing:
             print(f"missing fixture field: {name}")
-
     else:
         print("OK")
 

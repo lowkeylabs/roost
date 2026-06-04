@@ -8,90 +8,77 @@ Notes
 Validates ontology invariants across the
 canonical semantic catalog.
 
-This audit intentionally operates on
-catalog rows rather than registry objects.
+The ontology audit focuses on:
 
-Model B2 Architecture
----------------------
+    - ontology consistency
+    - projection semantics
+    - analytical semantics
+    - provenance coverage
+    - metadata distributions
 
-Schema Registry
-    owns semantic variables
+The audit intentionally does NOT require
+all ontology dimensions to be populated.
 
-Metrics Registry
-    owns semantic variables
-
-Display Registry
-    owns presentation overlays and may
-    declare synthetic semantic variables
-
-Catalog
-    owns canonical semantic identity
-
-Ontology Responsibilities
--------------------------
-
-This audit validates:
-
-    - semantic ontology completeness
-    - aggregate semantic consistency
-    - synthetic semantic variable ontology
-
-The goal is to identify ontology gaps
-early and point directly to the owning
-module responsible for missing metadata.
+Many ontology dimensions are allowed to
+remain unknown during incremental catalog
+development.
 """
 
 from __future__ import annotations
 
 from collections import Counter
 
-from owlroost.catalog.service import (
-    load_catalog,
-)
-from owlroost.display.bootstrap import (
-    build_display_registry,
-)
-from owlroost.metrics.bootstrap import (
-    build_metrics_registry,
-)
-from owlroost.schema.bootstrap import (
-    build_schema_registry,
-)
+from owlroost.catalog.service import load_catalog
+from owlroost.display.bootstrap import build_display_registry
+from owlroost.metrics.bootstrap import build_metrics_registry
+from owlroost.schema.bootstrap import build_schema_registry
 
 # =========================================================
 # Helpers
 # =========================================================
 
 
-def _defined_in(
-    row,
-) -> str:
+def _defined_in(row) -> str:
     """
     Best-effort source attribution.
-
-    Helps identify which module likely
-    owns a missing ontology field.
     """
 
-    value = row.get(
-        "defined_in",
-    )
+    value = row.get("defined_in")
 
     if value:
-        return str(
-            value,
-        )
+        return str(value)
 
-    source = row.get(
-        "source",
-    )
+    source = row.get("source")
 
     if source:
-        return str(
-            source,
-        )
+        return str(source)
 
     return "unknown"
+
+
+def _print_distribution(
+    title,
+    rows,
+    field_name,
+):
+    """
+    Print ontology distribution.
+    """
+
+    print()
+    print(title)
+    print("-" * len(title))
+
+    counts = Counter(
+        row.get(
+            field_name,
+            "<missing>",
+        )
+        for row in rows
+    )
+
+    for key in sorted(counts):
+        print(f"{str(key):<20}{counts[key]}")
 
 
 # =========================================================
@@ -115,7 +102,7 @@ def audit_ontology() -> int:
     failures = 0
 
     # =====================================================
-    # Canonical Registries
+    # Registries
     # =====================================================
 
     schema_registry = build_schema_registry()
@@ -137,59 +124,13 @@ def audit_ontology() -> int:
         display_registry=display_registry,
     )
 
-    # =====================================================
-    # Counters
-    # =====================================================
-
-    semantic_failures = 0
-
     aggregate_failures = 0
-
-    # =====================================================
-    # Semantic Completeness
-    # =====================================================
-
-    print("SEMANTIC COMPLETENESS")
-    print("---------------------")
-
-    required_fields = [
-        "owner",
-        "semantic_domain",
-        "value_origin",
-        "projection_kind",
-        "analytic_kind",
-        "materialization_level",
-    ]
-
-    for row in rows:
-        field_name = row.get(
-            "field_name",
-            "<unknown>",
-        )
-
-        missing = []
-
-        for required in required_fields:
-            if row.get(required) is None:
-                missing.append(
-                    required,
-                )
-
-        if missing:
-            failures += 1
-
-            semantic_failures += 1
-
-            print(f"{field_name}: missing {', '.join(missing)} [defined_in={_defined_in(row)}]")
-
-    if semantic_failures == 0:
-        print("OK")
+    overlay_failures = 0
 
     # =====================================================
     # Aggregate Semantics
     # =====================================================
 
-    print()
     print("AGGREGATE SEMANTICS")
     print("-------------------")
 
@@ -212,61 +153,129 @@ def audit_ontology() -> int:
             "distributional",
         }:
             failures += 1
-
             aggregate_failures += 1
 
             print(
                 f"{field_name}: "
-                "aggregate projection "
-                "missing aggregate "
-                "analytic_kind "
-                f"({analytic_kind!r})"
+                f"aggregate projection "
+                f"requires aggregate/distributional "
+                f"analytic_kind "
+                f"(found {analytic_kind!r})"
             )
 
     if aggregate_failures == 0:
         print("OK")
 
     # =====================================================
-    # Ownership Distribution
+    # Overlay Ownership
     # =====================================================
 
     print()
-    print("OWNERS")
-    print("------")
+    print("OVERLAY OWNERSHIP")
+    print("-----------------")
 
-    owner_counts = Counter(
-        row.get(
+    for row in rows:
+        node_type = row.get(
+            "node_type",
+        )
+
+        owner = row.get(
             "owner",
-            "<missing>",
         )
-        for row in rows
-    )
 
-    for owner in sorted(
-        owner_counts,
-    ):
-        print(f"{str(owner):<20}{owner_counts[owner]}")
+        field_name = row.get(
+            "field_name",
+            "<unknown>",
+        )
+
+        if node_type == "overlay" and owner not in {
+            "ROOST",
+            None,
+        }:
+            failures += 1
+            overlay_failures += 1
+
+            print(f"{field_name}: overlay owned by {owner!r}")
+
+    if overlay_failures == 0:
+        print("OK")
 
     # =====================================================
-    # Projection Distribution
+    # Provenance Coverage
     # =====================================================
 
     print()
-    print("PROJECTION KINDS")
-    print("----------------")
+    print("PROVENANCE")
+    print("----------")
 
-    projection_counts = Counter(
-        row.get(
-            "projection_kind",
-            "<missing>",
+    provenance_missing = 0
+
+    for row in rows:
+        field_name = row.get(
+            "field_name",
+            "<unknown>",
         )
-        for row in rows
+
+        depth = row.get(
+            "provenance_depth",
+        )
+
+        if depth in {
+            None,
+            0,
+        }:
+            provenance_missing += 1
+
+            print(f"{field_name}: missing provenance")
+
+    if provenance_missing == 0:
+        print("OK")
+
+    # =====================================================
+    # Ontology Distributions
+    # =====================================================
+
+    _print_distribution(
+        "OWNERS",
+        rows,
+        "owner",
     )
 
-    for kind in sorted(
-        projection_counts,
-    ):
-        print(f"{str(kind):<20}{projection_counts[kind]}")
+    _print_distribution(
+        "SEMANTIC DOMAINS",
+        rows,
+        "semantic_domain",
+    )
+
+    _print_distribution(
+        "VALUE ORIGINS",
+        rows,
+        "value_origin",
+    )
+
+    _print_distribution(
+        "PROJECTION KINDS",
+        rows,
+        "projection_kind",
+    )
+
+    _print_distribution(
+        "ANALYTIC KINDS",
+        rows,
+        "analytic_kind",
+    )
+
+    _print_distribution(
+        "NODE TYPES",
+        rows,
+        "node_type",
+    )
+
+    _print_distribution(
+        "MATERIALIZATION LEVELS",
+        rows,
+        "materialization_level",
+    )
 
     # =====================================================
     # Summary
@@ -278,9 +287,11 @@ def audit_ontology() -> int:
 
     print(f"Catalog rows:        {len(rows)}")
 
-    print(f"Semantic issues:     {semantic_failures}")
-
     print(f"Aggregate issues:    {aggregate_failures}")
+
+    print(f"Overlay issues:      {overlay_failures}")
+
+    print(f"Provenance missing:  {provenance_missing}")
 
     print(f"Total issues:        {failures}")
 

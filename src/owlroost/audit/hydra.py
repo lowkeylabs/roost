@@ -21,44 +21,23 @@ Hydra
 Architectural Invariant
 -----------------------
 
-Hydra configuration is generated from
-the subset of schema fields eligible
-for Hydra configuration.
+Hydra configuration generation consumes
+SchemaRegistry only.
 
-Hydra generation currently includes:
+This audit validates that every
+Hydra-eligible schema field is present
+in the generated Hydra YAML hierarchy.
 
-    - input
-    - discovered
-    - sweep
+The audit intentionally validates:
 
-schema fields.
+    schema field
+        ->
+    generated YAML path
 
-Hydra generation intentionally excludes:
+rather than comparing YAML scalar leaves.
 
-    - derived fields
-    - internal fields
-    - runtime materializations
-    - metrics
-    - display entities
-    - catalog entities
-
-This audit therefore validates:
-
-    hydra_fields(schema_registry)
-
-against:
-
-    conf/**/*.yaml
-
-rather than comparing Hydra against
-the entire schema registry.
-
-Typical Fix
------------
-
-Regenerate Hydra configuration:
-
-    python -m owlroost.tools.generate_hydra_conf
+Dictionary-valued defaults are treated
+as values, not additional schema fields.
 """
 
 from __future__ import annotations
@@ -87,106 +66,71 @@ CONF_ROOT = Path(
 # =========================================================
 
 
-def schema_to_hydra_name(
-    field,
-):
-    """
-    Convert schema field identity into the
-    corresponding Hydra field identity.
-
-    Examples
-    --------
-
-    case_name
-        -> case_name.case_name
-
-    description
-        -> description.description
-
-    spending_policy.essential_spending
-        -> spending_policy.essential_spending
-    """
-
-    if len(field.path) == 1:
-        return f"{field.path[0]}.{field.path[0]}"
-
-    return ".".join(field.path)
-
-
-def _flatten(
+def path_exists(
     obj,
-    prefix=(),
+    path: tuple[str, ...],
+) -> bool:
+    """
+    Verify a schema path exists inside
+    generated Hydra YAML.
+
+    Example
+    -------
+
+    path:
+
+        (
+            "auto_workers_by_solver",
+        )
+
+    matches:
+
+        auto_workers_by_solver:
+            MOSEK: 8
+            HiGHS: 8
+
+    because the field itself exists.
+
+    The contents of the dictionary are
+    considered field values rather than
+    additional schema fields.
+    """
+
+    cur = obj
+
+    for key in path:
+        if not isinstance(
+            cur,
+            dict,
+        ):
+            return False
+
+        if key not in cur:
+            return False
+
+        cur = cur[key]
+
+    return True
+
+
+def load_group_yaml(
+    group_name: str,
 ):
     """
-    Flatten nested YAML into dotted
-    field names.
+    Load conf/<group>/default.yaml.
     """
 
-    result = set()
+    path = CONF_ROOT / group_name / "default.yaml"
 
-    if isinstance(
-        obj,
-        dict,
-    ):
-        for key, value in obj.items():
-            result |= _flatten(
-                value,
-                prefix + (key,),
-            )
+    if not path.exists():
+        return None
 
-    elif isinstance(
-        obj,
-        list,
-    ):
-        if prefix:
-            result.add(".".join(prefix))
-
-    else:
-        if prefix:
-            result.add(".".join(prefix))
-
-    return result
-
-
-def load_hydra_fields():
-    """
-    Load generated Hydra field names.
-    """
-
-    fields = set()
-
-    if not CONF_ROOT.exists():
-        return fields
-
-    for group_dir in CONF_ROOT.iterdir():
-        if not group_dir.is_dir():
-            continue
-
-        default_file = group_dir / "default.yaml"
-
-        if not default_file.exists():
-            continue
-
-        try:
-            data = yaml.safe_load(default_file.read_text())
-
-        except Exception:
-            continue
-
-        data = data or {}
-
-        for path in _flatten(
-            data,
-        ):
-            if path.startswith(group_dir.name + "."):
-                fields.add(
-                    path,
-                )
-
-            else:
-                fields.add(f"{group_dir.name}.{path}")
-
-    return fields
+    return (
+        yaml.safe_load(
+            path.read_text(),
+        )
+        or {}
+    )
 
 
 # =========================================================
@@ -210,68 +154,77 @@ def audit_hydra() -> int:
 
     schema_registry = build_schema_registry()
 
-    eligible_schema_fields = {
-        schema_to_hydra_name(
-            field,
-        )
-        for field in hydra_fields(
+    eligible_fields = list(
+        hydra_fields(
             schema_registry,
         )
-    }
+    )
 
     # =====================================================
-    # Hydra
-    # =====================================================
-
-    generated_hydra_fields = load_hydra_fields()
-
-    # =====================================================
-    # Drift Analysis
-    # =====================================================
-
-    missing_from_hydra = eligible_schema_fields - generated_hydra_fields
-
-    stale_hydra_fields = generated_hydra_fields - eligible_schema_fields
-
-    # =====================================================
-    # Missing Fields
+    # Missing Paths
     # =====================================================
 
     print("MISSING FROM HYDRA")
     print("------------------")
 
-    if missing_from_hydra:
-        failures += len(missing_from_hydra)
+    missing = []
 
-        for field_name in sorted(missing_from_hydra)[:25]:
-            print(
-                field_name,
-            )
+    for field in eligible_fields:
+        group_name = field.path[0]
 
-        if len(missing_from_hydra) > 25:
-            print(f"... +{len(missing_from_hydra) - 25} more")
+        yaml_data = load_group_yaml(
+            group_name,
+        )
+
+        if yaml_data is None:
+            missing.append(".".join(field.path))
+            continue
+
+        subpath = field.path[1:] if len(field.path) > 1 else field.path
+
+        if not path_exists(
+            yaml_data,
+            tuple(subpath),
+        ):
+            missing.append(".".join(field.path))
+
+    if missing:
+        failures += len(
+            missing,
+        )
+
+        for name in sorted(missing)[:25]:
+            print(name)
+
+        if len(missing) > 25:
+            print(f"... +{len(missing) - 25} more")
 
     else:
         print("OK")
 
     # =====================================================
-    # Stale Fields
+    # Orphan Groups
     # =====================================================
 
     print()
-    print("STALE HYDRA FIELDS")
-    print("------------------")
+    print("ORPHAN GROUPS")
+    print("-------------")
 
-    if stale_hydra_fields:
-        failures += len(stale_hydra_fields)
+    expected_groups = {field.path[0] for field in eligible_fields}
 
-        for field_name in sorted(stale_hydra_fields)[:25]:
-            print(
-                field_name,
-            )
+    generated_groups = {
+        path.name for path in CONF_ROOT.iterdir() if path.is_dir() and path.name != "hydra"
+    }
 
-        if len(stale_hydra_fields) > 25:
-            print(f"... +{len(stale_hydra_fields) - 25} more")
+    orphan_groups = sorted(generated_groups - expected_groups)
+
+    if orphan_groups:
+        failures += len(
+            orphan_groups,
+        )
+
+        for group in orphan_groups:
+            print(group)
 
     else:
         print("OK")
@@ -284,25 +237,16 @@ def audit_hydra() -> int:
     print("SUMMARY")
     print("-------")
 
-    print(f"Hydra-eligible schema fields: {len(eligible_schema_fields)}")
+    print(f"Hydra-eligible schema fields: {len(eligible_fields)}")
 
-    print(f"Generated Hydra fields:       {len(generated_hydra_fields)}")
+    print(f"Generated groups:            {len(generated_groups)}")
 
-    print(f"Missing fields:               {len(missing_from_hydra)}")
+    print(f"Missing fields:             {len(missing)}")
 
-    print(f"Stale fields:                 {len(stale_hydra_fields)}")
+    print(f"Orphan groups:              {len(orphan_groups)}")
 
-    print(f"Total issues:                 {failures}")
+    print(f"Total issues:               {failures}")
 
     print()
-
-    if failures:
-        print("Hydra configuration appears stale.")
-
-        print()
-
-        print("Regenerate Hydra configuration from schema.")
-
-        print()
 
     return failures
