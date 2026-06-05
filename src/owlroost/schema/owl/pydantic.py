@@ -1,4 +1,4 @@
-# src/owlroost/schema/owl/loader.py
+# src/owlroost/schema/owl/pydantic.py
 
 """
 OWL schema ontology loader.

@@ -12,8 +12,7 @@ and architectural role.
 from __future__ import annotations
 
 from owlroost.display.explain import (
-    build_field_explanation,
-    normalize_explain_facets,
+    build_explanation_cell,
 )
 from owlroost.display.operations.profiles import (
     resolve_display_profile,
@@ -289,34 +288,14 @@ def pivot_table(
         # -------------------------------------------------
 
         if explain_enabled:
-            explanation = ""
-
-            try:
-                display_field = getattr(
-                    column,
-                    "display_field",
-                    None,
-                )
-
-                catalog_row = None
-
-                if catalog_index is not None:
-                    catalog_row = catalog_index.get(
-                        column.field_name,
-                    )
-
-                explanation = build_field_explanation(
-                    display_field=display_field,
-                    catalog_row=catalog_row,
+            row.append(
+                build_explanation_cell(
+                    field_name=column.field_name,
+                    registry=registry,
+                    catalog_index=catalog_index,
                     explain_facets=explain_facets,
                     row_values=row_values,
                 )
-
-            except Exception as ex:
-                explanation = f"[explain error: {ex}]"
-
-            row.append(
-                explanation,
             )
 
         new_rows.append(
@@ -354,7 +333,7 @@ def materialize_view(
     view_name,
     level="case",
     mode="table",
-    explain=None,
+    explain_facets=None,
 ):
     """
     Materialize rows + view into a RoostTable.
@@ -375,9 +354,7 @@ def materialize_view(
     - discover rows
     """
 
-    explain_facets = normalize_explain_facets(
-        explain,
-    )
+    explain_facets = explain_facets or set()
 
     # =====================================================
     # Resolve View
@@ -456,10 +433,9 @@ def materialize_view(
                 width=profile.width,
                 wrap=profile.wrap,
                 # =========================
-                # Explain Metadata
+                # Explain content
                 # =========================
                 display_field=display_field,
-                # catalog_spec=display_field.catalog_spec,
             )
         )
 

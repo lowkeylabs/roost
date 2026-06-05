@@ -18,8 +18,7 @@ from owlroost.catalog.comparison import (
     format_compare_value,
 )
 from owlroost.display.explain import (
-    build_field_explanation,
-    normalize_explain_facets,
+    build_explanation_cell,
 )
 from owlroost.display.operations.profiles import (
     resolve_display_profile,
@@ -41,7 +40,7 @@ def materialize_compare_table(
     diff_only=False,
     registry: DisplayRegistry | None = None,
     catalog_index=None,
-    explain=None,
+    explain_facets=None,
 ):
     """
     Materialize structural compare/diff table.
@@ -49,9 +48,8 @@ def materialize_compare_table(
     Returns RoostTable.
     """
 
-    explain_facets = normalize_explain_facets(
-        explain,
-    )
+    explain_facets = explain_facets or set()
+
     explain_enabled = bool(
         explain_facets,
     )
@@ -203,34 +201,17 @@ def materialize_compare_table(
             # ---------------------------------------------
 
             if explain_enabled:
-                explanation = ""
-
                 try:
-                    display_field = None
-
-                    if registry is not None:
-                        try:
-                            display_field = registry.get_display_field(
-                                entry["path"],
-                            )
-                        except KeyError:
-                            pass
-
-                    catalog_row = None
-
-                    if catalog_index is not None:
-                        catalog_row = catalog_index.get(
-                            entry["path"],
-                        )
-
-                    explanation = build_field_explanation(
-                        display_field=display_field,
-                        catalog_row=catalog_row,
+                    explanation = build_explanation_cell(
+                        field_name=entry["path"],
+                        registry=registry,
+                        catalog_index=catalog_index,
                         explain_facets=explain_facets,
                         row_values=vals,
                     )
+
                 except Exception as ex:
-                    explanation = f"explain error: {ex}"
+                    explanation = f"[explain error: {type(ex).__name__}: {ex}]"
 
                 row.append(
                     explanation,

@@ -27,8 +27,7 @@ from owlroost.cli.utils import (
 )
 from owlroost.display.bootstrap import build_display_registry
 from owlroost.display.explain import (
-    VALID_EXPLAIN_FACETS,
-    normalize_explain_facets,
+    parse_explain_request,
 )
 from owlroost.display.loaders import load_run_rows
 from owlroost.display.materializers.compare import materialize_compare_table
@@ -267,17 +266,16 @@ def cmd_results(
     if promote_selection and level != "run":
         raise click.ClickException("--promote only supported at run level.")
 
-    if explain:
-        requested = {x.strip() for x in explain.split(",") if x.strip()}
-
-        invalid = requested - VALID_EXPLAIN_FACETS
-
-        if invalid:
-            raise click.BadParameter(f"Unknown explain facet(s): {', '.join(sorted(invalid))}")
-
-    explain_facets = normalize_explain_facets(
+    explain_facets, explain_errors = parse_explain_request(
         explain,
     )
+
+    if explain_errors:
+        raise click.BadParameter(
+            "\n".join(
+                explain_errors,
+            )
+        )
 
     # =====================================================
     # Parse CLI args
@@ -504,7 +502,7 @@ def cmd_results(
             level=level,
             view_name=view,
             mode="table",
-            explain=explain_facets,
+            explain_facets=explain_facets,
         )
 
         purge_table = inject_id_column(
@@ -588,7 +586,7 @@ def cmd_results(
             level=level,
             view_name=view,
             mode="table",
-            explain=explain_facets,
+            explain_facets=explain_facets,
         )
 
         delete_table = inject_id_column(
@@ -662,7 +660,7 @@ def cmd_results(
             level=level,
             view_name=view,
             mode="table",
-            explain=explain_facets,
+            explain_facets=explain_facets,
         )
 
         promote_table = inject_id_column(
@@ -773,7 +771,7 @@ def cmd_results(
         level=level,
         view_name=view,
         mode="pivot" if pivot else "table",
-        explain=explain_facets,
+        explain_facets=explain_facets,
     )
 
     # =====================================================

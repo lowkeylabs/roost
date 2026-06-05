@@ -28,6 +28,9 @@ from owlroost.cli.utils import (
 from owlroost.core.run_owl_executor import execute_runs
 from owlroost.display.bootstrap import build_display_registry
 from owlroost.display.discovery import find_runs
+from owlroost.display.explain import (
+    parse_explain_request,
+)
 from owlroost.display.loaders import load_case_rows
 from owlroost.display.materializers.compare import materialize_compare_table
 from owlroost.display.materializers.materialize import materialize_view
@@ -327,6 +330,21 @@ def cmd_build(
     catalog_index = {row["field_name"]: row for row in catalog_rows}
 
     # =====================================================
+    # Parse explain request
+    # =====================================================
+
+    explain_facets, explain_errors = parse_explain_request(
+        explain,
+    )
+
+    if explain_errors:
+        raise click.BadParameter(
+            "\n".join(
+                explain_errors,
+            )
+        )
+
+    # =====================================================
     # Context-sensitive CLI help
     # =====================================================
 
@@ -454,23 +472,6 @@ def cmd_build(
     )
 
     # =====================================================
-    # Normalize explain facets
-    # =====================================================
-
-    explain_facets = set()
-
-    if explain:
-        explain_facets = {x.strip() for x in explain.split(",") if x.strip()}
-
-        if "all" in explain_facets:
-            explain_facets = {
-                "variables",
-                "values",
-                "sources",
-                "debug",
-            }
-
-    # =====================================================
     # Structural compare/diff mode
     #
     # Also automatically enabled when:
@@ -495,7 +496,7 @@ def cmd_build(
             registry=display_registry,
             catalog_index=catalog_index,
             diff_only=diff,
-            explain=explain_facets,
+            explain_facets=explain_facets,
         )
 
         output = render_table(
@@ -519,7 +520,7 @@ def cmd_build(
             level=DEFAULT_LEVEL,
             view_name=view,
             mode="pivot" if pivot else "table",
-            explain=explain_facets,
+            explain_facets=explain_facets,
         )
 
         if not pivot:
