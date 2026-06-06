@@ -21,20 +21,21 @@ from owlroost.display.formatting import (
     format_value,
 )
 
+# =========================================================
+# Rich Table Construction
+# =========================================================
 
-def render_rich_table(
+
+def build_rich_table(
     table,
 ):
     """
-    Render RoostTable using Rich.
+    Build Rich Table renderable from
+    RoostTable.
 
-    Supports:
-        - normal tables
-        - pivot tables
-        - structural compare tables
-
-    Pivot/compare tables preserve formatting metadata
-    using table.row_meta.
+    Returns
+    -------
+    rich.table.Table
     """
 
     rich_table = Table(
@@ -70,14 +71,18 @@ def render_rich_table(
     # Rows
     # =====================================================
 
-    for row_idx, row in enumerate(table.rows):
+    for row_idx, row in enumerate(
+        table.rows,
+    ):
         row_meta = None
 
         if hasattr(
             table,
             "row_meta",
         ):
-            if row_idx < len(table.row_meta):
+            if row_idx < len(
+                table.row_meta,
+            ):
                 row_meta = table.row_meta[row_idx]
 
         # -------------------------------------------------
@@ -92,7 +97,13 @@ def render_rich_table(
         # Structural section rows
         # -------------------------------------------------
 
-        if isinstance(row_meta, dict) and row_meta.get("kind") == "section":
+        if (
+            isinstance(
+                row_meta,
+                dict,
+            )
+            and row_meta.get("kind") == "section"
+        ):
             rich_table.add_row(*["" for _ in table.columns])
 
             cells = [row[0]]
@@ -122,18 +133,7 @@ def render_rich_table(
                 row_style = "dim"
 
         # -------------------------------------------------
-        # Row-level formatting metadata
-        #
-        # Pivot tables store the originating
-        # display column in row_meta["column"].
-        #
-        # This allows rows such as:
-        #
-        #     Description
-        #     Provenance Chain
-        #
-        # to inherit width/wrap behavior from
-        # their original display definition.
+        # Row-level metadata
         # -------------------------------------------------
 
         row_wrap = False
@@ -178,10 +178,6 @@ def render_rich_table(
         ):
             fmt = column.fmt
 
-            # -----------------------------------------
-            # Pivot formatting metadata
-            # -----------------------------------------
-
             if row_meta is not None and col_idx > 0:
                 if isinstance(
                     row_meta,
@@ -201,18 +197,6 @@ def render_rich_table(
                 value,
                 fmt,
             )
-
-            # -----------------------------------------
-            # Row-aware wrapping
-            #
-            # Rich widths belong to columns,
-            # not rows. Pivot tables invert
-            # this relationship.
-            #
-            # Therefore manually wrap values
-            # using the originating field's
-            # configured width.
-            # -----------------------------------------
 
             if (
                 col_idx > 0
@@ -242,14 +226,27 @@ def render_rich_table(
             style=row_style,
         )
 
-    # =====================================================
-    # Render
-    # =====================================================
+    return rich_table
+
+
+# =========================================================
+# Rendering
+# =========================================================
+
+
+def render_rich_table(
+    table,
+):
+    """
+    Render RoostTable using Rich.
+    """
 
     console = Console()
 
     console.print(
-        rich_table,
+        build_rich_table(
+            table,
+        )
     )
 
     return ""

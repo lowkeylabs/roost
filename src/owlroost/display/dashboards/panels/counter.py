@@ -1,24 +1,21 @@
 # src/owlroost/display/dashboards/panels/counter.py
 
-"""
-TODO: Document module.
-
-Notes
------
-Describe responsibilities, ownership,
-and architectural role.
-"""
-
 from __future__ import annotations
 
 from collections import Counter
 
+from owlroost.display.dashboards.specs import (
+    CounterPanel,
+)
 from owlroost.display.renderers.specs import (
-    RoostDashboardPanel,
+    RoostTable,
+    TableColumn,
 )
 
+PANEL_SPEC = CounterPanel
 
-def materialize_counter_panel(
+
+def materialize(
     panel_spec,
     *,
     rows,
@@ -28,22 +25,9 @@ def materialize_counter_panel(
     """
     Materialize CounterPanel.
 
-    Notes
-    -----
-    Supports both:
-
-        scalar fields
-            owner
-            layer
-            projection_kind
-
-    and
-
-        collection fields
-            derived_from
-
-    Collection values contribute one count
-    per element.
+    Returns
+    -------
+    RoostTable
     """
 
     counts = Counter()
@@ -66,7 +50,7 @@ def materialize_counter_panel(
             counts["<none>"] += 1
 
         # =============================================
-        # Collection Values
+        # Collections
         # =============================================
 
         elif isinstance(
@@ -81,7 +65,7 @@ def materialize_counter_panel(
                     counts[item] += 1
 
         # =============================================
-        # Scalar Values
+        # Scalars
         # =============================================
 
         else:
@@ -104,8 +88,17 @@ def materialize_counter_panel(
             ),
         )
 
-    return RoostDashboardPanel(
-        title=panel_spec.title,
-        kind="counter",
-        content=items,
+    return RoostTable(
+        columns=[
+            TableColumn(
+                key="value",
+                label="Value",
+            ),
+            TableColumn(
+                key="count",
+                label="Count",
+                content_align="right",
+            ),
+        ],
+        rows=[[value, count] for value, count in items],
     )

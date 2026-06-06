@@ -21,7 +21,11 @@ RoostDashboard
     -> RoostDashboardRow
         -> RoostDashboardPanel
 
-Renderers consume RoostDashboard objects.
+Panel-specific computation is delegated
+to dashboard panel plugins discovered
+from:
+
+    display.dashboards.panels
 
 Architectural Invariant
 -----------------------
@@ -36,18 +40,10 @@ definitions into renderer-neutral objects.
 
 from __future__ import annotations
 
-from owlroost.display.dashboards.panels import (
-    materialize_counter_panel,
-    materialize_crosstab_panel,
-    materialize_summary_panel,
-)
-from owlroost.display.dashboards.specs import (
-    CounterPanel,
-    CrosstabPanel,
-    SummaryPanel,
-)
+from owlroost.display.dashboards.panels import get_panel_materializer
 from owlroost.display.renderers.specs import (
     RoostDashboard,
+    RoostDashboardPanel,
     RoostDashboardRow,
 )
 
@@ -85,68 +81,37 @@ def materialize_dashboard(
     dashboard_rows = []
 
     for row_spec in dashboard.rows:
-        panels = []
+        materialized_panels = []
 
         for panel_spec in row_spec.panels:
-            # =============================================
-            # Summary Panel
-            # =============================================
-
-            if isinstance(
+            panel_type = type(
                 panel_spec,
-                SummaryPanel,
-            ):
-                panel = materialize_summary_panel(
-                    panel_spec,
-                    rows=rows,
-                    registry=registry,
-                    catalog_index=catalog_index,
-                )
+            )
 
-            # =============================================
-            # Counter Panel
-            # =============================================
+            materializer = get_panel_materializer(
+                type(panel_spec),
+            )
 
-            elif isinstance(
+            if materializer is None:
+                raise TypeError(f"No dashboard materializer registered for {panel_type.__name__}")
+
+            content = materializer(
                 panel_spec,
-                CounterPanel,
-            ):
-                panel = materialize_counter_panel(
-                    panel_spec,
-                    rows=rows,
-                    registry=registry,
-                    catalog_index=catalog_index,
+                rows=rows,
+                registry=registry,
+                catalog_index=catalog_index,
+            )
+
+            materialized_panels.append(
+                RoostDashboardPanel(
+                    title=panel_spec.title,
+                    content=content,
                 )
-
-            # =============================================
-            # Crosstab Panel
-            # =============================================
-
-            elif isinstance(
-                panel_spec,
-                CrosstabPanel,
-            ):
-                panel = materialize_crosstab_panel(
-                    panel_spec,
-                    rows=rows,
-                    registry=registry,
-                    catalog_index=catalog_index,
-                )
-
-            # =============================================
-            # Unknown Panel
-            # =============================================
-
-            else:
-                raise TypeError(f"Unsupported dashboard panel: {type(panel_spec).__name__}")
-
-            panels.append(
-                panel,
             )
 
         dashboard_rows.append(
             RoostDashboardRow(
-                panels=panels,
+                panels=materialized_panels,
             )
         )
 

@@ -5,8 +5,7 @@ Dashboard renderer.
 
 Notes
 -----
-Temporary renderer used during dashboard
-subsystem migration.
+Render renderer-facing dashboards.
 
 Architectural Invariant
 -----------------------
@@ -30,8 +29,8 @@ from rich.columns import Columns
 from rich.console import Console
 from rich.panel import Panel
 
-from owlroost.display.renderers.dashboard_panels.render import (
-    render_rich_panel,
+from owlroost.display.renderers.rich_table import (
+    build_rich_table,
 )
 
 
@@ -40,12 +39,6 @@ def render_rich_dashboard(
 ):
     """
     Render dashboard.
-
-    Current implementation is intentionally
-    simple and exists primarily to validate
-    dashboard discovery, registration,
-    materialization, and rendering
-    pipelines.
     """
 
     console = Console()
@@ -56,7 +49,9 @@ def render_rich_dashboard(
         dashboard.name,
     )
 
-    console.rule(title)
+    console.rule(
+        title,
+    )
 
     for row in dashboard.rows:
         renderables = []
@@ -64,12 +59,11 @@ def render_rich_dashboard(
         for panel in row.panels:
             renderables.append(
                 Panel(
-                    render_rich_panel(
-                        panel,
+                    build_rich_table(
+                        panel.content,
                     ),
                     title=panel.title,
                     expand=True,
-                    # width=40,
                 )
             )
 

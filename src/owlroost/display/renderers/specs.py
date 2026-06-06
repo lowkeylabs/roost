@@ -1,12 +1,28 @@
 # src/owlroost/display/renderers/specs.py
 
 """
-TODO: Document module.
+Renderer-facing display specifications.
 
 Notes
 -----
-Describe responsibilities, ownership,
-and architectural role.
+Defines renderer-neutral presentation
+objects produced by materializers and
+consumed by renderers.
+
+Architectural Invariant
+-----------------------
+
+Renderers consume only renderer-facing
+objects.
+
+Renderers must not perform:
+
+    - schema lookups
+    - catalog lookups
+    - display registry lookups
+
+All presentation metadata should already
+be resolved during materialization.
 """
 
 from __future__ import annotations
@@ -25,9 +41,8 @@ class TableColumn:
 
     Notes
     -----
-    This object is renderer-facing.
-
-    Materialization is responsible for resolving:
+    Materialization is responsible for
+    resolving:
 
         - labels
         - alignment
@@ -36,15 +51,8 @@ class TableColumn:
         - wrapping metadata
         - explain metadata
 
-    Renderers must not perform:
-
-        - semantic lookups
-        - catalog lookups
-        - display registry lookups
-
-    All metadata required for rendering and
-    explanation should already be attached
-    to the column.
+    Renderers should not consult
+    registries or ontologies.
     """
 
     # =====================================================
@@ -79,10 +87,6 @@ class TableColumn:
 
     # =====================================================
     # Explain Metadata
-    #
-    # Attached during materialization so
-    # explain systems do not need access
-    # to registries or catalogs.
     # =====================================================
 
     field_name: str | None = None
@@ -102,14 +106,23 @@ class RoostTable:
     Fully materialized renderer-facing table.
 
     This object intentionally contains:
-    - no schema logic
-    - no aggregation logic
-    - no dataset logic
+
+        - no schema logic
+        - no aggregation logic
+        - no dataset logic
 
     It is the stable contract between:
-    - materializers
-    - pivot transforms
-    - renderers
+
+        - materializers
+        - transforms
+        - renderers
+
+    Notes
+    -----
+    Summary panels, counters, crosstabs,
+    compare tables, pivots, and ordinary
+    tables should all ultimately become
+    RoostTable instances.
     """
 
     def __init__(
@@ -117,28 +130,42 @@ class RoostTable:
         columns,
         rows,
         row_meta=None,
+        *,
+        show_header=True,
+        title=None,
     ):
         self.columns = columns
         self.rows = rows
+
         self.row_meta = row_meta or []
+
+        self.show_header = show_header
+
+        self.title = title
 
     # =====================================================
     # Diagnostics
     # =====================================================
 
     @property
-    def column_labels(self):
+    def column_labels(
+        self,
+    ):
         return [c.label for c in self.columns]
 
     @property
-    def column_keys(self):
+    def column_keys(
+        self,
+    ):
         return [c.key for c in self.columns]
 
     # =====================================================
     # Representation
     # =====================================================
 
-    def __repr__(self):
+    def __repr__(
+        self,
+    ):
         return f"RoostTable(columns={len(self.columns)}, rows={len(self.rows)})"
 
 
@@ -146,13 +173,7 @@ class RoostTable:
 # Backward Compatibility Alias
 # =========================================================
 
-# Temporary compatibility during migration.
 Table = RoostTable
-
-
-# =========================================================
-# Dashboard Panel
-# =========================================================
 
 
 # =========================================================
@@ -165,26 +186,25 @@ class RoostDashboardPanel:
     """
     Renderer-facing dashboard panel.
 
-    A panel owns a single materialized
-    content object.
+    Panels own a single materialized
+    presentation object.
 
-    Currently content may be:
+    Currently expected content:
 
-        - text
         - RoostTable
 
-    Future:
+    Future possibilities:
 
-        - Crosstab
-        - Markdown
-        - Chart
-        - Tree
-        - Text block
+        - RoostChart
+        - RoostTree
+        - RoostMarkdown
+
+    Dashboard layout owns panel placement.
+
+    Content owns presentation semantics.
     """
 
     title: str | None = None
-
-    kind: str = "panel"
 
     content: object | None = None
 
@@ -214,11 +234,10 @@ class RoostDashboardRow:
 
 class RoostDashboard:
     """
-    Fully materialized renderer-facing dashboard.
+    Fully materialized renderer-facing
+    dashboard.
 
     Dashboards are composed of rows.
-
-    Each row contains one or more panels.
 
     Example
     -------
@@ -246,7 +265,9 @@ class RoostDashboard:
         title: str | None = None,
     ):
         self.name = name
+
         self.title = title or name
+
         self.rows = rows
 
     def __repr__(

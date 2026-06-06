@@ -1,22 +1,19 @@
 # src/owlroost/display/dashboards/panels/summary.py
 
-"""
-TODO: Document module.
-
-Notes
------
-Describe responsibilities, ownership,
-and architectural role.
-"""
-
 from __future__ import annotations
 
+from owlroost.display.dashboards.specs import (
+    SummaryPanel,
+)
 from owlroost.display.renderers.specs import (
-    RoostDashboardPanel,
+    RoostTable,
+    TableColumn,
 )
 
+PANEL_SPEC = SummaryPanel
 
-def materialize_summary_panel(
+
+def materialize(
     panel_spec,
     *,
     rows,
@@ -25,16 +22,29 @@ def materialize_summary_panel(
 ):
     """
     Materialize SummaryPanel.
+
+    Returns
+    -------
+    RoostTable
     """
 
     if panel_spec.metric == "catalog_size":
-        value = f"Catalog size: {len(rows)}"
+        value = len(
+            rows,
+        )
 
     else:
         value = None
 
-    return RoostDashboardPanel(
-        title=panel_spec.title,
-        kind="summary",
-        content=value,
+    return RoostTable(
+        columns=[
+            TableColumn(
+                key="value",
+                label="Value",
+                content_align="right",
+            ),
+        ],
+        rows=[
+            [value],
+        ],
     )
