@@ -45,6 +45,8 @@ from owlroost.schema.bootstrap import build_schema_registry
 # Defaults
 # =========================================================
 
+DEFAULT_DASHBOARD = "catalog"
+
 DEFAULT_LEVEL = "catalog"
 
 DEFAULT_VIEW = "summary"
@@ -74,6 +76,7 @@ class _RowsAdapter:
 
 
 @click.command("vars")
+@click.pass_context
 @click.argument(
     "args",
     nargs=-1,
@@ -187,7 +190,7 @@ class _RowsAdapter:
 @click.option(
     "--dashboard",
     type=str,
-    default="ontology",
+    default=None,
 )
 @click.option(
     "--view",
@@ -230,6 +233,7 @@ class _RowsAdapter:
     help=("Explanation facets. Comma-separated list."),
 )
 def cmd_vars(
+    ctx,
     args,
     layer,
     owner,
@@ -252,6 +256,14 @@ def cmd_vars(
     """
     Display ROOST ontology and variable catalog.
     """
+
+    _invoked_as = ctx.info_name
+    # set default view to "build" or "cases"
+    # will automatically load as "case" view
+    if dashboard is None:
+        dashboard = ctx.info_name or DEFAULT_DASHBOARD
+
+    print(dashboard)
 
     selectors, search_terms = split_catalog_args(
         args,

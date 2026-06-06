@@ -83,4 +83,5 @@ cli.add_command(cmd_build, name="build")
 cli.add_command(cmd_run)
 cli.add_command(cmd_reports)
 cli.add_command(cmd_results)
-cli.add_command(cmd_vars)
+
+cli.add_command(cmd_vars, name="vars")
