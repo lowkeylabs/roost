@@ -451,29 +451,48 @@ Profiles
     define renderer behavior
 ```
 
+# Dashboards
+
+Dashboards organize analytical panels into
+higher-level inspection and reporting
+layouts.
+
+Conceptually:
+
+    DisplayField
+        ↓
+    DisplayGroup
+        ↓
+    DisplayView
+
+and
+
+    DisplayField
+        ↓
+    DisplayDashboard
+
+Dashboards complement views rather than
+replace them.
+
+Views typically produce a single table.
+
+Dashboards produce multi-panel analytical
+layouts suitable for:
+
+* QA/QC workflows
+* ontology inspection
+* catalog exploration
+* validation reports
+* executive summaries
+
+Dashboard ownership resides entirely within
+the display subsystem.
+
+Dashboards remain presentation artifacts and
+do not establish semantic ownership.
+
 ---
 
-# Recommended New Section
-
-I would insert a new section immediately after:
-
-```text
-# Views
-```
-
-and before:
-
-```text
-# Groups
-```
-
-because modes and profiles are really part of view composition.
-
----
-
-# New Section: Display Modes
-
-````markdown
 # Display Modes
 
 Display views support multiple display modes.

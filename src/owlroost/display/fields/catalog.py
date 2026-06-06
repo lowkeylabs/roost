@@ -230,6 +230,23 @@ def register_display_fields(
 
     reg.register_display_field(
         DisplayField.field(
+            "expands_to",
+            description=(
+                "Variables generated when this entity expands into multiple semantic variables."
+            ),
+            profiles={
+                "table": DisplayProfile(
+                    label="Expands To",
+                    width=20,
+                    wrap=True,
+                ),
+            },
+            **CATALOG_ONTOLOGY,
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField.field(
             "defined_in",
             description="Module where the field is defined.",
             display_fn=debug_defined_in,

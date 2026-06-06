@@ -32,6 +32,7 @@ from pydantic import (
 from owlroost.catalog.ontology import (
     CatalogNodeType,
 )
+from owlroost.core.utils import normalize_module_path
 from owlroost.schema.registry import (
     FieldSpec,
 )
@@ -119,6 +120,9 @@ def register_schema_fields(
                 # Documentation
                 # =====================================
                 description=(field.description or ""),
-                defined_in="case",
+                # =========================================
+                # Provenance
+                # =========================================
+                defined_in=normalize_module_path(__file__),
             )
         )

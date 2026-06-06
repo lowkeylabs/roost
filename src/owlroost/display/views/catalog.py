@@ -1,12 +1,12 @@
 # src/owlroost/display/views/catalog.py
 
 """
-TODO: Document module.
+Catalog display views.
 
 Notes
 -----
-Describe responsibilities, ownership,
-and architectural role.
+Catalog inspection and semantic
+introspection views.
 """
 
 from __future__ import annotations
@@ -20,20 +20,7 @@ def register_display_views(
     reg,
 ):
     """
-    Register all display views.
-
-    Views are declarative layouts composed
-    from reusable display groups and fields.
-
-    Views are uniquely identified by:
-
-        (level, name)
-
-    Examples:
-
-        ("case", "basic")
-        ("run", "results")
-        ("session", "results")
+    Register catalog inspection views.
     """
 
     reg.register_view(
@@ -44,11 +31,13 @@ def register_display_views(
                 # =====================================
                 # Identity
                 # =====================================
+                ("section", "Identity"),
                 "field_name",
                 "owner",
                 # =====================================
                 # Catalog
                 # =====================================
+                ("section", "Catalog"),
                 ("path", {"modes": ["pivot"]}),
                 ("layer", {"modes": ["pivot"]}),
                 ("source", {"modes": ["pivot"]}),
@@ -56,6 +45,7 @@ def register_display_views(
                 # =====================================
                 # Ontology
                 # =====================================
+                ("section", "Ontology"),
                 ("semantic_domain", {"modes": ["pivot"]}),
                 ("value_origin", {"modes": ["pivot"]}),
                 ("projection_kind", {"modes": ["pivot"]}),
@@ -63,9 +53,15 @@ def register_display_views(
                 ("materialization_level", {"modes": ["pivot"]}),
                 ("node_type", {"modes": ["pivot"]}),
                 # =====================================
+                # Relationships
+                # =====================================
+                ("section", "Relationships"),
+                ("derived_from", {"modes": ["pivot"]}),
+                # ("expands_to", {"modes": ["pivot"]}),  # not for this view!
+                # =====================================
                 # Provenance
                 # =====================================
-                ("derived_from", {"modes": ["pivot"]}),
+                ("section", "Provenance"),
                 ("origin_file", {"modes": ["pivot"]}),
                 ("defined_in", {"modes": ["pivot"]}),
                 ("provenance_depth", {"modes": ["pivot"]}),
@@ -73,20 +69,26 @@ def register_display_views(
                 # =====================================
                 # Display
                 # =====================================
+                ("section", "Display"),
                 ("display_name", {"modes": ["pivot"]}),
                 ("profiles", {"modes": ["pivot"]}),
+                # Future:
+                #
+                # ("used_by_groups", {"modes": ["pivot"]}),
+                # ("used_by_views", {"modes": ["pivot"]}),
                 # =====================================
                 # Documentation
                 # =====================================
+                ("section", "Documentation"),
                 ("description", {"modes": ["pivot"]}),
             ],
             description=(
                 "Canonical catalog inspection view. "
                 "Table mode supports catalog browsing "
                 "and selection. Pivot mode exposes "
-                "complete catalog identity, ontology, "
-                "provenance, display metadata, and "
-                "documentation."
+                "catalog identity, ontology, semantic "
+                "relationships, provenance, display "
+                "metadata, and documentation."
             ),
         )
     )

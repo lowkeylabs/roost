@@ -80,7 +80,7 @@ def register_display_fields(
             profiles={
                 "table": DisplayProfile(
                     label="Value",
-                    width=50,
+                    width=40,
                     wrap=True,
                 ),
             },

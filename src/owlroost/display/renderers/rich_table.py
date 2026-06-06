@@ -11,6 +11,8 @@ and architectural role.
 
 from __future__ import annotations
 
+import textwrap
+
 from rich import box
 from rich.console import Console
 from rich.table import Table
@@ -69,10 +71,6 @@ def render_rich_table(
     # =====================================================
 
     for row_idx, row in enumerate(table.rows):
-        # -------------------------------------------------
-        # Optional row metadata
-        # -------------------------------------------------
-
         row_meta = None
 
         if hasattr(
@@ -88,7 +86,6 @@ def render_rich_table(
 
         if all((c is None or c == "") for c in row):
             rich_table.add_row(*["" for _ in row])
-
             continue
 
         # -------------------------------------------------
@@ -96,15 +93,7 @@ def render_rich_table(
         # -------------------------------------------------
 
         if isinstance(row_meta, dict) and row_meta.get("kind") == "section":
-            # ---------------------------------------------
-            # Visual spacer before section
-            # ---------------------------------------------
-
             rich_table.add_row(*["" for _ in table.columns])
-
-            # ---------------------------------------------
-            # Section row
-            # ---------------------------------------------
 
             cells = [row[0]]
 
@@ -125,9 +114,53 @@ def render_rich_table(
 
         row_style = None
 
-        if isinstance(row_meta, dict):
+        if isinstance(
+            row_meta,
+            dict,
+        ):
             if row_meta.get("dim"):
                 row_style = "dim"
+
+        # -------------------------------------------------
+        # Row-level formatting metadata
+        #
+        # Pivot tables store the originating
+        # display column in row_meta["column"].
+        #
+        # This allows rows such as:
+        #
+        #     Description
+        #     Provenance Chain
+        #
+        # to inherit width/wrap behavior from
+        # their original display definition.
+        # -------------------------------------------------
+
+        row_wrap = False
+        row_width = None
+
+        if isinstance(
+            row_meta,
+            dict,
+        ):
+            meta_column = row_meta.get(
+                "column",
+            )
+
+            if meta_column is not None:
+                row_wrap = bool(
+                    getattr(
+                        meta_column,
+                        "wrap",
+                        False,
+                    )
+                )
+
+                row_width = getattr(
+                    meta_column,
+                    "width",
+                    None,
+                )
 
         # -------------------------------------------------
         # Cells
@@ -143,21 +176,13 @@ def render_rich_table(
                 strict=False,
             )
         ):
-            # ---------------------------------------------
-            # Default column formatting
-            # ---------------------------------------------
-
             fmt = column.fmt
 
-            # ---------------------------------------------
-            # Pivot formatting
-            # ---------------------------------------------
+            # -----------------------------------------
+            # Pivot formatting metadata
+            # -----------------------------------------
 
             if row_meta is not None and col_idx > 0:
-                # -----------------------------------------
-                # Structured row_meta support
-                # -----------------------------------------
-
                 if isinstance(
                     row_meta,
                     dict,
@@ -169,18 +194,47 @@ def render_rich_table(
                     if meta_column is not None:
                         fmt = meta_column.fmt
 
-                # -----------------------------------------
-                # Backward compatibility
-                # -----------------------------------------
-
                 else:
                     fmt = row_meta.fmt
 
-            formatted.append(
-                format_value(
-                    value,
-                    fmt,
+            rendered = format_value(
+                value,
+                fmt,
+            )
+
+            # -----------------------------------------
+            # Row-aware wrapping
+            #
+            # Rich widths belong to columns,
+            # not rows. Pivot tables invert
+            # this relationship.
+            #
+            # Therefore manually wrap values
+            # using the originating field's
+            # configured width.
+            # -----------------------------------------
+
+            if (
+                col_idx > 0
+                and row_wrap
+                and row_width
+                and isinstance(
+                    rendered,
+                    str,
                 )
+                and rendered
+            ):
+                rendered = "\n".join(
+                    textwrap.wrap(
+                        rendered,
+                        width=row_width,
+                        break_long_words=False,
+                        break_on_hyphens=False,
+                    )
+                )
+
+            formatted.append(
+                rendered,
             )
 
         rich_table.add_row(
@@ -194,6 +248,8 @@ def render_rich_table(
 
     console = Console()
 
-    console.print(rich_table)
+    console.print(
+        rich_table,
+    )
 
     return ""

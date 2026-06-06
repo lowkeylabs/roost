@@ -373,3 +373,64 @@ def test_materialize_unknown_entry_raises():
                 },
             ],
         )
+
+
+def test_materialize_pivot_sections():
+    """
+    Pivot views should preserve section
+    declarations as structural rows.
+    """
+
+    reg = DisplayRegistry()
+
+    reg.register_display_field(
+        DisplayField.field(
+            "field_name",
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField.field(
+            "owner",
+        )
+    )
+
+    reg.register_view(
+        DisplayView(
+            level="catalog",
+            name="sections",
+            entries=[
+                ("section", "Identity"),
+                "field_name",
+                ("section", "Ontology"),
+                "owner",
+            ],
+        )
+    )
+
+    reg.validate()
+
+    rows = [
+        {
+            "_inputs": {
+                "field_name": "example",
+                "owner": "OWL",
+            },
+        },
+    ]
+
+    table = materialize_view(
+        rows=rows,
+        registry=reg,
+        level="catalog",
+        view_name="sections",
+        mode="pivot",
+    )
+
+    section_rows = [idx for idx, meta in enumerate(table.row_meta) if meta.get("kind") == "section"]
+
+    assert len(section_rows) == 2
+
+    assert table.rows[section_rows[0]][0] == "Identity"
+
+    assert table.rows[section_rows[1]][0] == "Ontology"

@@ -75,6 +75,35 @@ DisplayMode = Literal[
     "pivot",
 ]
 
+# =========================================================
+# Display View Entries
+# =========================================================
+
+FieldEntry = str
+
+FieldOptionsEntry = tuple[
+    str,
+    dict,
+]
+
+SectionEntry = tuple[
+    Literal["section"],
+    str,
+]
+
+DisplayViewEntry = FieldEntry | FieldOptionsEntry | SectionEntry
+
+# Supported forms:
+#
+#     "field_name"
+#
+#     ("field_name", {"modes": ["pivot"]})
+#
+#     ("section", "Ontology")
+#
+#     ("section", "")
+#
+
 
 class OntologyKwargs(
     TypedDict,
@@ -438,12 +467,43 @@ class DisplayGroup:
 class DisplayView:
     """
     Renderer-facing view specification.
+
+    Entries may contain:
+
+        field references
+
+            "field_name"
+
+        field references with options
+
+            ("field_name", {...})
+
+        structural section markers
+
+            ("section", "Identity")
+
+            ("section", "")
+
+    Section entries are presentation-only
+    constructs used by materializers to
+    emit structural divider rows.
+
+    Section entries do not correspond to
+    DisplayFields and are ignored during
+    column construction.
+
+    They participate only in row-oriented
+    layouts such as:
+
+        - pivot tables
+        - compare tables
+        - catalog reports
     """
 
     level: str
 
     name: str
 
-    entries: list[str | tuple[str, dict]]
+    entries: list[DisplayViewEntry]
 
     description: str = ""

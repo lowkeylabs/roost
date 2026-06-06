@@ -61,6 +61,21 @@ def normalize_entry(
         }
 
     # -----------------------------------------------------
+    # Section
+    # -----------------------------------------------------
+
+    if (
+        isinstance(entry, tuple)
+        and len(entry) == 2
+        and entry[0] == "section"
+        and isinstance(entry[1], str)
+    ):
+        return {
+            "kind": "section",
+            "label": entry[1],
+        }
+
+    # -----------------------------------------------------
     # Decorated field
     # -----------------------------------------------------
 
@@ -153,6 +168,7 @@ def pivot_table(
     registry: DisplayRegistry | None = None,
     explain_facets=None,
     catalog_index=None,
+    visible_entries=None,
 ):
     """
     Flip rows/columns for pivot display.
@@ -173,6 +189,8 @@ def pivot_table(
     explain_enabled = bool(
         explain_facets,
     )
+
+    visible_entries = visible_entries or []
 
     # =====================================================
     # Synthetic Pivot Profiles
@@ -263,17 +281,80 @@ def pivot_table(
 
     new_row_meta = []
 
-    for col_idx, column in enumerate(
-        table.columns,
-    ):
+    # =====================================================
+    # Legacy Support
+    #
+    # Older callers may not pass
+    # visible_entries.
+    # =====================================================
+
+    if not visible_entries:
+        visible_entries = [
+            {
+                "field": column.field_name,
+            }
+            for column in table.columns
+        ]
+
+    has_named_sections = any(
+        entry.get("kind") == "section" and entry.get("label", "").strip()
+        for entry in visible_entries
+    )
+
+    column_idx = 0
+
+    for entry in visible_entries:
+        # =================================================
+        # Section Rows
+        # =================================================
+
+        if entry.get("kind") == "section":
+            row = [
+                entry.get(
+                    "label",
+                    "",
+                )
+            ]
+
+            row.extend(["" for _ in table.rows])
+
+            if explain_enabled:
+                row.append("")
+
+            new_rows.append(
+                row,
+            )
+
+            new_row_meta.append(
+                {
+                    "kind": "section",
+                }
+            )
+
+            continue
+
+        # =================================================
+        # Normal Field Rows
+        # =================================================
+
+        column = table.columns[column_idx]
+
+        column_idx += 1
+
+        # indent first column if there are column labels present
+        label = column.label
+
+        if has_named_sections:
+            label = f"  {label}"
+
         row = [
-            column.label,
+            label,
         ]
 
         row_values = []
 
         for original_row in table.rows:
-            value = original_row[col_idx]
+            value = original_row[column_idx - 1]
 
             row.append(
                 value,
@@ -302,14 +383,12 @@ def pivot_table(
             row,
         )
 
-        # -------------------------------------------------
-        # Preserve Original Column Metadata
-        # -------------------------------------------------
-
         new_row_meta.append(
             {
                 "column": column,
                 "field_name": column.key,
+                "wrap": column.wrap,
+                "width": column.width,
             }
         )
 
@@ -388,9 +467,11 @@ def materialize_view(
     visible_entries = []
 
     for entry in expanded_entries:
-        modes = entry.get(
-            "modes",
-        )
+        if entry.get("kind") == "section":
+            visible_entries.append(entry)
+            continue
+
+        modes = entry.get("modes")
 
         if modes is not None:
             if mode not in modes:
@@ -404,7 +485,7 @@ def materialize_view(
     # Field Names
     # =====================================================
 
-    field_names = [entry["field"] for entry in visible_entries]
+    field_names = [entry["field"] for entry in visible_entries if entry.get("kind") != "section"]
 
     # =====================================================
     # Columns
@@ -505,6 +586,7 @@ def materialize_view(
             registry=registry,
             explain_facets=explain_facets,
             catalog_index=catalog_index,
+            visible_entries=visible_entries,
         )
 
     return table

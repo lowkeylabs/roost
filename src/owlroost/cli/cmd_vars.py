@@ -30,6 +30,7 @@ from owlroost.cli.dashboards.catalog import (
 )
 from owlroost.cli.utils import render_table, resolve_renderer, select_rows_by_id, split_catalog_args
 from owlroost.display.bootstrap import build_display_registry
+from owlroost.display.explain import parse_explain_request
 from owlroost.display.materializers.materialize import materialize_view
 from owlroost.display.operations.filtering import apply_filters
 from owlroost.display.operations.help import render_field_help
@@ -231,6 +232,11 @@ class _RowsAdapter:
     is_flag=True,
     help="Render transposed layout.",
 )
+@click.option(
+    "--explain",
+    type=str,
+    help=("Explanation facets. Comma-separated list."),
+)
 def cmd_vars(
     args,
     layer,
@@ -249,6 +255,7 @@ def cmd_vars(
     sort,
     top,
     pivot,
+    explain,
 ):
     """
     Display ROOST ontology and variable catalog.
@@ -257,6 +264,24 @@ def cmd_vars(
     selectors, search_terms = split_catalog_args(
         args,
     )
+
+    # =====================================================
+    # Parse explain request
+    # =====================================================
+
+    explain_facets, explain_errors = parse_explain_request(
+        explain,
+    )
+
+    if explain_errors:
+        raise click.BadParameter(
+            "\n".join(
+                explain_errors,
+            )
+        )
+
+    if explain_facets and not pivot:
+        raise click.BadParameter("--explain requires --pivot")
 
     # =====================================================
     # Registries
@@ -303,6 +328,7 @@ def cmd_vars(
         node_type=node_type,
         search=search_terms,
     )
+    catalog_index = {row["field_name"]: row for row in rows}
 
     if show_dashboard:
         if dashboard == "ontology":
@@ -421,9 +447,11 @@ def cmd_vars(
     table = materialize_view(
         rows=rows,
         registry=display_registry,
+        catalog_index=catalog_index,
         level=DEFAULT_LEVEL,
         view_name=view,
         mode="pivot" if pivot else "table",
+        explain_facets=explain_facets,
     )
 
     # =====================================================
