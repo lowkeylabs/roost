@@ -148,3 +148,108 @@ class RoostTable:
 
 # Temporary compatibility during migration.
 Table = RoostTable
+
+
+# =========================================================
+# Dashboard Panel
+# =========================================================
+
+
+# =========================================================
+# Dashboard Panel
+# =========================================================
+
+
+@dataclass
+class RoostDashboardPanel:
+    """
+    Renderer-facing dashboard panel.
+
+    A panel owns a single materialized
+    content object.
+
+    Currently content may be:
+
+        - text
+        - RoostTable
+
+    Future:
+
+        - Crosstab
+        - Markdown
+        - Chart
+        - Tree
+        - Text block
+    """
+
+    title: str | None = None
+
+    kind: str = "panel"
+
+    content: object | None = None
+
+    width: int | None = None
+
+
+# =========================================================
+# Dashboard Row
+# =========================================================
+
+
+@dataclass
+class RoostDashboardRow:
+    """
+    Horizontal row of dashboard panels.
+
+    Panels are rendered left-to-right.
+    """
+
+    panels: list[RoostDashboardPanel]
+
+
+# =========================================================
+# Dashboard
+# =========================================================
+
+
+class RoostDashboard:
+    """
+    Fully materialized renderer-facing dashboard.
+
+    Dashboards are composed of rows.
+
+    Each row contains one or more panels.
+
+    Example
+    -------
+
+    Dashboard
+
+        Row
+            Panel
+            Panel
+
+        Row
+            Panel
+
+        Row
+            Panel
+            Panel
+            Panel
+    """
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        rows,
+        title: str | None = None,
+    ):
+        self.name = name
+        self.title = title or name
+        self.rows = rows
+
+    def __repr__(
+        self,
+    ):
+        return f"RoostDashboard(name={self.name!r}, rows={len(self.rows)})"

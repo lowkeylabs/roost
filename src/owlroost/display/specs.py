@@ -69,6 +69,7 @@ from owlroost.catalog.provenance import (
 
 if TYPE_CHECKING:
     from owlroost.catalog.specs import CatalogSpec
+    from owlroost.display.dashboards.specs import DashboardRow
 
 DisplayMode = Literal[
     "table",
@@ -506,4 +507,12 @@ class DisplayView:
 
     entries: list[DisplayViewEntry]
 
+    description: str = ""
+
+
+@dataclass
+class DisplayDashboard:
+    name: str
+    title: str | None = None
+    rows: list[DashboardRow] = field(default_factory=list)
     description: str = ""

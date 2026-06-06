@@ -12,6 +12,7 @@ and architectural role.
 from __future__ import annotations
 
 from owlroost.display.specs import (
+    DisplayDashboard,
     DisplayField,
     DisplayGroup,
     DisplayView,
@@ -55,6 +56,11 @@ class DisplayRegistry:
         self._views: dict[
             tuple[str, str],
             DisplayView,
+        ] = {}
+
+        self._dashboards: dict[
+            str,
+            DisplayDashboard,
         ] = {}
 
     # =====================================================
@@ -426,6 +432,58 @@ class DisplayRegistry:
         return unique
 
     # =====================================================
+    # Dashboards
+    # =====================================================
+
+    def register_dashboard(
+        self,
+        dashboard: DisplayDashboard,
+    ):
+        """
+        Register DisplayDashboard.
+        """
+
+        if dashboard.name in self._dashboards:
+            raise ValueError(f"Duplicate DisplayDashboard registered: {dashboard.name}")
+
+        self._dashboards[dashboard.name] = dashboard
+
+    def get_dashboard(
+        self,
+        name: str,
+    ) -> DisplayDashboard:
+        """
+        Lookup dashboard.
+        """
+
+        try:
+            return self._dashboards[name]
+
+        except KeyError as err:
+            raise KeyError(f"DisplayDashboard not found: {name}") from err
+
+    def has_dashboard(
+        self,
+        name: str,
+    ) -> bool:
+        return name in self._dashboards
+
+    def all_dashboards(
+        self,
+    ) -> list[DisplayDashboard]:
+        return list(self._dashboards.values())
+
+    def get_all_dashboards(
+        self,
+    ) -> list[DisplayDashboard]:
+        return self.all_dashboards()
+
+    def all_dashboard_names(
+        self,
+    ) -> list[str]:
+        return sorted(self._dashboards.keys())
+
+    # =====================================================
     # Diagnostics
     # =====================================================
 
@@ -436,6 +494,7 @@ class DisplayRegistry:
             "display_fields": len(self._display_fields),
             "groups": len(self._groups),
             "views": len(self._views),
+            "dashboards": len(self._dashboards),
         }
 
     # =====================================================
@@ -525,17 +584,16 @@ class DisplayRegistry:
     # Representation
     # =====================================================
 
-    def __repr__(
-        self,
-    ):
+    def __repr__(self):
         s = self.summary()
 
         return (
-            "DisplayRegistry("
+            f"DisplayRegistry("
             f"fields={s['display_fields']}, "
             f"groups={s['groups']}, "
-            f"views={s['views']}"
-            ")"
+            f"views={s['views']}, "
+            f"dashboards={s['dashboards']}"
+            f")"
         )
 
     # =====================================================

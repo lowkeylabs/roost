@@ -317,6 +317,7 @@ def test_registry_summary_counts():
         "display_fields": 1,
         "groups": 1,
         "views": 1,
+        "dashboards": 0,
     }
 
 

@@ -11,29 +11,39 @@ and architectural role.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 
 
-@dataclass(slots=True)
-class DashboardSpec:
-    """
-    Dashboard definition.
+@dataclass
+class DashboardRow:
+    panels: list
 
-    Notes
-    -----
-    Dashboards are higher-level
-    presentation artifacts used by
-    discovery-oriented commands such as:
 
-        roost vars
+# =====================================================
+# Panel Specs
+# =====================================================
 
-    Unlike DisplayView, dashboards are
-    free-form Rich renderers.
-    """
 
-    name: str
+@dataclass
+class SummaryPanel:
+    title: str
+    metric: str
 
-    render: Callable
 
-    description: str = ""
+@dataclass
+class CounterPanel:
+    title: str
+    field_name: str
+    sort_by_count: bool = False
+    filters: dict[str, object] | None = None
+
+
+@dataclass
+class CrosstabPanel:
+    title: str
+
+    row_key: str
+    col_key: str
+
+    row_order: list[str] | None = None
+    col_order: list[str] | None = None

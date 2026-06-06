@@ -1,4 +1,4 @@
-# src/owlroost/cli/dashboards/catalog.py
+# src/owlroost/cli/dashboards/pivot.py
 
 """
 TODO: Document module.
@@ -12,7 +12,7 @@ and architectural role.
 from __future__ import annotations
 
 from owlroost.display.dashboards.specs import (
-    CounterPanel,
+    CrosstabPanel,
     DashboardRow,
     SummaryPanel,
 )
@@ -26,8 +26,8 @@ def register_display_dashboards(
 ):
     reg.register_dashboard(
         DisplayDashboard(
-            name="catalog",
-            description="Catalog inventory dashboard.",
+            name="pivot",
+            description="Ontology pivot dashboard.",
             rows=[
                 DashboardRow(
                     [
@@ -39,29 +39,29 @@ def register_display_dashboards(
                 ),
                 DashboardRow(
                     [
-                        CounterPanel(
-                            title="Projection Kind",
-                            field_name="projection_kind",
+                        CrosstabPanel(
+                            title="Projection Kind × Owner",
+                            row_key="projection_kind",
+                            col_key="owner",
                         ),
-                        CounterPanel(
-                            title="Owner",
-                            field_name="owner",
+                        CrosstabPanel(
+                            title="Semantic Domain × Owner",
+                            row_key="semantic_domain",
+                            col_key="owner",
                         ),
                     ]
                 ),
                 DashboardRow(
                     [
-                        CounterPanel(
-                            title="Semantic Domain",
-                            field_name="semantic_domain",
+                        CrosstabPanel(
+                            title="Layer × Owner",
+                            row_key="layer",
+                            col_key="owner",
                         ),
-                        CounterPanel(
-                            title="Layer",
-                            field_name="layer",
-                        ),
-                        CounterPanel(
-                            title="Node Type",
-                            field_name="node_type",
+                        CrosstabPanel(
+                            title="Node Type × Projection",
+                            row_key="node_type",
+                            col_key="projection_kind",
                         ),
                     ]
                 ),

@@ -1,4 +1,4 @@
-# src/owlroost/cli/dashboards/catalog.py
+# src/owlroost/display/dashboards/layouts/catalog.py
 
 """
 TODO: Document module.

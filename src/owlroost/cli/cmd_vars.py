@@ -23,20 +23,21 @@ from __future__ import annotations
 import click
 
 from owlroost.catalog.loaders import load_catalog_rows
-from owlroost.cli.dashboards.catalog import (
-    render_catalog_dashboard,
-    render_catalog_ontology_dashboard,
-    render_catalog_pivot_dashboard,
-)
 from owlroost.cli.utils import render_table, resolve_renderer, select_rows_by_id, split_catalog_args
 from owlroost.display.bootstrap import build_display_registry
 from owlroost.display.explain import parse_explain_request
 from owlroost.display.materializers.materialize import materialize_view
+from owlroost.display.materializers.materialize_dashboard import (
+    materialize_dashboard,
+)
 from owlroost.display.operations.filtering import apply_filters
 from owlroost.display.operations.help import render_field_help
 from owlroost.display.operations.row_ops import apply_top, attach_row_ids
 from owlroost.display.operations.sorting import apply_canonical_sort, apply_sort
 from owlroost.display.operations.table_ops import inject_id_column
+from owlroost.display.renderers.rich_dashboard import (
+    render_rich_dashboard,
+)
 from owlroost.metrics.bootstrap import build_metrics_registry
 from owlroost.schema.bootstrap import build_schema_registry
 
@@ -185,17 +186,8 @@ class _RowsAdapter:
 )
 @click.option(
     "--dashboard",
-    type=click.Choice(
-        [
-            "ontology",
-            "inventory",
-            "pivot",
-        ],
-        case_sensitive=False,
-    ),
+    type=str,
     default="ontology",
-    show_default=True,
-    help="Catalog dashboard.",
 )
 @click.option(
     "--view",
@@ -331,20 +323,20 @@ def cmd_vars(
     catalog_index = {row["field_name"]: row for row in rows}
 
     if show_dashboard:
-        if dashboard == "ontology":
-            render_catalog_ontology_dashboard(
-                rows,
-            )
+        dashboard_spec = display_registry.get_dashboard(
+            dashboard,
+        )
 
-        elif dashboard == "pivot":
-            render_catalog_pivot_dashboard(
-                rows,
-            )
+        dashboard_obj = materialize_dashboard(
+            dashboard_spec,
+            rows=rows,
+            registry=display_registry,
+            catalog_index=catalog_index,
+        )
 
-        else:
-            render_catalog_dashboard(
-                rows,
-            )
+        render_rich_dashboard(
+            dashboard_obj,
+        )
 
         return
 

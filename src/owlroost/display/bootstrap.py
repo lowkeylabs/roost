@@ -11,6 +11,9 @@ and architectural role.
 
 from __future__ import annotations
 
+from owlroost.display.dashboards.bootstrap import (
+    register_display_dashboards,
+)
 from owlroost.display.fields import (
     register_all_display_fields,
 )
@@ -122,6 +125,10 @@ def build_display_registry(
     # =====================================================
 
     register_display_views(
+        reg,
+    )
+
+    register_display_dashboards(
         reg,
     )
 
