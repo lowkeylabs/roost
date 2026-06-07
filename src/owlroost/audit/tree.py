@@ -1,8 +1,7 @@
 # src/owlroost/audit/tree.py
 #
 # Copyright (c) 2026 John Leonard
-# All rights reserved.
-# SPDX-License-Identifier: LicenseRef-OwlRoost-Proprietary
+# SPDX-License-Identifier: GPL-3.0-or-later
 # See LICENSE file in repository root.
 
 """
@@ -24,17 +23,13 @@ ROOT = Path("src/owlroost")
 
 HEADER_OWNER = "John Leonard"
 
-HEADER_LICENSE = "LicenseRef-OwlRoost-Proprietary"
-
-
 HEADER_YEAR = str(datetime.now().year)
 
 HEADER_TEMPLATE = [
     "# {path}",
     "#",
     "# Copyright (c) {year} {owner}",
-    "# All rights reserved.",
-    "# SPDX-License-Identifier: {license}",
+    "# SPDX-License-Identifier: GPL-3.0-or-later",
     "# See LICENSE file in repository root.",
 ]
 
@@ -156,7 +151,6 @@ def _build_header(
             path=path.as_posix(),
             year=HEADER_YEAR,
             owner=HEADER_OWNER,
-            license=HEADER_LICENSE,
         )
         for line in HEADER_TEMPLATE
     ]

@@ -1,27 +1,67 @@
 [project]
-name = "owl-roost"
+name = "roost"
 dynamic = ["version"]
-description = "OWL-ROOST - Retirement Options and Outcomes Studies Toolkit"
+
+description = "Retirement Options and Outcomes Studies Tool"
 readme = "README.md"
 requires-python = ">=3.12"
 
-dependencies = [
-    "hydra-core>=1.3.2",
-    "jupyter>=1.1.1",
-    "matplotlib>=3.10.8",
-    "plotly>=6.5.0",
-    # OWL is under active development; pin to commit for reproducibility
-    "owlplanner @ git+https://github.com/mdlacasse/Owl.git@4f8ca8d802fbe504e03b5730ddfc658e887d1cf2",  # 2026-02-19
-    #"owlplanner", #used with uv.sources below.
-    #"owlplanner @ git+https://github.com/lowkeylabs/OwlPlanner.git@feature/config-compare",
-    "python-dotenv>=1.2.1",
-    "hydra-joblib-launcher>=1.2.0",
-    "tqdm>=4.67.1",
-    "tomlkit>=0.14.0",
-    "rich>=14.3.3",
-    "mosek>=11.1.9",
-    "quarto>=0.1.0",
+license = "GPL-3.0-or-later"
+
+authors = [
+{ name = "John Leonard" }
 ]
+
+keywords = [
+"retirement",
+"retirement-planning",
+"financial-planning",
+"retirement-research",
+"stochastic-simulation",
+"monte-carlo",
+"optimization",
+"policy-analysis",
+"reproducible-research",
+]
+
+classifiers = [
+"Development Status :: 3 - Alpha",
+"Intended Audience :: Science/Research",
+"Intended Audience :: Financial and Insurance Industry",
+"License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+"Programming Language :: Python :: 3",
+"Programming Language :: Python :: 3.12",
+"Operating System :: OS Independent",
+"Topic :: Scientific/Engineering",
+"Topic :: Office/Business :: Financial",
+]
+
+dependencies = [
+"hydra-core>=1.3.2",
+"jupyter>=1.1.1",
+"matplotlib>=3.10.8",
+"plotly>=6.5.0",
+
+# OWL is under active development; pin to commit for reproducibility
+"owlplanner @ git+https://github.com/mdlacasse/Owl.git@4f8ca8d802fbe504e03b5730ddfc658e887d1cf2",  # 2026-02-19
+
+#"owlplanner",
+#"owlplanner @ git+https://github.com/lowkeylabs/OwlPlanner.git@feature/config-compare",
+
+"python-dotenv>=1.2.1",
+"hydra-joblib-launcher>=1.2.0",
+"tqdm>=4.67.1",
+"tomlkit>=0.14.0",
+"rich>=14.3.3",
+"mosek>=11.1.9",
+"quarto>=0.1.0",
+
+]
+
+[project.urls]
+Homepage = "https://github.com/jleonard99/roost"
+Repository = "https://github.com/jleonard99/roost"
+Issues = "https://github.com/jleonard99/roost/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -37,8 +77,6 @@ dev = [
 
 [project.scripts]
 # provide three different names for the CLI entry point
-owlroost = "owlroost.cli._main:cli"
-owlr     = "owlroost.cli._main:cli"
 roost    = "owlroost.cli._main:cli"
 roost-audit = "owlroost.tools.audit:main"
 

@@ -1,233 +1,192 @@
-# Contributing to OWL-Station
+# Contributing to ROOST
 
-OWL-Station is a research-oriented project built around Optimal Wealth Laboratory (OWL).
+Thank you for your interest in contributing to ROOST.
 
-## Development Setup
+ROOST (Retirement Options and Outcomes Studies Tool) is an open-source platform for retirement policy analysis, stochastic simulation, reproducible studies, and comparative evaluation of retirement decision strategies under uncertainty.
+
+ROOST builds upon OWL while extending retirement analysis into a broader framework for:
+
+* Retirement policy evaluation
+* Stochastic simulation and uncertainty analysis
+* Reproducible scientific workflows
+* Comparative study design
+* Statistical aggregation and reporting
+* Execution provenance and introspection
+* Cross-household and cross-policy research
+
+We welcome contributions that improve the software, documentation, testing, study methodologies, reporting capabilities, and overall research ecosystem.
+
+---
+
+# Project Philosophy
+
+ROOST is designed around several long-term principles:
+
+* Reproducibility over convenience
+* Explicit provenance over hidden state
+* Scientific transparency over black-box behavior
+* Open research and collaboration
+* Clear separation of operational and analytical concerns
+* Respect for backwards compatibility whenever practical
+
+Contributors are encouraged to preserve these principles when proposing changes.
+
+---
+
+# Development Setup
+
+Create a development environment:
 
 ```bash
 uv sync --extra dev
+```
+
+Install repository hooks:
+
+```bash
 uv run pre-commit install
+```
+
+Run all configured checks:
+
+```bash
 uv run pre-commit run --all-files
 ```
 
-
-Here is a **clean, professional `CONTRIBUTING.md`** tailored exactly to the workflow you’ve built with **uv, extras, and pre-commit**. You can drop this in verbatim.
-
-It explicitly explains:
-
-* dev vs runtime installs
-* why pre-commit behaves the way it does
-* how contributors avoid the confusion you just worked through
-* how to bypass hooks when appropriate
-
 ---
 
-# Contributing to OWL-Station
+# Running Tests
 
-Thank you for your interest in contributing to **OWL-Station**.
-This document explains the development workflow, tooling expectations, and how to avoid common pitfalls.
-
-OWL-Station is an **experimental design and orchestration framework** built on the **Optimal Wealth Laboratory (OWL)** solver. As such, we maintain a clear separation between **runtime dependencies** and **developer tooling**.
-
----
-
-## Repository structure (high level)
-
-* `src/` — OWL-Station source code
-* `examples/` — mirrored examples from OWL (do not edit directly)
-* `scripts/` — maintenance and sync utilities
-* `pyproject.toml` — package metadata and dependency definitions
-* `.pre-commit-config.yaml` — development-time safeguards
-
----
-
-## Development vs Runtime Environments
-
-OWL-Station distinguishes between:
-
-### Runtime usage (end users)
-
-This installs **only what is required to run OWL-Station**:
+Run the full test suite:
 
 ```bash
-uv sync
+uv run pytest
 ```
 
-This environment:
-
-* does **not** include developer tools
-* does **not** include `pre-commit`
-* is appropriate for:
-
-  * running the CLI
-  * notebooks
-  * Streamlit
-  * Docker images
-  * CI build stages
-
----
-
-### Development usage (contributors)
-
-This installs **developer tooling** such as `pre-commit` and `ruff`:
+Run a specific test module:
 
 ```bash
-uv sync --extra dev
+uv run pytest tests/path/to/test_file.py
 ```
 
-This environment is **required** if you intend to:
-
-* modify code
-* commit changes
-* run formatting or linting hooks
-
-> If you attempt to commit without dev dependencies installed, Git hooks will fail by design.
+Contributors are encouraged to add tests for new functionality whenever practical.
 
 ---
 
-## Recommended developer setup
+# Code Style
 
-We recommend running this once per clone:
+ROOST uses automated tooling to maintain consistency.
+
+Before submitting changes, run:
 
 ```bash
-make dev
+uv run pre-commit run --all-files
 ```
 
-This is equivalent to:
+This may automatically:
 
-```bash
-uv sync --extra dev
-```
-
-After this, you should not need to think about extras again.
+* format source files
+* normalize whitespace
+* validate repository structure
+* run linting and static checks
 
 ---
 
-## Pre-commit hooks
+# Documentation
 
-OWL-Station uses **pre-commit** to enforce repository hygiene:
+Documentation is considered a first-class part of the project.
 
-* formatting (ruff)
-* whitespace cleanup
-* merge conflict detection
-* **blocking accidental commits of `.env` files and secrets**
+Contributions are welcome in:
 
-Hooks run automatically on `git commit`.
+* README improvements
+* User documentation
+* Architecture documentation
+* Study methodology documentation
+* Tutorials and examples
+* API documentation
 
----
-
-### Manually running hooks (recommended)
-
-Before committing, you can run all hooks explicitly:
-
-```bash
-uv run python -m pre_commit run --all-files
-```
-
-This:
-
-* runs outside the commit process
-* applies fixes where supported
-* is the best way to test changes before committing
+Substantial new functionality should generally include corresponding documentation updates.
 
 ---
 
-### When commits fail due to missing dev dependencies
+# Research and Study Contributions
 
-If you see an error like:
+ROOST is evolving toward a study-oriented analytical workflow.
 
-```
-No module named pre_commit
-```
+Contributions may include:
 
-It means you are in a **runtime-only environment**.
+* Study templates
+* Reporting workflows
+* Statistical methodologies
+* Visualization improvements
+* Comparative analysis tooling
+* Reproducibility enhancements
 
-Fix by running:
+When contributing analytical methodologies, please describe:
 
-```bash
-uv sync --extra dev
-```
-
----
-
-### Bypassing hooks (rare, advanced)
-
-In exceptional cases (e.g., automated commits, emergency fixes), hooks can be bypassed:
-
-```bash
-git commit --no-verify
-```
-
-Use this sparingly.
+* the scientific question being addressed
+* assumptions and limitations
+* expected outputs
+* validation approaches
 
 ---
 
-## Secrets and credentials
+# Issues and Feature Requests
 
-### Never commit real secrets
+Bug reports and feature requests are welcome.
 
-The repository is configured to **block** commits of:
+When reporting issues, please include:
 
-* `.env`
-* `.env.local`
-* `.env.production`
-* similar files
+* ROOST version
+* operating system
+* reproduction steps
+* expected behavior
+* observed behavior
 
-Only the following is allowed:
-
-```
-.env.example
-```
-
-Use `.env.example` as a template and keep real credentials out of Git.
+If possible, include a minimal reproducible example.
 
 ---
 
-## Syncing OWL examples
+# Licensing
 
-Examples from the OWL project are mirrored into this repository.
+ROOST is licensed under the GNU General Public License version 3 or later (GPL-3.0-or-later).
 
-To update them:
+By submitting a contribution, you certify that:
 
-```bash
-uv run python scripts/sync_owl_examples.py
-```
+1. You have the legal right to submit the contribution.
+2. The contribution may be distributed under the project's GPL-3.0-or-later license.
+3. You understand that your contribution may become part of future ROOST releases.
 
-These files are copied from the pinned OWL commit and **should not be edited directly**.
-
----
-
-## Commit expectations
-
-* Commits should be focused and descriptive
-* Formatting and linting must pass
-* Do not commit:
-
-  * `.env`
-  * credentials
-  * large binary artifacts
-* Do not modify mirrored OWL examples manually
+Contributors retain copyright ownership of their contributions.
 
 ---
 
-## Questions or uncertainty
+# Attribution
+
+All contributors are appreciated and acknowledged.
+
+Contributions may include:
+
+* source code
+* documentation
+* testing
+* study methodologies
+* bug reports
+* design discussions
+* examples and tutorials
+
+Thoughtful feedback is a valuable contribution.
+
+---
+
+# Questions
 
 If something is unclear:
 
 * open an issue
-* ask in the PR
-* describe what you expected vs what happened
+* start a discussion
+* ask in a pull request
 
-Many of the tools used here (uv, pre-commit, Hydra) intentionally enforce good separation between **development** and **runtime** concerns. When something fails, it is usually a signal—not a bug.
+Research software grows through collaboration, curiosity, and careful review.
 
----
-
-## Summary
-
-* Use `uv sync` for runtime usage
-* Use `uv sync --extra dev` when contributing
-* Pre-commit hooks are **developer safeguards**
-* Production builds should never run `git commit`
-* Secrets are blocked by policy
-
-Thank you for contributing to OWL-Station.
+Thank you for helping improve ROOST.

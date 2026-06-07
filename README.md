@@ -19,6 +19,14 @@ It does this by organizing retirement analysis around a small number of clear, o
 
 ROOST builds on OWL while extending retirement analysis into a broader scientific experimentation framework for studying retirement policies under uncertainty.
 
+## License
+
+ROOST is licensed under the GNU General Public License
+version 3 or later (GPL-3.0-or-later).
+
+ROOST builds upon OWL and is distributed under a
+GPL-compatible license.
+
 ---
 
 # Core Concepts

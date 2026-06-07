@@ -1,8 +1,7 @@
 # src/owlroost/operations/__init__.py
 #
 # Copyright (c) 2026 John Leonard
-# All rights reserved.
-# SPDX-License-Identifier: LicenseRef-OwlRoost-Proprietary
+# SPDX-License-Identifier: GPL-3.0-or-later
 # See LICENSE file in repository root.
 
 """
