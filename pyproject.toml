@@ -12,6 +12,10 @@ authors = [
 { name = "John Leonard" }
 ]
 
+maintainers = [
+    { name = "John Leonard" }
+]
+
 keywords = [
 "retirement",
 "retirement-planning",
@@ -59,9 +63,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jleonard99/roost"
-Repository = "https://github.com/jleonard99/roost"
-Issues = "https://github.com/jleonard99/roost/issues"
+Homepage = "https://github.com/lowkeylabs/roost"
+Repository = "https://github.com/lowkeylabs/roost"
+Issues = "https://github.com/lowkeylabs/roost/issues"
 
 [project.optional-dependencies]
 dev = [
