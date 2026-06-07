@@ -31,7 +31,7 @@ from .cmd_vars import cmd_vars
 @click.group(invoke_without_command=True)
 @click.version_option(
     version=__version__,
-    prog_name="owlroost",
+    prog_name="roost",
 )
 @click.option(
     "--log-level",
