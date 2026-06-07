@@ -1,4 +1,9 @@
 # src/owlroost/catalog/specs.py
+#
+# Copyright (c) 2026 John Leonard
+# All rights reserved.
+# SPDX-License-Identifier: LicenseRef-OwlRoost-Proprietary
+# See LICENSE file in repository root.
 
 """
 Catalog semantic specifications.

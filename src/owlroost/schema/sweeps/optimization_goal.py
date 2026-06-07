@@ -1,4 +1,9 @@
 # src/owlroost/schema/sweeps/optimization_goal.py
+#
+# Copyright (c) 2026 John Leonard
+# All rights reserved.
+# SPDX-License-Identifier: LicenseRef-OwlRoost-Proprietary
+# See LICENSE file in repository root.
 
 """
 roost_sweeps.optimization_goal sweep variable.

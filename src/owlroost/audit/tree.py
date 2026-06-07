@@ -1,4 +1,9 @@
 # src/owlroost/audit/tree.py
+#
+# Copyright (c) 2026 John Leonard
+# All rights reserved.
+# SPDX-License-Identifier: LicenseRef-OwlRoost-Proprietary
+# See LICENSE file in repository root.
 
 """
 TODO: Document module.
@@ -12,9 +17,28 @@ and architectural role.
 from __future__ import annotations
 
 import ast
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path("src/owlroost")
+
+HEADER_OWNER = "John Leonard"
+
+HEADER_LICENSE = "LicenseRef-OwlRoost-Proprietary"
+
+
+HEADER_YEAR = str(datetime.now().year)
+
+HEADER_TEMPLATE = [
+    "# {path}",
+    "#",
+    "# Copyright (c) {year} {owner}",
+    "# All rights reserved.",
+    "# SPDX-License-Identifier: {license}",
+    "# See LICENSE file in repository root.",
+]
+
+HEADER_LINES = len(HEADER_TEMPLATE)
 
 CANONICAL_DOCSTRING = [
     '"""',
@@ -31,27 +55,33 @@ FUTURE_IMPORT = "from __future__ import annotations"
 
 
 # =========================================================
-# Helpers
+# AST Helpers
 # =========================================================
 
 
-def _has_module_docstring(
+def _parse(
     source: str,
-) -> bool:
+) -> ast.Module | None:
     try:
-        tree = ast.parse(source)
+        return ast.parse(source)
+
     except SyntaxError:
+        return None
+
+
+def _has_module_docstring(
+    tree: ast.Module | None,
+) -> bool:
+    if tree is None:
         return False
 
     return ast.get_docstring(tree) is not None
 
 
 def _has_future_import(
-    source: str,
+    tree: ast.Module | None,
 ) -> bool:
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
+    if tree is None:
         return False
 
     for node in tree.body:
@@ -64,39 +94,21 @@ def _has_future_import(
         if node.module != "__future__":
             continue
 
-        for alias in node.names:
-            if alias.name == "annotations":
-                return True
+        if any(alias.name == "annotations" for alias in node.names):
+            return True
 
     return False
 
 
-def _strip_existing_header(
-    lines: list[str],
-) -> list[str]:
-    if lines and lines[0].strip().startswith("# src/owlroost/"):
-        return lines[1:]
-
-    return lines
-
-
-def _strip_existing_future_import(
-    lines: list[str],
-) -> list[str]:
-    return [line for line in lines if line.strip() != FUTURE_IMPORT]
-
-
 def _find_docstring_bounds(
-    source: str,
+    tree: ast.Module | None,
 ) -> tuple[int, int] | None:
     """
     Return 1-based start/end lines
     for module docstring.
     """
 
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
+    if tree is None:
         return None
 
     if not tree.body:
@@ -122,18 +134,77 @@ def _find_docstring_bounds(
     ):
         return None
 
+    if first.end_lineno is None:
+        return None
+
     return (
         first.lineno,
         first.end_lineno,
     )
 
 
+# =========================================================
+# Header Helpers
+# =========================================================
+
+
+def _build_header(
+    path: Path,
+) -> list[str]:
+    return [
+        line.format(
+            path=path.as_posix(),
+            year=HEADER_YEAR,
+            owner=HEADER_OWNER,
+            license=HEADER_LICENSE,
+        )
+        for line in HEADER_TEMPLATE
+    ]
+
+
+def _is_legacy_header(
+    lines: list[str],
+) -> bool:
+    return bool(lines) and lines[0].strip().startswith("# src/owlroost/")
+
+
+def _has_canonical_header(
+    lines: list[str],
+    path: Path,
+) -> bool:
+    return len(lines) >= HEADER_LINES and lines[:HEADER_LINES] == _build_header(path)
+
+
+def _existing_header_length(
+    lines: list[str],
+) -> int:
+    if not _is_legacy_header(lines):
+        return 0
+
+    idx = 1
+
+    while idx < len(lines):
+        line = lines[idx]
+
+        if line.startswith("#") or not line.strip():
+            idx += 1
+            continue
+
+        break
+
+    return idx
+
+
+# =========================================================
+# Canonicalization
+# =========================================================
+
+
 def canonicalize_file_structure(
     path: Path,
 ) -> bool:
     """
-    Ensure required module structure exists
-    without reformatting the file.
+    Ensure required module structure exists.
 
     Ruff owns formatting.
     TREE owns structural requirements.
@@ -147,81 +218,98 @@ def canonicalize_file_structure(
 
     lines = source.splitlines()
 
-    expected_header = f"# {path.as_posix()}"
-
     # =====================================================
-    # Path Header
+    # Canonical Header
     # =====================================================
 
-    if not lines or lines[0].strip() != expected_header:
-        if lines and lines[0].strip().startswith("# src/owlroost/"):
-            lines[0] = expected_header
-        else:
-            lines.insert(
-                0,
-                expected_header,
-            )
+    header = _build_header(
+        path,
+    )
 
-    source = "\n".join(lines)
+    existing_header_len = _existing_header_length(
+        lines,
+    )
+
+    body = lines[existing_header_len:]
+
+    # -----------------------------------------------------
+    # Install canonical header
+    # -----------------------------------------------------
+
+    while body and body[0] == "":
+        body.pop(0)
+
+    lines = [
+        *header,
+        "",
+        *body,
+    ]
+
+    source = "\n".join(
+        lines,
+    )
+
+    tree = _parse(source)
 
     # =====================================================
     # Module Docstring
     # =====================================================
 
     if not _has_module_docstring(
-        source,
+        tree,
     ):
         lines = source.splitlines()
 
-        insert_at = 1
-
-        doc_block = [
+        lines[HEADER_LINES + 1 : HEADER_LINES + 1] = [
             "",
             *CANONICAL_DOCSTRING,
             "",
         ]
 
-        lines[insert_at:insert_at] = doc_block
-
         source = "\n".join(lines)
+
+        tree = _parse(source)
 
     # =====================================================
     # Future Import
     # =====================================================
 
     if not _has_future_import(
-        source,
+        tree,
     ):
         lines = source.splitlines()
 
-        bounds = _find_docstring_bounds(
-            source,
-        )
+        bounds = _find_docstring_bounds(tree)
 
         if bounds:
-            _start, end = bounds
-            insert_at = end
+            insert_at = bounds[1]
+            # AST lines are 1-based and list.insert()
+            # places after the docstring end.
         else:
-            insert_at = 1
+            insert_at = HEADER_LINES
 
-        lines.insert(insert_at, "")
+        lines.insert(
+            insert_at,
+            "",
+        )
 
         lines.insert(
             insert_at + 1,
             FUTURE_IMPORT,
         )
 
-        lines.insert(insert_at + 2, "")
+        lines.insert(
+            insert_at + 2,
+            "",
+        )
 
         source = "\n".join(lines)
 
-    # =====================================================
-    # Preserve Ruff formatting
-    # =====================================================
-
     new_source = source.rstrip() + "\n"
 
-    if new_source == original:
+    changed = new_source != original
+
+    if not changed:
         return False
 
     path.write_text(
@@ -254,34 +342,36 @@ def audit_tree(
 
         lines = source.splitlines()
 
-        expected_header = f"# {path.as_posix()}"
+        tree = _parse(source)
 
         # =================================================
         # Path Header
         # =================================================
 
-        header_ok = bool(lines) and lines[0].strip() == expected_header
+        expected = _build_header(path)
 
-        if not header_ok:
+        if not _has_canonical_header(lines, path):
             failures += 1
 
             print()
-            print("PATH HEADER ISSUE")
+            print("CANONICAL HEADER ISSUE")
             print(f"  file: {path}")
 
-            if lines and lines[0].strip().startswith("# src/owlroost/"):
+            if _is_legacy_header(lines):
                 print(f"  found:    {lines[0].strip()}")
             else:
                 print("  found:    missing")
 
-            print(f"  expected: {expected_header}")
+            print("  expected:")
+            for line in expected:
+                print(f"    {line}")
 
         # =================================================
-        # Docstring
+        # Module Docstring
         # =================================================
 
         if not _has_module_docstring(
-            source,
+            tree,
         ):
             failures += 1
 
@@ -294,7 +384,7 @@ def audit_tree(
         # =================================================
 
         if not _has_future_import(
-            source,
+            tree,
         ):
             failures += 1
 
@@ -307,7 +397,9 @@ def audit_tree(
         # =================================================
 
         if fix:
-            changed = canonicalize_file_structure(path)
+            changed = canonicalize_file_structure(
+                path,
+            )
 
             if changed:
                 fixes += 1

@@ -1,4 +1,9 @@
 # src/owlroost/schema/sweeps/ss_age_pair.py
+#
+# Copyright (c) 2026 John Leonard
+# All rights reserved.
+# SPDX-License-Identifier: LicenseRef-OwlRoost-Proprietary
+# See LICENSE file in repository root.
 
 """
 fixed_income.ss_age_pair sweep variable.

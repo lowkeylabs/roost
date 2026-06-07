@@ -1,4 +1,9 @@
 # src/owlroost/tools/generate_hydra_conf.py
+#
+# Copyright (c) 2026 John Leonard
+# All rights reserved.
+# SPDX-License-Identifier: LicenseRef-OwlRoost-Proprietary
+# See LICENSE file in repository root.
 
 """
 Generate Hydra conf/**/default.yaml and config.yaml

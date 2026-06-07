@@ -1,4 +1,9 @@
 # src/owlroost/schema/sections/roost_environment.py
+#
+# Copyright (c) 2026 John Leonard
+# All rights reserved.
+# SPDX-License-Identifier: LicenseRef-OwlRoost-Proprietary
+# See LICENSE file in repository root.
 
 """
 Roost environment schema section.

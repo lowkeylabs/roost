@@ -1,4 +1,9 @@
 # src/owlroost/schema/sweeps/rates_from_to.py
+#
+# Copyright (c) 2026 John Leonard
+# All rights reserved.
+# SPDX-License-Identifier: LicenseRef-OwlRoost-Proprietary
+# See LICENSE file in repository root.
 
 """
 rates_selection.from_to sweep variable.

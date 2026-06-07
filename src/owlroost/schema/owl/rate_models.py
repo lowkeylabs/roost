@@ -1,4 +1,9 @@
 # src/owlroost/schema/owl/rate_models.py
+#
+# Copyright (c) 2026 John Leonard
+# All rights reserved.
+# SPDX-License-Identifier: LicenseRef-OwlRoost-Proprietary
+# See LICENSE file in repository root.
 
 """
 OWL rate-model ontology loader.
