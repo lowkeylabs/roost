@@ -1,12 +1,53 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+
+message: "If you use ROOST in research, publications, reports, or derived studies, please cite it using the metadata below."
+
+title: "ROOST: Retirement Options and Outcomes Studies Tool"
+
 authors:
-  - family-names: Leonard
-    given-names: John
-    orcid: https://orcid.org/0000-0002-1871-3178
-title: "OWL-Station: a research and experimental design wrapper for the OWL-Planner"
+
+* family-names: Leonard
+  given-names: John
+  orcid: https://orcid.org/0000-0002-1871-3178
+
 version: 0.1.0
-#identifiers:
-#  - type: doi
-#    value: 10.5281/zenodo.1234
-date-released: 2025-12-25
+
+date-released: 2026-06-07
+
+license: GPL-3.0-or-later
+
+abstract: >
+ROOST (Retirement Options and Outcomes Studies Tool)
+is an open-source framework for retirement decision
+analysis, stochastic simulation, reproducible studies,
+and comparative evaluation of retirement policies under
+uncertainty. ROOST builds upon OWL for retirement
+optimization while providing experimentation,
+provenance tracking, study management, statistical
+evaluation, comparative analysis, and reporting
+capabilities for retirement research.
+
+keywords:
+
+* retirement planning
+* retirement research
+* financial planning
+* stochastic simulation
+* Monte Carlo
+* policy analysis
+* reproducible research
+* retirement optimization
+
+repository-code: https://github.com/jleonard99/owl-roost
+url: https://github.com/jleonard99/owl-roost
+repository-artifact: https://github.com/jleonard99/owl-roost
+
+preferred-citation:
+type: software
+title: "ROOST: Retirement Options and Outcomes Studies Tool"
+authors:
+- family-names: Leonard
+given-names: John
+orcid: https://orcid.org/0000-0002-1871-3178
+version: 0.1.0
+date-released: 2026-06-07

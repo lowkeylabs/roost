@@ -138,7 +138,7 @@ def register_view(
 
     except Exception as e:
         raise RuntimeError(
-            f"Failed to register view '{level}:{name}'\n" f"Metrics: {metric_keys}\n" f"Error: {e}"
+            f"Failed to register view '{level}:{name}'\nMetrics: {metric_keys}\nError: {e}"
         ) from e
 
 

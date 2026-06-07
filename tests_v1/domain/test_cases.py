@@ -36,7 +36,7 @@ def write_case(tmp_path: Path, names: list[str]) -> Path:
     generic_block = ", ".join("[[60,40,0,0],[60,40,0,0]]" for _ in names)
 
     content = f"""
-case_name = "{'+'.join(names)}"
+case_name = "{"+".join(names)}"
 
 [basic_info]
 status = "single"
@@ -49,7 +49,7 @@ start_date = "2025-01-01"
 taxable_savings_balances = [{taxable}]
 tax_deferred_savings_balances = [{tax_deferred}]
 tax_free_savings_balances = [{tax_free}]
-beneficiary_fractions = {[1.0] * (2*n - 1)}
+beneficiary_fractions = {[1.0] * (2 * n - 1)}
 spousal_surplus_deposit_fraction = 0.5
 
 [household_financial_profile]

@@ -18,6 +18,7 @@ taxable_savings_balances = [ 90.5, 60.2,]
 tax_deferred_savings_balances = [ 600.5, 150.0,]
 tax_free_savings_balances = [ 70.6, 40.8,]
 hsa_savings_balances = [ 25.0, 18.0,]
+taxable_cost_basis = [ 45.0, 30.0,]
 beneficiary_fractions = [ 1.0, 1.0, 1.0, 1.0,]
 spousal_surplus_deposit_fraction = 0.5
 
@@ -25,12 +26,12 @@ spousal_surplus_deposit_fraction = 0.5
 HFP_file_name = "HFP_jack+jill.xlsx"
 
 [fixed_income]
-pension_monthly_amounts = [ 0.0, 10.5,]
+pension_monthly_amounts = [ 0.0, 2_000.0,]
 pension_ages = [ 65.0, 65.0,]
 pension_indexed = [ false, false,]
 pension_survivor_fraction = [ 0.0, 0.5,]
-social_security_pia_amounts = [ 2360, 1642,]
-social_security_ages = [ 70.0, 62.083333333333336,]
+social_security_pia_amounts = [ 2_360, 1_642,]
+social_security_ages = [ 70.0, 62.08333,]
 
 [rates_selection]
 heirs_rate_on_tax_deferred_estate = 30.0
@@ -60,7 +61,9 @@ maxRothConversion = 100
 noRothConversions = "Jill"
 startRothConversions = 2026
 withSCLoop = true
-withMedicare = "loop"
+withMedicare = "optimize"
+withSSTaxability = "loop"
+withDecomposition = "benders"
 bequest = 400
 solver = "default"
 spendingSlack = 0

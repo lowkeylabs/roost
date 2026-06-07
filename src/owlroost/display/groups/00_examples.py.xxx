@@ -1,0 +1,273 @@
+# src/owlroost/display/groups/00_examples.py
+
+"""
+Display group examples.
+
+Notes
+-----
+This module documents the supported
+DisplayGroup declaration patterns.
+
+This file is intended as architectural
+documentation and should not normally
+be loaded into production registries.
+
+Recommended loader behavior:
+
+    ignore files beginning with:
+
+        00_
+
+The examples below illustrate the
+supported grouping patterns.
+"""
+
+from __future__ import annotations
+
+from owlroost.display.specs import (
+    DisplayGroup,
+)
+
+
+def register_display_groups(
+    reg,
+):
+    """
+    Example declarations only.
+
+    Not intended for production use.
+    """
+
+    # =====================================================
+    # Example 1
+    #
+    # Simple field group
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="identity",
+            description=(
+                "Basic case identity."
+            ),
+            entries=[
+                "case_name",
+                "case_id",
+                "session_id",
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 2
+    #
+    # Explicit field references
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="timing",
+            description=(
+                "Runtime timing metrics."
+            ),
+            entries=[
+                (
+                    "field",
+                    "timing.elapsed_seconds__median",
+                ),
+                (
+                    "field",
+                    "timing.elapsed_seconds__p90",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 3
+    #
+    # Nested groups
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="runtime",
+            description=(
+                "Runtime overview."
+            ),
+            entries=[
+                (
+                    "group",
+                    "identity",
+                ),
+                (
+                    "group",
+                    "timing",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 4
+    #
+    # Mixed group
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="execution",
+            description=(
+                "Execution diagnostics."
+            ),
+            entries=[
+                (
+                    "group",
+                    "timing",
+                ),
+                "trial.completed",
+                "trial.pending",
+                "trial.total",
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 5
+    #
+    # Balance sheet group
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="balances",
+            description=(
+                "Household balance sheet."
+            ),
+            entries=[
+                "display.net_worth",
+                "display.total_assets",
+                "display.total_savings",
+                "display.taxable_savings",
+                "display.tax_deferred_savings",
+                "display.tax_free_savings",
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 6
+    #
+    # Income group
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="income",
+            description=(
+                "Retirement income."
+            ),
+            entries=[
+                "display.social_security_income",
+                "display.pension_income",
+                "display.fixed_income",
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 7
+    #
+    # Composite financial group
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="financial",
+            description=(
+                "Financial overview."
+            ),
+            entries=[
+                (
+                    "group",
+                    "balances",
+                ),
+                (
+                    "group",
+                    "income",
+                ),
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 8
+    #
+    # Catalog-oriented group
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="catalog_metadata",
+            description=(
+                "Catalog ontology metadata."
+            ),
+            entries=[
+                "field_name",
+                "owner",
+                "semantic_domain",
+                "value_origin",
+                "projection_kind",
+                "materialization_level",
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 9
+    #
+    # Provenance group
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="provenance",
+            description=(
+                "Lineage and provenance."
+            ),
+            entries=[
+                "source",
+                "path",
+                "derived_from",
+                "provenance_depth",
+            ],
+        )
+    )
+
+    # =====================================================
+    # Example 10
+    #
+    # View-building group
+    #
+    # Intended to be consumed
+    # by DisplayView definitions.
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="case_summary",
+            description=(
+                "High-level case summary."
+            ),
+            entries=[
+                (
+                    "group",
+                    "identity",
+                ),
+                (
+                    "group",
+                    "financial",
+                ),
+            ],
+        )
+    )

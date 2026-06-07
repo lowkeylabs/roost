@@ -1,0 +1,77 @@
+
+
+## Net Spending
+
+{{< include ../../../../../../../templates/reports/trial/_fig_net_spending_pair.qmd >}}
+
+## Gross Income
+
+{{< include ../../../../../../../templates/reports/trial/_fig_gross_income_pair.qmd >}}
+
+## Taxes
+
+```{python}
+#| label: fig-taxes
+#| fig-cap: "Taxes over time for the nominal and today scenarios."
+#| fig-subcap:
+#|  - "Nominal dollars"
+#|  - "Today's dollars"
+#| layout-ncol: 2
+# Nominal
+plan.setDefaultPlots("nominal")
+x = plan.showTaxes()
+# Today
+plan.setDefaultPlots("today")
+x = plan.showTaxes()
+```
+
+## Sources
+
+```{python}
+#| label: fig-sources
+#| fig-cap: "Sources over time for the nominal and today scenarios."
+#| fig-subcap:
+#|  - "Nominal dollars"
+#|  - "Today's dollars"
+#| layout-ncol: 2
+# Nominal
+plan.setDefaultPlots("nominal")
+x = plan.showSources()
+# Today
+plan.setDefaultPlots("today")
+x = plan.showSources()
+```
+
+## Accounts
+
+```{python}
+#| label: fig-accounts
+#| fig-cap: "Accounts over time for the nominal and today scenarios."
+#| fig-subcap:
+#|  - "Nominal dollars"
+#|  - "Today's dollars"
+#| layout-ncol: 2
+# Nominal
+plan.setDefaultPlots("nominal")
+x = plan.showAccounts()
+# Today
+plan.setDefaultPlots("today")
+x = plan.showAccounts()
+```
+
+## Asset Composition
+
+```{python}
+#| label: fig-asset-composition
+#| fig-cap: "Asset Composition over time for the nominal and today scenarios."
+#| fig-subcap:
+#|  - "Nominal dollars"
+#|  - "Today's dollars"
+#| layout-ncol: 2
+# Nominal
+plan.setDefaultPlots("nominal")
+x = plan.showAssetComposition()
+# Today
+plan.setDefaultPlots("today")
+x = plan.showAssetComposition()
+```

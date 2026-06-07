@@ -1,0 +1,112 @@
+"""
+Display group examples.
+
+These examples are intentionally loadable
+and serve as architectural conformance
+fixtures for testing.
+"""
+
+from __future__ import annotations
+
+from owlroost.display.specs import (
+    DisplayGroup,
+)
+
+
+def register_display_groups(
+    reg,
+):
+    # =====================================================
+    # Schema-backed group
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="example.schema",
+            description=(
+                "Schema-backed fields."
+            ),
+            entries=[
+                "solver_options.bequest",
+            ],
+        )
+    )
+
+    # =====================================================
+    # Metric-backed group
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="example.metrics",
+            description=(
+                "Metric-backed fields."
+            ),
+            entries=[
+                "timing.elapsed_seconds__median",
+            ],
+        )
+    )
+
+    # =====================================================
+    # Synthetic group
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="example.synthetic",
+            description=(
+                "Synthetic fields."
+            ),
+            entries=[
+                "example.synthetic",
+                "example.composed",
+            ],
+        )
+    )
+
+    # =====================================================
+    # Catalog group
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="example.catalog",
+            description=(
+                "Catalog metadata."
+            ),
+            entries=[
+                "field_name",
+                "owner",
+                "semantic_domain",
+                "projection_kind",
+            ],
+        )
+    )
+
+    # =====================================================
+    # Nested group
+    # =====================================================
+
+    reg.register_group(
+        DisplayGroup(
+            key="example.summary",
+            description=(
+                "Nested example group."
+            ),
+            entries=[
+                (
+                    "group",
+                    "example.schema",
+                ),
+                (
+                    "group",
+                    "example.metrics",
+                ),
+                (
+                    "group",
+                    "example.synthetic",
+                ),
+            ],
+        )
+    )

@@ -1,0 +1,31 @@
+defaults:
+- case: default
+- aca_settings: default
+- asset_allocation: default
+- basic_info: default
+- case_name: default
+- description: default
+- fixed_income: default
+- household_financial_profile: default
+- optimization_parameters: default
+- rates_selection: default
+- results: default
+- roost_environment: default
+- roost_settings: default
+- roost_sweeps: default
+- savings_assets: default
+- solver_options: default
+- spending_policy: default
+- hydra/sweep: basic
+- override hydra/sweep: flat
+- override hydra/hydra_logging: disabled
+- override hydra/job_logging: disabled
+- _self_
+session:
+  id: ${now:%Y-%m-%d}_${now:%H-%M-%S}
+  date: ${now:%Y-%m-%d}
+  time: ${now:%H-%M-%S}
+hydra:
+  job:
+    chdir: true
+    name: run

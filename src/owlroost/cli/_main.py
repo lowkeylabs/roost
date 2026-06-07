@@ -1,20 +1,70 @@
 # src/owlroost/cli/_main.py
+#
+# Copyright (c) 2026 John Leonard
+# SPDX-License-Identifier: GPL-3.0-or-later
+# See LICENSE file in repository root.
+
+"""
+TODO: Document module.
+
+Notes
+-----
+Describe responsibilities, ownership,
+and architectural role.
+"""
+
+from __future__ import annotations
+
+import sys
 
 import click
+from loguru import logger
 
 from ..version import __version__
+from .cmd_build import cmd_build
+from .cmd_reports import cmd_reports
+from .cmd_results import cmd_results
+from .cmd_run import cmd_run
+from .cmd_vars import cmd_vars
 
 
 @click.group(invoke_without_command=True)
-@click.version_option(version=__version__, prog_name="owlroost")
+@click.version_option(
+    version=__version__,
+    prog_name="owlroost",
+)
+@click.option(
+    "--log-level",
+    default="INFO",
+    show_default=True,
+    help="Log level",
+)
 @click.pass_context
-def cli(ctx):
-    """OWL-ROOST v2 CLI (in development).
+def cli(
+    ctx,
+    log_level,
+):
+    """
+    OWL-ROOST v2 CLI (in development).
 
     documentation in owlroost/cli/_main.py
-
     """
-    pass
+
+    # ----------------------------------------
+    # Normalize level
+    # ----------------------------------------
+    log_level = log_level.upper()
+
+    # ----------------------------------------
+    # Reset loguru
+    # ----------------------------------------
+    logger.remove()
+    logger.add(sys.stderr, level=log_level)
+    # ----------------------------------------
+    # Store on context
+    # ----------------------------------------
+    ctx.ensure_object(dict)
+    ctx.obj["log_level"] = log_level
 
 
 @cli.command()
@@ -29,3 +79,13 @@ def info(ctx):
 #    if solver.commit:
 #        click.echo(f"OWL-Planner commit:  {solver.commit}")
 #    click.echo(f"{solver}")
+
+
+cli.add_command(cmd_build, name="cases")
+cli.add_command(cmd_build, name="build")
+
+cli.add_command(cmd_run)
+cli.add_command(cmd_reports)
+cli.add_command(cmd_results)
+
+cli.add_command(cmd_vars, name="vars")

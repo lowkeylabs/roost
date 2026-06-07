@@ -1,0 +1,3 @@
+
+
+Hello from inside `./template/reports/_session_0.qmd`

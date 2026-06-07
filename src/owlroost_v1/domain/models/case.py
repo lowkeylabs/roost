@@ -833,7 +833,7 @@ class Case:
 
         total = self.total_savings
         if total >= 1000:
-            total_str = f"${total/1000:.1f}M"
+            total_str = f"${total / 1000:.1f}M"
         else:
             total_str = f"${total:,.0f}k"
 

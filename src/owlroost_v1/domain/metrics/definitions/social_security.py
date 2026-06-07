@@ -62,7 +62,7 @@ register_metric(
             "Reported as years and months. Distribution reflects variation across trials."
         ),
         display_row_fn=lambda v, row, *_: (
-            f"{row.get('_inputs', {}).get('basic_info', {}).get('names', ['P1','P2'])[1]} "
+            f"{row.get('_inputs', {}).get('basic_info', {}).get('names', ['P1', 'P2'])[1]} "
             f"{format_value(v, 'age_ym')}"
             if v is not None
             else "-"

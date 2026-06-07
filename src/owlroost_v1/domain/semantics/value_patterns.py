@@ -72,7 +72,7 @@ def series_success_rate() -> Callable[[list[Any], list[Any], list[dict]], str]:
         success = sum(1 for v in clean if v)
         total = len(clean)
 
-        return f"{success}/{total} succeeded ({format_value(success/total, 'percent')})"
+        return f"{success}/{total} succeeded ({format_value(success / total, 'percent')})"
 
     return fn
 
@@ -86,7 +86,7 @@ def series_failure_rate() -> Callable[[list[Any], list[Any], list[dict]], str]:
         fail = sum(1 for v in clean if not v)
         total = len(clean)
 
-        return f"{fail}/{total} failed ({format_value(fail/total, 'percent')})"
+        return f"{fail}/{total} failed ({format_value(fail / total, 'percent')})"
 
     return fn
 
@@ -107,7 +107,7 @@ def series_below(threshold: float, fmt: str | None = None) -> Callable:
 
         return (
             f"{count}/{total} below {format_value(threshold, fmt)} "
-            f"({format_value(count/total, 'percent')})"
+            f"({format_value(count / total, 'percent')})"
         )
 
     return fn
@@ -124,7 +124,7 @@ def series_above(threshold: float, fmt: str | None = None) -> Callable:
 
         return (
             f"{count}/{total} above {format_value(threshold, fmt)} "
-            f"({format_value(count/total, 'percent')})"
+            f"({format_value(count / total, 'percent')})"
         )
 
     return fn
@@ -175,7 +175,7 @@ def series_tail_loss(threshold: float, fmt: str | None = None) -> Callable:
 
         return (
             f"{len(losses)}/{total} losses "
-            f"({format_value(len(losses)/total, 'percent')}), "
+            f"({format_value(len(losses) / total, 'percent')}), "
             f"worst {format_value(min(losses), fmt)}"
         )
 

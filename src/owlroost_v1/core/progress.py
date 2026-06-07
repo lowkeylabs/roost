@@ -50,14 +50,7 @@ def record_progress(
     elapsed_val = float(elapsed) if elapsed is not None else 0.0
     started_val = float(started_at) if started_at is not None else 0.0
 
-    line = (
-        f"{ts:.6f},"
-        f"{job_id},"
-        f"{trial_id},"
-        f"{status},"
-        f"{elapsed_val:.6f},"
-        f"{started_val:.6f}\n"
-    )
+    line = f"{ts:.6f},{job_id},{trial_id},{status},{elapsed_val:.6f},{started_val:.6f}\n"
 
     # Append safely
     with open(progress_file, "a") as f:

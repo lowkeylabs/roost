@@ -49,7 +49,7 @@ def test_owlplanner_example_runs(path):
         pytest.fail(f"{path.name} raised exception: {e}")
 
     assert getattr(plan, "caseStatus", None) == "solved", (
-        f"{path.name} did not solve successfully. " f"Status: {getattr(plan, 'caseStatus', None)}"
+        f"{path.name} did not solve successfully. Status: {getattr(plan, 'caseStatus', None)}"
     )
 
 

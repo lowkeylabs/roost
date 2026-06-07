@@ -1,0 +1,7 @@
+---
+title: "Session - Retirement Analysis Report"
+---
+
+this is session.qmd
+
+{{< include ../../../../templates/reports/session/_session_0.qmd >}}

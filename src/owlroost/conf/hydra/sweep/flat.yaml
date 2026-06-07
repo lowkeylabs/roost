@@ -1,0 +1,2 @@
+dir: results/${case.name}/${session.date}/${session.time}
+subdir: run_${hydra:job.num}
