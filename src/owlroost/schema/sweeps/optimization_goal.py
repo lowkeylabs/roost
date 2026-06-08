@@ -87,7 +87,7 @@ def register_schema_fields(
             analytic_kind="observed",
             materialization_level="run",
             node_type=(CatalogNodeType.VARIABLE),
-            expands_to=[
+            materializes_to=[
                 ("optimization_parameters.objective"),
                 ("solver_options.bequest"),
                 ("solver_options.netSpending"),
@@ -106,7 +106,7 @@ def register_schema_fields(
 # =========================================================
 
 
-def expand(
+def materialize_override_to_canonical(
     run_dict,
 ):
     """

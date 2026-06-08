@@ -226,7 +226,7 @@ def register_display_fields(
             materialization_level="case",
             node_type="variable",
             defined_in=normalize_module_path(__file__),
-            expands_to=[
+            materializes_to=[
                 "example.synthetic",
                 "example.composed",
             ],

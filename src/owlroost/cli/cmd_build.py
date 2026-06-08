@@ -45,6 +45,7 @@ from owlroost.display.operations.sorting import apply_canonical_sort, apply_sort
 from owlroost.display.operations.table_ops import inject_id_column
 from owlroost.metrics.bootstrap import build_metrics_registry
 from owlroost.schema.bootstrap import build_schema_registry
+from owlroost.schema.sweeps import expand_cli_overrides
 
 DEFAULT_LEVEL = "case"
 DEFAULT_VIEW = "build"
@@ -110,6 +111,8 @@ def build_hydra_command(
 
     conf_dir = package_root / "conf"
 
+    overrides = expand_cli_overrides(overrides)
+
     cmd = [
         sys.executable,
         "-m",
@@ -119,9 +122,8 @@ def build_hydra_command(
         "--config-name=config",
         (f"case.file={str(case_path.resolve())}"),
         (f"case.name={case_path.stem}"),
+        *overrides,
     ]
-
-    cmd.extend(overrides)
 
     return cmd
 

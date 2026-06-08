@@ -5,7 +5,8 @@
 # See LICENSE file in repository root.
 
 """
-Sweep field discovery and expansion.
+Sweep field discovery, CLI expansion,
+and canonical materialization.
 
 Notes
 -----
@@ -16,9 +17,13 @@ Each module may export:
 
     register_schema_fields(reg)
 
-and/or:
+    expand_cli_to_override(
+        override: str,
+    )
 
-    expand(run_dict)
+    materialize_override_to_canonical(
+        run_dict,
+    )
 
 Discovery is automatic.
 
@@ -28,13 +33,15 @@ Each sweep module owns:
 
     - schema registration
     - ontology metadata
-    - sweep expansion logic
+    - CLI expansion logic
+    - canonical materialization logic
 
 The package owns:
 
     - module discovery
     - registration dispatch
     - expansion dispatch
+    - materialization dispatch
 """
 
 from __future__ import annotations
@@ -72,7 +79,9 @@ def _discover_sweep_modules() -> list[ModuleType]:
 
         module = importlib.import_module(f"{__name__}.{module_info.name}")
 
-        modules.append(module)
+        modules.append(
+            module,
+        )
 
     return modules
 
@@ -114,19 +123,84 @@ def register_sweeps(
 
 
 # =========================================================
-# Sweep Expansion
+# CLI Expansion
 # =========================================================
 
 
-def expand_sweeps(
-    run_dict,
-):
+def expand_cli_overrides(
+    overrides: list[str],
+) -> list[str]:
     """
-    Expand all registered sweep variables.
+    Expand sweep-specific CLI syntax
+    into Hydra-compatible overrides.
 
     Any module exporting:
 
-        expand(run_dict)
+        expand_cli_to_override(
+            override: str,
+        )
+
+    will be invoked automatically.
+
+    Modules lacking that function
+    are ignored.
+    """
+
+    expanded: list[str] = []
+
+    for override in overrides:
+        handled = False
+
+        for module in _discover_sweep_modules():
+            expand_fn = getattr(
+                module,
+                "expand_cli_to_override",
+                None,
+            )
+
+            if expand_fn is None:
+                continue
+
+            result = expand_fn(
+                override,
+            )
+
+            if result is None:
+                continue
+
+            expanded.extend(
+                result,
+            )
+
+            handled = True
+
+            break
+
+        if not handled:
+            expanded.append(
+                override,
+            )
+
+    return expanded
+
+
+# =========================================================
+# Canonical Materialization
+# =========================================================
+
+
+def materialize_sweeps(
+    run_dict,
+):
+    """
+    Materialize all registered sweep
+    overrides into canonical variables.
+
+    Any module exporting:
+
+        materialize_override_to_canonical(
+            run_dict,
+        )
 
     will be invoked automatically.
 
@@ -141,20 +215,22 @@ def expand_sweeps(
     Returns
     -------
     dict
-        Expanded runtime configuration.
+        Runtime configuration with
+        sweep variables materialized
+        into canonical variables.
     """
 
     for module in _discover_sweep_modules():
-        expand_fn = getattr(
+        materialize_fn = getattr(
             module,
-            "expand",
+            "materialize_override_to_canonical",
             None,
         )
 
-        if expand_fn is None:
+        if materialize_fn is None:
             continue
 
-        expand_fn(
+        materialize_fn(
             run_dict,
         )
 

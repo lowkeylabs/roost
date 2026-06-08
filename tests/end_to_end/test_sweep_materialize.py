@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 
-def test_sweeps_ss_age_pair(
+def test_materialize_ss_age_pair(
     build_session,
     load_run_plan,
     load_trial_toml,
 ):
     """
-    Verify ss_age_pair sweep expansion
+    Verify ss_age_pair materialization
     survives the entire BUILD pipeline.
     """
 
@@ -27,20 +27,24 @@ def test_sweeps_ss_age_pair(
         run_id=0,
     )
 
-    assert plan.ssecAges.tolist() == [69.11, 69.22]
+    assert plan.ssecAges.tolist() == [
+        69.11,
+        69.22,
+    ]
 
 
-def test_sweeps_regime(
+def test_materialize_regime(
     build_session,
     load_run_plan,
     load_trial_toml,
 ):
     """
-    Verify ss_age_pair sweep expansion
+    Verify regime sweep materialization
     survives the entire BUILD pipeline.
     """
 
     regime = "stagflation"
+
     session = build_session(
         "case_alex+jamie.toml",
         "rates_selection.method=bootstrap_sor",
@@ -51,7 +55,9 @@ def test_sweeps_regime(
     # Verify materialized run through OWL
     # -------------------------------------------------
 
-    from owlroost.schema.sweeps.regime import MARKET_REGIMES
+    from owlroost.schema.sweeps.regime import (
+        MARKET_REGIMES,
+    )
 
     plan = load_run_plan(
         session,
@@ -59,16 +65,17 @@ def test_sweeps_regime(
     )
 
     assert plan.rateFrm == MARKET_REGIMES[regime][0]
+
     assert plan.rateTo == MARKET_REGIMES[regime][1]
 
 
-def test_sweeps_rates_from_to(
+def test_materialize_rates_from_to(
     build_session,
     load_run_plan,
     load_trial_toml,
 ):
     """
-    Verify ss_age_pair sweep expansion
+    Verify rates_from_to materialization
     survives the entire BUILD pipeline.
     """
 
@@ -91,13 +98,13 @@ def test_sweeps_rates_from_to(
     assert plan.rateTo == 2020
 
 
-def test_sweeps_optimization_goal(
+def test_materialize_optimization_goal(
     build_session,
     load_run_plan,
     load_trial_toml,
 ):
     """
-    Verify ss_age_pair sweep expansion
+    Verify optimization_goal materialization
     survives the entire BUILD pipeline.
     """
 
@@ -116,4 +123,5 @@ def test_sweeps_optimization_goal(
     )
 
     assert plan.objective == "maxBequest"
+
     assert plan.solverOptions["netSpending"] == 100

@@ -337,6 +337,6 @@ class OntologySpec:
         default_factory=list,
     )
 
-    expands_to: list[str] = field(
+    materializes_to: list[str] = field(
         default_factory=list,
     )

@@ -82,5 +82,6 @@ Thumbs.db
 # results folder
 
 results/
+results_large_run/
 exports/
 private/

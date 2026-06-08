@@ -61,7 +61,7 @@ def register_display_views(
                 # =====================================
                 ("section", "Relationships"),
                 ("derived_from", {"modes": ["pivot"]}),
-                # ("expands_to", {"modes": ["pivot"]}),  # not for this view!
+                # ("materializes_to", {"modes": ["pivot"]}),  # not for this view!
                 # =====================================
                 # Provenance
                 # =====================================

@@ -295,7 +295,7 @@ class DisplayField:
 
         lineage_keys = {
             "derived_from",
-            "expands_to",
+            "materializes_to",
         }
 
         authoring_keys = {
@@ -396,9 +396,9 @@ class DisplayField:
                     [],
                 )
             ),
-            expands_to=list(
+            materializes_to=list(
                 lineage.get(
-                    "expands_to",
+                    "materializes_to",
                     [],
                 )
             ),

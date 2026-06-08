@@ -169,14 +169,14 @@ def audit_catalog() -> int:
                 print(f"{field_name}: derived_from -> {dependency} not found")
 
         for dependency in row.get(
-            "expands_to",
+            "materializes_to",
             [],
         ):
             if dependency not in known_fields:
                 failures += 1
                 lineage_failures += 1
 
-                print(f"{field_name}: expands_to -> {dependency} not found")
+                print(f"{field_name}: materializes_to -> {dependency} not found")
 
     if lineage_failures == 0:
         print("OK")

@@ -45,9 +45,9 @@ def render(
         or []
     )
 
-    expands_to = (
+    materializes_to = (
         catalog_row.get(
-            "expands_to",
+            "materializes_to",
             [],
         )
         or []
@@ -61,11 +61,11 @@ def render(
             )
         )
 
-    if expands_to:
+    if materializes_to:
         lines.append(
             "Expands To: "
             + ", ".join(
-                expands_to,
+                materializes_to,
             )
         )
 

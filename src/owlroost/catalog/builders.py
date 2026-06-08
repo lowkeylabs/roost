@@ -369,7 +369,7 @@ def build_display_rows(
             analytic_kind=(declaration.analytic_kind),
             materialization_level=(declaration.materialization_level),
             derived_from=list(declaration.derived_from),
-            expands_to=list(declaration.expands_to),
+            materializes_to=list(declaration.materializes_to),
             # =============================================
             # Runtime Realization
             # =============================================

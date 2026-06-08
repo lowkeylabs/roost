@@ -40,9 +40,7 @@ from owlroost.schema.sections.roost_environment import (
 from owlroost.schema.sections.roost_settings import (
     RoostSettingsConfig,
 )
-from owlroost.schema.sweeps import (
-    expand_sweeps,
-)
+from owlroost.schema.sweeps import materialize_sweeps
 
 
 # ---------------------------------------------------------
@@ -90,15 +88,6 @@ def apply_override_list(base: dict, overrides: list[str]) -> dict:
         d[parts[-1]] = value
 
     return out
-
-
-def filter_case_overrides(overrides: list[str]) -> list[str]:
-    keep = []
-    for o in overrides:
-        if o.startswith(("hydra.", "runtime.", "trial.")):
-            continue
-        keep.append(o)
-    return keep
 
 
 def clean_pydantic_undefined(obj):
@@ -246,6 +235,67 @@ def materialize_execution_plan(run_dict):
     return run_dict
 
 
+def deep_merge_non_null(
+    base,
+    override,
+):
+    """
+    Recursively merge override into base.
+
+    Rules
+    -----
+    * dict + dict => recursive merge
+    * None in override => ignored
+    * dict containing only None values => ignored
+    * everything else => override wins
+    """
+
+    if not isinstance(base, dict):
+        return override
+
+    if not isinstance(override, dict):
+        return override
+
+    result = deepcopy(base)
+
+    for key, value in override.items():
+        # ----------------------------------
+        # Ignore explicit None
+        # ----------------------------------
+
+        if value is None:
+            continue
+
+        # ----------------------------------
+        # Ignore empty Hydra sections like:
+        #
+        # case_name:
+        #   case_name: null
+        #
+        # description:
+        #   description: null
+        # ----------------------------------
+
+        if isinstance(value, dict) and value and all(v is None for v in value.values()):
+            continue
+
+        # ----------------------------------
+        # Recursive merge
+        # ----------------------------------
+
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge_non_null(
+                result[key],
+                value,
+            )
+        else:
+            result[key] = deepcopy(
+                value,
+            )
+
+    return result
+
+
 # ---------------------------------------------------------
 # Main
 # ---------------------------------------------------------
@@ -268,12 +318,8 @@ def generate_trials(cfg: DictConfig):
     try:
         hc = HydraConfig.get()
         run_idx = int(hc.job.num)
-        raw_overrides = getattr(hc.overrides, "task", []) or []
     except Exception:
         run_idx = 0
-        raw_overrides = []
-
-    case_overrides = filter_case_overrides(raw_overrides)
 
     # ----------------------------------------
     # Save session-level session.toml (once)
@@ -288,18 +334,7 @@ def generate_trials(cfg: DictConfig):
     case_dict = toml.load(case_file)
 
     # ----------------------------------------
-    # Apply overrides → run_dict
-    # ----------------------------------------
-    run_dict = apply_override_list(case_dict, case_overrides)
-
-    # ----------------------------------------
-    # Expand Hydra helper fields (e.g. rates_selection.from_to)
-    # ----------------------------------------
-
-    run_dict = expand_sweeps(run_dict)
-
-    # -------------------------
-    # Runtime / roost config
+    # Hydra-composed configuration
     # ----------------------------------------
 
     cfg_dict = clean_pydantic_undefined(
@@ -309,7 +344,26 @@ def generate_trials(cfg: DictConfig):
         )
     )
 
-    cfg_dict = expand_sweeps(cfg_dict)
+    cfg_dict_original = deepcopy(cfg_dict)
+    cfg_dict = materialize_sweeps(cfg_dict)
+
+    # ----------------------------------------
+    # Merge Hydra values into case TOML
+    # ----------------------------------------
+
+    run_dict = deep_merge_non_null(
+        deepcopy(case_dict),
+        cfg_dict,
+    )
+
+    run_dict["roost_sweeps"] = cfg_dict_original.get(
+        "roost_sweeps",
+        {},
+    )
+
+    # ----------------------------------------
+    # Process execution control sections
+    # ----------------------------------------
 
     SECTION_MODELS = {
         "roost_settings": RoostSettingsConfig,

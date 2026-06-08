@@ -22,11 +22,11 @@ def test_sweep_fields_registered(
     assert sweep_fields
 
 
-def test_sweep_fields_expand(
+def test_sweep_fields_materialize(
     schema_registry,
 ):
     """
-    Sweep variables must expand
+    Sweep variables must materialize
     into canonical variables.
     """
 
@@ -42,14 +42,14 @@ def test_sweep_fields_expand(
     ]
 
     for field in sweep_fields:
-        assert field.expands_to
+        assert field.materializes_to
 
 
-def test_sweep_targets_exist(
+def test_sweep_materialization_targets_exist(
     schema_registry,
 ):
     """
-    All sweep expansion targets
+    All sweep materialization targets
     must exist in schema registry.
     """
 
@@ -64,10 +64,8 @@ def test_sweep_targets_exist(
         == "sweep"
     ]
 
-    print()
-
-    print(sorted(schema_registry.names()))
-
     for field in sweep_fields:
-        for target in field.expands_to:
-            assert schema_registry.exists(target)
+        for target in field.materializes_to:
+            assert schema_registry.exists(
+                target,
+            )

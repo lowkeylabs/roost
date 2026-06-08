@@ -226,7 +226,7 @@ Displays semantic relationships.
 Examples:
 
 * derived_from
-* expands_to
+* materializes_to
 
 These relationships describe how
 semantic entities connect within

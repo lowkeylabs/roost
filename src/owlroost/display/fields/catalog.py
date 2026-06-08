@@ -234,7 +234,7 @@ def register_display_fields(
 
     reg.register_display_field(
         DisplayField.field(
-            "expands_to",
+            "materializes_to",
             description=(
                 "Variables generated when this entity expands into multiple semantic variables."
             ),

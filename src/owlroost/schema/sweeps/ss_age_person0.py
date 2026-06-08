@@ -1,11 +1,11 @@
-# src/owlroost/schema/sweeps/rates_from_to.py
+# src/owlroost/schema/sweeps/ss_age_person0.py
 #
 # Copyright (c) 2026 John Leonard
 # SPDX-License-Identifier: GPL-3.0-or-later
 # See LICENSE file in repository root.
 
 """
-rates_selection.from_to sweep variable.
+Social Security claiming age sweep for person 0.
 """
 
 from __future__ import annotations
@@ -24,11 +24,11 @@ def register_schema_fields(
 ):
     reg.register(
         FieldSpec(
-            name="roost_sweeps.rates_from_to",
-            dtype=str,
+            name="roost_sweeps.ss_age_person0",
+            dtype=float,
             path=(
                 "roost_sweeps",
-                "rates_from_to",
+                "ss_age_person0",
             ),
             source="sweep",
             owner="ROOST",
@@ -39,11 +39,10 @@ def register_schema_fields(
             materialization_level="run",
             node_type=CatalogNodeType.VARIABLE,
             materializes_to=[
-                "rates_selection.from",
-                "rates_selection.to",
+                "fixed_income.social_security_ages",
             ],
-            description=("Historical market window formatted as YYYY-YYYY."),
-            defined_in="rates_from_to",
+            description=("Social Security claiming age for person 0."),
+            defined_in="ss_age_person0",
         )
     )
 
@@ -51,28 +50,45 @@ def register_schema_fields(
 def materialize_override_to_canonical(
     run_dict,
 ):
-    roost = run_dict.setdefault(
+    roost_sweeps = run_dict.setdefault(
         "roost_sweeps",
         {},
     )
 
-    value = roost.pop(
-        "rates_from_to",
+    value = roost_sweeps.pop(
+        "ss_age_person0",
         None,
     )
 
-    if not value:
+    if value is None:
         return
 
-    start, end = value.split(
-        "-",
-        1,
-    )
-
-    rates = run_dict.setdefault(
-        "rates_selection",
+    fixed_income = run_dict.setdefault(
+        "fixed_income",
         {},
     )
 
-    rates["from"] = int(start)
-    rates["to"] = int(end)
+    ages = fixed_income.get(
+        "social_security_ages",
+    )
+
+    if ages is None:
+        ages = [
+            None,
+            None,
+        ]
+    else:
+        ages = list(
+            ages,
+        )
+
+    while len(ages) < 2:
+        ages.append(
+            None,
+        )
+
+    ages[0] = float(
+        value,
+    )
+
+    fixed_income["social_security_ages"] = ages
