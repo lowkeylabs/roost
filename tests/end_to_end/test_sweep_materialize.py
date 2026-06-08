@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from owlroost.schema.sweeps.ss_age_person0 import (
+    materialize_override_to_canonical as materialize_person0,
+)
+from owlroost.schema.sweeps.ss_age_person1 import (
+    materialize_override_to_canonical as materialize_person1,
+)
+
 
 def test_materialize_ss_age_pair(
     build_session,
@@ -125,3 +132,158 @@ def test_materialize_optimization_goal(
     assert plan.objective == "maxBequest"
 
     assert plan.solverOptions["netSpending"] == 100
+
+
+# =========================================================
+# Social Security Age Sweeps
+# =========================================================
+
+
+def test_ss_age_person0_single_person():
+    """
+    Person0 sweep should materialize into a
+    single-element SS age vector for a
+    one-person household.
+    """
+
+    run_dict = {
+        "basic_info": {
+            "names": [
+                "Joe",
+            ],
+        },
+        "roost_sweeps": {
+            "ss_age_person0": 62,
+        },
+    }
+
+    materialize_person0(
+        run_dict,
+    )
+
+    assert run_dict["fixed_income"]["social_security_ages"] == [
+        62.0,
+    ]
+
+
+def test_ss_age_person1_two_person():
+    """
+    Person1 sweep should populate the second
+    SS age slot.
+    """
+
+    run_dict = {
+        "basic_info": {
+            "names": [
+                "Alex",
+                "Jamie",
+            ],
+        },
+        "roost_sweeps": {
+            "ss_age_person1": 67,
+        },
+    }
+
+    materialize_person1(
+        run_dict,
+    )
+
+    assert run_dict["fixed_income"]["social_security_ages"] == [
+        None,
+        67.0,
+    ]
+
+
+def test_ss_age_person0_preserves_existing_person1():
+    """
+    Person0 sweep should not overwrite an
+    existing person1 age.
+    """
+
+    run_dict = {
+        "basic_info": {
+            "names": [
+                "Alex",
+                "Jamie",
+            ],
+        },
+        "fixed_income": {
+            "social_security_ages": [
+                None,
+                67.0,
+            ],
+        },
+        "roost_sweeps": {
+            "ss_age_person0": 62,
+        },
+    }
+
+    materialize_person0(
+        run_dict,
+    )
+
+    assert run_dict["fixed_income"]["social_security_ages"] == [
+        62.0,
+        67.0,
+    ]
+
+
+def test_ss_age_person1_preserves_existing_person0():
+    """
+    Person1 sweep should not overwrite an
+    existing person0 age.
+    """
+
+    run_dict = {
+        "basic_info": {
+            "names": [
+                "Alex",
+                "Jamie",
+            ],
+        },
+        "fixed_income": {
+            "social_security_ages": [
+                62.0,
+                None,
+            ],
+        },
+        "roost_sweeps": {
+            "ss_age_person1": 67,
+        },
+    }
+
+    materialize_person1(
+        run_dict,
+    )
+
+    assert run_dict["fixed_income"]["social_security_ages"] == [
+        62.0,
+        67.0,
+    ]
+
+
+def test_ss_age_person1_single_person():
+    """
+    Person1 sweep should materialize slot 1
+    even when household size is unknown.
+    """
+
+    run_dict = {
+        "basic_info": {
+            "names": [
+                "Joe",
+            ],
+        },
+        "roost_sweeps": {
+            "ss_age_person1": 67,
+        },
+    }
+
+    materialize_person1(
+        run_dict,
+    )
+
+    assert run_dict["fixed_income"]["social_security_ages"] == [
+        None,
+        67.0,
+    ]

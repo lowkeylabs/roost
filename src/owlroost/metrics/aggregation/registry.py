@@ -59,6 +59,7 @@ AGG_DEFAULT_FMT: dict[
     "p10": "float2",
     "p90": "float2",
     "p99": "float2",
+    "constant": "str",
 }
 
 # =========================================================
@@ -122,6 +123,20 @@ def register_aggregation(
 # =========================================================
 # Lookup Helpers
 # =========================================================
+
+
+def agg_constant(
+    values,
+):
+    if not values:
+        return None
+
+    first = values[0]
+
+    if all(value == first for value in values):
+        return first
+
+    return "NOT CONSTANT"
 
 
 def get_aggregation_func(
@@ -227,3 +242,5 @@ register_aggregation(
     "ratio",
     lambda v: ((sum(bool(x) for x in v) / len(v)) if v else 0.0),
 )
+
+register_aggregation("constant", lambda v: agg_constant(v))

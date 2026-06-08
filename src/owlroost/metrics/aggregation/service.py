@@ -50,6 +50,16 @@ def _is_numeric(
     )
 
 
+def _is_numeric_sequence(
+    value,
+):
+    return (
+        isinstance(value, list)
+        and value
+        and all(isinstance(v, int | float) and not isinstance(v, bool) for v in value)
+    )
+
+
 def _normalize_aggregates(
     metric_spec,
 ):
@@ -196,7 +206,10 @@ def aggregate_rows(
 
             value = metrics.get(metric.name)
 
-            if _is_numeric(value):
+            if _is_numeric(value) or isinstance(value, bool):
+                values.append(value)
+
+            elif _is_numeric_sequence(value):
                 values.append(value)
 
         # =================================================
@@ -237,7 +250,12 @@ def aggregate_rows(
             # Execute aggregation
             # ---------------------------------------------
 
-            result = func(values)
+            if values and isinstance(values[0], list):
+                width = len(values[0])
+
+                result = [func([row[i] for row in values]) for i in range(width)]
+            else:
+                result = func(values)
 
             out[agg_field_name] = result
 

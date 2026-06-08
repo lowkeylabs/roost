@@ -63,6 +63,10 @@ def materialize_override_to_canonical(
     if value is None:
         return
 
+    # -----------------------------------------------------
+    # Existing ages
+    # -----------------------------------------------------
+
     fixed_income = run_dict.setdefault(
         "fixed_income",
         {},
@@ -73,19 +77,24 @@ def materialize_override_to_canonical(
     )
 
     if ages is None:
-        ages = [
-            None,
-            None,
-        ]
+        ages = []
     else:
         ages = list(
             ages,
         )
 
-    while len(ages) < 2:
+    # -----------------------------------------------------
+    # Ensure slot 0 exists
+    # -----------------------------------------------------
+
+    while len(ages) <= 0:
         ages.append(
             None,
         )
+
+    # -----------------------------------------------------
+    # Apply override
+    # -----------------------------------------------------
 
     ages[0] = float(
         value,

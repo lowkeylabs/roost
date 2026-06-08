@@ -55,12 +55,17 @@ def materialize_override_to_canonical(
         {},
     )
 
-    value = roost_sweeps.get(
+    value = roost_sweeps.pop(
         "ss_age_person1",
+        None,
     )
 
     if value is None:
         return
+
+    # -----------------------------------------------------
+    # Existing ages
+    # -----------------------------------------------------
 
     fixed_income = run_dict.setdefault(
         "fixed_income",
@@ -72,19 +77,24 @@ def materialize_override_to_canonical(
     )
 
     if ages is None:
-        ages = [
-            None,
-            None,
-        ]
+        ages = []
     else:
         ages = list(
             ages,
         )
 
-    while len(ages) < 2:
+    # -----------------------------------------------------
+    # Ensure slot 1 exists
+    # -----------------------------------------------------
+
+    while len(ages) <= 1:
         ages.append(
             None,
         )
+
+    # -----------------------------------------------------
+    # Apply override
+    # -----------------------------------------------------
 
     ages[1] = float(
         value,

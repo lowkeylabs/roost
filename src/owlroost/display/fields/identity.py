@@ -118,7 +118,7 @@ def register_display_fields(
 
     reg.register_display_field(
         DisplayField.field(
-            "compact_id",
+            "display.compact_id",
             description="Compact hierarchical operational identifier.",
             display_fn=compact_id_display,
             derived_from=[

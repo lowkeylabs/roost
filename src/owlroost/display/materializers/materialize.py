@@ -486,18 +486,16 @@ def materialize_view(
         )
 
     # =====================================================
-    # Field Names
-    # =====================================================
-
-    field_names = [entry["field"] for entry in visible_entries if entry.get("kind") != "section"]
-
-    # =====================================================
     # Columns
     # =====================================================
 
     columns: list[TableColumn] = []
 
-    for field_name in field_names:
+    field_entries = [entry for entry in visible_entries if entry.get("kind") != "section"]
+
+    for entry in field_entries:
+        field_name = entry["field"]
+
         display_field = registry.get_display_field(
             field_name,
         )
@@ -507,19 +505,36 @@ def materialize_view(
             mode=mode,
         )
 
+        override = entry.get("profiles", {}).get(mode, {})
+
         columns.append(
             TableColumn(
                 key=field_name,
                 field_name=field_name,
-                label=(profile.label or field_name),
-                label_align=profile.label_align,
-                content_align=profile.content_align,
-                fmt=profile.fmt,
-                width=profile.width,
-                wrap=profile.wrap,
-                # =========================
-                # Explain content
-                # =========================
+                label=override.get(
+                    "label",
+                    profile.label or field_name,
+                ),
+                label_align=override.get(
+                    "label_align",
+                    profile.label_align,
+                ),
+                content_align=override.get(
+                    "content_align",
+                    profile.content_align,
+                ),
+                fmt=override.get(
+                    "fmt",
+                    profile.fmt,
+                ),
+                width=override.get(
+                    "width",
+                    profile.width,
+                ),
+                wrap=override.get(
+                    "wrap",
+                    profile.wrap,
+                ),
                 display_field=display_field,
             )
         )
@@ -535,7 +550,9 @@ def materialize_view(
     for source_row in rows:
         materialized_row = []
 
-        for field_name in field_names:
+        for entry in field_entries:
+            field_name = entry["field"]
+
             display_field = registry.get_display_field(
                 field_name,
             )

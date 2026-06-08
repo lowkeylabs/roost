@@ -153,7 +153,7 @@ def build_catalog_row(
 
     overlay_layers: list[str] = []
 
-    if layer == "display":
+    if display_field is not None:
         overlay_layers.append(
             "display",
         )
@@ -198,6 +198,7 @@ def build_catalog_row(
             "description": spec.description,
             "display_name": display_name,
             "profiles": profiles,
+            "profile_count": len(profiles),
             "profile_details": profile_details,
         },
         # -------------------------------------------------

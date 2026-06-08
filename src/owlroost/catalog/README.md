@@ -66,7 +66,7 @@ aggregation lineage
     +
 projection overlays
     +
-presentation refinement
+presentation metadata references
 ```
 
 The catalog therefore maintains:
@@ -106,6 +106,28 @@ a layered semantic identity graph
 ```
 
 rather than merely a flattened registry index.
+
+## Cross-Registry Introspection
+
+Catalog inspection workflows MAY expose
+display metadata for diagnostic and
+navigation purposes.
+
+Examples include:
+
+* labels
+* display profiles
+* view participation
+* dashboard participation
+
+This does not imply ownership.
+
+Display remains the authoritative owner
+of presentation metadata.
+
+Catalog merely queries and presents
+that information as part of cross-
+registry introspection workflows.
 
 # Architectural Invariant
 

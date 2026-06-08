@@ -58,6 +58,40 @@ from owlroost.display.specs import (
 # =========================================================
 
 
+def _display_parts(
+    field_name: str,
+):
+    """
+    Convert a field path into display parts.
+    """
+
+    agg = None
+
+    if "__" in field_name:
+        field_name, agg = field_name.rsplit(
+            "__",
+            1,
+        )
+
+    path_parts = field_name.split(".")
+
+    # drop namespace
+    if len(path_parts) > 1:
+        path_parts = path_parts[1:]
+
+    parts = []
+
+    for part in path_parts:
+        parts.extend(piece.title() for piece in part.split("_"))
+
+    if agg is not None:
+        parts.append(
+            agg.lower(),
+        )
+
+    return parts
+
+
 def path_to_table_label(
     field_name: str,
 ) -> str:
@@ -65,33 +99,11 @@ def path_to_table_label(
     Generate compact table-oriented label.
     """
 
-    # -----------------------------------------------------
-    # Aggregate fields
-    # -----------------------------------------------------
-
-    if "__" in field_name:
-        (
-            base,
-            agg,
-        ) = field_name.rsplit(
-            "__",
-            1,
+    return "\n".join(
+        _display_parts(
+            field_name,
         )
-
-        leaf = base.split(".")[-1]
-
-        return f"{leaf.replace('_', ' ').title()} {agg.upper()}"
-
-    # -----------------------------------------------------
-    # Standard fields
-    # -----------------------------------------------------
-
-    leaf = field_name.split(".")[-1]
-
-    return leaf.replace(
-        "_",
-        "\n",
-    ).title()
+    )
 
 
 def path_to_pivot_label(
@@ -101,35 +113,11 @@ def path_to_pivot_label(
     Generate descriptive pivot-oriented label.
     """
 
-    # -----------------------------------------------------
-    # Aggregate fields
-    # -----------------------------------------------------
-
-    if "__" in field_name:
-        (
-            base,
-            agg,
-        ) = field_name.rsplit(
-            "__",
-            1,
+    return " ".join(
+        _display_parts(
+            field_name,
         )
-
-        return f"{base.replace('.', ' ').replace('_', ' ').title()} {agg.upper()}"
-
-    # -----------------------------------------------------
-    # Standard fields
-    # -----------------------------------------------------
-
-    if "." in field_name:
-        field_name = field_name.split(
-            ".",
-            1,
-        )[1]
-
-    return field_name.replace(
-        "_",
-        " ",
-    ).title()
+    )
 
 
 # =========================================================
@@ -168,20 +156,35 @@ def _register_field_if_missing(
         return
 
     # -----------------------------------------------------
+    # Default Formatting
+    # -----------------------------------------------------
+
+    table_fmt = None
+    pivot_fmt = None
+
+    if field_name.startswith(
+        "financial.",
+    ):
+        table_fmt = "currency_short"
+        pivot_fmt = "currency"
+
+    # -----------------------------------------------------
     # Default Profiles
     # -----------------------------------------------------
 
-    if profiles is None:
+    if not profiles:
         profiles = {
             "table": DisplayProfile(
                 label=path_to_table_label(
                     field_name,
                 ),
+                fmt=table_fmt,
             ),
             "pivot": DisplayProfile(
                 label=path_to_pivot_label(
                     field_name,
                 ),
+                fmt=pivot_fmt,
             ),
         }
 

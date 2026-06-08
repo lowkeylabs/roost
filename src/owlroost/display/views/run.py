@@ -64,10 +64,39 @@ def register_display_views(
                 # Identity
                 # =====================================
                 "case_name",
-                "compact_id",
-                "case_id",
-                "session_id",
-                "run_id",
+                "display.compact_id",
+                "display.optimization_goal",
+                "display.completion_fraction",
+                "financial.spending.year0.today__median",
+                "financial.spending.total.today__median",
+                "financial.bequest.total.today__median",
+                ("description", {"modes": ["pivot"]}),
+            ],
+            description=(""),
+        )
+    )
+
+    reg.register_view(
+        DisplayView(
+            level="run",
+            name="social_security",
+            entries=[
+                # =====================================
+                # Identity
+                # =====================================
+                "case_name",
+                "display.compact_id",
+                "display.optimization_goal",
+                "display.completion_fraction",
+                "fixed_income.social_security_ages",
+                "solver_options.withSSAges",
+                "social_security.optimized__constant",
+                ("social_security.ages__median"),
+                (
+                    "financial.spending.total.today__median",
+                    {"profiles": {"table": {"fmt": "currency"}}},
+                ),
+                "financial.bequest.total.today__median",
                 ("description", {"modes": ["pivot"]}),
             ],
             description=(""),
