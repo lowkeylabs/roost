@@ -135,6 +135,13 @@ OWL_PARAMETER_DOCS = {
         "units": None,
         "notes": None,
     },
+    "constrain_mean": {
+        "section": 'for_method_=_"histogaussian",_"histolognormal",_"historical_copula",_"garch_dcc",_"gmm",_or_"hmm"',
+        "type": "boolean",
+        "description": "*(Optional)* When true, shifts each generated series additively so its arithmetic mean matches the historical window arithmetic mean. Preserves distribution shape (variance, skew, autocorrelation); only the mean is corrected. Useful to eliminate sampling bias in short scenarios. Default is false",
+        "units": None,
+        "notes": None,
+    },
     "correlations": {
         "section": 'for_method_=_"gaussian"_or_"lognormal"',
         "type": "list of 6 floats",
@@ -199,7 +206,7 @@ OWL_PARAMETER_DOCS = {
         "notes": None,
     },
     "from": {
-        "section": 'for_method_=_"historical",_"historical_average",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"gmm",_or_"hmm"',
+        "section": 'for_method_=_"historical",_"historical_average",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"historical_copula",_"gmm",_or_"hmm"',
         "type": "integer",
         "description": "Starting year for historical data range (must be between 1928 and 2025). Default is 1928",
         "units": "years",
@@ -313,7 +320,7 @@ OWL_PARAMETER_DOCS = {
     "method": {
         "section": "units_of_measure",
         "type": "string",
-        "description": 'Method for determining rates. Valid values: "trailing-30", "optimistic", "conservative", "user", "historical", "historical average", "gaussian", "histogaussian", "lognormal", "histolognormal", "bootstrap_sor", "var", "garch_dcc", "gmm", "hmm", "dataframe"',
+        "description": 'Method for determining rates. Valid values: "trailing-30", "optimistic", "conservative", "user", "historical", "historical average", "gaussian", "histogaussian", "lognormal", "histolognormal", "bootstrap_sor", "var", "garch_dcc", "historical_copula", "gmm", "hmm", "dataframe"',
         "units": None,
         "notes": None,
     },
@@ -369,7 +376,7 @@ OWL_PARAMETER_DOCS = {
     "objective": {
         "section": "optimization_parameters",
         "type": "string",
-        "description": 'Optimization objective. Valid values: "maxSpending", "maxBequest", "maxHybrid"',
+        "description": 'Optimization objective. Valid values: "maxSpending", "maxBequest"',
         "units": None,
         "notes": None,
     },
@@ -423,7 +430,7 @@ OWL_PARAMETER_DOCS = {
         "notes": None,
     },
     "rate_seed": {
-        "section": 'for_method_=_"gaussian",_"histogaussian",_"lognormal",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"gmm",_or_"hmm"',
+        "section": 'for_method_=_"gaussian",_"histogaussian",_"lognormal",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"historical_copula",_"gmm",_or_"hmm"',
         "type": "integer",
         "description": "Random seed for reproducible stochastic rates. Default omitted = seed chosen randomly",
         "units": None,
@@ -444,21 +451,21 @@ OWL_PARAMETER_DOCS = {
         "notes": None,
     },
     "reproducible_rates": {
-        "section": 'for_method_=_"gaussian",_"histogaussian",_"lognormal",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"gmm",_or_"hmm"',
+        "section": 'for_method_=_"gaussian",_"histogaussian",_"lognormal",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"historical_copula",_"gmm",_or_"hmm"',
         "type": "boolean",
         "description": "Whether stochastic rates should be reproducible. Default is false",
         "units": None,
         "notes": None,
     },
     "reverse_sequence": {
-        "section": 'for_method_=_"historical",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"gmm",_"hmm",_"gaussian",_or_"lognormal"_(varying_rates_only)',
+        "section": 'for_method_=_"historical",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"historical_copula",_"gmm",_"hmm",_"gaussian",_or_"lognormal"_(varying_rates_only)',
         "type": "boolean",
         "description": "If true, reverse the rate sequence along the time axis (e.g. last year first). Default is false. Ignored for fixed/constant rate methods. Used for both single-scenario and Historical Range runs.",
         "units": "years",
         "notes": None,
     },
     "roll_sequence": {
-        "section": 'for_method_=_"historical",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"gmm",_"hmm",_"gaussian",_or_"lognormal"_(varying_rates_only)',
+        "section": 'for_method_=_"historical",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"historical_copula",_"gmm",_"hmm",_"gaussian",_or_"lognormal"_(varying_rates_only)',
         "type": "integer",
         "description": "Number of years to roll (shift) the rate sequence; positive shifts toward the end, values wrap. Default is 0. Ignored for fixed/constant rate methods. Used for both single-scenario and Historical Range runs.",
         "units": "years",
@@ -541,25 +548,11 @@ OWL_PARAMETER_DOCS = {
         "units": None,
         "notes": None,
     },
-    "spendingFloor": {
-        "section": "solver_options",
-        "type": "float",
-        "description": 'Minimum annual net spending in today\'s dollars (in units) for objective = "maxHybrid". Acts as a hard lower bound on the first-year spending variable; the spending profile then scales all subsequent years relative to this floor. Use 0 (or omit) for no floor.',
-        "units": "usd",
-        "notes": None,
-    },
     "spendingSlack": {
         "section": "solver_options",
         "type": "integer",
-        "description": 'Percentage allowed to deviate from the spending profile. For "maxSpending" and "maxBequest", spending stays within ±slack% of the profile. For "maxHybrid", slack acts as a one-sided cap: spending can exceed the floor by at most slack%; set to 0 to allow unrestricted spending above the floor. (0–100)',
+        "description": "Percentage allowed to deviate from the spending profile. Spending stays within ±slack% of the profile. (0–100)",
         "units": "percent",
-        "notes": None,
-    },
-    "spendingWeight": {
-        "section": "solver_options",
-        "type": "float",
-        "description": 'Blend weight *h* ∈ [0, 1] for objective = "maxHybrid". h = 1 optimizes spending only (bequest weight = 0); h = 0 optimizes bequest only (spending weight = 0); h = 0.5 gives equal weight to both. Both terms are expressed in present-value dollars before blending, so h = 0.5 is a genuine midpoint for typical plans.',
-        "units": "usd",
         "notes": None,
     },
     "spending_profile": {
@@ -639,6 +632,13 @@ OWL_PARAMETER_DOCS = {
         "units": "years",
         "notes": None,
     },
+    "state": {
+        "section": "basic_info",
+        "type": "string",
+        "description": '*(Optional)* Two-letter US state abbreviation for state income tax calculations (e.g., "MN", "CA"). Omit or set to "" for federal-only (no state tax)',
+        "units": None,
+        "notes": None,
+    },
     "status": {
         "section": "basic_info",
         "type": "string",
@@ -712,12 +712,12 @@ OWL_PARAMETER_DOCS = {
     "timePreference": {
         "section": "solver_options",
         "type": "float",
-        "description": 'Subjective time preference rate (%/year). Values above 0 discount future spending exponentially, shifting the optimal spending profile earlier. For "maxHybrid", applies a per-year discount (1/(1+ρ))^n to spending coefficients. Also supported for "maxSpending". Has no effect when objective = "maxBequest".',
+        "description": 'Subjective time preference rate (%/year). Values above 0 discount future spending exponentially, shifting the optimal spending profile earlier. Supported for "maxSpending". Has no effect when objective = "maxBequest".',
         "units": "years",
         "notes": None,
     },
     "to": {
-        "section": 'for_method_=_"historical",_"historical_average",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"gmm",_or_"hmm"',
+        "section": 'for_method_=_"historical",_"historical_average",_"histogaussian",_"histolognormal",_"bootstrap_sor",_"var",_"garch_dcc",_"historical_copula",_"gmm",_or_"hmm"',
         "type": "integer",
         "description": "Ending year for historical data range (must be between 1928 and 2025, and greater than from). Default is 2025. garch_dcc requires at least 15 years of data (to - from ≥ 15)",
         "units": "years",

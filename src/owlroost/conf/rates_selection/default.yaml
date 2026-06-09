@@ -19,6 +19,7 @@ shrink: null
 n_components: null
 reg_trans: null
 init_regime: null
+constrain_mean: null
 df: null
 n_years: null
 offset: null

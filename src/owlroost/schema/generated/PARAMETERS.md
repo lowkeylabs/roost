@@ -27,6 +27,7 @@ Basic information about the individuals in the plan.
 | `date_of_birth` | list of `N_i` ISO dates | Date of birth for each individual in ISO format (e.g., `"1967-01-15"`). Defaults to `"1965-01-15"` if not specified |
 | `life_expectancy` | list of `N_i` integers | Life expectancy in years for each individual |
 | `start_date` | string | Start date of the plan (e.g., `"01-01"`, `"01/01"`, `"2026-01-01"`). Only the month and day are used; the plan always starts in the current year. Defaults to `"today"` if not specified |
+| `state` | string | *(Optional)* Two-letter US state abbreviation for state income tax calculations (e.g., `"MN"`, `"CA"`). Omit or set to `""` for federal-only (no state tax) |
 
 -------
 
@@ -153,7 +154,7 @@ Rates use standard financial conventions:
 | `heirs_rate_on_tax_deferred_estate` | float | Tax rate (as percentage, e.g., `30.0` for 30%) that heirs will pay on inherited tax-deferred and HSA accounts. Non-spouse HSA beneficiaries must include the full inherited HSA balance as ordinary income (IRC §223(f)(8)(B)) |
 | `dividend_rate` | float | Dividend rate as a percentage (e.g., `1.72` for 1.72%) |
 | `obbba_expiration_year` | integer | Year when the OBBBA (One Big Beautiful Bill Act) provisions expire. Default is `2032` |
-| `method` | string | Method for determining rates. Valid values: `"trailing-30"`, `"optimistic"`, `"conservative"`, `"user"`, `"historical"`, `"historical average"`, `"gaussian"`, `"histogaussian"`, `"lognormal"`, `"histolognormal"`, `"bootstrap_sor"`, `"var"`, `"garch_dcc"`, `"gmm"`, `"hmm"`, `"dataframe"` |
+| `method` | string | Method for determining rates. Valid values: `"trailing-30"`, `"optimistic"`, `"conservative"`, `"user"`, `"historical"`, `"historical average"`, `"gaussian"`, `"histogaussian"`, `"lognormal"`, `"histolognormal"`, `"bootstrap_sor"`, `"var"`, `"garch_dcc"`, `"historical_copula"`, `"gmm"`, `"hmm"`, `"dataframe"` |
 
 **Deprecated aliases:** `stochastic` and `histochastic` are deprecated aliases for `gaussian` and `histogaussian` respectively; and `default` is an alias for `trailing-30`. All are accepted for backward compatibility but new cases should use the canonical names.
 
@@ -170,13 +171,13 @@ Rates use standard financial conventions:
 | `standard_deviations` | list of 4 floats | Volatility in percent for each rate type (e.g., `17` for 17% annualized standard deviation) |
 | `correlations` | list of 6 floats | Pearson correlation coefficient (range -1 to 1) for upper triangle: (1,2), (1,3), (1,4), (2,3), (2,4), (3,4). Standard representation in finance and statistics. |
 
-#### :orange[For method = "gaussian", "histogaussian", "lognormal", "histolognormal", "bootstrap_sor", "var", "garch_dcc", "gmm", or "hmm"]
+#### :orange[For method = "gaussian", "histogaussian", "lognormal", "histolognormal", "bootstrap_sor", "var", "garch_dcc", "historical_copula", "gmm", or "hmm"]
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `rate_seed` | integer | Random seed for reproducible stochastic rates. Default omitted = seed chosen randomly |
 | `reproducible_rates` | boolean | Whether stochastic rates should be reproducible. Default is `false` |
 
-#### :orange[For method = "historical", "historical average", "histogaussian", "histolognormal", "bootstrap_sor", "var", "garch_dcc", "gmm", or "hmm"]
+#### :orange[For method = "historical", "historical average", "histogaussian", "histolognormal", "bootstrap_sor", "var", "garch_dcc", "historical_copula", "gmm", or "hmm"]
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `from` | integer | Starting year for historical data range (must be between 1928 and 2025). Default is `1928` |
@@ -199,6 +200,11 @@ Rates use standard financial conventions:
 | `reg_trans` | float | *(Optional)* Additive Laplace smoothing applied to transition counts to prevent zero-probability transitions. Default is `0.001`. Must be > 0 |
 | `init_regime` | integer | *(Optional)* Index of the starting regime for sequence generation (0 to `n_components − 1`). Default omitted = start from the stationary distribution |
 
+#### :orange[For method = "histogaussian", "histolognormal", "historical_copula", "garch_dcc", "gmm", or "hmm"]
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `constrain_mean` | boolean | *(Optional)* When `true`, shifts each generated series additively so its arithmetic mean matches the historical window arithmetic mean. Preserves distribution shape (variance, skew, autocorrelation); only the mean is corrected. Useful to eliminate sampling bias in short scenarios. Default is `false` |
+
 #### :orange[For method = "bootstrap_sor"]
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -207,7 +213,7 @@ Rates use standard financial conventions:
 | `crisis_years` | list of integers | *(TOML only)* Calendar years to overweight in sampling (e.g. `[1929, 2008]`). Default omitted = no overweighting |
 | `crisis_weight` | float | *(TOML only)* Sampling multiplier applied to crisis years. Default is `1.0` (no overweighting) |
 
-#### :orange[For method = "historical", "histogaussian", "histolognormal", "bootstrap_sor", "var", "garch_dcc", "gmm", "hmm", "gaussian", or "lognormal" (varying rates only)]
+#### :orange[For method = "historical", "histogaussian", "histolognormal", "bootstrap_sor", "var", "garch_dcc", "historical_copula", "gmm", "hmm", "gaussian", or "lognormal" (varying rates only)]
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `reverse_sequence` | boolean | If true, reverse the rate sequence along the time axis (e.g. last year first). Default is `false`. Ignored for fixed/constant rate methods. Used for both single-scenario and Historical Range runs. |
@@ -260,7 +266,7 @@ Parameters controlling the optimization objective and spending profile.
 |-----------|------|-------------|
 | `spending_profile` | string | Type of spending profile. Valid values: `"flat"`, `"smile"` |
 | `surviving_spouse_spending_percent` | integer | Percentage of spending amount for the surviving spouse (0-100). Default is `60` |
-| `objective` | string | Optimization objective. Valid values: `"maxSpending"`, `"maxBequest"`, `"maxHybrid"` |
+| `objective` | string | Optimization objective. Valid values: `"maxSpending"`, `"maxBequest"` |
 | `other_medical_expenses` | float | *(Optional)* Annual non-Medicare qualified medical expenses (dental, vision, co-pays, deductibles, etc.) in today's dollars ($k). HSA withdrawals are capped by Medicare + this amount each year. Pre-Medicare years: only this amount is eligible (Medicare costs are zero). Default `0.0`. Corresponds to `plan.setMedicalExpenses()` |
 
 ### :orange[Conditional parameters for spending_profile = "smile"]
@@ -315,10 +321,8 @@ Options controlling the optimization solver and constraints.
 | `relTol` | float | *(Advanced)* Relative convergence tolerance for the self-consistent loop objective. | `max(5e-5, gap / 300)` |
 | `solver` | string | Solver to use for optimization. Valid values: `"default"`, `"HiGHS"`, `"MOSEK"`. `"default"` automatically selects MOSEK when available and licensed, otherwise falls back to HiGHS. | `"default"` |
 | `fixedSpending` | float | Pin first-year spending to a fixed value (in today's dollars, in `units`) for `objective = "maxSpending"`. When set, the optimizer holds `g[0]` at this level and uses `spendingSlack` to vary spending dynamically across years. Useful for studying dynamic spending paths at a committed level (e.g., from the efficient frontier). | *(unset)* |
-| `spendingFloor` | float | Minimum annual net spending in today's dollars (in `units`) for `objective = "maxHybrid"`. Acts as a hard lower bound on the first-year spending variable; the spending profile then scales all subsequent years relative to this floor. Use `0` (or omit) for no floor. | `0` |
-| `spendingSlack` | integer | Percentage allowed to deviate from the spending profile. For `"maxSpending"` and `"maxBequest"`, spending stays within ±slack% of the profile. For `"maxHybrid"`, slack acts as a one-sided cap: spending can exceed the floor by at most slack%; set to `0` to allow unrestricted spending above the floor. (0–100) | `0` |
-| `spendingWeight` | float | Blend weight *h* ∈ [0, 1] for `objective = "maxHybrid"`. `h = 1` optimizes spending only (bequest weight = 0); `h = 0` optimizes bequest only (spending weight = 0); `h = 0.5` gives equal weight to both. Both terms are expressed in present-value dollars before blending, so `h = 0.5` is a genuine midpoint for typical plans. | `0.5` |
-| `timePreference` | float | Subjective time preference rate (%/year). Values above 0 discount future spending exponentially, shifting the optimal spending profile earlier. For `"maxHybrid"`, applies a per-year discount `(1/(1+ρ))^n` to spending coefficients. Also supported for `"maxSpending"`. Has no effect when `objective = "maxBequest"`. | `0` |
+| `spendingSlack` | integer | Percentage allowed to deviate from the spending profile. Spending stays within ±slack% of the profile. (0–100) | `0` |
+| `timePreference` | float | Subjective time preference rate (%/year). Values above 0 discount future spending exponentially, shifting the optimal spending profile earlier. Supported for `"maxSpending"`. Has no effect when `objective = "maxBequest"`. | `0` |
 | `startRothConversions` | integer | Year when Roth conversions can begin (clamped to the current year). | Current year |
 | `swapRothConverters` | integer | *(Advanced)* For plans involving spouses, only allow one spouse to perform Roth conversions per year. The year provided determines a transition year when roles are swapped. The sign selects who converts first: positive means person 1 can convert first and person 2 any time after; negative year means person 2 before and person 1 after. This option overrides the `noRothConversions` option. | `0` |
 | `units` | string | Units for amounts. Valid values: `"1"` (dollars), `"k"` (thousands), `"M"` (millions). | `"k"` |

@@ -15,6 +15,7 @@ bequest: null
 netSpending: null
 timePreference: null
 minTaxableBalance: null
+fixedSpending: null
 spendingSlack: null
 noLateSurplus: null
 amoConstraints: null
