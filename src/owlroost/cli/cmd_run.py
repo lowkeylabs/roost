@@ -227,13 +227,11 @@ def cmd_run(
     # Render Table
     # =====================================================
 
-    output = render_table(
-        table,
-        renderer,
-    )
-
-    if output:
-        click.echo(output)
+    if 0:
+        _output = render_table(
+            table,
+            renderer,
+        )
 
     # =====================================================
     # List-only Exit

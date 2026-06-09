@@ -1,0 +1,43 @@
+
+```{python}
+import sys
+from pathlib import Path
+from loguru import logger
+from io import StringIO
+
+from owlplanner.config.toml_io import load_toml
+from owlplanner.config.plan_bridge import config_to_plan
+from owlplanner import mylogging as log
+
+#from owlrost.domain.services.metadata_loader import load_bundle
+#from owlroost.domain.reporting.utils import generate_table, render_relevant_table
+
+# set up logging
+s = StringIO()
+logstreams = [s,s]
+x = logger.remove()
+x = logger.add(sys.stderr, level="INFO")
+
+
+
+# ---------------------------------------------------------
+# Load bundle get the case and trial
+# ---------------------------------------------------------
+# When done, you'll have access to:
+# -
+#metadata_path = Path("metadata.yml")
+
+#bundle = load_bundle(metadata_path)
+#trial = bundle["trial_rows"][0]
+#case = trial.get("_case")
+
+input_file = "case_alex+jamie.toml"
+
+toml_path = str(next(Path.cwd().glob(input_file), None))
+diconf, dirname, _ = load_toml(toml_path)
+plan = config_to_plan(diconf, dirname=dirname,logstreams=logstreams)
+x = plan.resolve()
+x = plan.setPlotBackend("matplotlib")
+
+
+```

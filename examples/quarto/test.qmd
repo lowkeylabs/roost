@@ -1,0 +1,59 @@
+
+import tomllib
+from concurrent.futures import (
+    ProcessPoolExecutor,
+    as_completed,
+)
+from contextlib import contextmanager
+from datetime import datetime
+from io import StringIO
+from pathlib import Path
+
+import click
+import owlplanner as owl
+import toml
+from loguru import logger
+
+
+
+toml_dict = toml.load(trial_toml)
+
+toml_str = toml.dumps(toml_dict)
+
+buf = StringIO(toml_str)
+
+# ----------------------------------------
+# Build + solve
+# ----------------------------------------
+start = time.time()
+
+plan = owl.readConfig(
+    buf,
+    logstreams="loguru",
+    loadHFP=False,
+)
+
+plan.solve(
+    plan.objective,
+    plan.solverOptions,
+)
+
+elapsed = time.time() - start
+
+# ----------------------------------------
+# Write metrics
+# ----------------------------------------
+metrics_path = trial_dir / "metrics.json"
+
+timing = {"elapsed_seconds": elapsed}
+
+write_metrics_json(
+    plan,
+    metrics_path,
+    timing,
+)
+
+summary_path = trial_dir / "summary-full.txt"
+summary_path.write_text( plan.summaryString() )
+summary_path = trial_dir / "summary-year5.txt"
+summary_path.write_text( plan.summaryString(N=5) )

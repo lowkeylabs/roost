@@ -66,9 +66,59 @@ def register_display_views(
                 "case_name",
                 ("description", {"modes": ["pivot"]}),
                 "basic_info.names",
+                "display.starting_ages",
                 "basic_info.life_expectancy",
-                "basic_info.date_of_birth",
+                "balance_sheet.net_worth",
             ],
             description=(""),
+        )
+    )
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="descriptions",
+            entries=[
+                # =====================================
+                # Identity
+                # =====================================
+                "case_name",
+                "description",
+            ],
+            description=(""),
+        )
+    )
+
+    reg.register_view(
+        DisplayView(
+            level="case",
+            name="balance_sheet",
+            entries=[
+                # -------------------------------------------------
+                # Summary
+                # -------------------------------------------------
+                ("case_name"),
+                ("section", "Net Worth"),
+                "balance_sheet.net_worth",
+                ("section", "Assets and Liabilities"),
+                "balance_sheet.total_assets",
+                "balance_sheet.total_liabilities",
+                # -------------------------------------------------
+                # Asset Detail
+                # -------------------------------------------------
+                ("section", "Asset Details"),
+                "balance_sheet.total_taxable_savings",
+                "balance_sheet.total_tax_deferred_savings",
+                "balance_sheet.total_tax_free_savings",
+                "balance_sheet.fixed_assets",
+                ("section", "Liability Detail"),
+                "balance_sheet.mortgage_debt",
+            ],
+            description=(
+                "Summarizes household financial position "
+                "including retirement savings, fixed "
+                "assets, liabilities, total assets, "
+                "and net worth."
+            ),
         )
     )

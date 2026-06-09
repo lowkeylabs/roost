@@ -21,6 +21,8 @@ related variables.
 
 from __future__ import annotations
 
+from datetime import date
+
 from owlroost.core.utils import normalize_module_path
 from owlroost.display.formatting import format_value
 from owlroost.display.operations.normalize import (
@@ -59,6 +61,17 @@ METHODOLOGY_ONTOLOGY = dict(
     projection_kind="synthetic",
     analytic_kind="observed",
     materialization_level="display",
+    node_type="variable",
+    defined_in=normalize_module_path(__file__),
+)
+
+DISPLAY_ONTOLOGY = dict(
+    owner="ROOST",
+    semantic_domain="execution",
+    value_origin="roost-computed",
+    projection_kind="canonical",
+    analytic_kind="observed",
+    materialization_level="run",
     node_type="variable",
     defined_in=normalize_module_path(__file__),
 )
@@ -181,10 +194,69 @@ def register_display_fields(
         )
     )
 
+    reg.register_display_field(
+        DisplayField.field(
+            field_name="display.starting_ages",
+            display_fn=current_ages_display,
+            description=("Ages of household members (Start Date - DOB)"),
+            profiles={
+                "table": DisplayProfile(
+                    label="Start\nAge(s)",
+                    content_align="center",
+                ),
+                "pivot": DisplayProfile(
+                    label="Ages(s) on OWL start date",
+                    content_align="center",
+                ),
+            },
+            **DISPLAY_ONTOLOGY,
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField.field(
+            field_name="basic_info.life_expectancy",
+            profiles={
+                "table": DisplayProfile(
+                    label="Expect\nAge(s)",
+                    content_align="center",
+                ),
+                "pivot": DisplayProfile(
+                    label="Life expectancy(ies)",
+                    content_align="center",
+                ),
+            },
+        )
+    )
+
 
 # =========================================================
 # Display Functions
 # =========================================================
+
+
+def get_inputs(
+    row,
+):
+    return row.get(
+        "_inputs",
+        {},
+    )
+
+
+def get_hfp(
+    row,
+):
+    return row.get(
+        "_hfp",
+        {},
+    )
+
+
+def safe_sum(
+    values,
+):
+    return sum(float(v or 0) for v in values)
 
 
 def make_abbreviation_display(
@@ -392,3 +464,38 @@ def completion_ratio_display(
 
     except Exception:
         return "."
+
+
+def current_ages_display(
+    row,
+):
+    try:
+        basic = get_inputs(row).get("basic_info", {})
+
+        dob_values = basic.get(
+            "date_of_birth",
+            [],
+        )
+
+        start_date_str = basic.get(
+            "start_date",
+        )
+
+        if not dob_values or not start_date_str:
+            return None
+
+        start = date.fromisoformat(start_date_str)
+
+        ages = []
+
+        for dob_str in dob_values:
+            dob = date.fromisoformat(dob_str)
+
+            age = start.year - dob.year - ((start.month, start.day) < (dob.month, dob.day))
+
+            ages.append(age)
+
+        return "/".join(str(x) for x in ages)
+
+    except Exception:
+        return None

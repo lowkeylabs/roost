@@ -161,12 +161,19 @@ def _register_field_if_missing(
 
     table_fmt = None
     pivot_fmt = None
+    table_content_align = None
+    pivot_content_align = None
 
     if field_name.startswith(
-        "financial.",
+        (
+            "financial.",
+            "balance_sheet.",
+        )
     ):
         table_fmt = "currency_short"
         pivot_fmt = "currency"
+        table_content_align = "right"
+        pivot_content_align = "left"
 
     # -----------------------------------------------------
     # Default Profiles
@@ -179,12 +186,14 @@ def _register_field_if_missing(
                     field_name,
                 ),
                 fmt=table_fmt,
+                content_align=table_content_align,
             ),
             "pivot": DisplayProfile(
                 label=path_to_pivot_label(
                     field_name,
                 ),
                 fmt=pivot_fmt,
+                content_align=pivot_content_align,
             ),
         }
 

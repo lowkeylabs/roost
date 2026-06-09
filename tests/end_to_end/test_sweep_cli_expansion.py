@@ -6,11 +6,6 @@ from owlroost.schema.sweeps import (
 
 
 def test_ss_age_pair_single_pair():
-    """
-    Pair syntax expands into the
-    two canonical sweep dimensions.
-    """
-
     overrides = [
         "roost_sweeps.ss_age_pair=69-67",
     ]
@@ -19,10 +14,7 @@ def test_ss_age_pair_single_pair():
         overrides,
     )
 
-    assert expanded == [
-        "roost_sweeps.ss_age_person0=69",
-        "roost_sweeps.ss_age_person1=67",
-    ]
+    assert expanded == overrides
 
 
 def test_ss_age_pair_range_first():
@@ -117,7 +109,7 @@ def test_ss_age_pair_monthly():
     )
 
     assert expanded == [
-        ("roost_sweeps.ss_age_person0=62,62.0833,62.1667,62.25"),
+        ("roost_sweeps.ss_age_person0=62,62.083333,62.166667,62.25"),
         ("roost_sweeps.ss_age_person1=67"),
     ]
 
@@ -137,6 +129,18 @@ def test_ss_age_pair_both_monthly():
     )
 
     assert expanded == [
-        ("roost_sweeps.ss_age_person0=62,62.0833,62.1667,62.25"),
-        ("roost_sweeps.ss_age_person1=67,67.0833,67.1667,67.25"),
+        ("roost_sweeps.ss_age_person0=62,62.083333,62.166667,62.25"),
+        ("roost_sweeps.ss_age_person1=67,67.083333,67.166667,67.25"),
     ]
+
+
+def test_ss_age_pair_multiple_pairs_passthrough():
+    overrides = [
+        ("roost_sweeps.ss_age_pair=64-64,67-67,70-70"),
+    ]
+
+    expanded = expand_cli_overrides(
+        overrides,
+    )
+
+    assert expanded == overrides

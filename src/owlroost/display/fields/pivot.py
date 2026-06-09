@@ -65,7 +65,7 @@ def register_display_fields(
             profiles={
                 "table": DisplayProfile(
                     label="Metric",
-                    width=20,
+                    width=30,
                     wrap=True,
                 ),
             },

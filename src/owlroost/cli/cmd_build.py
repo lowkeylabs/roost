@@ -354,7 +354,7 @@ def cmd_build(
     # Context-sensitive CLI help
     # =====================================================
 
-    rows = load_case_rows(".")
+    rows = load_case_rows(".", metrics_registry=metrics_registry)
     rows = attach_row_ids(rows)
 
     if "help" in (filters or ()):

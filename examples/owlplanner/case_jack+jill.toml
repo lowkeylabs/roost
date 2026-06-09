@@ -12,6 +12,7 @@ sexes = [ "M", "F",]
 date_of_birth = [ "1963-01-15", "1966-01-15",]
 life_expectancy = [ 89, 92,]
 start_date = "2026-01-01"
+state = "TX"
 
 [savings_assets]
 taxable_savings_balances = [ 90.5, 60.2,]
@@ -26,7 +27,7 @@ spousal_surplus_deposit_fraction = 0.5
 HFP_file_name = "HFP_jack+jill.xlsx"
 
 [fixed_income]
-pension_monthly_amounts = [ 0.0, 10.5,]
+pension_monthly_amounts = [ 0.0, 2_000.0,]
 pension_ages = [ 65.0, 65.0,]
 pension_indexed = [ false, false,]
 pension_survivor_fraction = [ 0.0, 0.5,]

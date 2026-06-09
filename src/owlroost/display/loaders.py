@@ -25,6 +25,9 @@ from owlroost.core.hfp import summarize_hfp
 from owlroost.metrics.aggregation.service import (
     aggregate_rows,
 )
+from owlroost.metrics.materializers import (
+    materialize_row_metrics,
+)
 
 from .discovery.cases import (
     find_case_files,
@@ -261,6 +264,7 @@ def flatten_dict(
 
 def _load_case_file(
     path: Path,
+    metrics_registry,
     *,
     load_hfp=True,
 ):
@@ -318,7 +322,7 @@ def _load_case_file(
 
     resolved_path = path.resolve()
 
-    return {
+    row = {
         "_path": resolved_path,
         "_paths": {
             "case_file": resolved_path,
@@ -331,6 +335,13 @@ def _load_case_file(
             "level": "case",
         },
     }
+
+    materialize_row_metrics(
+        row,
+        metrics_registry,
+    )
+
+    return row
 
 
 # =========================================================
@@ -585,6 +596,7 @@ def load_hydra_overrides(
 def load_case_rows(
     source=".",
     *,
+    metrics_registry,
     load_hfp=True,
 ):
     """
@@ -613,6 +625,7 @@ def load_case_rows(
         for path in find_case_files(source):
             row = _load_case_file(
                 path,
+                metrics_registry,
                 load_hfp=load_hfp,
             )
 

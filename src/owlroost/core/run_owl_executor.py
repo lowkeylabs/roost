@@ -136,11 +136,14 @@ def run_trial_from_toml(
     # ----------------------------------------
     start = time.time()
 
+    old_dir = Path.cwd()
+    os.chdir(trial_dir)
     plan = owl.readConfig(
         buf,
         logstreams="loguru",
-        loadHFP=False,
+        loadHFP=True,
     )
+    os.chdir(old_dir)
 
     plan.solve(
         plan.objective,
@@ -161,6 +164,11 @@ def run_trial_from_toml(
         metrics_path,
         timing,
     )
+
+    summary_path = trial_dir / "summary-full.txt"
+    summary_path.write_text(plan.summaryString())
+    summary_path = trial_dir / "summary-year5.txt"
+    summary_path.write_text(plan.summaryString(N=5))
 
     return {
         "status": (plan.caseStatus or "unknown"),

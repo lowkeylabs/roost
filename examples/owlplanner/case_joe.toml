@@ -12,6 +12,7 @@ sexes = [ "M",]
 date_of_birth = [ "1967-01-15",]
 life_expectancy = [ 89,]
 start_date = "2026-01-01"
+state = "TX"
 
 [savings_assets]
 taxable_savings_balances = [ 338.5,]
@@ -34,7 +35,7 @@ social_security_ages = [ 67.0,]
 heirs_rate_on_tax_deferred_estate = 30.0
 dividend_rate = 1.80
 obbba_expiration_year = 2032
-method = "historical average"
+method = "historical_average"
 from = 1969
 to = 2002
 

@@ -1,0 +1,80 @@
+Synopsis
+
+Metric                                                                   Today's $               Nominal $
+----------------------------------------------------------------------------------------------------------
+Case name                                                          kim+sam-bequest
+
+--- Overview ---
+
+Net yearly spending basis                                                 $145,000
+Effective tax rate (plan average)                                            14.6%
+Net spending for year 2026                                                $145,000
+Net spending remaining in year 2026                                       $145,000
+
+--- Spending & income (horizon totals) ---
+
+Total net spending                                                      $4,495,000              $7,038,870
+Total fixed income                                                      $1,839,820              $3,181,638
+»  Social Security                                                      $1,839,820              $3,181,638
+Total Roth conversions                                                    $744,963                $798,796
+
+--- Taxes & premiums (horizon totals) ---
+
+Total tax paid on ordinary income                                         $500,970                $790,372
+»  Tax bracket 10%                                                         $76,620                $119,186
+»  Tax bracket 12/15%                                                     $338,945                $533,898
+»  Tax bracket 22/25%                                                      $85,405                $137,288
+»  Tax bracket 24/28%                                                           $0                      $0
+»  Tax bracket 32/33%                                                           $0                      $0
+»  Tax bracket 35%                                                              $0                      $0
+»  Tax bracket 37/40%                                                           $0                      $0
+»  Early withdrawal penalty                                                     $0                      $0
+Total tax paid on gains and dividends                                       $7,119                  $7,509
+Total net investment income tax paid                                            $0                      $0
+Total state income tax paid                                                $36,652                 $47,648
+Total Medicare premiums paid                                              $135,498                $221,921
+»  Covered by HSA                                                          $68,473                $118,326
+Total ACA premiums paid                                                         $0                      $0
+Total debt payments                                                             $0                      $0
+
+--- Partial bequest ---
+
+Year of partial bequest                                                       2053
+Sum of spousal transfer to Sam                                            $173,866                $376,722
+»  Spousal transfer to Sam - taxable                                            $0                      $0
+»  Spousal transfer to Sam - tax-def                                      $130,253                $282,225
+»  Spousal transfer to Sam - tax-free                                      $43,612                 $94,497
+»  Spousal transfer to Sam - HSA                                                $0                      $0
+Sum of post-tax non-spousal bequest from Kim                                    $0                      $0
+»  Post-tax non-spousal bequest from Kim - taxable                              $0                      $0
+»  Post-tax non-spousal bequest from Kim - tax-def                              $0                      $0
+»  Post-tax non-spousal bequest from Kim - tax-free                             $0                      $0
+»  Post-tax non-spousal bequest from Kim - HSA                                  $0                      $0
+
+--- Final bequest ---
+
+Year of final bequest                                                         2058
+Total after-tax value of final bequest                                  $1,136,639              $2,827,452
+» After-tax value of savings assets                                     $1,136,639              $2,827,452
+» Fixed assets liquidated at end of plan                                        $0                      $0
+» With heirs assuming tax liability of                                          $0                      $0
+» After paying remaining debts of                                               $0                      $0
+»  Post-tax final bequest account value - taxable                               $0                      $0
+»  Post-tax final bequest account value - tax-def                               $0                      $0
+»  Post-tax final bequest account value - tax-free                      $1,136,639              $2,827,452
+»  Post-tax final bequest account value - HSA                                   $0                      $0
+
+--- Plan & solver ---
+
+Case starting date                                                      2026-01-01
+Cumulative inflation factor at end of final year                              2.49
+           Kim's life horizon                                         2026 -> 2053
+           Kim's years planned                                                  28
+           Kim's SS claiming age                                           70y 00m
+           Sam's life horizon                                         2026 -> 2058
+           Sam's years planned                                                  33
+           Sam's SS claiming age                                           68y 00m
+Number of decision variables                                                  1625
+Number of constraints                                                         1156
+Convergence                                                            oscillatory
+Case executed on                                            2026-06-09 at 06:47:14

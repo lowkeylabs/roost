@@ -1,0 +1,77 @@
+case_name = "alex+jamie"
+description = "Alex and Jamie face a stark longevity gap: Alex has a shorter life expectancy (72) while Jamie may live to 90. This creates unique planning challenges—how much to spend now vs. preserve for the survivor, and how to structure Roth conversions when one spouse will likely outlive the other by two decades.\n\nThis case showcases Owl's handling of asymmetric life expectancies, the AMO (at-most-one) Roth and AMO surplus options for aggressive optimization, and the importance of survivor spending assumptions. The 60% surviving-spouse factor means Jamie's longer horizon drives much of the strategy.\n"
+
+[basic_info]
+status = "married"
+names = [ "Alex", "Jamie",]
+date_of_birth = [ "1960-01-15", "1961-01-17",]
+life_expectancy = [ 72, 90,]
+sexes = [ "M", "F",]
+start_date = "2026-01-01"
+state = "CO"
+
+[savings_assets]
+taxable_savings_balances = [ 500.0, 200.0,]
+tax_deferred_savings_balances = [ 1500.0, 400.0,]
+tax_free_savings_balances = [ 50.0, 40.0,]
+hsa_savings_balances = [ 0.0, 0.0,]
+beneficiary_fractions = [ 1.0, 1.0, 1.0, 1.0,]
+spousal_surplus_deposit_fraction = 0.5
+
+[household_financial_profile]
+HFP_file_name = "HFP_alex+jamie.xlsx"
+
+[fixed_income]
+pension_monthly_amounts = [ 0, 0,]
+pension_ages = [ 65.0, 65.0,]
+pension_indexed = [ false, false,]
+pension_survivor_fraction = [ 0.0, 0.0,]
+social_security_pia_amounts = [ 3000, 1200,]
+social_security_ages = [ 69.0, 62.083333,]
+
+[rates_selection]
+heirs_rate_on_tax_deferred_estate = 30.0
+dividend_rate = 1.72
+obbba_expiration_year = 2032
+method = "user"
+values = [ 7.0, 4.0, 3.3, 2.8,]
+from = 1928
+to = 2025
+reverse_sequence = false
+roll_sequence = 0
+
+[asset_allocation]
+interpolation_method = "linear"
+type = "individual"
+generic = [ [ [ 60.0, 40.0, 0.0, 0.0,], [ 60.0, 40.0, 0.0, 0.0,],], [ [ 60.0, 40.0, 0.0, 0.0,], [ 60.0, 40.0, 0.0, 0.0,],],]
+
+[optimization_parameters]
+spending_profile = "flat"
+surviving_spouse_spending_percent = 60
+objective = "maxSpending"
+
+[solver_options]
+amoRoth = true
+amoSurplus = true
+bequest = 0
+maxRothConversion = 400.0
+noLateSurplus = false
+noRothConversions = "none"
+solver = "default"
+spendingSlack = 0
+startRothConversions = 2026
+withSCLoop = true
+withMedicare = "loop"
+withACA = "loop"
+withLTCG = "loop"
+withNIIT = "loop"
+withDecomposition = "none"
+withSSTaxability = "loop"
+withSSAges = "fixed"
+previousMAGIs = [ 200.0, 200.0,]
+
+[results]
+default_plots = "today"
+worksheet_show_ages = false
+worksheet_hide_zero_columns = false
+worksheet_real_dollars = false

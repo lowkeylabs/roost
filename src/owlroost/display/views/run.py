@@ -87,9 +87,10 @@ def register_display_views(
                 "case_name",
                 "display.compact_id",
                 "display.optimization_goal",
+                "rates_selection.method",
                 "display.completion_fraction",
-                "fixed_income.social_security_ages",
-                "solver_options.withSSAges",
+                # "fixed_income.social_security_ages",
+                # "solver_options.withSSAges",
                 "social_security.optimized__constant",
                 ("social_security.ages__median"),
                 (
@@ -98,6 +99,52 @@ def register_display_views(
                 ),
                 "financial.bequest.total.today__median",
                 ("description", {"modes": ["pivot"]}),
+            ],
+            description=(""),
+        )
+    )
+
+    reg.register_view(
+        DisplayView(
+            level="run",
+            name="social_security2",
+            entries=[
+                # =====================================
+                # Identity
+                # =====================================
+                "case_name",
+                "display.compact_id",
+                # "display.optimization_goal",
+                # "rates_selection.method",
+                "display.completion_fraction",
+                "fixed_income.social_security_ages",
+                # "solver_options.withSSAges",
+                # "social_security.optimized__constant",
+                # ("social_security.ages__median"),
+                (
+                    "financial.spending.total.today__p10",
+                    {"profiles": {"table": {"fmt": "currency"}}},
+                ),
+                (
+                    "financial.spending.total.today__median",
+                    {"profiles": {"table": {"fmt": "currency"}}},
+                ),
+                (
+                    "financial.spending.total.today__p90",
+                    {"profiles": {"table": {"fmt": "currency"}}},
+                ),
+                (
+                    "financial.bequest.total.today__p10",
+                    {"profiles": {"table": {"fmt": "currency"}}},
+                ),
+                (
+                    "financial.bequest.total.today__median",
+                    {"profiles": {"table": {"fmt": "currency"}}},
+                ),
+                (
+                    "financial.bequest.total.today__p90",
+                    {"profiles": {"table": {"fmt": "currency"}}},
+                ),
             ],
             description=(""),
         )

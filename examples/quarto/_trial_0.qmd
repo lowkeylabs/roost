@@ -1,0 +1,37 @@
+
+<!--
+# setup loads necessary imports in a python block.
+#
+# When done, you'll have:
+#
+# bundle :
+# trial :
+# case :
+# plan :
+#
+-->
+{{< include _trial_setup.qmd >}}
+
+
+# Description
+
+```{python}
+#| output: asis
+print(f"{plan._description}")
+```
+
+# Figures
+
+The following figures are generated from the data in the bundle. They provide insights
+into various aspects the retirement plan, including asset growth, withdrawal patterns,
+and risk assessments.
+
+{{< include _all_figures_h2_titles.qmd >}}
+
+```python
+#| output: asis
+
+#table = generate_table( bundle, "run", "default", "assets_over_time", explain=[] )
+#print(render_relevant_table(table))
+
+```

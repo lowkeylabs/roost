@@ -1,0 +1,14 @@
+```{python}
+#| label: fig-net-spending
+#| fig-cap: "Net Spending over time for the nominal and today scenarios."
+#| fig-subcap:
+#|  - "Nominal dollars"
+#|  - "Today's dollars"
+#| layout-ncol: 2
+# Nominal
+plan.setDefaultPlots("nominal")
+x = plan.showNetSpending()
+# Today
+plan.setDefaultPlots("today")
+x = plan.showNetSpending()
+```
