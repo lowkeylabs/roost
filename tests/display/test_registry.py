@@ -14,6 +14,9 @@ from owlroost.display.specs import (
     DisplayProfile,
     DisplayView,
 )
+from owlroost.exceptions import (
+    RoostError,
+)
 
 # =========================================================
 # Helpers
@@ -250,10 +253,32 @@ def test_duplicate_view_raises():
         )
 
 
+def test_row_view_fallback():
+    reg = DisplayRegistry()
+
+    view = DisplayView(
+        level="row",
+        name="balance_sheet",
+        entries=[],
+    )
+
+    reg.register_view(view)
+
+    loaded = reg.get_view(
+        "case",
+        "balance_sheet",
+    )
+
+    assert loaded is view
+
+
 def test_missing_view_raises():
     reg = DisplayRegistry()
 
-    with pytest.raises(KeyError):
+    with pytest.raises(
+        RoostError,
+        match="DisplayView not found",
+    ):
         reg.get_view(
             "case",
             "missing",

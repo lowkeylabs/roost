@@ -749,7 +749,7 @@ def cmd_results(
             registry=display_registry,
             catalog_index=catalog_index,
             diff_only=diff,
-            explain=explain_facets,
+            explain_facets=explain_facets,
         )
 
         output = render_table(

@@ -1,0 +1,87 @@
+---
+title: Test Quarto document
+---
+
+```{python}
+from owlroost.display.bootstrap import build_display_registry
+from owlroost.metrics.bootstrap import build_metrics_registry
+from owlroost.schema.bootstrap import build_schema_registry
+from owlroost.catalog.loaders import load_catalog_rows
+
+from owlroost.display.operations.sorting import apply_canonical_sort, apply_sort
+from owlroost.display.operations.row_ops import apply_top, attach_row_ids
+from owlroost.display.operations.filtering import apply_filters
+
+from owlroost.display.loaders import load_case_rows,load_trial_as_row
+from owlroost.display.materializers.materialize import materialize_view
+from owlroost.display.specs import DisplayView
+
+
+from owlroost.display.renderers.latex_table import render_latex_table
+from owlroost.display.renderers.markdown_table import render_markdown_table
+from owlroost.display.renderers.rich_table import render_rich_table
+```
+
+```{python}
+schema_registry = build_schema_registry()
+metrics_registry = build_metrics_registry()
+display_registry = build_display_registry(
+    schema_registry=schema_registry,
+    metrics_registry=metrics_registry,
+)
+catalog_rows = load_catalog_rows(
+    schema_registry=schema_registry,
+    metrics_registry=metrics_registry,
+    display_registry=display_registry,
+)
+catalog_index = {row["field_name"]: row for row in catalog_rows}
+```
+
+
+```{python}
+#rows = load_case_rows(".",metrics_registry=metrics_registry)
+```
+
+
+```{python}
+rows = load_trial_as_row(".",metrics_registry=metrics_registry)
+```
+
+
+```{python}
+#| output: asis
+LEVEL = "trial"
+VIEW = "balance_sheet"
+MODE = "pivot"
+FACETS = ["variables","sources"]
+
+table = materialize_view(
+    rows=rows,
+    registry=display_registry,
+    catalog_index=catalog_index,
+    level=LEVEL,
+    view_name=VIEW,
+    mode=MODE,
+    explain_facets=FACETS,
+)
+print(render_markdown_table( table ))
+```
+
+```{python}
+#| output: asis
+LEVEL = "trial"
+VIEW = "trial"
+MODE = "pivot"
+FACETS = ["variables","sources"]
+
+table = materialize_view(
+    rows=rows,
+    registry=display_registry,
+    catalog_index=catalog_index,
+    level=LEVEL,
+    view_name=VIEW,
+    mode=MODE,
+    explain_facets=FACETS,
+)
+print(render_markdown_table( table ))
+```

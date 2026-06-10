@@ -1,6 +1,7 @@
 
 ```{python}
 import sys
+import pandas as pd
 from pathlib import Path
 from loguru import logger
 from io import StringIO
@@ -9,8 +10,28 @@ from owlplanner.config.toml_io import load_toml
 from owlplanner.config.plan_bridge import config_to_plan
 from owlplanner import mylogging as log
 
-#from owlrost.domain.services.metadata_loader import load_bundle
-#from owlroost.domain.reporting.utils import generate_table, render_relevant_table
+from owlroost.display.bootstrap import build_display_registry
+from owlroost.metrics.bootstrap import build_metrics_registry
+from owlroost.schema.bootstrap import build_schema_registry
+from owlroost.catalog.loaders import load_catalog_rows
+
+from owlroost.display.operations.sorting import apply_canonical_sort, apply_sort
+from owlroost.display.operations.row_ops import apply_top, attach_row_ids
+from owlroost.display.operations.filtering import apply_filters
+
+from owlroost.display.loaders import load_case_rows,load_trial_as_row
+from owlroost.display.materializers.materialize import materialize_view
+from owlroost.display.specs import DisplayView
+
+
+from owlroost.display.renderers.latex_table import render_latex_table
+from owlroost.display.renderers.markdown_table import render_markdown_table
+from owlroost.display.renderers.rich_table import render_rich_table
+
+pd.set_option(
+    "display.max_rows",
+    None,
+)
 
 # set up logging
 s = StringIO()
@@ -18,6 +39,18 @@ logstreams = [s,s]
 x = logger.remove()
 x = logger.add(sys.stderr, level="INFO")
 
+schema_registry = build_schema_registry()
+metrics_registry = build_metrics_registry()
+display_registry = build_display_registry(
+    schema_registry=schema_registry,
+    metrics_registry=metrics_registry,
+)
+catalog_rows = load_catalog_rows(
+    schema_registry=schema_registry,
+    metrics_registry=metrics_registry,
+    display_registry=display_registry,
+)
+catalog_index = {row["field_name"]: row for row in catalog_rows}
 
 
 # ---------------------------------------------------------
@@ -37,5 +70,6 @@ plan = config_to_plan(diconf, dirname=dirname,logstreams=logstreams)
 x = plan.resolve()
 x = plan.setPlotBackend("matplotlib")
 
+rows = load_trial_as_row(".",metrics_registry=metrics_registry)
 
 ```

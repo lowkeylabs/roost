@@ -95,6 +95,7 @@ def register_display_fields(
                     label="Description",
                     width=60,
                     wrap=True,
+                    content_align="left",
                 ),
             },
             **CATALOG_ONTOLOGY,

@@ -29,8 +29,6 @@ Aggregation belongs to:
 
 from __future__ import annotations
 
-from loguru import logger
-
 # =========================================================
 # Public API
 # =========================================================
@@ -106,8 +104,7 @@ def materialize_row_metrics(
                 row,
             )
 
-        except Exception as exc:
-            logger.debug(f"Metric materialization failed for {metric.name}: {exc}")
+        except Exception:
             continue
 
         metrics[metric.name] = value

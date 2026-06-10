@@ -21,6 +21,9 @@ from owlroost.display.specs import (
     DisplayGroup,
     DisplayView,
 )
+from owlroost.exceptions import (
+    RoostError,
+)
 
 
 class DisplayRegistry:
@@ -342,11 +345,15 @@ class DisplayRegistry:
             name,
         )
 
-        try:
+        if key in self._views:
             return self._views[key]
 
-        except KeyError as err:
-            raise KeyError(f"DisplayView not found: {level}/{name}") from err
+        row_key = ("row", name)
+
+        if row_key in self._views:
+            return self._views[row_key]
+
+        raise RoostError(f"DisplayView not found: {level}/{name}")
 
     def has_view(
         self,
@@ -367,6 +374,46 @@ class DisplayRegistry:
         self,
     ) -> list[DisplayView]:
         return self.all_views()
+
+    def create_view(
+        self,
+        view: DisplayView,
+    ):
+        """
+        Create a user-defined DisplayView.
+
+        Intended for interactive workflows
+        such as Jupyter notebooks and
+        Quarto reports.
+
+        Unlike register_view(), duplicate
+        names raise a user-facing
+        RoostError with actionable
+        guidance.
+        """
+
+        key = (
+            view.level,
+            view.name,
+        )
+
+        if key in self._views:
+            existing = sorted(v.name for v in self._views.values() if v.level == view.level)
+
+            raise RoostError(
+                "\n".join(
+                    [
+                        (f"View already exists: {view.level}/{view.name}"),
+                        "",
+                        "Choose a different view name.",
+                        "",
+                        f"Existing {view.level} views:",
+                        "  " + ", ".join(existing),
+                    ]
+                )
+            )
+
+        self._views[key] = view
 
     # =====================================================
     # View Expansion

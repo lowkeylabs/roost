@@ -143,6 +143,52 @@ def register_display_fields(
         )
     )
 
+    # =====================================================
+    # Supersession
+    # =====================================================
+
+    reg.register_display_field(
+        DisplayField.field(
+            "display.is_superseded",
+            path="_meta.is_superseded",
+            description=("True if this row has been superseded by a newer equivalent row."),
+            profiles={
+                "table": DisplayProfile(
+                    label="Superseded",
+                    width=10,
+                    content_align="center",
+                ),
+                "pivot": DisplayProfile(
+                    label="Superseded",
+                    width=10,
+                    content_align="center",
+                ),
+            },
+            **IDENTITY_ONTOLOGY,
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField.field(
+            "display.superseded_by",
+            path="_meta.superseded_by",
+            description=("Compact identifier of the row that superseded this row."),
+            profiles={
+                "table": DisplayProfile(
+                    label="Superseded By",
+                    width=12,
+                    content_align="center",
+                ),
+                "pivot": DisplayProfile(
+                    label="Superseded By",
+                    width=12,
+                    content_align="center",
+                ),
+            },
+            **IDENTITY_ONTOLOGY,
+        )
+    )
+
 
 # =========================================================
 # Display Functions

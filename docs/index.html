@@ -2,13 +2,16 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.8.27">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
 <title>OWL-ROOST – ROOST</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -32,15 +35,14 @@ ul.task-list li input[type="checkbox"] {
 <meta name="quarto:offset" content="./">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-45a48b56c8ad2523a9a31c69be39928e.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-687a437779832f767d43358f53c83686.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -110,31 +112,62 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
 
   <ul>
-  <li><a href="#core-concepts" id="toc-core-concepts" class="nav-link active" data-scroll-target="#core-concepts"><strong>Core Concepts</strong></a>
+  <li><a href="#roost" id="toc-roost" class="nav-link active" data-scroll-target="#roost">ROOST</a>
   <ul>
+  <li><a href="#license" id="toc-license" class="nav-link" data-scroll-target="#license">License</a></li>
+  </ul></li>
+  <li><a href="#core-concepts" id="toc-core-concepts" class="nav-link" data-scroll-target="#core-concepts">Core Concepts</a></li>
+  <li><a href="#conceptual-relationships" id="toc-conceptual-relationships" class="nav-link" data-scroll-target="#conceptual-relationships">Conceptual Relationships</a></li>
+  <li><a href="#canonical-operational-structure" id="toc-canonical-operational-structure" class="nav-link" data-scroll-target="#canonical-operational-structure">Canonical Operational Structure</a></li>
+  <li><a href="#statistical-and-scientific-model" id="toc-statistical-and-scientific-model" class="nav-link" data-scroll-target="#statistical-and-scientific-model">Statistical and Scientific Model</a></li>
+  <li><a href="#trials-and-runs" id="toc-trials-and-runs" class="nav-link" data-scroll-target="#trials-and-runs">Trials and Runs</a></li>
+  <li><a href="#structural-run-identity" id="toc-structural-run-identity" class="nav-link" data-scroll-target="#structural-run-identity">Structural Run Identity</a></li>
+  <li><a href="#run-materialization-and-execution" id="toc-run-materialization-and-execution" class="nav-link" data-scroll-target="#run-materialization-and-execution">Run Materialization and Execution</a></li>
   <li><a href="#experiments" id="toc-experiments" class="nav-link" data-scroll-target="#experiments">Experiments</a></li>
-  <li><a href="#examples-of-experiments" id="toc-examples-of-experiments" class="nav-link" data-scroll-target="#examples-of-experiments">Examples of Experiments</a></li>
-  <li><a href="#decision-options" id="toc-decision-options" class="nav-link" data-scroll-target="#decision-options">Decision Options</a></li>
-  <li><a href="#choice-templates" id="toc-choice-templates" class="nav-link" data-scroll-target="#choice-templates">Choice Templates</a></li>
-  <li><a href="#cases" id="toc-cases" class="nav-link" data-scroll-target="#cases">Cases</a></li>
-  <li><a href="#uncertainty" id="toc-uncertainty" class="nav-link" data-scroll-target="#uncertainty">Uncertainty</a></li>
-  <li><a href="#runs" id="toc-runs" class="nav-link" data-scroll-target="#runs">Runs</a></li>
-  <li><a href="#trials" id="toc-trials" class="nav-link" data-scroll-target="#trials">Trials</a></li>
-  <li><a href="#runs-vs-trials" id="toc-runs-vs-trials" class="nav-link" data-scroll-target="#runs-vs-trials">Runs vs Trials</a></li>
-  <li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results">Results</a></li>
-  </ul></li>
-  <li><a href="#how-the-pieces-fit-together" id="toc-how-the-pieces-fit-together" class="nav-link" data-scroll-target="#how-the-pieces-fit-together">How the Pieces Fit Together</a></li>
-  <li><a href="#design-philosophy" id="toc-design-philosophy" class="nav-link" data-scroll-target="#design-philosophy"><strong>Design Philosophy</strong></a></li>
-  <li><a href="#relation-to-owl-planner" id="toc-relation-to-owl-planner" class="nav-link" data-scroll-target="#relation-to-owl-planner"><strong>Relation to OWL-Planner</strong></a>
+  <li><a href="#sessions" id="toc-sessions" class="nav-link" data-scroll-target="#sessions">Sessions</a></li>
+  <li><a href="#execution-provenance" id="toc-execution-provenance" class="nav-link" data-scroll-target="#execution-provenance">Execution Provenance</a></li>
+  <li><a href="#operational-ids-and-selection-handles" id="toc-operational-ids-and-selection-handles" class="nav-link" data-scroll-target="#operational-ids-and-selection-handles">Operational IDs and Selection Handles</a></li>
+  <li><a href="#filesystem-vs-scientific-structure" id="toc-filesystem-vs-scientific-structure" class="nav-link" data-scroll-target="#filesystem-vs-scientific-structure">Filesystem vs Scientific Structure</a></li>
+  <li><a href="#scientific-and-operational-architecture" id="toc-scientific-and-operational-architecture" class="nav-link" data-scroll-target="#scientific-and-operational-architecture">Scientific and Operational Architecture</a></li>
+  <li><a href="#variable-ontology-and-provenance-architecture" id="toc-variable-ontology-and-provenance-architecture" class="nav-link" data-scroll-target="#variable-ontology-and-provenance-architecture">Variable Ontology and Provenance Architecture</a></li>
+  <li><a href="#registry-layering" id="toc-registry-layering" class="nav-link" data-scroll-target="#registry-layering">Registry Layering</a></li>
+  <li><a href="#schema-registry" id="toc-schema-registry" class="nav-link" data-scroll-target="#schema-registry">Schema Registry</a></li>
+  <li><a href="#metrics-registry" id="toc-metrics-registry" class="nav-link" data-scroll-target="#metrics-registry">Metrics Registry</a></li>
+  <li><a href="#display-registry" id="toc-display-registry" class="nav-link" data-scroll-target="#display-registry">Display Registry</a></li>
+  <li><a href="#operational-realization-layer" id="toc-operational-realization-layer" class="nav-link" data-scroll-target="#operational-realization-layer">Operational Realization Layer</a></li>
+  <li><a href="#semantic-projection-vs-hierarchical-projection" id="toc-semantic-projection-vs-hierarchical-projection" class="nav-link" data-scroll-target="#semantic-projection-vs-hierarchical-projection">Semantic Projection vs Hierarchical Projection</a>
   <ul>
-  <li><a href="#owl-planner" id="toc-owl-planner" class="nav-link" data-scroll-target="#owl-planner">OWL-Planner</a></li>
-  <li><a href="#how-roost-extends-owl" id="toc-how-roost-extends-owl" class="nav-link" data-scroll-target="#how-roost-extends-owl">How ROOST Extends OWL</a></li>
-  <li><a href="#when-to-use-owl-vs-roost" id="toc-when-to-use-owl-vs-roost" class="nav-link" data-scroll-target="#when-to-use-owl-vs-roost">When to Use OWL vs ROOST</a>
-  <ul class="collapse">
-  <li><a href="#use-owl-planner-when-you-want-to" id="toc-use-owl-planner-when-you-want-to" class="nav-link" data-scroll-target="#use-owl-planner-when-you-want-to">Use <strong>OWL-Planner</strong> when you want to:</a></li>
-  <li><a href="#use-roost-when-you-want-to" id="toc-use-roost-when-you-want-to" class="nav-link" data-scroll-target="#use-roost-when-you-want-to">Use <strong>ROOST</strong> when you want to:</a></li>
+  <li><a href="#semantic-projection" id="toc-semantic-projection" class="nav-link" data-scroll-target="#semantic-projection">Semantic Projection</a></li>
+  <li><a href="#hierarchical-projection" id="toc-hierarchical-projection" class="nav-link" data-scroll-target="#hierarchical-projection">Hierarchical Projection</a></li>
   </ul></li>
-  <li><a href="#in-one-sentence" id="toc-in-one-sentence" class="nav-link" data-scroll-target="#in-one-sentence">In One Sentence</a></li>
+  <li><a href="#provenance-and-introspection" id="toc-provenance-and-introspection" class="nav-link" data-scroll-target="#provenance-and-introspection">Provenance and Introspection</a></li>
+  <li><a href="#architectural-direction" id="toc-architectural-direction" class="nav-link" data-scroll-target="#architectural-direction">Architectural Direction</a></li>
+  <li><a href="#generalization-and-cross-case-studies" id="toc-generalization-and-cross-case-studies" class="nav-link" data-scroll-target="#generalization-and-cross-case-studies">Generalization and Cross-Case Studies</a></li>
+  <li><a href="#sampling-and-estimation" id="toc-sampling-and-estimation" class="nav-link" data-scroll-target="#sampling-and-estimation">Sampling and Estimation</a></li>
+  <li><a href="#architectural-invariants" id="toc-architectural-invariants" class="nav-link" data-scroll-target="#architectural-invariants">Architectural Invariants</a>
+  <ul>
+  <li><a href="#runs-are-the-primary-scientific-comparison-unit" id="toc-runs-are-the-primary-scientific-comparison-unit" class="nav-link" data-scroll-target="#runs-are-the-primary-scientific-comparison-unit">Runs are the primary scientific comparison unit</a></li>
+  <li><a href="#trials-are-primitive-stochastic-observations" id="toc-trials-are-primitive-stochastic-observations" class="nav-link" data-scroll-target="#trials-are-primitive-stochastic-observations">Trials are primitive stochastic observations</a></li>
+  <li><a href="#sessions-are-operational-rather-than-scientific" id="toc-sessions-are-operational-rather-than-scientific" class="nav-link" data-scroll-target="#sessions-are-operational-rather-than-scientific">Sessions are operational rather than scientific</a></li>
+  <li><a href="#experiments-are-logical-scientific-overlays" id="toc-experiments-are-logical-scientific-overlays" class="nav-link" data-scroll-target="#experiments-are-logical-scientific-overlays">Experiments are logical scientific overlays</a></li>
+  <li><a href="#run-configurations-are-fully-materialized-before-execution" id="toc-run-configurations-are-fully-materialized-before-execution" class="nav-link" data-scroll-target="#run-configurations-are-fully-materialized-before-execution">Run configurations are fully materialized before execution</a></li>
+  <li><a href="#filesystem-paths-are-canonical-provenance-identifiers" id="toc-filesystem-paths-are-canonical-provenance-identifiers" class="nav-link" data-scroll-target="#filesystem-paths-are-canonical-provenance-identifiers">Filesystem paths are canonical provenance identifiers</a></li>
+  <li><a href="#decision-sampling-and-execution-variables-are-distinct" id="toc-decision-sampling-and-execution-variables-are-distinct" class="nav-link" data-scroll-target="#decision-sampling-and-execution-variables-are-distinct">Decision, sampling, and execution variables are distinct</a></li>
+  </ul></li>
+  <li><a href="#design-non-goals" id="toc-design-non-goals" class="nav-link" data-scroll-target="#design-non-goals">Design Non-Goals</a></li>
+  <li><a href="#design-philosophy" id="toc-design-philosophy" class="nav-link" data-scroll-target="#design-philosophy">Design Philosophy</a></li>
+  <li><a href="#future-directions" id="toc-future-directions" class="nav-link" data-scroll-target="#future-directions">Future Directions</a></li>
+  <li><a href="#relationship-to-owl" id="toc-relationship-to-owl" class="nav-link" data-scroll-target="#relationship-to-owl">Relationship to OWL</a>
+  <ul>
+  <li><a href="#studies-and-study-templates" id="toc-studies-and-study-templates" class="nav-link" data-scroll-target="#studies-and-study-templates">Studies and Study Templates</a></li>
+  </ul></li>
+  <li><a href="#studies" id="toc-studies" class="nav-link" data-scroll-target="#studies">Studies</a></li>
+  <li><a href="#study-templates" id="toc-study-templates" class="nav-link" data-scroll-target="#study-templates">Study Templates</a></li>
+  <li><a href="#relationship-to-variable-classes" id="toc-relationship-to-variable-classes" class="nav-link" data-scroll-target="#relationship-to-variable-classes">Relationship to Variable Classes</a></li>
+  <li><a href="#relationship-to-sessions" id="toc-relationship-to-sessions" class="nav-link" data-scroll-target="#relationship-to-sessions">Relationship to Sessions</a></li>
+  <li><a href="#future-direction" id="toc-future-direction" class="nav-link" data-scroll-target="#future-direction">Future Direction</a>
+  <ul>
+  <li><a href="#reproducible-study-workflows" id="toc-reproducible-study-workflows" class="nav-link" data-scroll-target="#reproducible-study-workflows">Reproducible Study Workflows</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -161,281 +194,1175 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
+<section id="roost" class="level1">
+<h1>ROOST</h1>
 <p><strong>Retirement Options and Outcomes Studies Tool</strong></p>
 <p><strong>ROOST</strong> (Retirement Options and Outcomes Studies Tool) evaluates <strong>retirement decision policies</strong>—not just static plans—by comparing how <strong>agent-controlled actions</strong> perform under <strong>uncertainty</strong> when those decisions are revisited annually.</p>
 <p>ROOST is designed to answer questions like:</p>
 <blockquote class="blockquote">
 <p><em>“Given the uncertainty I face, how flexible are my retirement decisions—and which decision policies are most robust?”</em></p>
 </blockquote>
-<p>It does this by organizing retirement analysis around a small number of clear, orthogonal concepts.</p>
-<section id="core-concepts" class="level2">
-<h2 class="anchored" data-anchor-id="core-concepts"><strong>Core Concepts</strong></h2>
-<p>ROOST introduces six key concepts in extending the work of OWL.</p>
+<p>It does this by organizing retirement analysis around a small number of clear, orthogonal concepts spanning:</p>
+<ul>
+<li>Scientific experimentation</li>
+<li>Stochastic simulation</li>
+<li>Policy comparison</li>
+<li>Execution provenance</li>
+<li>Statistical evaluation under uncertainty</li>
+<li>Reproducible operational execution</li>
+</ul>
+<p>ROOST builds on OWL while extending retirement analysis into a broader scientific experimentation framework for studying retirement policies under uncertainty.</p>
+<section id="license" class="level2">
+<h2 class="anchored" data-anchor-id="license">License</h2>
+<p>ROOST is licensed under the GNU General Public License version 3 or later (GPL-3.0-or-later).</p>
+<p>ROOST builds upon OWL and is distributed under a GPL-compatible license.</p>
+<hr>
+</section>
+</section>
+<section id="core-concepts" class="level1">
+<h1>Core Concepts</h1>
+<p>ROOST introduces eight key concepts in extending the work of OWL.</p>
 <ul>
 <li><strong>Decision options</strong> define <em>what question is being asked</em></li>
 <li><strong>Choice templates</strong> define <em>policy alternatives</em></li>
 <li><strong>Cases</strong> define <em>initial conditions and constraints</em></li>
-<li><strong>Experiments</strong> define <em>how runs are generated and organized</em></li>
-<li><strong>Runs</strong> define <em>a fixed decision policy applied to a case</em></li>
-<li><strong>Trials</strong> define <em>individual realizations of uncertainty</em></li>
+<li><strong>Experiments</strong> define <em>scientific groupings and research objectives</em></li>
+<li><strong>Sessions</strong> define <em>execution provenance and generated outputs</em></li>
+<li><strong>Runs</strong> define <em>policy evaluations under uncertainty</em></li>
+<li><strong>Trials</strong> define <em>individual stochastic realizations</em></li>
 <li><strong>Results</strong> provide <em>evidence for comparison and insight</em></li>
 </ul>
 <p>Cases and runs are shared between OWL and ROOST. They are represented by exactly the same files and outputs.</p>
-<section id="experiments" class="level3">
-<h3 class="anchored" data-anchor-id="experiments">Experiments</h3>
-<p>An experiment defines a structured method for generating and organizing runs for a given case.</p>
+<hr>
+</section>
+<section id="conceptual-relationships" class="level1">
+<h1>Conceptual Relationships</h1>
+<p>The following relationships define the conceptual structure of ROOST.</p>
+<pre class="text"><code>Case × Session → Runs
+Experiment → Scientifically Related Runs
+Run → Statistical Summary of Trials
+Trial → Primitive Stochastic Observation</code></pre>
+<p>These concepts are intentionally asymmetric.</p>
+<ul>
+<li>Trials and runs contain scientific and statistical evidence.</li>
+<li>Sessions preserve operational provenance and execution history.</li>
+<li>Experiments organize scientific interpretation and comparison.</li>
+</ul>
+<hr>
+</section>
+<section id="canonical-operational-structure" class="level1">
+<h1>Canonical Operational Structure</h1>
+<p>ROOST distinguishes between:</p>
+<ul>
+<li>Operational execution structure</li>
+<li>Scientific interpretation structure</li>
+</ul>
+<p>The canonical operational provenance hierarchy is:</p>
+<pre class="text"><code>Case → Session → Run → Trial</code></pre>
+<p>This hierarchy defines:</p>
+<ul>
+<li>Filesystem organization</li>
+<li>Runtime provenance</li>
+<li>Recovery and continuation state</li>
+<li>Execution metadata</li>
+<li>Trial execution outputs</li>
+<li>Aggregated statistical results</li>
+</ul>
+<p>All operational discovery, cleanup, reporting, and execution management are rooted in this hierarchy.</p>
+<p>Scientific interpretation operates as a logical overlay on top of this operational structure.</p>
+<hr>
+</section>
+<section id="statistical-and-scientific-model" class="level1">
+<h1>Statistical and Scientific Model</h1>
+<p>ROOST distinguishes between:</p>
+<ul>
+<li><strong>Decision variables</strong> that define retirement policies and strategies</li>
+<li><strong>Sampling variables</strong> that control stochastic exploration</li>
+<li><strong>Execution variables</strong> that control runtime and infrastructure behavior</li>
+</ul>
+<p>Examples include:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 21%">
+<col style="width: 78%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Variable Type</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Decision variables</td>
+<td>Roth conversion strategy, Social Security timing, spending policy</td>
+</tr>
+<tr class="even">
+<td>Sampling variables</td>
+<td>random seed, trial count, bootstrap selection</td>
+</tr>
+<tr class="odd">
+<td>Execution variables</td>
+<td>workers per run, resolved solver, thread counts, runtime execution mode</td>
+</tr>
+</tbody>
+</table>
+<p>This distinction is central to ROOST’s architecture.</p>
+<p>Changing a decision variable creates a scientifically different policy evaluation.</p>
+<p>Changing a sampling or execution variable may produce:</p>
+<ul>
+<li>Different statistical estimates</li>
+<li>Different convergence behavior</li>
+<li>Different runtime characteristics</li>
+<li>Different operational execution profiles</li>
+</ul>
+<p>while still evaluating the same underlying policy.</p>
+<hr>
+</section>
+<section id="trials-and-runs" class="level1">
+<h1>Trials and Runs</h1>
+<p>A <strong>trial</strong> represents a single stochastic realization of uncertainty.</p>
+<p>Examples of stochastic variation include:</p>
+<ul>
+<li>Market returns</li>
+<li>Historical sequence selection</li>
+<li>Bootstrap sampling</li>
+<li>Inflation trajectories</li>
+<li>Longevity realizations</li>
+</ul>
+<p>Trials are the primitive observations of the ROOST system.</p>
+<p>A <strong>run</strong> represents a statistical evaluation of a fixed policy configuration across one or more trials.</p>
 <p>Conceptually:</p>
-<pre><code>Case × Experiment → Many Runs</code></pre>
-<p>An experiment answers the question:</p>
-<p><em>“How are we exploring this decision or uncertainty dimension?”</em></p>
-<p>Experiments do not change the meaning of a run. They define how runs are constructed and grouped.</p>
-<p>Experiments may:</p>
+<pre class="text"><code>Policy + Uncertainty Sampling → Run</code></pre>
+<p>Runs are the primary scientific comparison unit in ROOST.</p>
+<p>When a run contains:</p>
 <ul>
-<li>Systematically vary a decision parameter</li>
-<li>Sweep across a family of choice templates</li>
-<li>Enumerate historical market regimes</li>
-<li>Explore timing variations (e.g., retirement age, Social Security age)</li>
-<li>Stress-test exogenous assumptions</li>
+<li>A single trial, run-level metrics are identical to trial metrics</li>
+<li>Multiple trials, run-level metrics become statistical summaries over uncertainty</li>
 </ul>
-<p>Each experiment produces a coherent set of runs, all tied to the same case and timestamp.</p>
-<p>Experiments are fully reproducible from the case file and the experiment definition.</p>
-</section>
-<section id="examples-of-experiments" class="level3">
-<h3 class="anchored" data-anchor-id="examples-of-experiments">Examples of Experiments</h3>
-<p><code>experiment=historical_complete</code></p>
-<p>Enumerates all unique historical regime permutations for a given from/to slice:</p>
-<ul>
-<li><p>roll ∈ [0 … slice_length−1]</p></li>
-<li><p>reverse ∈ {false, true}</p></li>
-</ul>
-<p>This explores robustness to historical phase shifts.</p>
-<p><code>experiment=social_security_sweep</code></p>
-<p>Generates runs for different claiming ages:</p>
-<ul>
-<li>claim_age ∈ {62, 63, …, 70}</li>
-</ul>
-<p>Each run fixes a claiming strategy; trials may vary longevity or returns.</p>
-<p><code>experiment=retirement_age_sweep</code></p>
-<p>Explores retirement timing flexibility:</p>
-<ul>
-<li>retirement_age ∈ {60 … 72}</li>
-</ul>
-<p>Useful for analyzing tradeoffs between longevity risk and income timing.</p>
-<p><code>experiment=roth_bracket_sweep</code></p>
-<p>Compares Roth conversion policies:</p>
-<ul>
-<li>no conversions</li>
-<li>fixed annual conversions</li>
-<li>fill-to-22% bracket</li>
-<li>fill-to-24% bracket</li>
-<li>full OWL optimization</li>
-</ul>
-<p><code>experiment=glidepath_sweep</code></p>
-<p>Varies asset allocation policy families:</p>
-<ul>
-<li>static allocation</li>
-<li>declining equity glidepath</li>
-<li>rising equity glidepath</li>
-</ul>
-</section>
-<section id="decision-options" class="level3">
-<h3 class="anchored" data-anchor-id="decision-options">Decision Options</h3>
-<p>A <strong>decision option</strong> represents a focused retirement question—something the agent can choose and re-choose over time.</p>
-<p>Examples:</p>
-<ul>
-<li>Roth conversion strategy</li>
-<li>Spending policy</li>
-<li>Social Security claiming strategy</li>
-<li>Retirement timing</li>
-<li>Asset allocation policy</li>
-</ul>
-<p>Each decision option defines a <strong>policy dimension</strong> to be explored, not a single action.</p>
-</section>
-<section id="choice-templates" class="level3">
-<h3 class="anchored" data-anchor-id="choice-templates">Choice Templates</h3>
-<p>A <strong>choice template</strong> is a concrete <strong>decision policy</strong> within a decision option. It defines a rule for choosing an action each year, conditional on the current state.</p>
-<p>Examples:</p>
-<ul>
-<li><em>Roth options</em>:
-<ul>
-<li>No Roth conversions</li>
-<li>Fixed annual conversion amounts</li>
-<li>Fill to a target marginal tax bracket</li>
-<li>Let OWL optimize Roth conversions</li>
-</ul></li>
-<li><em>Spending options</em>:
-<ul>
-<li>Fixed real spending</li>
-<li>Guardrail spending</li>
-<li>Utility-maximizing spending</li>
-<li>“Smile” spending profile</li>
-</ul></li>
-</ul>
-<p>Choice templates are <strong>reusable</strong>, <strong>comparable</strong>, and represent different ways to answer the same underlying decision question.</p>
-</section>
-<section id="cases" class="level3">
-<h3 class="anchored" data-anchor-id="cases">Cases</h3>
-<p>A <strong>case</strong> defines the <strong>initial state and constraints</strong> of a retirement scenario.</p>
-<p>A case is specified by:</p>
-<ul>
-<li>A TOML plan file</li>
-<li>A referenced Household Financial Profile (HFP) file</li>
-</ul>
-<p>Cases encode <strong>exogenous assumptions</strong> that the agent does not directly control, including:</p>
-<ul>
-<li>Longevity assumptions</li>
-<li>Rates of return and inflation assumptions</li>
-<li>Tax rules and policy parameters</li>
-<li>Household structure, income sources, and contribution rules</li>
-</ul>
-<p>These values are treated as <strong>given</strong> for a case and are held fixed when comparing decision policies.</p>
-<p>Cases are <strong>sources of truth</strong> and are independent of computed outcomes.</p>
-</section>
-<section id="uncertainty" class="level3">
-<h3 class="anchored" data-anchor-id="uncertainty">Uncertainty</h3>
-<p><strong>Uncertainty</strong> represents aspects of the world that affect outcomes but are <strong>not controlled by the agent</strong>.</p>
-<p>In ROOST, uncertainty is treated as <strong>exogenous</strong>:</p>
-<ul>
-<li>Longevity outcomes</li>
-<li>Market return paths</li>
-<li>Inflation paths (future implementation)</li>
-<li>Policy and tax environments (future implementation)</li>
-</ul>
-<p>Decision policies are evaluated <em>conditional on uncertainty</em>, allowing ROOST to explore sensitivity and robustness without conflating choices with outcomes.</p>
-<p>This separation allows ROOST to answer questions such as:</p>
-<ul>
-<li><em>How sensitive is a decision policy to different longevity outcomes?</em></li>
-<li><em>Which policies remain robust across pessimistic and optimistic return environments?</em></li>
-</ul>
-<p>The key conceptual distinction is simple:</p>
-<blockquote class="blockquote">
-<p><strong>Decisions are chosen by the agent; uncertainty is not.</strong></p>
-</blockquote>
-</section>
-<section id="runs" class="level3">
-<h3 class="anchored" data-anchor-id="runs">Runs</h3>
-<p>A <strong>run</strong> represents a fixed <strong>decision policy instance</strong> applied to a single <strong>case</strong>.</p>
-<p>Conceptually:</p>
-<pre><code>Case × Choice Template → Run</code></pre>
-<p>A run answers the question:</p>
-<blockquote class="blockquote">
-<p><em>“What decision policy are we studying?”</em></p>
-</blockquote>
-<p>All agent-controlled decisions are fixed at the run level.</p>
-</section>
-<section id="trials" class="level3">
-<h3 class="anchored" data-anchor-id="trials">Trials</h3>
-<p>A <strong>trial</strong> represents a single <strong>realization of uncertainty</strong> for a given run.</p>
-<p>Conceptually:</p>
-<pre><code>Run × Uncertainty Realization → Trial</code></pre>
-<p>Across trials:</p>
-<ul>
-<li>The <strong>decision policy is fixed</strong></li>
-<li>Only <strong>random or uncertain elements differ</strong></li>
-</ul>
-<p>Trials allow ROOST to distinguish <strong>decision quality</strong> from <strong>luck</strong>, and to evaluate how the same policy performs across many plausible futures.</p>
-</section>
-<section id="runs-vs-trials" class="level3">
-<h3 class="anchored" data-anchor-id="runs-vs-trials">Runs vs Trials</h3>
-<p>Runs and trials serve different but complementary roles:</p>
-<ul>
-<li>A <strong>run</strong> defines <em>intent</em> — the policy being evaluated</li>
-<li>A <strong>trial</strong> defines <em>experience</em> — what happened under a particular realization of uncertainty</li>
-</ul>
-<p>Multiple trials may be generated for a single run to assess robustness, tail risk, and sensitivity to uncertainty.</p>
-</section>
-<section id="results" class="level3">
-<h3 class="anchored" data-anchor-id="results">Results</h3>
-<p><strong>Results</strong> are the artifacts produced by OWL and ROOST for runs and trials and form the basis for evaluation and comparison.</p>
 <p>Examples include:</p>
 <ul>
-<li>Objective values (e.g., maximum sustainable spending, bequest)</li>
-<li>Effective (post-override) TOML and HFP artifacts</li>
-<li>Summary and metrics JSON files</li>
-<li>Time-series projections and distributions</li>
-<li>Comparative tables and visualizations</li>
+<li>Mean spending</li>
+<li>Median bequest</li>
+<li>P90/P95 outcomes</li>
+<li>Success rates</li>
+<li>Runtime distributions</li>
+<li>Sampling stability measurements</li>
 </ul>
-<p>Results are fully reproducible from the effective TOML and HFP combined with the recorded uncertainty realization.</p>
+<p>This allows ROOST to evaluate policies for robustness across many plausible futures rather than optimizing against a single deterministic scenario.</p>
+<hr>
 </section>
-</section>
-<section id="how-the-pieces-fit-together" class="level2">
-<h2 class="anchored" data-anchor-id="how-the-pieces-fit-together">How the Pieces Fit Together</h2>
+<section id="structural-run-identity" class="level1">
+<h1>Structural Run Identity</h1>
+<p>ROOST distinguishes between:</p>
 <ul>
-<li><strong>Decision options</strong> define <em>what question is being asked</em></li>
-<li><strong>Choice templates</strong> define <em>policy alternatives</em></li>
-<li><strong>Cases</strong> define <em>initial conditions and constraints</em></li>
-<li><strong>Runs</strong> define <em>a fixed policy applied to a case</em></li>
-<li><strong>Trials</strong> define <em>realizations of uncertainty</em></li>
-<li><strong>Results</strong> provide <em>evidence for comparison and insight</em></li>
+<li>Structural run identity</li>
+<li>Session provenance</li>
+<li>Observed runtime behavior</li>
 </ul>
-<p>In short:</p>
-<blockquote class="blockquote">
-<p><strong>Decision options define the questions; choice templates define the policies; cases define the assumptions; runs define the fixed policy instances; trials define realized uncertainty; results define the evidence.</strong></p>
-</blockquote>
+<p>Two runs may be considered structurally equivalent when they share:</p>
+<ul>
+<li>Decision variables</li>
+<li>Sampling variables</li>
+<li>Resolved execution configuration</li>
+</ul>
+<p>while differing only in:</p>
+<ul>
+<li>Session provenance</li>
+<li>Execution timestamps</li>
+<li>Runtime observations</li>
+<li>Execution durations</li>
+<li>Throughput metrics</li>
+</ul>
+<p>This distinction supports workflows such as:</p>
+<ul>
+<li>Operational deduplication</li>
+<li>Structural comparison</li>
+<li>Merge compatibility analysis</li>
+<li>Reproducible experiment organization</li>
+<li>Runtime performance analysis</li>
+</ul>
+<p>Filesystem paths preserve immutable execution provenance, while structural comparison operates over resolved run configuration.</p>
+<hr>
 </section>
-<section id="design-philosophy" class="level2">
-<h2 class="anchored" data-anchor-id="design-philosophy"><strong>Design Philosophy</strong></h2>
+<section id="run-materialization-and-execution" class="level1">
+<h1>Run Materialization and Execution</h1>
+<p>ROOST distinguishes between:</p>
+<ul>
+<li>Declarative configuration intent</li>
+<li>Resolved executable runtime configuration</li>
+<li>Observed runtime outcomes</li>
+</ul>
+<p>Conceptually:</p>
+<pre class="text"><code>Case Configuration
+    ↓
+Decision / Sampling Expansion
+    ↓
+Runtime Resolution
+    ↓
+Materialized Run Configuration
+    ↓
+Trial Execution
+    ↓
+Metrics and Aggregation</code></pre>
+<p>Examples of runtime resolution include:</p>
+<ul>
+<li>Solver auto-selection</li>
+<li>Worker auto-selection</li>
+<li>Thread allocation</li>
+<li>Runtime execution mode selection</li>
+</ul>
+<p>The persisted <code>run.toml</code> file therefore represents:</p>
+<pre class="text"><code>a frozen executable run contract</code></pre>
+<p>rather than merely a partially specified execution template.</p>
+<p>A fully materialized run configuration supports:</p>
+<ul>
+<li>Reproducibility</li>
+<li>Stable structural comparison</li>
+<li>Deterministic replay behavior</li>
+<li>Operational provenance integrity</li>
+<li>Consistent purge and cleanup semantics</li>
+<li>Stable experiment organization</li>
+</ul>
+<hr>
+</section>
+<section id="experiments" class="level1">
+<h1>Experiments</h1>
+<p>An <strong>experiment</strong> defines a structured scientific exploration for a given decision or uncertainty dimension.</p>
+<p>Conceptually:</p>
+<pre class="text"><code>Experiment → Scientifically Related Runs</code></pre>
+<p>An experiment answers the question:</p>
+<blockquote class="blockquote">
+<p><em>“What scientific question or policy dimension are we exploring?”</em></p>
+</blockquote>
+<p>Experiments may:</p>
+<ul>
+<li>Systematically vary a decision parameter (e.g., Social Security claiming age)</li>
+<li>Sweep across a family of choice templates</li>
+<li>Explore Roth conversion strategies</li>
+<li>Compare spending policies</li>
+<li>Enumerate historical market regimes</li>
+<li>Compare optimization or simulation approaches</li>
+<li>Study execution and sampling strategies</li>
+<li>Test whether conclusions generalize across households</li>
+</ul>
+<p>Experiments are:</p>
+<ul>
+<li>Logical rather than physical</li>
+<li>Scientific rather than operational</li>
+<li>Potentially cross-case and cross-session</li>
+</ul>
+<p>A single experiment may include runs from:</p>
+<ul>
+<li>Multiple sessions</li>
+<li>Multiple dates</li>
+<li>Multiple cases/households</li>
+<li>Multiple execution environments</li>
+</ul>
+<p>Experiments are logical scientific overlays over structurally related runs.</p>
+<p>Experiments therefore organize and interpret related runs under a common research objective.</p>
+<p>Experiments do <strong>not</strong> define filesystem structure.</p>
+<p>They define scientific meaning.</p>
+<hr>
+</section>
+<section id="sessions" class="level1">
+<h1>Sessions</h1>
+<p>A <strong>session</strong> represents a specific execution event in which ROOST generates and/or evaluates runs for a case.</p>
+<p>Conceptually:</p>
+<pre class="text"><code>Case × Session → Runs</code></pre>
+<p>Sessions are operational rather than scientific.</p>
+<p>They organize:</p>
+<ul>
+<li>Generated outputs</li>
+<li>Logs and metadata</li>
+<li>Runtime provenance</li>
+<li>Execution history</li>
+<li>Recovery and continuation state</li>
+<li>Incremental execution work</li>
+</ul>
+<p>A session answers the question:</p>
+<blockquote class="blockquote">
+<p><em>“What execution work was performed during this event?”</em></p>
+</blockquote>
+<p>Sessions provide:</p>
+<ul>
+<li>Immutable execution provenance</li>
+<li>Timestamp-oriented organization of outputs</li>
+<li>Incremental extension of larger experiments</li>
+<li>Separation of execution management from scientific interpretation</li>
+<li>Repeatable and reproducible execution history</li>
+</ul>
+<p>For example, a worker-scaling experiment might be executed across multiple sessions:</p>
+<ul>
+<li>Session A: <code>workers_per_run=2..5</code></li>
+<li>Session B: <code>workers_per_run=6..10</code></li>
+</ul>
+<p>Scientifically, these sessions may belong to the same experiment even though they were executed separately.</p>
+<p>Sessions are associated with individual cases and execution events, while experiments may span multiple sessions and multiple cases.</p>
+<p>This distinction allows ROOST to separate:</p>
+<ul>
+<li><strong>Scientific organization</strong> (<em>experiments</em>) from</li>
+<li><strong>Execution and storage organization</strong> (<em>sessions</em>)</li>
+</ul>
+<p>while preserving a stable hierarchy of runs and trials.</p>
+<hr>
+</section>
+<section id="execution-provenance" class="level1">
+<h1>Execution Provenance</h1>
+<p>Execution provenance refers to the complete operational context in which runs and trials were generated.</p>
+<p>Examples include:</p>
+<ul>
+<li>Runtime configuration</li>
+<li>Solver selection</li>
+<li>Parallelism configuration</li>
+<li>Thread allocation</li>
+<li>Sampling strategy</li>
+<li>Session organization</li>
+<li>Execution timestamps</li>
+<li>Recovery and continuation state</li>
+<li>Execution environment details</li>
+</ul>
+<p>ROOST treats provenance as operational metadata distinct from scientific interpretation.</p>
+<p>Filesystem paths serve as the canonical provenance identifiers for generated execution artifacts.</p>
+<hr>
+</section>
+<section id="operational-ids-and-selection-handles" class="level1">
+<h1>Operational IDs and Selection Handles</h1>
+<p>ROOST may assign transient operational IDs to sessions, runs, and trials for:</p>
+<ul>
+<li>Interactive selection</li>
+<li>CLI workflows</li>
+<li>Filtering and display</li>
+<li>Operational management</li>
+<li>Cleanup and maintenance workflows</li>
+</ul>
+<p>These IDs are:</p>
+<ul>
+<li>Ephemeral</li>
+<li>Context-dependent</li>
+<li>Operational rather than scientific</li>
+<li>Intended for CLI convenience</li>
+</ul>
+<p>Filesystem paths remain the canonical provenance identifiers.</p>
+<p>Experiments and persistent scientific overlays SHOULD reference canonical paths or structurally equivalent run definitions rather than transient operational IDs.</p>
+<hr>
+</section>
+<section id="filesystem-vs-scientific-structure" class="level1">
+<h1>Filesystem vs Scientific Structure</h1>
+<p>ROOST intentionally separates:</p>
+<ul>
+<li>Operational filesystem organization from</li>
+<li>Scientific experiment organization</li>
+</ul>
+<p>Filesystem hierarchy reflects operational execution provenance:</p>
+<pre class="text"><code>Case → Session → Run → Trial</code></pre>
+<p>Scientific organization is logical and overlay-based:</p>
+<pre class="text"><code>Experiment → Related Runs</code></pre>
+<p>Experiments may span:</p>
+<ul>
+<li>Sessions</li>
+<li>Dates</li>
+<li>Execution environments</li>
+<li>Multiple cases/households</li>
+</ul>
+<p>Experiments are therefore not tied directly to filesystem structure.</p>
+<hr>
+</section>
+<section id="scientific-and-operational-architecture" class="level1">
+<h1>Scientific and Operational Architecture</h1>
+<p>ROOST distinguishes between four major entity types:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Entity</th>
+<th>Primary Role</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Trial</td>
+<td>Primitive stochastic observation</td>
+</tr>
+<tr class="even">
+<td>Run</td>
+<td>Statistical policy evaluation</td>
+</tr>
+<tr class="odd">
+<td>Session</td>
+<td>Execution provenance container</td>
+</tr>
+<tr class="even">
+<td>Experiment</td>
+<td>Scientific organization and interpretation</td>
+</tr>
+</tbody>
+</table>
+<p>These entities are intentionally asymmetric.</p>
+<p>Trials and runs contain numerical observations and statistical evidence.</p>
+<p>Sessions and experiments primarily organize, contextualize, and interpret those results.</p>
+<hr>
+</section>
+<section id="variable-ontology-and-provenance-architecture" class="level1">
+<h1>Variable Ontology and Provenance Architecture</h1>
+<p>ROOST distinguishes between multiple semantic and operational variable domains.</p>
+<p>This separation is intentional and foundational to the architecture.</p>
+<p>The system is designed to support:</p>
+<ul>
+<li>Exhaustive OWL input coverage</li>
+<li>Hydra sweep generation</li>
+<li>Runtime materialization</li>
+<li>Statistical aggregation</li>
+<li>Scientific reporting</li>
+<li>Provenance tracing</li>
+<li>Reproducible analytical workflows</li>
+<li>Human-oriented analytical overlays</li>
+</ul>
+<p>These concerns operate at different semantic layers and therefore use distinct ontology and registry systems.</p>
+<hr>
+</section>
+<section id="registry-layering" class="level1">
+<h1>Registry Layering</h1>
+<p>ROOST currently distinguishes between three major semantic registry domains:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 74%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Registry</th>
+<th>Primary Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>schema/</code></td>
+<td>Executable input and runtime ontology</td>
+</tr>
+<tr class="even">
+<td><code>metrics/</code></td>
+<td>Observable output and aggregation ontology</td>
+</tr>
+<tr class="odd">
+<td><code>display/</code></td>
+<td>Analytical projection and presentation ontology</td>
+</tr>
+</tbody>
+</table>
+<p>These registries intentionally represent different semantic domains rather than duplicated metadata systems.</p>
+<hr>
+</section>
+<section id="schema-registry" class="level1">
+<h1>Schema Registry</h1>
+<p>The schema registry defines the authoritative executable configuration ontology for ROOST and OWL integration.</p>
+<p>Responsibilities include:</p>
+<ul>
+<li>OWL input variable discovery</li>
+<li>Runtime configuration semantics</li>
+<li>Runtime-default discovery</li>
+<li>Hydra configuration generation</li>
+<li>Hydra sweepability</li>
+<li>Runtime materialization support</li>
+<li>Compatibility and helper fields</li>
+<li>Executable configuration validation</li>
+</ul>
+<p>The schema registry is intentionally exhaustive across the executable OWL input domain.</p>
+<p>This is a critical architectural requirement.</p>
+<p>Complete schema coverage ensures that:</p>
+<ul>
+<li>Hydra sweep generation remains complete</li>
+<li>All executable configuration variables remain discoverable</li>
+<li>Study templates can enumerate valid parameter spaces</li>
+<li>Runtime materialization remains reproducible</li>
+<li>Users are not forced to rely on ad hoc Hydra <code>+variable=value</code> syntax</li>
+</ul>
+<p>The schema registry therefore functions as:</p>
+<pre class="text"><code>the executable configuration ontology of ROOST</code></pre>
+<p>rather than merely a documentation or validation system.</p>
+<p>Schema fields may originate from:</p>
+<ul>
+<li>OWL Pydantic models</li>
+<li>OWL runtime-discovered defaults</li>
+<li>ROOST runtime extensions</li>
+<li>Compatibility overlays</li>
+<li>Helper and derived runtime variables</li>
+</ul>
+<hr>
+</section>
+<section id="metrics-registry" class="level1">
+<h1>Metrics Registry</h1>
+<p>The metrics registry defines the authoritative ontology for observable runtime outputs and statistical aggregation semantics.</p>
+<p>Responsibilities include:</p>
+<ul>
+<li>Canonical output metric definitions</li>
+<li>Statistical aggregation semantics</li>
+<li>Metric typing and interpretation</li>
+<li>Aggregation-level compatibility</li>
+<li>Output-level provenance semantics</li>
+<li>Runtime observation interpretation</li>
+</ul>
+<p>Metrics represent observable evidence generated by runs and trials.</p>
+<p>Examples include:</p>
+<ul>
+<li>Spending outcomes</li>
+<li>Bequest distributions</li>
+<li>Success probabilities</li>
+<li>Runtime durations</li>
+<li>Convergence metrics</li>
+<li>Computational complexity metrics</li>
+<li>Sampling stability measurements</li>
+</ul>
+<p>The metrics registry defines:</p>
+<pre class="text"><code>the observable output ontology of ROOST</code></pre>
+<p>rather than runtime execution behavior or analytical presentation.</p>
+<hr>
+</section>
+<section id="display-registry" class="level1">
+<h1>Display Registry</h1>
+<p>The display registry defines the analytical projection and presentation layer used by reporting, CLI rendering, views, tables, and comparative analysis workflows.</p>
+<p>The display registry is intentionally renderer-facing.</p>
+<p>It owns:</p>
+<ul>
+<li>Labels</li>
+<li>Formatting</li>
+<li>Alignment</li>
+<li>Visibility</li>
+<li>Grouping</li>
+<li>View composition</li>
+<li>Aggregate display synthesis</li>
+<li>Analytical overlays</li>
+</ul>
+<p>The display registry does NOT own canonical semantic meaning.</p>
+<p>Canonical semantic ownership remains with:</p>
+<ul>
+<li><code>schema_registry</code></li>
+<li><code>metrics_registry</code></li>
+</ul>
+<p>The display layer instead projects semantic variables into:</p>
+<pre class="text"><code>human-oriented analytical representations</code></pre>
+<p>suitable for:</p>
+<ul>
+<li>CLI tables</li>
+<li>Pivot displays</li>
+<li>Comparative reporting</li>
+<li>Quarto workflows</li>
+<li>Publication-oriented outputs</li>
+<li>QA/QC inspection workflows</li>
+</ul>
+<p>Display fields may therefore:</p>
+<ul>
+<li>Wrap canonical semantic variables</li>
+<li>Override analytical labels</li>
+<li>Introduce analytical grouping semantics</li>
+<li>Synthesize aggregate display variables</li>
+<li>Define report-oriented presentation behavior</li>
+</ul>
+<p>without becoming the authoritative semantic source for the underlying variable.</p>
+<hr>
+</section>
+<section id="operational-realization-layer" class="level1">
+<h1>Operational Realization Layer</h1>
+<p>ROOST separates semantic variable definition from runtime operational realization.</p>
+<p>Operational realization occurs during dataset loading and execution discovery.</p>
+<p>Canonical runtime dataset rows currently distinguish between:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Dataset Component</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>_inputs</code></td>
+<td>Materialized executable configuration</td>
+</tr>
+<tr class="even">
+<td><code>_metrics</code></td>
+<td>Runtime observations and aggregations</td>
+</tr>
+<tr class="odd">
+<td><code>_meta</code></td>
+<td>Operational metadata and transient identity</td>
+</tr>
+<tr class="even">
+<td><code>_paths</code></td>
+<td>Filesystem provenance and execution lineage</td>
+</tr>
+</tbody>
+</table>
+<p>This distinction allows ROOST to preserve separation between:</p>
+<ul>
+<li>Semantic ontologies</li>
+<li>Runtime execution state</li>
+<li>Observed runtime evidence</li>
+<li>Filesystem provenance</li>
+<li>Analytical overlays</li>
+</ul>
+<p>Filesystem paths remain the canonical operational provenance identifiers throughout the system.</p>
+<hr>
+</section>
+<section id="semantic-projection-vs-hierarchical-projection" class="level1">
+<h1>Semantic Projection vs Hierarchical Projection</h1>
+<p>ROOST currently distinguishes between two different forms of projection.</p>
+<section id="semantic-projection" class="level2">
+<h2 class="anchored" data-anchor-id="semantic-projection">Semantic Projection</h2>
+<p>Semantic projection maps canonical semantic registries into analytical display overlays.</p>
+<p>Conceptually:</p>
+<pre class="text"><code>schema ontology
+metrics ontology
+        ↓
+display ontology</code></pre>
+<p>This projection stage synthesizes renderer-facing analytical representations while preserving canonical semantic ownership in the underlying registries.</p>
+</section>
+<section id="hierarchical-projection" class="level2">
+<h2 class="anchored" data-anchor-id="hierarchical-projection">Hierarchical Projection</h2>
+<p>Hierarchical projection maps runtime entities across operational aggregation levels.</p>
+<p>Examples include:</p>
+<pre class="text"><code>trial → run
+run → session
+session → case</code></pre>
+<p>These projections aggregate operational observations and statistical evidence across the canonical execution hierarchy defined elsewhere in this document.</p>
+<p>The distinction between semantic projection and hierarchical projection is intentional and architecturally important.</p>
+<hr>
+</section>
+</section>
+<section id="provenance-and-introspection" class="level1">
+<h1>Provenance and Introspection</h1>
+<p>ROOST treats provenance as a first-class architectural concern.</p>
+<p>Provenance includes both:</p>
+<ul>
+<li>Operational execution provenance and</li>
+<li>Semantic variable provenance</li>
+</ul>
+<p>Examples include:</p>
+<ul>
+<li>Variable origin registry</li>
+<li>Runtime storage location</li>
+<li>Materialized execution paths</li>
+<li>Aggregation lineage</li>
+<li>Display override lineage</li>
+<li>Hydra generation provenance</li>
+<li>Runtime discovery provenance</li>
+<li>Report and view usage</li>
+</ul>
+<p>ROOST is evolving toward a dedicated catalog and introspection architecture capable of tracing:</p>
+<pre class="text"><code>semantic variable
+    ↓
+runtime materialization
+    ↓
+aggregation
+    ↓
+display projection
+    ↓
+report usage</code></pre>
+<p>across the entire analytical pipeline.</p>
+<p>This provenance architecture is foundational to:</p>
+<ul>
+<li>Explainability</li>
+<li>Reproducibility</li>
+<li>Study generation</li>
+<li>QA/QC validation</li>
+<li>Structural comparison</li>
+<li>Merge compatibility analysis</li>
+<li>Runtime debugging</li>
+<li>Reporting and publication workflows</li>
+</ul>
+<hr>
+</section>
+<section id="architectural-direction" class="level1">
+<h1>Architectural Direction</h1>
+<p>ROOST is evolving toward a metadata-rich analytical architecture in which:</p>
+<ul>
+<li>Semantic ontologies remain explicitly layered</li>
+<li>Runtime realization remains operationally reproducible</li>
+<li>Analytical overlays remain logically separated from canonical semantics</li>
+<li>Provenance remains traceable across all execution and reporting layers</li>
+<li>Study workflows become increasingly automated and introspectable</li>
+</ul>
+<p>The current ontology layering is therefore intentional and SHOULD remain conceptually stable unless explicitly redesigned.</p>
+<hr>
+</section>
+<section id="generalization-and-cross-case-studies" class="level1">
+<h1>Generalization and Cross-Case Studies</h1>
+<p>Although many retirement studies focus on a single household, ROOST is also designed to support broader comparative analysis across multiple cases.</p>
+<p>Experiments may explore questions such as:</p>
+<ul>
+<li>Do retirement strategies generalize across different households?</li>
+<li>Which policies remain robust across varying balance structures?</li>
+<li>How sensitive are outcomes to demographic differences?</li>
+<li>Which optimization strategies scale consistently across cases?</li>
+<li>Which execution strategies scale consistently across environments?</li>
+</ul>
+<p>This allows ROOST to support both:</p>
+<ul>
+<li>Detailed household-specific retirement analysis and</li>
+<li>Cross-household scientific generalization studies</li>
+</ul>
+<p>within the same conceptual framework.</p>
+<hr>
+</section>
+<section id="sampling-and-estimation" class="level1">
+<h1>Sampling and Estimation</h1>
+<p>ROOST treats uncertainty sampling as a first-class scientific concern.</p>
+<p>Multiple runs may evaluate the same underlying policy while differing only in:</p>
+<ul>
+<li>Random seeds</li>
+<li>Sampling methods</li>
+<li>Trial counts</li>
+<li>Execution configuration</li>
+</ul>
+<p>This supports workflows such as:</p>
+<ul>
+<li>Combining compatible runs to increase sample sizes</li>
+<li>Comparing sampling strategies</li>
+<li>Studying estimator stability</li>
+<li>Evaluating convergence behavior under uncertainty</li>
+<li>Comparing execution strategies</li>
+<li>Studying runtime scaling behavior</li>
+</ul>
+<p>For example:</p>
+<ul>
+<li>Two independent runs of 100 trials each may be compared against</li>
+<li>One run containing 200 trials</li>
+</ul>
+<p>to study differences in sampling behavior and estimator quality.</p>
+<p>Scientifically compatible runs may therefore be merged or compared even when generated in different sessions.</p>
+<hr>
+</section>
+<section id="architectural-invariants" class="level1">
+<h1>Architectural Invariants</h1>
+<p>The following concepts are foundational to ROOST and SHOULD remain stable unless intentionally redesigned.</p>
+<section id="runs-are-the-primary-scientific-comparison-unit" class="level2">
+<h2 class="anchored" data-anchor-id="runs-are-the-primary-scientific-comparison-unit">Runs are the primary scientific comparison unit</h2>
+<p>Runs represent statistical evaluations of fixed policy configurations under uncertainty.</p>
+<p>Most scientific comparison, reporting, and analysis in ROOST occurs at the run level.</p>
+</section>
+<section id="trials-are-primitive-stochastic-observations" class="level2">
+<h2 class="anchored" data-anchor-id="trials-are-primitive-stochastic-observations">Trials are primitive stochastic observations</h2>
+<p>Trials represent individual realizations of uncertainty and are aggregated into run-level statistical summaries.</p>
+</section>
+<section id="sessions-are-operational-rather-than-scientific" class="level2">
+<h2 class="anchored" data-anchor-id="sessions-are-operational-rather-than-scientific">Sessions are operational rather than scientific</h2>
+<p>Sessions preserve execution provenance, filesystem organization, runtime metadata, and execution history.</p>
+<p>Sessions SHOULD NOT become primary scientific result entities.</p>
+</section>
+<section id="experiments-are-logical-scientific-overlays" class="level2">
+<h2 class="anchored" data-anchor-id="experiments-are-logical-scientific-overlays">Experiments are logical scientific overlays</h2>
+<p>Experiments organize scientifically related runs and MAY span:</p>
+<ul>
+<li>Multiple sessions</li>
+<li>Multiple cases</li>
+<li>Multiple dates</li>
+<li>Multiple execution environments</li>
+</ul>
+<p>Experiments SHOULD remain logically decoupled from filesystem hierarchy.</p>
+</section>
+<section id="run-configurations-are-fully-materialized-before-execution" class="level2">
+<h2 class="anchored" data-anchor-id="run-configurations-are-fully-materialized-before-execution">Run configurations are fully materialized before execution</h2>
+<p>Persisted run configurations SHOULD represent resolved executable runtime contracts rather than partially specified execution templates.</p>
+<p>Runtime auto-resolution SHOULD occur before execution begins.</p>
+</section>
+<section id="filesystem-paths-are-canonical-provenance-identifiers" class="level2">
+<h2 class="anchored" data-anchor-id="filesystem-paths-are-canonical-provenance-identifiers">Filesystem paths are canonical provenance identifiers</h2>
+<p>Filesystem paths preserve immutable operational provenance.</p>
+<p>Transient operational IDs SHOULD remain convenience handles rather than canonical scientific identifiers.</p>
+</section>
+<section id="decision-sampling-and-execution-variables-are-distinct" class="level2">
+<h2 class="anchored" data-anchor-id="decision-sampling-and-execution-variables-are-distinct">Decision, sampling, and execution variables are distinct</h2>
+<p>Decision variables alter policy meaning.</p>
+<p>Sampling variables alter statistical estimation.</p>
+<p>Execution variables alter runtime behavior.</p>
+<p>These variable classes SHOULD remain conceptually distinct throughout the ROOST architecture.</p>
+<hr>
+</section>
+</section>
+<section id="design-non-goals" class="level1">
+<h1>Design Non-Goals</h1>
+<p>ROOST is NOT intended to:</p>
+<ul>
+<li>Treat sessions as primary scientific result entities</li>
+<li>Collapse experiments directly into filesystem structure</li>
+<li>Conflate execution provenance with scientific interpretation</li>
+<li>Optimize only for deterministic single-plan analysis</li>
+<li>Treat all hierarchy levels as semantically identical</li>
+<li>Restrict experiments to single-case analysis</li>
+<li>Treat transient operational IDs as stable scientific identifiers</li>
+<li>Conflate runtime observations with structural run identity</li>
+</ul>
+<hr>
+</section>
+<section id="design-philosophy" class="level1">
+<h1>Design Philosophy</h1>
 <p>ROOST treats retirement planning as a <strong>sequential decision problem</strong>:</p>
 <ul>
 <li>Decisions are agent-controlled</li>
 <li>They are revisited annually</li>
 <li>Outcomes unfold under uncertainty</li>
 <li>Policies are evaluated across many plausible futures for robustness, not just optimality</li>
-<li>Experiments systematically generate and compare structured sets of runs</li>
+<li>Runs statistically evaluate policy behavior across stochastic realizations</li>
+<li>Experiments organize scientific comparison and interpretation</li>
+<li>Sessions preserve execution provenance and support incremental exploration over time</li>
 </ul>
-<p>Rather than asking <em>“What is the single optimal plan?”</em>, ROOST helps answer:</p>
+<p>Rather than asking:</p>
+<blockquote class="blockquote">
+<p><em>“What is the single optimal plan?”</em></p>
+</blockquote>
+<p>ROOST instead helps answer:</p>
 <blockquote class="blockquote">
 <p><em>“Which decision policies perform well across many plausible futures—and how much flexibility do I really have?”</em></p>
 </blockquote>
+<hr>
 </section>
-<section id="relation-to-owl-planner" class="level2">
-<h2 class="anchored" data-anchor-id="relation-to-owl-planner"><strong>Relation to OWL-Planner</strong></h2>
-<section id="owl-planner" class="level3">
-<h3 class="anchored" data-anchor-id="owl-planner">OWL-Planner</h3>
-<p><strong>OWL-Planner</strong> (Optimal Wealth Laboratory) is a retirement planning and optimization framework that computes optimal retirement strategies over a full planning horizon, subject to detailed tax rules, account constraints, longevity assumptions, and return scenarios.</p>
-<p>Given a fully specified input case—defined by a TOML plan file and a referenced Household Financial Profile (HFP)—OWL solves for optimal actions (such as spending levels, asset allocation, and Roth conversions) under the assumed conditions.</p>
-<p>OWL answers questions of the form:</p>
-<blockquote class="blockquote">
-<p><em>“Given these assumptions and constraints, what strategy is optimal over the planning horizon?”</em></p>
-</blockquote>
-</section>
-<section id="how-roost-extends-owl" class="level3">
-<h3 class="anchored" data-anchor-id="how-roost-extends-owl">How ROOST Extends OWL</h3>
-<p><strong>ROOST does not replace OWL.</strong> Instead, ROOST extends OWL by systematizing how retirement decisions are explored, compared, and interpreted under uncertainty.</p>
-<p>In particular, ROOST introduces a structured framework for:</p>
-<ol type="1">
-<li>Separating agent-controlled decisions from uncertainty</li>
-<li>Organizing analysis around decision policies rather than single optimized plans</li>
-<li>Evaluating robustness across many uncertainty realizations</li>
-<li>Systematically comparing alternative policies</li>
-</ol>
-</section>
-<section id="when-to-use-owl-vs-roost" class="level3">
-<h3 class="anchored" data-anchor-id="when-to-use-owl-vs-roost">When to Use OWL vs ROOST</h3>
-<p><strong>OWL and ROOST are complementary tools</strong>, designed to answer different—but closely related—questions.</p>
-<section id="use-owl-planner-when-you-want-to" class="level4">
-<h4 class="anchored" data-anchor-id="use-owl-planner-when-you-want-to">Use <strong>OWL-Planner</strong> when you want to:</h4>
+<section id="future-directions" class="level1">
+<h1>Future Directions</h1>
+<p>ROOST is evolving toward support for:</p>
 <ul>
-<li>Solve a <strong>single, well-defined retirement case</strong></li>
-<li>Compute an <strong>optimal strategy</strong> under fixed assumptions</li>
-<li>Explore detailed tax, account, and timing constraints</li>
+<li>Cross-household generalization studies</li>
+<li>Merge-compatible run analysis</li>
+<li>Structural equivalence analysis</li>
+<li>Sampling strategy evaluation</li>
+<li>Statistical estimator comparison</li>
+<li>Experiment overlays and logical grouping systems</li>
+<li>Reproducible scientific experiment management</li>
+<li>Computational complexity and runtime-behavior analysis</li>
+<li>Operational deduplication and cleanup workflows</li>
+<li>Advanced reporting and comparative visualization workflows</li>
 </ul>
+<hr>
 </section>
-<section id="use-roost-when-you-want-to" class="level4">
-<h4 class="anchored" data-anchor-id="use-roost-when-you-want-to">Use <strong>ROOST</strong> when you want to:</h4>
+<section id="relationship-to-owl" class="level1">
+<h1>Relationship to OWL</h1>
 <ul>
-<li>Compare <strong>decision policies</strong>, not just one plan</li>
-<li>Explore <strong>robustness and flexibility</strong> under uncertainty</li>
-<li>Systematically evaluate <em>families of strategies</em></li>
-<li>Understand sensitivity to first-year decisions</li>
+<li><strong>OWL</strong> computes optimal strategies for a given case</li>
+<li><strong>ROOST</strong> evaluates, compares, and studies retirement decision policies under uncertainty</li>
 </ul>
+<p>ROOST builds on OWL’s optimization engine by providing the conceptual structure, stochastic simulation framework, scientific organization model, and tooling needed to explore retirement decisions as they are actually faced:</p>
+<ul>
+<li>Sequentially</li>
+<li>Under uncertainty</li>
+<li>Across many plausible futures</li>
+<li>With multiple competing policy alternatives under consideration</li>
+<li>With reproducible scientific experimentation and statistical evaluation</li>
+</ul>
+<section id="studies-and-study-templates" class="level2">
+<h2 class="anchored" data-anchor-id="studies-and-study-templates">Studies and Study Templates</h2>
+<p>ROOST is evolving toward a <strong>methodology-oriented analytical architecture</strong> in which studies represent reusable analytical frameworks layered on top of the canonical operational execution hierarchy.</p>
+<p>Conceptually:</p>
+<pre class="text"><code>Study Template
+    ↓
+Study Instantiation
+    ↓
+Session Materialization
+    ↓
+Run and Trial Execution
+    ↓
+Statistical Aggregation
+    ↓
+Scientific Interpretation and Reporting</code></pre>
+<p>Studies are intended to organize and operationalize structured analytical methodologies rather than merely group related runs.</p>
+<p>This direction extends ROOST beyond simple parameter sweeps into a broader framework for:</p>
+<ul>
+<li>Retirement decision analysis</li>
+<li>Uncertainty and sampling analysis</li>
+<li>Runtime and execution-behavior analysis</li>
+<li>Cross-household comparative studies</li>
+<li>Scientific methodology evaluation</li>
+<li>Statistical convergence and estimator analysis</li>
+</ul>
+<hr>
 </section>
 </section>
-<section id="in-one-sentence" class="level3">
-<h3 class="anchored" data-anchor-id="in-one-sentence">In One Sentence</h3>
+<section id="studies" class="level1">
+<h1>Studies</h1>
+<p>A <strong>study</strong> defines a structured analytical investigation over one or more related dimensions of variation.</p>
+<p>Studies organize:</p>
+<ul>
+<li>Scientific intent</li>
+<li>Variable exploration strategies</li>
+<li>Comparison methodologies</li>
+<li>Aggregation semantics</li>
+<li>Reporting structure</li>
+<li>Interpretation workflows</li>
+</ul>
+<p>Conceptually:</p>
+<pre class="text"><code>Study → Structured Interpretation of Related Runs</code></pre>
+<p>A study answers questions such as:</p>
 <blockquote class="blockquote">
-<p><strong>Use OWL to compute optimal strategies for a given case; use ROOST to compare and understand decision policies across uncertainty.</strong></p>
+<p><em>“What analytical methodology or scientific question are we exploring?”</em></p>
 </blockquote>
+<p>Examples include:</p>
+<ul>
+<li>Social Security timing analysis</li>
+<li>Spending flexibility analysis</li>
+<li>Roth conversion strategy comparison</li>
+<li>Historical vs bootstrap sampling analysis</li>
+<li>Worker scaling and runtime efficiency analysis</li>
+<li>Cross-household generalization analysis</li>
+<li>Statistical convergence analysis</li>
+</ul>
+<p>Studies are:</p>
+<ul>
+<li>Logical rather than operational</li>
+<li>Methodological rather than provenance-oriented</li>
+<li>Potentially cross-session and cross-case</li>
+<li>Defined independently from filesystem hierarchy</li>
+</ul>
+<p>Studies operate as analytical overlays on top of sessions, runs, and trials.</p>
+<hr>
+</section>
+<section id="study-templates" class="level1">
+<h1>Study Templates</h1>
+<p>A <strong>study template</strong> defines a reusable analytical methodology capable of generating studies and their associated execution sessions automatically.</p>
+<p>Study templates may define:</p>
+<ul>
+<li>Decision variable sweeps</li>
+<li>Sampling variable sweeps</li>
+<li>Execution variable sweeps</li>
+<li>Comparison structures</li>
+<li>Aggregation methodologies</li>
+<li>Reporting templates</li>
+<li>Visualization workflows</li>
+<li>Runtime execution requirements</li>
+</ul>
+<p>Conceptually:</p>
+<pre class="text"><code>Study Template → Reusable Analytical Methodology</code></pre>
+<p>A study template may therefore operationalize an analytical workflow such as:</p>
+<pre class="text"><code>Explore retirement age sensitivity
+    across:
+        retirement ages
+        market sampling methods
+        uncertainty realizations</code></pre>
+<p>or:</p>
+<pre class="text"><code>Evaluate runtime scaling behavior
+    across:
+        workers_per_run
+        thread allocation
+        solver configurations</code></pre>
+<p>Study templates are intended to support automated workflows in which ROOST can:</p>
+<ul>
+<li>Instantiate studies from reusable methodologies</li>
+<li>Automatically generate sessions</li>
+<li>Materialize runs and trials</li>
+<li>Infer comparison dimensions</li>
+<li>Generate reports and dashboards</li>
+<li>Organize scientific interpretation</li>
+</ul>
+<p>For example:</p>
+<pre class="text"><code>roost study create retirement-age \
+    --cases case_alex.toml</code></pre>
+<p>may eventually:</p>
+<ul>
+<li>Instantiate a retirement-age study</li>
+<li>Generate required sessions automatically</li>
+<li>Expand decision and sampling sweeps</li>
+<li>Produce Quarto reporting structure</li>
+<li>Generate comparison and summary reports</li>
+</ul>
+<hr>
+</section>
+<section id="relationship-to-variable-classes" class="level1">
+<h1>Relationship to Variable Classes</h1>
+<p>Study semantics are strongly informed by the classes of variables being explored.</p>
+<p>ROOST distinguishes between:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Variable Class</th>
+<th>Analytical Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Decision variables</td>
+<td>Retirement policy exploration</td>
+</tr>
+<tr class="even">
+<td>Sampling variables</td>
+<td>Uncertainty and estimator exploration</td>
+</tr>
+<tr class="odd">
+<td>Execution variables</td>
+<td>Runtime and computational exploration</td>
+</tr>
+</tbody>
+</table>
+<p>This distinction allows ROOST to support multiple categories of studies within a unified framework.</p>
+<p>Examples include:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Study Type</th>
+<th>Primary Variable Classes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Retirement policy</td>
+<td>Decision variables</td>
+</tr>
+<tr class="even">
+<td>Sampling analysis</td>
+<td>Sampling variables</td>
+</tr>
+<tr class="odd">
+<td>Runtime scaling</td>
+<td>Execution variables</td>
+</tr>
+<tr class="even">
+<td>Methodology comparison</td>
+<td>Mixed variable classes</td>
+</tr>
+</tbody>
+</table>
+<p>ROOST may eventually use variable-class distinctions to automatically infer:</p>
+<ul>
+<li>Study categories</li>
+<li>Comparison methodologies</li>
+<li>Aggregation semantics</li>
+<li>Visualization strategies</li>
+<li>Reporting structures</li>
+<li>Suggested analytical workflows</li>
+</ul>
+<hr>
+</section>
+<section id="relationship-to-sessions" class="level1">
+<h1>Relationship to Sessions</h1>
+<p>Studies and sessions serve fundamentally different purposes.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Concept</th>
+<th>Primary Role</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Session</td>
+<td>Operational execution provenance</td>
+</tr>
+<tr class="even">
+<td>Study</td>
+<td>Scientific and analytical interpretation</td>
+</tr>
+</tbody>
+</table>
+<p>Sessions preserve:</p>
+<ul>
+<li>Execution history</li>
+<li>Runtime provenance</li>
+<li>Recovery and continuation state</li>
+<li>Materialized execution outputs</li>
+</ul>
+<p>Studies organize:</p>
+<ul>
+<li>Analytical intent</li>
+<li>Scientifically related runs</li>
+<li>Comparative methodologies</li>
+<li>Aggregated interpretation</li>
+</ul>
+<p>A single study may span:</p>
+<ul>
+<li>Multiple sessions</li>
+<li>Multiple dates</li>
+<li>Multiple execution environments</li>
+<li>Multiple cases/households</li>
+</ul>
+<p>while a single session may contribute evidence to multiple studies.</p>
+<p>Studies therefore operate as logical analytical overlays on top of the canonical operational hierarchy:</p>
+<pre class="text"><code>Case → Session → Run → Trial</code></pre>
+<p>without altering filesystem provenance structure.</p>
+<hr>
+</section>
+<section id="future-direction" class="level1">
+<h1>Future Direction</h1>
+<p>ROOST is likely to evolve toward a study-centered analytical workflow in which:</p>
+<ul>
+<li>Study templates become reusable analytical methodologies</li>
+<li>Studies become the primary scientific organization layer</li>
+<li>Sessions remain operational execution containers</li>
+<li>Runs remain the primary scientific comparison unit</li>
+<li>Trials remain primitive stochastic observations</li>
+</ul>
+<p>This direction supports both:</p>
+<ul>
+<li>Household-specific retirement analysis and</li>
+<li>Cross-household scientific generalization</li>
+</ul>
+<p>while also supporting:</p>
+<ul>
+<li>Operational runtime studies</li>
+<li>Computational scaling analysis</li>
+<li>Sampling and convergence evaluation</li>
+<li>Statistical methodology exploration</li>
+</ul>
+<p>within a unified conceptual architecture.</p>
+<section id="reproducible-study-workflows" class="level2">
+<h2 class="anchored" data-anchor-id="reproducible-study-workflows">Reproducible Study Workflows</h2>
+<p>ROOST is evolving toward a workflow-oriented analytical architecture in which studies and study templates operationalize reproducible analytical methodologies layered on top of the canonical execution hierarchy.</p>
+<p>Conceptually:</p>
+<pre class="text"><code>Study Template
+    ↓
+Study Instantiation
+    ↓
+Session Materialization
+    ↓
+Run and Trial Execution
+    ↓
+QA/QC Validation
+    ↓
+Scientific Interpretation and Reporting</code></pre>
+<p>Study templates are intended to define reusable analytical workflows rather than merely reusable reports.</p>
+<p>A study template may define:</p>
+<ul>
+<li>Decision, sampling, and execution sweeps</li>
+<li>Session generation strategies</li>
+<li>Runtime execution defaults</li>
+<li>QA/QC validation requirements</li>
+<li>Comparison methodologies</li>
+<li>Aggregation semantics</li>
+<li>Starter visualizations and reports</li>
+<li>Publication-oriented reporting scaffolds</li>
+</ul>
+<p>A study instantiation may therefore generate:</p>
+<ul>
+<li>One or more execution sessions</li>
+<li>Session orchestration notebooks (<code>study-run.qmd</code>)</li>
+<li>QA/QC validation notebooks (<code>study-qaqc.qmd</code>)</li>
+<li>Starter analytical reports (<code>study-start.qmd</code>)</li>
+<li>Derived dashboards, figures, and publication artifacts</li>
+</ul>
+<p>This architecture intentionally separates:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Layer</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>results/</code></td>
+<td>Immutable operational execution evidence</td>
+</tr>
+<tr class="even">
+<td><code>studies/</code></td>
+<td>Curated analytical interpretation workflows</td>
+</tr>
+<tr class="odd">
+<td><code>templates/study/</code></td>
+<td>Reusable analytical methodologies</td>
+</tr>
+</tbody>
+</table>
+<p>Studies are expected to support workflows ranging from:</p>
+<ul>
+<li>Household-specific retirement guidance to</li>
+<li>Cross-household scientific generalization to</li>
+<li>Runtime and computational scaling analysis</li>
+</ul>
+<p>within a unified reproducible analytical framework.</p>
+<p>Long-term architectural direction is expected to shift scientific organization from experiment-oriented overlays toward study-oriented analytical methodologies layered over operational execution provenance.</p>
 
 
 </section>

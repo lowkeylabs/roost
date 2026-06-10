@@ -1,0 +1,415 @@
+{
+  "complexity": {
+    "horizon": 26,
+    "integer_variable_ratio": 0.09683426443202979,
+    "matrix_density": 0.004463830047836471,
+    "nnz_per_constraint": 4.7941534713763705,
+    "nnz_per_variable": 3.664804469273743,
+    "num_constraints": 821,
+    "num_decision_variables": 1074,
+    "num_integer_variables": 104,
+    "num_nonzeros": 3936
+  },
+  "financial": {
+    "baseline": {
+      "annual_spending": 234994.32333333333
+    },
+    "baseline_valid": true,
+    "bequest": {
+      "total": {
+        "future": 1460850.756610634,
+        "today": 712500.0
+      }
+    },
+    "inflation": {
+      "final_factor": 1.9944716453145388
+    },
+    "roth": {
+      "total": {
+        "future": 925823.14,
+        "today": 886173.9057608885
+      }
+    },
+    "spending": {
+      "total": {
+        "future": 5839833.83,
+        "today": 4205055.085431636
+      },
+      "year0": {
+        "future": 228535.6,
+        "today": 228535.6
+      }
+    },
+    "spending_policy": {
+      "essential_spending": null,
+      "lifestyle_spending": null
+    },
+    "spending_profile": {
+      "early_avg": 228535.60341811934,
+      "late_avg": 137121.36148816976,
+      "survivor_ratio": 0.5999999975377935,
+      "year0": 228535.6,
+      "yearN": 137121.362764157
+    },
+    "spending_summary": {
+      "consecutive_years_below_essential": null,
+      "consecutive_years_below_lifestyle": null,
+      "essential_spending_breach": null,
+      "lifestyle_stress_flag": null,
+      "mean_ratio": 1.403089739774958,
+      "mean_ratio_to_essential": null,
+      "mean_ratio_to_lifestyle": null,
+      "median_ratio": 1.3735732509964036,
+      "median_ratio_to_essential": null,
+      "median_ratio_to_lifestyle": null,
+      "min_ratio": 0.9725154070033777,
+      "min_ratio_to_essential": null,
+      "min_ratio_to_lifestyle": null,
+      "p10_ratio": null,
+      "required_slack": null,
+      "shortfall": null,
+      "std_ratio": null,
+      "years_below_essential": null,
+      "years_below_lifestyle": null,
+      "years_between_essential_and_target": null,
+      "years_under_target": 2
+    },
+    "taxes": {
+      "total": {
+        "future": 781473.3659,
+        "today": 616229.6681292776
+      }
+    },
+    "timeseries": {
+      "assets": {
+        "future_by_year": [
+          2690000.0,
+          2694206.79,
+          2689456.1700000004,
+          2653013.8299999996,
+          2518331.79,
+          2374322.74,
+          2227674.83,
+          2097917.82,
+          2053030.92,
+          2008143.23,
+          1958068.5099999998,
+          1900875.77,
+          1836034.18,
+          1762978.81,
+          1681108.5899999999,
+          1605842.13,
+          1521372.6400000001,
+          1427030.87,
+          1322105.01,
+          1205838.03,
+          1077424.99,
+          936010.15,
+          780683.89,
+          610479.49,
+          424369.69,
+          221263.02000000002
+        ],
+        "today_by_year": [
+          2690000.0,
+          2620823.725680934,
+          2544944.0661478606,
+          2442081.591809005,
+          2254968.550029023,
+          2068112.5909900193,
+          1887526.727259345,
+          1729165.9273593542,
+          1646078.6153166867,
+          1566234.0218913078,
+          1485582.368848717,
+          1402908.9104771048,
+          1318145.6050069043,
+          1231222.665476546,
+          1142068.5233095684,
+          1061221.714276054,
+          978015.5663658151,
+          892381.2133215594,
+          804247.8102088774,
+          713542.4218624759,
+          620189.9884276796,
+          524113.26353263453,
+          425232.740126662,
+          323466.59772062954,
+          218730.63091413403,
+          110938.16275593413
+        ]
+      },
+      "inflation": {
+        "factor_by_year": [
+          1.0,
+          1.028,
+          1.056784,
+          1.086373952,
+          1.116792422656,
+          1.148062610490368,
+          1.1802083635840983,
+          1.213254197764453,
+          1.2472253153018578,
+          1.2821476241303098,
+          1.3180477576059586,
+          1.3549530948189255,
+          1.3928917814738555,
+          1.4318927513551234,
+          1.471985748393067,
+          1.513201349348073,
+          1.5555709871298191,
+          1.599126974769454,
+          1.6439025300629988,
+          1.6899318009047628,
+          1.7372498913300962,
+          1.785892888287339,
+          1.8358978891593847,
+          1.8873030300558475,
+          1.9401475148974112,
+          1.9944716453145388
+        ]
+      },
+      "spending": {
+        "future_by_year": [
+          228535.6,
+          234934.6,
+          241512.77,
+          248275.13,
+          255226.83,
+          262373.18,
+          269719.63,
+          166363.07,
+          171021.23,
+          175809.83,
+          180732.5,
+          185793.01,
+          190995.22,
+          196343.08,
+          201840.69,
+          207492.23,
+          213302.01,
+          219274.47,
+          225414.15,
+          231725.75,
+          238214.07,
+          244884.06,
+          251740.82,
+          258789.56,
+          266035.67,
+          273484.67
+        ],
+        "ratio": {
+          "by_year": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "mean": null,
+          "median": null,
+          "min": null
+        },
+        "today_by_year": [
+          228535.6,
+          228535.60311284047,
+          228535.60424836108,
+          228535.60649436485,
+          228535.6032350304,
+          228535.60215494994,
+          228535.60296836562,
+          137121.36360751215,
+          137121.35882890483,
+          137121.36316537895,
+          137121.3591898022,
+          137121.3591898022,
+          137121.36329636673,
+          137121.35899436855,
+          137121.36154874112,
+          137121.3619981195,
+          137121.36042956362,
+          137121.36275583293,
+          137121.3596169607,
+          137121.36186557214,
+          137121.3612899497,
+          137121.35907257147,
+          137121.3625150287,
+          137121.36094665312,
+          137121.36214243848,
+          137121.362764157
+        ]
+      }
+    },
+    "valid": true
+  },
+  "horizon": {
+    "years": 26
+  },
+  "identity": {
+    "plan_name": "alex+jamie"
+  },
+  "rates": {
+    "bonds": {
+      "max": 0.033,
+      "mean": 0.033,
+      "min": 0.033,
+      "std": 0.0
+    },
+    "early": {
+      "min_year": 0.040856031128404746,
+      "real_cagr": 0.040856031128404746,
+      "real_mean": 0.040856031128404746,
+      "years": 7
+    },
+    "inflation": {
+      "max": 0.027999999999999997,
+      "mean": 0.028,
+      "min": 0.027999999999999997,
+      "std": 3.469446951953614e-18
+    },
+    "real": {
+      "max": 0.040856031128404746,
+      "mean": 0.040856031128404746,
+      "min": 0.040856031128404746,
+      "std": 0.0
+    },
+    "returns": {
+      "max": 0.07,
+      "mean": 0.07,
+      "min": 0.07,
+      "std": 0.0
+    },
+    "valid": true
+  },
+  "risk": {
+    "outcome": {
+      "assets": {
+        "final_today": 110938.16275593413,
+        "max_today": 2690000.0,
+        "median_today": 1274684.135241725,
+        "min_today": 110938.16275593413
+      },
+      "classification": {
+        "risk_level": "high"
+      },
+      "consumption": {
+        "final_to_initial_ratio": 0.6000000120950828
+      },
+      "cushion": {
+        "min_cushion_ratio": 0.8090509058515055
+      },
+      "depletion": {
+        "depleted": false,
+        "first_depletion_index": null,
+        "years_to_depletion": 26
+      },
+      "drawdown": {
+        "late_life_drawdown_factor": 0.17887770655116053,
+        "lifecycle_drawdown_factor": 0.04124095269737328,
+        "worst_drawdown_factor": 0.04124095269737328
+      },
+      "flags": [
+        "severe_asset_drawdown",
+        "high_spending_pressure",
+        "ending_asset_erosion"
+      ],
+      "fragility": {
+        "years_ratio_above_10pct": 17,
+        "years_ratio_above_20pct": 6
+      },
+      "horizon": 26,
+      "sustainability": {
+        "avg_spending_to_assets_ratio": 0.20545637723195748,
+        "max_spending_to_assets_ratio": 1.2360161675457557
+      },
+      "terminal": {
+        "spending_to_assets_ratio": 1.2360161675457557
+      },
+      "valid": true
+    },
+    "scenario": {
+      "classification": {
+        "scenario_type": "baseline"
+      },
+      "drawdown": {
+        "worst_growth_factor": 1.07
+      },
+      "flags": [],
+      "horizon": 26,
+      "inflation": {
+        "avg": 0.028,
+        "max": 0.027999999999999997
+      },
+      "real": {
+        "avg_return": 0.040856031128404746,
+        "min_growth_factor": 1.0408560311284047
+      },
+      "returns": {
+        "avg": 0.07,
+        "first10_avg": 0.07000000000000002,
+        "first5_avg": 0.07,
+        "max": 0.07,
+        "min": 0.07,
+        "std": 0.0
+      },
+      "severity_score": 0.05,
+      "valid": true
+    },
+    "summary": {
+      "depleted": false,
+      "flag_count": 3,
+      "flags": [
+        "ending_asset_erosion",
+        "high_spending_pressure",
+        "severe_asset_drawdown"
+      ],
+      "overall_risk": "high",
+      "scenario_severity": 0.05,
+      "terminal_ratio": 1.2360161675457557,
+      "valid": true,
+      "worst_drawdown": 0.04124095269737328
+    }
+  },
+  "run_status": {
+    "failure_category": null,
+    "failure_detail": null,
+    "failure_subtype": null,
+    "status": "solved"
+  },
+  "schema": "roost.metrics.v1",
+  "score": {
+    "score": 0.0
+  },
+  "social_security": {
+    "ages": [
+      69.0,
+      62.08333333333333
+    ],
+    "optimized": false
+  },
+  "solver": "MOSEK",
+  "timing": {
+    "elapsed_seconds": 0.35619282722473145
+  }
+}

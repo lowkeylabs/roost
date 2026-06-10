@@ -20,7 +20,6 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-from loguru import logger
 
 SCHEMA_VERSION = "roost.metrics.v1"
 
@@ -626,7 +625,7 @@ def spending_metrics_from_plan(plan, N, actual_future, actual_today, gamma, cont
         }
 
     except Exception as e:
-        logger.exception("spending_metrics_from_plan failed")
+        #        logger.exception("spending_metrics_from_plan failed")
         return {
             "baseline_valid": False,
             "spending_error_tracer": tracer,
@@ -686,7 +685,7 @@ def financials_from_plan(plan, N=None, context=None) -> dict:
         return result
 
     except Exception as e:
-        logger.exception("financials_from_plan failed")
+        #        logger.exception("financials_from_plan failed")
         return {"valid": False, "reason": str(e)}
 
 
@@ -1218,7 +1217,7 @@ def rates_from_plan(plan) -> dict:
         }
 
     except Exception as e:
-        logger.exception("rates_from_plan failed")
+        #        logger.exception("rates_from_plan failed")
         return {"valid": False, "reason": str(e)}
 
 

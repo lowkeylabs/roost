@@ -2,50 +2,53 @@ Synopsis
 
 Metric                                                                   Today's $               Nominal $
 ----------------------------------------------------------------------------------------------------------
-Case name                                                          kim+sam-bequest
+Case name                                                               alex+jamie
 
 --- Overview ---
 
-Net yearly spending basis                                                 $145,000
-Effective tax rate (plan average)                                            14.6%
-Net spending for year 2026                                                $145,000
-Net spending remaining in year 2026                                       $145,000
+Net yearly spending basis                                                 $228,536
+Effective tax rate (plan average)                                            18.1%
+Net spending for year 2026                                                $228,536
+Net spending remaining in year 2026                                       $228,536
 
 --- Spending & income (horizon totals) ---
 
-Total net spending                                                        $725,000                $766,753
-Total Roth conversions                                                    $634,603                $672,096
+Total net spending                                                      $1,142,678              $1,208,485
+Total fixed income                                                        $667,797                $694,449
+»  Social Security                                                        $137,640                $149,449
+»  Wages                                                                  $530,157                $545,000
+Total Roth conversions                                                    $886,174                $925,823
 
 --- Taxes & premiums (horizon totals) ---
 
-Total tax paid on ordinary income                                          $58,000                 $61,340
+Total tax paid on ordinary income                                         $316,270                $330,428
 »  Tax bracket 10%                                                         $12,400                 $13,114
 »  Tax bracket 12/15%                                                      $45,600                 $48,226
-»  Tax bracket 22/25%                                                           $0                      $0
-»  Tax bracket 24/28%                                                           $0                      $0
+»  Tax bracket 22/25%                                                     $121,660                $128,666
+»  Tax bracket 24/28%                                                     $136,610                $140,421
 »  Tax bracket 32/33%                                                           $0                      $0
 »  Tax bracket 35%                                                              $0                      $0
 »  Tax bracket 37/40%                                                           $0                      $0
 »  Early withdrawal penalty                                                     $0                      $0
-Total tax paid on gains and dividends                                       $6,588                  $6,899
-Total net investment income tax paid                                            $0                      $0
-Total state income tax paid                                                $15,781                 $16,663
-Total Medicare premiums paid                                                $7,304                  $8,083
+Total tax paid on gains and dividends                                       $5,705                  $5,967
+Total net investment income tax paid                                        $2,303                  $2,392
+Total state income tax paid                                                $55,715                 $58,015
+Total Medicare premiums paid                                               $62,234                 $66,919
 »  Covered by HSA                                                               $0                      $0
 Total ACA premiums paid                                                         $0                      $0
-Total debt payments                                                             $0                      $0
+Total debt payments                                                        $71,866                 $75,889
 
 --- Plan & solver ---
 
 Case starting date                                                      2026-01-01
 Cumulative inflation factor at end of final year                              1.15
-           Kim's life horizon                                         2026 -> 2053
-           Kim's years planned                                                  28
-           Kim's SS claiming age                                           70y 00m
-           Sam's life horizon                                         2026 -> 2058
-           Sam's years planned                                                  33
-           Sam's SS claiming age                                           68y 00m
-Number of decision variables                                                  1625
-Number of constraints                                                         1156
-Convergence                                                            oscillatory
-Case executed on                                            2026-06-09 at 06:47:14
+          Alex's life horizon                                         2026 -> 2032
+          Alex's years planned                                                   7
+          Alex's SS claiming age                                           69y 00m
+         Jamie's life horizon                                         2026 -> 2051
+         Jamie's years planned                                                  26
+         Jamie's SS claiming age                                           62y 01m
+Number of decision variables                                                  1074
+Number of constraints                                                          821
+Convergence                                                              monotonic
+Case executed on                                            2026-06-10 at 09:01:19

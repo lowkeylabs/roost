@@ -86,6 +86,13 @@ def register_display_fields(
                     label="Value",
                     width=40,
                     wrap=True,
+                    content_align="left",
+                ),
+                "pivot": DisplayProfile(
+                    label="Value",
+                    width=40,
+                    wrap=True,
+                    content_align="left",
                 ),
             },
             **PIVOT_ONTOLOGY,

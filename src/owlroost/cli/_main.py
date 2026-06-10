@@ -15,10 +15,7 @@ and architectural role.
 
 from __future__ import annotations
 
-import sys
-
 import click
-from loguru import logger
 
 from ..version import __version__
 from .cmd_build import cmd_build
@@ -55,16 +52,7 @@ def cli(
     # ----------------------------------------
     log_level = log_level.upper()
 
-    # ----------------------------------------
-    # Reset loguru
-    # ----------------------------------------
-    logger.remove()
-    logger.add(sys.stderr, level=log_level)
-    # ----------------------------------------
-    # Store on context
-    # ----------------------------------------
     ctx.ensure_object(dict)
-    ctx.obj["log_level"] = log_level
 
 
 @cli.command()

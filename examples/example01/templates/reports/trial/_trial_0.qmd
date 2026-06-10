@@ -20,6 +20,49 @@
 print(f"{plan._description}")
 ```
 
+# Key output metrics
+
+```{python}
+#| output: asis
+LEVEL = "trial"
+VIEW = "trial"
+MODE = "pivot"
+FACETS = ["variables","sources"]
+FACETS = ["variables"]
+
+table = materialize_view(
+    rows=rows,
+    registry=display_registry,
+    catalog_index=catalog_index,
+    level=LEVEL,
+    view_name=VIEW,
+    mode=MODE,
+    explain_facets=FACETS,
+)
+print(render_markdown_table( table ))
+```
+
+
+# Balance Sheet
+```{python}
+#| output: asis
+LEVEL = "trial"
+VIEW = "balance_sheet"
+MODE = "pivot"
+FACETS = ["variables","sources"]
+
+table = materialize_view(
+    rows=rows,
+    registry=display_registry,
+    catalog_index=catalog_index,
+    level=LEVEL,
+    view_name=VIEW,
+    mode=MODE,
+    explain_facets=FACETS,
+)
+print(render_markdown_table( table ))
+```
+
 # Figures
 
 The following figures are generated from the data in the bundle. They provide insights
@@ -28,10 +71,9 @@ and risk assessments.
 
 {{< include ../../../../../../../templates/reports/trial/_all_figures_h2_titles.qmd >}}
 
-```python
-#| output: asis
+# Input file
 
-#table = generate_table( bundle, "run", "default", "assets_over_time", explain=[] )
-#print(render_relevant_table(table))
 
+```{python}
+plan.summaryDf().T
 ```

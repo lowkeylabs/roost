@@ -20,7 +20,6 @@ from io import StringIO
 from pathlib import Path
 
 import owlplanner.hfp_io as hfp_io
-from loguru import logger
 from owlplanner.mylogging import Logger
 
 # =========================================================
@@ -105,7 +104,7 @@ def summarize_hfp(
         # =================================================
 
         if not hfp_path.exists():
-            logger.warning(f"HFP file not found: {hfp_path}")
+            #            logger.warning(f"HFP file not found: {hfp_path}")
 
             return deepcopy(summary)
 
@@ -153,7 +152,7 @@ def summarize_hfp(
         # Load via OWL HFP subsystem
         # =================================================
 
-        logger.debug(f"Loading HFP: {hfp_path}")
+        #        logger.debug(f"Loading HFP: {hfp_path}")
 
         mylog = Logger(logstreams=[StringIO(), StringIO()])
         (
@@ -258,8 +257,8 @@ def summarize_hfp(
 
         return deepcopy(summary)
 
-    except Exception as e:
-        logger.warning(f"Failed to summarize HFP: {e}")
+    except Exception:
+        #        logger.warning(f"Failed to summarize HFP: {e}")
 
         # =================================================
         # Cache failure result

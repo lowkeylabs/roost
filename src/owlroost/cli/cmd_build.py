@@ -24,6 +24,7 @@ import click
 
 from owlroost.catalog.loaders import load_catalog_rows
 from owlroost.cli.utils import (
+    parse_override_request,
     render_table,
     resolve_renderer,
     select_case_rows,
@@ -350,6 +351,18 @@ def cmd_build(
             )
         )
 
+    overrides, override_errors = parse_override_request(
+        overrides,
+        schema_registry,
+    )
+
+    if override_errors:
+        raise click.BadParameter(
+            "\n".join(
+                override_errors,
+            )
+        )
+
     # =====================================================
     # Context-sensitive CLI help
     # =====================================================
@@ -439,6 +452,9 @@ def cmd_build(
     rows = apply_canonical_sort(
         rows,
     )
+
+    if filters:
+        print(filters)
 
     rows = apply_filters(
         rows,

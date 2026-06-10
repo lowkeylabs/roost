@@ -25,6 +25,7 @@ from pathlib import Path
 STRUCTURAL_COMPARE_EXCLUDES = {
     "description",
     "promotion",
+    "session",
 }
 
 # =========================================================

@@ -1,4 +1,4 @@
-# src/owlroost/display/views/case.py
+# src/owlroost/display/views/row.py
 #
 # Copyright (c) 2026 John Leonard
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -42,7 +42,7 @@ def register_display_views(
 
     reg.register_view(
         DisplayView(
-            level="case",
+            level="row",
             name="build",
             entries=[
                 # =====================================
@@ -57,7 +57,7 @@ def register_display_views(
 
     reg.register_view(
         DisplayView(
-            level="case",
+            level="row",
             name="cases",
             entries=[
                 # =====================================
@@ -69,6 +69,7 @@ def register_display_views(
                 "display.starting_ages",
                 "basic_info.life_expectancy",
                 "balance_sheet.net_worth",
+                "rates_selection.method",
             ],
             description=(""),
         )
@@ -76,7 +77,7 @@ def register_display_views(
 
     reg.register_view(
         DisplayView(
-            level="case",
+            level="row",
             name="descriptions",
             entries=[
                 # =====================================
@@ -91,7 +92,7 @@ def register_display_views(
 
     reg.register_view(
         DisplayView(
-            level="case",
+            level="row",
             name="balance_sheet",
             entries=[
                 # -------------------------------------------------

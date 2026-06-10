@@ -45,7 +45,7 @@ BALANCE_SHEET_SYNTHETIC: dict[str, Any] = dict(
     value_origin="roost-computed",
     projection_kind="synthetic",
     analytic_kind="synthetic",
-    materialization_level="case",
+    materialization_level="trial",
     node_type=CatalogNodeType.VARIABLE,
     defined_in=normalize_module_path(__file__),
 )
@@ -56,7 +56,7 @@ BALANCE_SHEET_CANONICAL: dict[str, Any] = dict(
     value_origin="roost-computed",
     projection_kind="canonical",
     analytic_kind="observed",
-    materialization_level="case",
+    materialization_level="trial",
     node_type=CatalogNodeType.VARIABLE,
     defined_in=normalize_module_path(__file__),
 )

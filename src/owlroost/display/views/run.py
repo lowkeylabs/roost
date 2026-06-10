@@ -65,6 +65,8 @@ def register_display_views(
                 # =====================================
                 "case_name",
                 "display.compact_id",
+                "display.is_superseded",
+                "display.superseded_by",
                 "display.optimization_goal",
                 "display.completion_fraction",
                 "financial.spending.year0.today__median",

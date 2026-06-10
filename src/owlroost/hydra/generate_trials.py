@@ -28,7 +28,6 @@ import numpy as np
 import toml
 import yaml
 from hydra.core.hydra_config import HydraConfig
-from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 
 from owlroost.core.progress_renderers import (
@@ -219,13 +218,13 @@ def materialize_execution_plan(run_dict):
     explicit_workers = runtime_section.get("workers_per_run")
 
     if original_solver == "default" and workers_mode == "auto" and explicit_workers is None:
-        if 0:
-            logger.warning(
-                "Materializing "
-                "solver_options.solver "
-                f"from 'default' -> '{resolved_solver}' "
-                "because workers_per_run_mode='auto'."
-            )
+        #        if 0:
+        #            logger.warning(
+        #                "Materializing "
+        #                "solver_options.solver "
+        #                f"from 'default' -> '{resolved_solver}' "
+        #                "because workers_per_run_mode='auto'."
+        #            )
 
         solver_options["solver"] = resolved_solver
 

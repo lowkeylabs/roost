@@ -4,34 +4,139 @@
     "href": "index.html",
     "title": "OWL-ROOST",
     "section": "",
-    "text": "Retirement Options and Outcomes Studies Tool\nROOST (Retirement Options and Outcomes Studies Tool) evaluates retirement decision policies—not just static plans—by comparing how agent-controlled actions perform under uncertainty when those decisions are revisited annually.\nROOST is designed to answer questions like:\nIt does this by organizing retirement analysis around a small number of clear, orthogonal concepts."
+    "text": "Retirement Options and Outcomes Studies Tool\nROOST (Retirement Options and Outcomes Studies Tool) evaluates retirement decision policies—not just static plans—by comparing how agent-controlled actions perform under uncertainty when those decisions are revisited annually.\nROOST is designed to answer questions like:\n\n“Given the uncertainty I face, how flexible are my retirement decisions—and which decision policies are most robust?”\n\nIt does this by organizing retirement analysis around a small number of clear, orthogonal concepts spanning:\n\nScientific experimentation\nStochastic simulation\nPolicy comparison\nExecution provenance\nStatistical evaluation under uncertainty\nReproducible operational execution\n\nROOST builds on OWL while extending retirement analysis into a broader scientific experimentation framework for studying retirement policies under uncertainty.\n\n\nROOST is licensed under the GNU General Public License version 3 or later (GPL-3.0-or-later).\nROOST builds upon OWL and is distributed under a GPL-compatible license."
   },
   {
-    "objectID": "index.html#core-concepts",
-    "href": "index.html#core-concepts",
+    "objectID": "index.html#license",
+    "href": "index.html#license",
     "title": "OWL-ROOST",
-    "section": "Core Concepts",
-    "text": "Core Concepts\nROOST introduces six key concepts in extending the work of OWL.\n\nDecision options define what question is being asked\nChoice templates define policy alternatives\nCases define initial conditions and constraints\nExperiments define how runs are generated and organized\nRuns define a fixed decision policy applied to a case\nTrials define individual realizations of uncertainty\nResults provide evidence for comparison and insight\n\nCases and runs are shared between OWL and ROOST. They are represented by exactly the same files and outputs.\n\nExperiments\nAn experiment defines a structured method for generating and organizing runs for a given case.\nConceptually:\nCase × Experiment → Many Runs\nAn experiment answers the question:\n“How are we exploring this decision or uncertainty dimension?”\nExperiments do not change the meaning of a run. They define how runs are constructed and grouped.\nExperiments may:\n\nSystematically vary a decision parameter\nSweep across a family of choice templates\nEnumerate historical market regimes\nExplore timing variations (e.g., retirement age, Social Security age)\nStress-test exogenous assumptions\n\nEach experiment produces a coherent set of runs, all tied to the same case and timestamp.\nExperiments are fully reproducible from the case file and the experiment definition.\n\n\nExamples of Experiments\nexperiment=historical_complete\nEnumerates all unique historical regime permutations for a given from/to slice:\n\nroll ∈ [0 … slice_length−1]\nreverse ∈ {false, true}\n\nThis explores robustness to historical phase shifts.\nexperiment=social_security_sweep\nGenerates runs for different claiming ages:\n\nclaim_age ∈ {62, 63, …, 70}\n\nEach run fixes a claiming strategy; trials may vary longevity or returns.\nexperiment=retirement_age_sweep\nExplores retirement timing flexibility:\n\nretirement_age ∈ {60 … 72}\n\nUseful for analyzing tradeoffs between longevity risk and income timing.\nexperiment=roth_bracket_sweep\nCompares Roth conversion policies:\n\nno conversions\nfixed annual conversions\nfill-to-22% bracket\nfill-to-24% bracket\nfull OWL optimization\n\nexperiment=glidepath_sweep\nVaries asset allocation policy families:\n\nstatic allocation\ndeclining equity glidepath\nrising equity glidepath\n\n\n\nDecision Options\nA decision option represents a focused retirement question—something the agent can choose and re-choose over time.\nExamples:\n\nRoth conversion strategy\nSpending policy\nSocial Security claiming strategy\nRetirement timing\nAsset allocation policy\n\nEach decision option defines a policy dimension to be explored, not a single action.\n\n\nChoice Templates\nA choice template is a concrete decision policy within a decision option. It defines a rule for choosing an action each year, conditional on the current state.\nExamples:\n\nRoth options:\n\nNo Roth conversions\nFixed annual conversion amounts\nFill to a target marginal tax bracket\nLet OWL optimize Roth conversions\n\nSpending options:\n\nFixed real spending\nGuardrail spending\nUtility-maximizing spending\n“Smile” spending profile\n\n\nChoice templates are reusable, comparable, and represent different ways to answer the same underlying decision question.\n\n\nCases\nA case defines the initial state and constraints of a retirement scenario.\nA case is specified by:\n\nA TOML plan file\nA referenced Household Financial Profile (HFP) file\n\nCases encode exogenous assumptions that the agent does not directly control, including:\n\nLongevity assumptions\nRates of return and inflation assumptions\nTax rules and policy parameters\nHousehold structure, income sources, and contribution rules\n\nThese values are treated as given for a case and are held fixed when comparing decision policies.\nCases are sources of truth and are independent of computed outcomes.\n\n\nUncertainty\nUncertainty represents aspects of the world that affect outcomes but are not controlled by the agent.\nIn ROOST, uncertainty is treated as exogenous:\n\nLongevity outcomes\nMarket return paths\nInflation paths (future implementation)\nPolicy and tax environments (future implementation)\n\nDecision policies are evaluated conditional on uncertainty, allowing ROOST to explore sensitivity and robustness without conflating choices with outcomes.\nThis separation allows ROOST to answer questions such as:\n\nHow sensitive is a decision policy to different longevity outcomes?\nWhich policies remain robust across pessimistic and optimistic return environments?\n\nThe key conceptual distinction is simple:\n\nDecisions are chosen by the agent; uncertainty is not.\n\n\n\nRuns\nA run represents a fixed decision policy instance applied to a single case.\nConceptually:\nCase × Choice Template → Run\nA run answers the question:\n\n“What decision policy are we studying?”\n\nAll agent-controlled decisions are fixed at the run level.\n\n\nTrials\nA trial represents a single realization of uncertainty for a given run.\nConceptually:\nRun × Uncertainty Realization → Trial\nAcross trials:\n\nThe decision policy is fixed\nOnly random or uncertain elements differ\n\nTrials allow ROOST to distinguish decision quality from luck, and to evaluate how the same policy performs across many plausible futures.\n\n\nRuns vs Trials\nRuns and trials serve different but complementary roles:\n\nA run defines intent — the policy being evaluated\nA trial defines experience — what happened under a particular realization of uncertainty\n\nMultiple trials may be generated for a single run to assess robustness, tail risk, and sensitivity to uncertainty.\n\n\nResults\nResults are the artifacts produced by OWL and ROOST for runs and trials and form the basis for evaluation and comparison.\nExamples include:\n\nObjective values (e.g., maximum sustainable spending, bequest)\nEffective (post-override) TOML and HFP artifacts\nSummary and metrics JSON files\nTime-series projections and distributions\nComparative tables and visualizations\n\nResults are fully reproducible from the effective TOML and HFP combined with the recorded uncertainty realization."
+    "section": "",
+    "text": "ROOST is licensed under the GNU General Public License version 3 or later (GPL-3.0-or-later).\nROOST builds upon OWL and is distributed under a GPL-compatible license."
   },
   {
-    "objectID": "index.html#how-the-pieces-fit-together",
-    "href": "index.html#how-the-pieces-fit-together",
+    "objectID": "index.html#semantic-projection",
+    "href": "index.html#semantic-projection",
     "title": "OWL-ROOST",
-    "section": "How the Pieces Fit Together",
-    "text": "How the Pieces Fit Together\n\nDecision options define what question is being asked\nChoice templates define policy alternatives\nCases define initial conditions and constraints\nRuns define a fixed policy applied to a case\nTrials define realizations of uncertainty\nResults provide evidence for comparison and insight\n\nIn short:\n\nDecision options define the questions; choice templates define the policies; cases define the assumptions; runs define the fixed policy instances; trials define realized uncertainty; results define the evidence."
+    "section": "Semantic Projection",
+    "text": "Semantic Projection\nSemantic projection maps canonical semantic registries into analytical display overlays.\nConceptually:\nschema ontology\nmetrics ontology\n        ↓\ndisplay ontology\nThis projection stage synthesizes renderer-facing analytical representations while preserving canonical semantic ownership in the underlying registries."
   },
   {
-    "objectID": "index.html#design-philosophy",
-    "href": "index.html#design-philosophy",
+    "objectID": "index.html#hierarchical-projection",
+    "href": "index.html#hierarchical-projection",
     "title": "OWL-ROOST",
-    "section": "Design Philosophy",
-    "text": "Design Philosophy\nROOST treats retirement planning as a sequential decision problem:\n\nDecisions are agent-controlled\nThey are revisited annually\nOutcomes unfold under uncertainty\nPolicies are evaluated across many plausible futures for robustness, not just optimality\nExperiments systematically generate and compare structured sets of runs\n\nRather than asking “What is the single optimal plan?”, ROOST helps answer:\n\n“Which decision policies perform well across many plausible futures—and how much flexibility do I really have?”"
+    "section": "Hierarchical Projection",
+    "text": "Hierarchical Projection\nHierarchical projection maps runtime entities across operational aggregation levels.\nExamples include:\ntrial → run\nrun → session\nsession → case\nThese projections aggregate operational observations and statistical evidence across the canonical execution hierarchy defined elsewhere in this document.\nThe distinction between semantic projection and hierarchical projection is intentional and architecturally important."
   },
   {
-    "objectID": "index.html#relation-to-owl-planner",
-    "href": "index.html#relation-to-owl-planner",
+    "objectID": "index.html#runs-are-the-primary-scientific-comparison-unit",
+    "href": "index.html#runs-are-the-primary-scientific-comparison-unit",
     "title": "OWL-ROOST",
-    "section": "Relation to OWL-Planner",
-    "text": "Relation to OWL-Planner\n\nOWL-Planner\nOWL-Planner (Optimal Wealth Laboratory) is a retirement planning and optimization framework that computes optimal retirement strategies over a full planning horizon, subject to detailed tax rules, account constraints, longevity assumptions, and return scenarios.\nGiven a fully specified input case—defined by a TOML plan file and a referenced Household Financial Profile (HFP)—OWL solves for optimal actions (such as spending levels, asset allocation, and Roth conversions) under the assumed conditions.\nOWL answers questions of the form:\n\n“Given these assumptions and constraints, what strategy is optimal over the planning horizon?”\n\n\n\nHow ROOST Extends OWL\nROOST does not replace OWL. Instead, ROOST extends OWL by systematizing how retirement decisions are explored, compared, and interpreted under uncertainty.\nIn particular, ROOST introduces a structured framework for:\n\nSeparating agent-controlled decisions from uncertainty\nOrganizing analysis around decision policies rather than single optimized plans\nEvaluating robustness across many uncertainty realizations\nSystematically comparing alternative policies\n\n\n\nWhen to Use OWL vs ROOST\nOWL and ROOST are complementary tools, designed to answer different—but closely related—questions.\n\nUse OWL-Planner when you want to:\n\nSolve a single, well-defined retirement case\nCompute an optimal strategy under fixed assumptions\nExplore detailed tax, account, and timing constraints\n\n\n\nUse ROOST when you want to:\n\nCompare decision policies, not just one plan\nExplore robustness and flexibility under uncertainty\nSystematically evaluate families of strategies\nUnderstand sensitivity to first-year decisions\n\n\n\n\nIn One Sentence\n\nUse OWL to compute optimal strategies for a given case; use ROOST to compare and understand decision policies across uncertainty."
+    "section": "Runs are the primary scientific comparison unit",
+    "text": "Runs are the primary scientific comparison unit\nRuns represent statistical evaluations of fixed policy configurations under uncertainty.\nMost scientific comparison, reporting, and analysis in ROOST occurs at the run level."
+  },
+  {
+    "objectID": "index.html#trials-are-primitive-stochastic-observations",
+    "href": "index.html#trials-are-primitive-stochastic-observations",
+    "title": "OWL-ROOST",
+    "section": "Trials are primitive stochastic observations",
+    "text": "Trials are primitive stochastic observations\nTrials represent individual realizations of uncertainty and are aggregated into run-level statistical summaries."
+  },
+  {
+    "objectID": "index.html#sessions-are-operational-rather-than-scientific",
+    "href": "index.html#sessions-are-operational-rather-than-scientific",
+    "title": "OWL-ROOST",
+    "section": "Sessions are operational rather than scientific",
+    "text": "Sessions are operational rather than scientific\nSessions preserve execution provenance, filesystem organization, runtime metadata, and execution history.\nSessions SHOULD NOT become primary scientific result entities."
+  },
+  {
+    "objectID": "index.html#experiments-are-logical-scientific-overlays",
+    "href": "index.html#experiments-are-logical-scientific-overlays",
+    "title": "OWL-ROOST",
+    "section": "Experiments are logical scientific overlays",
+    "text": "Experiments are logical scientific overlays\nExperiments organize scientifically related runs and MAY span:\n\nMultiple sessions\nMultiple cases\nMultiple dates\nMultiple execution environments\n\nExperiments SHOULD remain logically decoupled from filesystem hierarchy."
+  },
+  {
+    "objectID": "index.html#run-configurations-are-fully-materialized-before-execution",
+    "href": "index.html#run-configurations-are-fully-materialized-before-execution",
+    "title": "OWL-ROOST",
+    "section": "Run configurations are fully materialized before execution",
+    "text": "Run configurations are fully materialized before execution\nPersisted run configurations SHOULD represent resolved executable runtime contracts rather than partially specified execution templates.\nRuntime auto-resolution SHOULD occur before execution begins."
+  },
+  {
+    "objectID": "index.html#filesystem-paths-are-canonical-provenance-identifiers",
+    "href": "index.html#filesystem-paths-are-canonical-provenance-identifiers",
+    "title": "OWL-ROOST",
+    "section": "Filesystem paths are canonical provenance identifiers",
+    "text": "Filesystem paths are canonical provenance identifiers\nFilesystem paths preserve immutable operational provenance.\nTransient operational IDs SHOULD remain convenience handles rather than canonical scientific identifiers."
+  },
+  {
+    "objectID": "index.html#decision-sampling-and-execution-variables-are-distinct",
+    "href": "index.html#decision-sampling-and-execution-variables-are-distinct",
+    "title": "OWL-ROOST",
+    "section": "Decision, sampling, and execution variables are distinct",
+    "text": "Decision, sampling, and execution variables are distinct\nDecision variables alter policy meaning.\nSampling variables alter statistical estimation.\nExecution variables alter runtime behavior.\nThese variable classes SHOULD remain conceptually distinct throughout the ROOST architecture."
+  },
+  {
+    "objectID": "index.html#studies-and-study-templates",
+    "href": "index.html#studies-and-study-templates",
+    "title": "OWL-ROOST",
+    "section": "Studies and Study Templates",
+    "text": "Studies and Study Templates\nROOST is evolving toward a methodology-oriented analytical architecture in which studies represent reusable analytical frameworks layered on top of the canonical operational execution hierarchy.\nConceptually:\nStudy Template\n    ↓\nStudy Instantiation\n    ↓\nSession Materialization\n    ↓\nRun and Trial Execution\n    ↓\nStatistical Aggregation\n    ↓\nScientific Interpretation and Reporting\nStudies are intended to organize and operationalize structured analytical methodologies rather than merely group related runs.\nThis direction extends ROOST beyond simple parameter sweeps into a broader framework for:\n\nRetirement decision analysis\nUncertainty and sampling analysis\nRuntime and execution-behavior analysis\nCross-household comparative studies\nScientific methodology evaluation\nStatistical convergence and estimator analysis"
+  },
+  {
+    "objectID": "index.html#reproducible-study-workflows",
+    "href": "index.html#reproducible-study-workflows",
+    "title": "OWL-ROOST",
+    "section": "Reproducible Study Workflows",
+    "text": "Reproducible Study Workflows\nROOST is evolving toward a workflow-oriented analytical architecture in which studies and study templates operationalize reproducible analytical methodologies layered on top of the canonical execution hierarchy.\nConceptually:\nStudy Template\n    ↓\nStudy Instantiation\n    ↓\nSession Materialization\n    ↓\nRun and Trial Execution\n    ↓\nQA/QC Validation\n    ↓\nScientific Interpretation and Reporting\nStudy templates are intended to define reusable analytical workflows rather than merely reusable reports.\nA study template may define:\n\nDecision, sampling, and execution sweeps\nSession generation strategies\nRuntime execution defaults\nQA/QC validation requirements\nComparison methodologies\nAggregation semantics\nStarter visualizations and reports\nPublication-oriented reporting scaffolds\n\nA study instantiation may therefore generate:\n\nOne or more execution sessions\nSession orchestration notebooks (study-run.qmd)\nQA/QC validation notebooks (study-qaqc.qmd)\nStarter analytical reports (study-start.qmd)\nDerived dashboards, figures, and publication artifacts\n\nThis architecture intentionally separates:\n\n\n\nLayer\nPurpose\n\n\n\n\nresults/\nImmutable operational execution evidence\n\n\nstudies/\nCurated analytical interpretation workflows\n\n\ntemplates/study/\nReusable analytical methodologies\n\n\n\nStudies are expected to support workflows ranging from:\n\nHousehold-specific retirement guidance to\nCross-household scientific generalization to\nRuntime and computational scaling analysis\n\nwithin a unified reproducible analytical framework.\nLong-term architectural direction is expected to shift scientific organization from experiment-oriented overlays toward study-oriented analytical methodologies layered over operational execution provenance."
+  },
+  {
+    "objectID": "chatgpt/levers.html",
+    "href": "chatgpt/levers.html",
+    "title": "levers",
+    "section": "",
+    "text": "You’ve already separated:\nNow you’re asking:\nThat’s powerful.\nThis moves ROOST from:\nto:"
+  },
+  {
+    "objectID": "chatgpt/levers.html#screen-1-retirement-timing-surface",
+    "href": "chatgpt/levers.html#screen-1-retirement-timing-surface",
+    "title": "levers",
+    "section": "🔹 Screen 1: Retirement Timing Surface",
+    "text": "🔹 Screen 1: Retirement Timing Surface\nOnly show if:\n\nretirement_age is flexible\nwages &gt; 0\nassets &gt; threshold\n\nSweep:\n\nretirement_age from earliest feasible to latest feasible\n\nMetrics:\n\nSustainable spending vs retirement age\nFailure probability vs retirement age\nGradient magnitude\nFeasible band width\n\nInterpretation:\n\nWide flat region → high flexibility\nSharp drop-off → fragile\nInfeasible outside narrow band → constrained\n\nDecision Support Direction:\n\n“Retirement timing is / is not a high-leverage decision for this case.”"
+  },
+  {
+    "objectID": "chatgpt/levers.html#screen-2-social-security-claiming-surface",
+    "href": "chatgpt/levers.html#screen-2-social-security-claiming-surface",
+    "title": "levers",
+    "section": "🔹 Screen 2: Social Security Claiming Surface",
+    "text": "🔹 Screen 2: Social Security Claiming Surface\nOnly show if:\n\nSS not already fixed\nAssets &gt; threshold\n\nSweep:\n\nSS claiming age 62–70\n\nMeasure:\n\nSpending impact\nFailure probability shift\nSurvivorship effects (if couple)\n\nDecision Support Direction:\n\n“Claiming timing modestly affects robustness” or “Claiming age materially changes downside risk.”"
+  },
+  {
+    "objectID": "chatgpt/levers.html#screen-3-roth-conversion-elasticity-surface",
+    "href": "chatgpt/levers.html#screen-3-roth-conversion-elasticity-surface",
+    "title": "levers",
+    "section": "🔹 Screen 3: Roth Conversion Elasticity Surface",
+    "text": "🔹 Screen 3: Roth Conversion Elasticity Surface\nOnly show if:\n\nPre-tax + Roth both present\nTaxable or wage flexibility exists\n\nSweep:\n\nAnnual conversion target from 0 to threshold\n\nMeasure:\n\nLifetime tax paid\nFailure probability\nLate-life net wealth\nIRMAA sensitivity\n\nDecision Support Direction:\n\n“Conversion strategy meaningfully widens your robustness band” or “Tax strategy has marginal impact.”"
+  },
+  {
+    "objectID": "chatgpt/levers.html#screen-4-spending-robustness-surface",
+    "href": "chatgpt/levers.html#screen-4-spending-robustness-surface",
+    "title": "levers",
+    "section": "🔹 Screen 4: Spending Robustness Surface",
+    "text": "🔹 Screen 4: Spending Robustness Surface\nSweep:\n\nSpending from floor to optimistic\n\nMeasure:\n\nFailure probability curve\nCVaR\n10th percentile wealth\n\nCompute:\n\nSpending buffer ratio\nFailure gradient\n\nDecision Support Direction:\n\n“Your spending has 18% slack before risk rises sharply.”"
+  },
+  {
+    "objectID": "chatgpt/levers.html#screen-5-allocation-sensitivity-surface",
+    "href": "chatgpt/levers.html#screen-5-allocation-sensitivity-surface",
+    "title": "levers",
+    "section": "🔹 Screen 5: Allocation Sensitivity Surface",
+    "text": "🔹 Screen 5: Allocation Sensitivity Surface\nOnly show if:\n\nPortfolio funds spending\nAllocation is user-controlled\n\nSweep:\n\nEquity allocation from 30–90%\n\nMeasure:\n\nEarly failure probability\nWorst 10% drawdown impact\nTerminal dispersion\n\nDecision Support Direction:\n\n“Allocation risk dominates timing decisions” or “Allocation changes produce small robustness differences.”"
+  },
+  {
+    "objectID": "chatgpt/workflow.html",
+    "href": "chatgpt/workflow.html",
+    "title": "workflow",
+    "section": "",
+    "text": "# ---------------------------------------------------------\n# 1️⃣ MERGE DEV → MAIN\n# ---------------------------------------------------------\n\ngit checkout main\ngit pull origin main      # ensure main is current\ngit merge dev             # integrate dev\ngit push origin main\n\n\n# ---------------------------------------------------------\n# 2️⃣ UPDATE OWL PIN ON MAIN AND TEST\n# ---------------------------------------------------------\n\nuv run scripts/update_owl_pin.py\nuv sync --extra dev\npytest\n\n# If everything passes:\n\ngit add pyproject.toml uv.lock\ngit commit -m \"Update OWL pin\"\ngit push origin main\n\n\n# ---------------------------------------------------------\n# 3️⃣ TAG RELEASE (ON MAIN)\n# ---------------------------------------------------------\n\nmake release          # preview\nmake release-patch    # or minor / major\n\n# (release script creates tag + pushes tag + reinstalls)\n\n\n# ---------------------------------------------------------\n# 4️⃣ RESYNC DEV WITH MAIN\n# ---------------------------------------------------------\n\ngit checkout dev\ngit pull origin dev        # optional but safe\ngit merge main\ngit push origin dev"
   }
 ]

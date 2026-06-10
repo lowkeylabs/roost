@@ -27,6 +27,10 @@ from owlroost.display.renderers.rich_table import render_rich_table
 # Renderer Helpers
 # =========================================================
 
+SYSTEM_OVERRIDE_PREFIXES = {
+    "session.",
+}
+
 
 def render_table(
     table,
@@ -352,3 +356,58 @@ def select_case_rows(
         out.append(row)
 
     return out
+
+
+def parse_override_request(
+    overrides,
+    schema_registry,
+):
+    """
+    Validate CLI override requests.
+
+    Notes
+    -----
+    Schema validation applies only to
+    executable schema fields.
+
+    Operational metadata namespaces
+    (for example session.*) are exempt.
+    """
+
+    errors = []
+
+    for override in overrides:
+        if "=" not in override:
+            errors.append(f"Invalid override: {override}")
+            continue
+
+        field_name, _ = override.split(
+            "=",
+            1,
+        )
+
+        # =========================================
+        # Operational overrides
+        # =========================================
+
+        if any(
+            field_name.startswith(
+                prefix,
+            )
+            for prefix in SYSTEM_OVERRIDE_PREFIXES
+        ):
+            continue
+
+        # =========================================
+        # Schema validation
+        # =========================================
+
+        if not schema_registry.exists(
+            field_name,
+        ):
+            errors.append(f"Unknown override field: {field_name}")
+
+    return (
+        overrides,
+        errors,
+    )

@@ -32,7 +32,6 @@ from pathlib import Path
 import click
 import owlplanner as owl
 import toml
-from loguru import logger
 
 from owlroost.core.progress_renderers import (
     create_renderer,
@@ -115,7 +114,7 @@ def run_trial_from_toml(
     # ----------------------------------------
     # Skip completed trials
     # ----------------------------------------
-    logger.debug(f"rerun={rerun}")
+    #    logger.debug(f"rerun={rerun}")
     if has_metrics(trial_dir) and not rerun:
         return {
             "status": "skipped",
@@ -290,7 +289,7 @@ def runtime_environment_scope(
                 if value is None:
                     continue
                 os.environ[key] = str(value)
-                logger.debug(f"RUNTIME ENV: {key}={value}")
+        #                logger.debug(f"RUNTIME ENV: {key}={value}")
 
         yield
 
@@ -401,7 +400,7 @@ def execute_trials(
                     r = run_trial_from_toml(td, rerun=rerun)
 
                 except Exception as exc:
-                    logger.exception("Trial execution failed")
+                    #                    logger.exception("Trial execution failed")
 
                     r = {
                         "status": "failed",
@@ -439,7 +438,7 @@ def execute_trials(
                         r = f.result()
 
                     except Exception as exc:
-                        logger.exception("Trial execution failed")
+                        #                        logger.exception("Trial execution failed")
 
                         r = {
                             "status": "failed",
@@ -722,7 +721,7 @@ def execute_runs(
                         results = future.result()
 
                     except Exception:
-                        logger.exception(f"Run failed: {run_dir}")
+                        #                        logger.exception(f"Run failed: {run_dir}")
 
                         results = [
                             {

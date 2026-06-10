@@ -653,6 +653,7 @@ def load_case_rows(
         for p in data:
             row = _load_case_file(
                 Path(p),
+                metrics_registry,
                 load_hfp=load_hfp,
             )
 
@@ -766,3 +767,124 @@ def load_cases():
 
 def load_runs():
     pass
+
+
+def load_trial_as_row(
+    source=".",
+    *,
+    metrics_registry,
+):
+    """
+    Load a single trial directory as a
+    display-compatible row.
+
+    Expected contents
+    -----------------
+    trial.toml
+        Materialized trial inputs.
+
+    metrics.json
+        Trial metrics.
+
+    trial_meta.yaml (optional)
+        Trial metadata.
+
+    _metadata.yml (optional)
+        Additional metadata.
+
+    Returns
+    -------
+    dict
+        Canonical display row.
+    """
+
+    source = Path(source).resolve()
+
+    # =====================================================
+    # Inputs
+    # =====================================================
+
+    inputs = {}
+
+    trial_toml = source / "trial.toml"
+
+    if trial_toml.exists():
+        try:
+            inputs = tomllib.loads(trial_toml.read_text())
+        except Exception:
+            pass
+
+    # =====================================================
+    # Metrics
+    # =====================================================
+
+    metrics = {}
+
+    metrics_file = source / "metrics.json"
+
+    if metrics_file.exists():
+        try:
+            metrics = flatten_dict(json.loads(metrics_file.read_text()))
+        except Exception:
+            pass
+
+    # =====================================================
+    # Metadata
+    # =====================================================
+
+    meta = {
+        "level": "trial",
+    }
+
+    trial_meta = source / "trial_meta.yaml"
+
+    if trial_meta.exists():
+        try:
+            meta.update(yaml.safe_load(trial_meta.read_text()) or {})
+        except Exception:
+            pass
+
+    metadata_file = source / "_metadata.yml"
+
+    if metadata_file.exists():
+        try:
+            meta.update(yaml.safe_load(metadata_file.read_text()) or {})
+        except Exception:
+            pass
+
+    # =====================================================
+    # Paths
+    # =====================================================
+
+    paths = {
+        "trial_dir": source,
+    }
+
+    # =====================================================
+    # Row
+    # =====================================================
+
+    hfp_summary = summarize_hfp(
+        trial_toml,
+        inputs,
+    )
+
+    row = {
+        "_path": source,
+        "_paths": paths,
+        "_case_name": inputs.get(
+            "case_name",
+            source.name,
+        ),
+        "_inputs": inputs,
+        "_metrics": metrics,
+        "_hfp": hfp_summary,
+        "_meta": meta,
+    }
+
+    materialize_row_metrics(
+        row,
+        metrics_registry,
+    )
+
+    return [row]
