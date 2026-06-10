@@ -533,7 +533,7 @@ def _load_run_dir(
     )
     result_paths["case_file"] = run_toml.resolve()
 
-    return {
+    row = {
         "_path": resolved_run_dir,
         "_paths": result_paths,
         "_inputs": content,
@@ -562,6 +562,13 @@ def _load_run_dir(
             "session.timestamp": (result_paths["session_timestamp"]),
         },
     }
+
+    materialize_row_metrics(
+        row,
+        metrics_registry,
+    )
+
+    return row
 
 
 # =========================================================
@@ -594,7 +601,7 @@ def load_hydra_overrides(
 
 
 def load_case_rows(
-    source=".",
+    source: Path | str = ".",
     *,
     metrics_registry,
     load_hfp=True,

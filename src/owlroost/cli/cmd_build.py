@@ -55,49 +55,6 @@ DEFAULT_VIEW = "build"
 # ---------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------
-def resolve_case_selection(
-    arg: str,
-    dataset,
-):
-    """
-    Resolve CLI selection into dataset row.
-
-    Selection may be:
-    - numeric row ID
-    - TOML file path
-    """
-
-    rows = dataset.rows
-
-    # ----------------------------------------
-    # Prefer explicit file path if it exists
-    # ----------------------------------------
-    path = Path(arg)
-
-    if path.exists():
-        resolved = path.resolve()
-
-        for r in rows:
-            if Path(r["_path"]).resolve() == resolved:
-                return r
-
-        raise click.ClickException(f"File not recognized as case: {arg}")
-
-    # ----------------------------------------
-    # Numeric ID
-    # ----------------------------------------
-    if arg.isdigit():
-        idx = int(arg)
-
-        if idx < 0 or idx >= len(rows):
-            raise click.ClickException(f"Invalid ID: {idx}")
-
-        return rows[idx]
-
-    # ----------------------------------------
-    # Unknown selection
-    # ----------------------------------------
-    raise click.ClickException(f"Invalid case selection: {arg}")
 
 
 def build_hydra_command(

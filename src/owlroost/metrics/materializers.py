@@ -85,7 +85,13 @@ def materialize_row_metrics(
         # Respect materialization level
         # =============================================
 
-        if metric.materialization_level and metric.materialization_level != level:
+        #        if metric.materialization_level and metric.materialization_level != level:
+        #            continue
+
+        if metric.materialization_level not in {
+            level,
+            "row",
+        }:
             continue
 
         # =============================================
