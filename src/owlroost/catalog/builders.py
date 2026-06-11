@@ -22,6 +22,7 @@ from owlroost.catalog.ontology import (
 )
 from owlroost.catalog.provenance import ProvenanceOperation
 from owlroost.catalog.rows import (
+    _export_provenance_chain,
     build_catalog_row,
 )
 from owlroost.catalog.specs import (
@@ -303,34 +304,81 @@ def infer_display_source(
     return "display"
 
 
-def build_display_rows(
+def build_display_overlay_rows(
     display_registry,
 ):
     """
-    Build catalog rows from display-authored
-    catalog declarations.
+    Build presentation overlay rows.
 
     Notes
     -----
-    Model B3 Architecture
-    ---------------------
+    These rows do not contribute
+    ontology.
 
-    Display owns presentation metadata.
+    They contribute:
 
-    Catalog owns semantic identity.
+        - display_name
+        - profiles
+        - formatting metadata
+    """
 
-    Display modules may optionally author
-    semantic declarations through:
+    rows = []
 
-        DisplayField.field(...)
+    for field in display_registry.all_display_fields():
+        profile_details = {}
 
-    Those declarations are represented as
-    CatalogSpec instances attached to the
-    DisplayField and participate in catalog
-    synthesis.
+        for (
+            name,
+            profile,
+        ) in (field.profiles or {}).items():
+            profile_details[name] = {
+                "label": profile.label,
+                "width": profile.width,
+                "fmt": profile.fmt,
+                "content_align": profile.content_align,
+                "wrap": profile.wrap,
+            }
 
-    Presentation-only overlays do not
-    contribute semantic rows.
+        rows.append(
+            {
+                "field_name": field.field_name,
+                "layer": "display",
+                "provenance_chain": _export_provenance_chain(
+                    _build_provenance(
+                        stage="display",
+                        operation=ProvenanceOperation.REGISTERED,
+                        source=field,
+                    )
+                ),
+                "display_name": (
+                    getattr(
+                        field,
+                        "display_name",
+                        None,
+                    )
+                    or field.field_name
+                ),
+                "profiles": sorted((field.profiles or {}).keys()),
+                "_display": {
+                    "display_name": getattr(
+                        field,
+                        "display_name",
+                        None,
+                    ),
+                    "profile_details": profile_details,
+                },
+            }
+        )
+
+    return rows
+
+
+def build_display_declaration_rows(
+    display_registry,
+):
+    """
+    Build display-authored semantic
+    catalog entities.
     """
 
     rows = []
@@ -342,26 +390,12 @@ def build_display_rows(
             None,
         )
 
-        # -------------------------------------------------
-        # Presentation Overlay
-        # -------------------------------------------------
-
         if declaration is None:
             continue
 
-        # -------------------------------------------------
-        # Display-Authored Semantic Declaration
-        # -------------------------------------------------
-
         spec = CatalogSpec(
-            # =============================================
-            # Canonical Identity
-            # =============================================
             field_name=declaration.field_name,
             node_type=declaration.node_type,
-            # =============================================
-            # Ontology
-            # =============================================
             owner=declaration.owner,
             semantic_domain=(declaration.semantic_domain),
             value_origin=(declaration.value_origin),
@@ -370,9 +404,6 @@ def build_display_rows(
             materialization_level=(declaration.materialization_level),
             derived_from=list(declaration.derived_from),
             materializes_to=list(declaration.materializes_to),
-            # =============================================
-            # Runtime Realization
-            # =============================================
             source=(
                 infer_display_source(
                     field,
@@ -383,18 +414,12 @@ def build_display_rows(
                 "path",
                 None,
             ),
-            # =============================================
-            # Explainability
-            # =============================================
             description=(field.description or declaration.description),
-            # =============================================
-            # Provenance
-            # =============================================
             provenance_chain=(
                 list(declaration.provenance_chain)
                 + _build_provenance(
                     stage="display",
-                    operation=ProvenanceOperation.REGISTERED,
+                    operation=(ProvenanceOperation.REGISTERED),
                     source=field,
                 )
             ),

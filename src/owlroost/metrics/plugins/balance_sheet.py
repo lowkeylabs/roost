@@ -1,4 +1,4 @@
-# src/owlroost/metrics/plugins/balance_sheet_metrics.py
+# src/owlroost/metrics/plugins/balance_sheet.py
 #
 # Copyright (c) 2026 John Leonard
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -39,18 +39,8 @@ from owlroost.metrics.specs import (
 # Ontology
 # =========================================================
 
-BALANCE_SHEET_SYNTHETIC: dict[str, Any] = dict(
-    owner="ROOST",
-    semantic_domain="decision",
-    value_origin="roost-computed",
-    projection_kind="synthetic",
-    analytic_kind="synthetic",
-    materialization_level="row",
-    node_type=CatalogNodeType.VARIABLE,
-    defined_in=normalize_module_path(__file__),
-)
 
-BALANCE_SHEET_CANONICAL: dict[str, Any] = dict(
+BALANCE_SHEET_VARIABLE: dict[str, Any] = dict(
     owner="ROOST",
     semantic_domain="decision",
     value_origin="roost-computed",
@@ -241,7 +231,7 @@ class BalanceSheetMetricsPlugin:
                 derived_from=[
                     "savings_assets.taxable_savings_balances",
                 ],
-                **BALANCE_SHEET_SYNTHETIC,
+                **BALANCE_SHEET_VARIABLE,
             ),
             MetricSpec(
                 name="balance_sheet.total_tax_deferred_savings",
@@ -252,7 +242,7 @@ class BalanceSheetMetricsPlugin:
                 derived_from=[
                     "savings_assets.tax_deferred_savings_balances",
                 ],
-                **BALANCE_SHEET_SYNTHETIC,
+                **BALANCE_SHEET_VARIABLE,
             ),
             MetricSpec(
                 name="balance_sheet.total_tax_free_savings",
@@ -263,7 +253,7 @@ class BalanceSheetMetricsPlugin:
                 derived_from=[
                     "savings_assets.tax_free_savings_balances",
                 ],
-                **BALANCE_SHEET_SYNTHETIC,
+                **BALANCE_SHEET_VARIABLE,
             ),
             MetricSpec(
                 name="balance_sheet.total_savings",
@@ -276,7 +266,7 @@ class BalanceSheetMetricsPlugin:
                     "balance_sheet.total_tax_deferred_savings",
                     "balance_sheet.total_tax_free_savings",
                 ],
-                **BALANCE_SHEET_SYNTHETIC,
+                **BALANCE_SHEET_VARIABLE,
             ),
             # ---------------------------------------------
             # Canonical HFP Values
@@ -290,7 +280,7 @@ class BalanceSheetMetricsPlugin:
                 derived_from=[
                     "household_financial_profile",
                 ],
-                **BALANCE_SHEET_CANONICAL,
+                **BALANCE_SHEET_VARIABLE,
             ),
             MetricSpec(
                 name="balance_sheet.total_liabilities",
@@ -301,7 +291,7 @@ class BalanceSheetMetricsPlugin:
                 derived_from=[
                     "household_financial_profile",
                 ],
-                **BALANCE_SHEET_CANONICAL,
+                **BALANCE_SHEET_VARIABLE,
             ),
             MetricSpec(
                 name="balance_sheet.residence_value",
@@ -312,7 +302,7 @@ class BalanceSheetMetricsPlugin:
                 derived_from=[
                     "household_financial_profile",
                 ],
-                **BALANCE_SHEET_CANONICAL,
+                **BALANCE_SHEET_VARIABLE,
             ),
             MetricSpec(
                 name="balance_sheet.mortgage_debt",
@@ -323,7 +313,7 @@ class BalanceSheetMetricsPlugin:
                 derived_from=[
                     "household_financial_profile",
                 ],
-                **BALANCE_SHEET_CANONICAL,
+                **BALANCE_SHEET_VARIABLE,
             ),
             # ---------------------------------------------
             # Synthetic Balance Sheet
@@ -338,7 +328,7 @@ class BalanceSheetMetricsPlugin:
                     "balance_sheet.fixed_assets",
                     "balance_sheet.total_liabilities",
                 ],
-                **BALANCE_SHEET_SYNTHETIC,
+                **BALANCE_SHEET_VARIABLE,
             ),
             MetricSpec(
                 name="balance_sheet.total_assets",
@@ -350,7 +340,7 @@ class BalanceSheetMetricsPlugin:
                     "balance_sheet.total_savings",
                     "balance_sheet.fixed_assets",
                 ],
-                **BALANCE_SHEET_SYNTHETIC,
+                **BALANCE_SHEET_VARIABLE,
             ),
             MetricSpec(
                 name="balance_sheet.net_worth",
@@ -360,9 +350,9 @@ class BalanceSheetMetricsPlugin:
                 description="Household net worth.",
                 derived_from=[
                     "balance_sheet.total_savings",
-                    "balance_sheet.net_hfp_assets",
+                    "balance_sheet.total_liabilities",
                 ],
-                **BALANCE_SHEET_SYNTHETIC,
+                **BALANCE_SHEET_VARIABLE,
             ),
         ]
 

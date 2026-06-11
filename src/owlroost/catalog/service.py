@@ -29,7 +29,8 @@ from __future__ import annotations
 from copy import deepcopy
 
 from owlroost.catalog.builders import (
-    build_display_rows,
+    build_display_declaration_rows,
+    build_display_overlay_rows,
     build_metric_rows,
     build_schema_rows,
 )
@@ -126,6 +127,25 @@ def _merge_row(
                 {},
             )
         )
+
+        # -------------------------------------------------
+        # Merge provenance
+        # -------------------------------------------------
+
+        provenance = row.get(
+            "provenance_chain",
+        )
+
+        if provenance:
+            existing.setdefault(
+                "_catalog",
+                {},
+            ).setdefault(
+                "provenance_chain",
+                [],
+            ).extend(
+                provenance,
+            )
 
         # -------------------------------------------------
         # Flattened convenience aliases
@@ -243,10 +263,22 @@ def load_catalog(
         )
 
     # =====================================================
-    # Display Ontology
+    # Display Semantic Declarations
     # =====================================================
 
-    for row in build_display_rows(
+    for row in build_display_declaration_rows(
+        display_registry,
+    ):
+        _merge_row(
+            entities,
+            row,
+        )
+
+    # =====================================================
+    # Display Presentation Overlays
+    # =====================================================
+
+    for row in build_display_overlay_rows(
         display_registry,
     ):
         _merge_row(

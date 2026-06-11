@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Literal
+from typing import Literal, get_args
 
 # =========================================================
 # Canonical Semantic Dimensions
@@ -240,6 +240,181 @@ class CatalogNodeType(
     VARIABLE = "variable"
 
     OVERLAY = "overlay"
+
+
+# =========================================================
+# Ontology Dimension Registry
+# =========================================================
+
+
+OntologyDimensionName = Literal[
+    "owner",
+    "semantic_domain",
+    "value_origin",
+    "projection_kind",
+    "analytic_kind",
+    "materialization_level",
+    "node_type",
+]
+
+
+@dataclass(frozen=True)
+class OntologyDimension:
+    """
+    Canonical ontology dimension metadata.
+
+    Notes
+    -----
+    Defines:
+
+        - catalog field name
+        - human-readable label
+        - CLI/filter alias
+        - allowed value type
+        - semantic description
+
+    This registry acts as the single
+    source of truth for ontology
+    dashboards, audits, filtering,
+    explainability, and documentation.
+    """
+
+    field_name: OntologyDimensionName
+
+    label: str
+
+    cli_name: str
+
+    values_type: object
+
+    description: str
+
+    @property
+    def values(
+        self,
+    ) -> list[str]:
+        values = get_args(
+            self.values_type,
+        )
+
+        if values:
+            return list(
+                values,
+            )
+
+        if issubclass(
+            self.values_type,
+            StrEnum,
+        ):
+            return [value.value for value in self.values_type]
+
+        raise TypeError(f"Unsupported ontology value type: {self.values_type}")
+
+
+ONTOLOGY_DIMENSIONS = [
+    OntologyDimension(
+        field_name="owner",
+        label="Owner",
+        cli_name="owner",
+        values_type=Owner,
+        description=(
+            "Semantic ownership of a variable. "
+            "Identifies whether the variable "
+            "originates from OWL or ROOST."
+        ),
+    ),
+    OntologyDimension(
+        field_name="semantic_domain",
+        label="Domain",
+        cli_name="domain",
+        values_type=SemanticDomain,
+        description=(
+            "Scientific workflow domain. "
+            "Distinguishes retirement policy "
+            "semantics from methodology and "
+            "runtime execution concerns."
+        ),
+    ),
+    OntologyDimension(
+        field_name="value_origin",
+        label="Origin",
+        cli_name="origin",
+        values_type=ValueOrigin,
+        description=(
+            "Fundamental value provenance. "
+            "Identifies whether a value is "
+            "user-specified, OWL-computed, "
+            "or ROOST-computed."
+        ),
+    ),
+    OntologyDimension(
+        field_name="projection_kind",
+        label="Projection",
+        cli_name="projection",
+        values_type=ProjectionKind,
+        description=(
+            "Analytical realization semantics. "
+            "Describes how a variable is "
+            "projected from underlying "
+            "semantic entities."
+        ),
+    ),
+    OntologyDimension(
+        field_name="analytic_kind",
+        label="Analytic",
+        cli_name="analytic",
+        values_type=AnalyticKind,
+        description=(
+            "Analytical interpretation "
+            "semantics. Describes how a value "
+            "should be interpreted during "
+            "analysis."
+        ),
+    ),
+    OntologyDimension(
+        field_name="materialization_level",
+        label="Level",
+        cli_name="level",
+        values_type=MaterializationLevel,
+        description=(
+            "Runtime operational granularity. "
+            "Identifies whether a value exists "
+            "at the case, session, run, or "
+            "trial level."
+        ),
+    ),
+    OntologyDimension(
+        field_name="node_type",
+        label="Type",
+        cli_name="type",
+        values_type=CatalogNodeType,
+        description=(
+            "Catalog graph structure. Describes how an entity participates in the catalog graph."
+        ),
+    ),
+]
+
+_ONTOLOGY_DIMENSIONS = {d.field_name: d for d in ONTOLOGY_DIMENSIONS}
+
+
+def get_ontology_dimension(
+    field_name,
+):
+    return _ONTOLOGY_DIMENSIONS.get(
+        field_name,
+    )
+
+
+_ALIAS_MAP = {d.cli_name: d.field_name for d in ONTOLOGY_DIMENSIONS}
+
+
+def normalize_ontology_field_name(
+    name,
+):
+    return _ALIAS_MAP.get(
+        name,
+        name,
+    )
 
 
 # =========================================================

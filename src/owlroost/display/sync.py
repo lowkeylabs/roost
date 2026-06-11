@@ -45,6 +45,7 @@ ontology objects to DisplayField instances.
 
 from __future__ import annotations
 
+from owlroost.core.utils import normalize_module_path
 from owlroost.display.registry import (
     DisplayRegistry,
 )
@@ -206,6 +207,7 @@ def _register_field_if_missing(
             field_name=field_name,
             description=description,
             profiles=profiles,
+            defined_in=normalize_module_path(__file__),
         )
     )
 

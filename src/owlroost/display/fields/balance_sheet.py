@@ -60,6 +60,7 @@ def register_display_fields(
                     width=16,
                 ),
             },
+            **BALANCE_SHEET_ONTOLOGY,
         )
     )
 

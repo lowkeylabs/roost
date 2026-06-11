@@ -19,7 +19,7 @@ from owlroost.metrics.registry import (
     MetricsRegistry,
 )
 
-from .plugins.balance_sheet_metrics import BalanceSheetMetricsPlugin
+from .plugins.balance_sheet import BalanceSheetMetricsPlugin
 from .plugins.execution_metrics import ExecutionMetricsPlugin
 from .plugins.hydra_overrides import HydraOverridesPlugin
 from .plugins.output_metrics import OutputMetricsPlugin

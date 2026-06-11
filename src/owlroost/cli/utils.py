@@ -184,14 +184,21 @@ def split_catalog_args(
 
     for arg in args:
         if any(c.isdigit() for c in arg) and all(c.isdigit() or c in ",-" for c in arg):
-            selectors.append(arg)
+            selectors.append(
+                arg,
+            )
 
         else:
-            search_terms.append(arg)
+            search_terms.append(
+                arg,
+            )
 
     search = " ".join(search_terms) if search_terms else None
 
-    return selectors, search
+    return (
+        selectors,
+        search,
+    )
 
 
 def split_build_args(

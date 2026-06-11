@@ -98,100 +98,6 @@ class _RowsAdapter:
     help="Filter by ontology layer.",
 )
 @click.option(
-    "--owner",
-    type=click.Choice(
-        [
-            "OWL",
-            "ROOST",
-        ],
-        case_sensitive=False,
-    ),
-    help="Filter by semantic owner.",
-)
-@click.option(
-    "--domain",
-    "semantic_domain",
-    type=click.Choice(
-        [
-            "decision",
-            "design",
-            "execution",
-        ],
-        case_sensitive=False,
-    ),
-    help="Filter by semantic domain.",
-)
-@click.option(
-    "--origin",
-    "value_origin",
-    type=click.Choice(
-        [
-            "user-specified",
-            "owl-computed",
-            "roost-computed",
-        ],
-        case_sensitive=False,
-    ),
-    help="Filter by value origin.",
-)
-@click.option(
-    "--projection",
-    "projection_kind",
-    type=click.Choice(
-        [
-            "canonical",
-            "aggregate",
-            "composed",
-            "formatted",
-            "synthetic",
-        ],
-        case_sensitive=False,
-    ),
-    help="Filter by projection kind.",
-)
-@click.option(
-    "--analytic",
-    "analytic_kind",
-    type=click.Choice(
-        [
-            "observed",
-            "synthetic",
-            "comparative",
-            "distributional",
-            "inferential",
-            "aggregate",
-        ],
-        case_sensitive=False,
-    ),
-    help="Filter by analytic kind.",
-)
-@click.option(
-    "--materialization",
-    "materialization_level",
-    type=click.Choice(
-        [
-            "case",
-            "session",
-            "run",
-            "trial",
-        ],
-        case_sensitive=False,
-    ),
-    help="Filter by materialization level.",
-)
-@click.option(
-    "--node",
-    "node_type",
-    type=click.Choice(
-        [
-            "variable",
-            "overlay",
-        ],
-        case_sensitive=False,
-    ),
-    help="Filter by catalog node type.",
-)
-@click.option(
     "--dashboard",
     type=str,
     default=None,
@@ -240,13 +146,6 @@ def cmd_vars(
     ctx,
     args,
     layer,
-    owner,
-    semantic_domain,
-    value_origin,
-    projection_kind,
-    analytic_kind,
-    materialization_level,
-    node_type,
     dashboard,
     view,
     markdown,
@@ -266,8 +165,6 @@ def cmd_vars(
     # will automatically load as "case" view
     if dashboard is None:
         dashboard = ctx.info_name or DEFAULT_DASHBOARD
-
-    print(dashboard)
 
     selectors, search_terms = split_catalog_args(
         args,
@@ -304,19 +201,7 @@ def cmd_vars(
         metrics_registry=metrics_registry,
     )
 
-    ontology_filters_present = any(
-        [
-            layer,
-            owner,
-            semantic_domain,
-            value_origin,
-            projection_kind,
-            analytic_kind,
-            materialization_level,
-            node_type,
-        ]
-    )
-    show_dashboard = not selectors and not args and not filters and not ontology_filters_present
+    show_dashboard = not selectors and not args and not filters
 
     # =====================================================
     # Catalog Rows
@@ -326,14 +211,6 @@ def cmd_vars(
         schema_registry=schema_registry,
         metrics_registry=metrics_registry,
         display_registry=display_registry,
-        layer=layer,
-        owner=owner,
-        semantic_domain=semantic_domain,
-        value_origin=value_origin,
-        projection_kind=projection_kind,
-        analytic_kind=analytic_kind,
-        materialization_level=materialization_level,
-        node_type=node_type,
         search=search_terms,
     )
     catalog_index = {row["field_name"]: row for row in rows}

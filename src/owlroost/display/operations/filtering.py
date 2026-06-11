@@ -15,6 +15,7 @@ and architectural role.
 
 from __future__ import annotations
 
+from owlroost.catalog.ontology import normalize_ontology_field_name
 from owlroost.display.operations.resolution import (
     resolve_row_value,
 )
@@ -46,7 +47,7 @@ def parse_filter_expression(
             left, right = expr.split(op, 1)
 
             return (
-                left.strip(),
+                normalize_ontology_field_name(left.strip()),
                 op,
                 right.strip(),
             )
@@ -78,7 +79,13 @@ def coerce_value(
     ):
         return value
 
-    s = str(value)
+    s = str(value).strip()
+
+    if s.lower() in (
+        "none",
+        "null",
+    ):
+        return None
 
     try:
         if "." in s:

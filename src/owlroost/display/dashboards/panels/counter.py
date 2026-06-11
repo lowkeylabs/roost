@@ -17,6 +17,9 @@ from __future__ import annotations
 
 from collections import Counter
 
+from owlroost.catalog.ontology import (
+    get_ontology_dimension,
+)
 from owlroost.display.dashboards.specs import (
     CounterPanel,
 )
@@ -88,11 +91,107 @@ def materialize(
         counts.items(),
     )
 
-    if panel_spec.sort_by_count:
+    # =====================================================
+    # Ontology Ordering
+    # =====================================================
+
+    dimension = get_ontology_dimension(
+        panel_spec.field_name,
+    )
+
+    if dimension is not None:
+        # =============================================
+        # Ensure all ontology values appear
+        # =============================================
+
+        for value in dimension.values:
+            counts.setdefault(
+                value,
+                0,
+            )
+
+        # =============================================
+        # Hide synthetic QA values when empty
+        # =============================================
+
+        if (
+            counts.get(
+                "<none>",
+                0,
+            )
+            == 0
+        ):
+            counts.pop(
+                "<none>",
+                None,
+            )
+
+        if (
+            counts.get(
+                "<empty>",
+                0,
+            )
+            == 0
+        ):
+            counts.pop(
+                "<empty>",
+                None,
+            )
+
+        items = list(
+            counts.items(),
+        )
+
+        # =============================================
+        # Ontology-defined ordering
+        # =============================================
+
+        ordered_values = list(
+            dimension.values,
+        )
+
+        if "<none>" in counts:
+            ordered_values.append(
+                "<none>",
+            )
+
+        if "<empty>" in counts:
+            ordered_values.append(
+                "<empty>",
+            )
+
+        order = {
+            value: index
+            for index, value in enumerate(
+                ordered_values,
+            )
+        }
+
+        items.sort(
+            key=lambda x: (
+                order.get(
+                    x[0],
+                    9999,
+                ),
+                str(
+                    x[0],
+                ),
+            )
+        )
+
+    # =====================================================
+    # Count Ordering
+    # =====================================================
+
+    elif panel_spec.sort_by_count:
         items.sort(
             key=lambda x: x[1],
             reverse=True,
         )
+
+    # =====================================================
+    # Alphabetical Ordering
+    # =====================================================
 
     else:
         items.sort(

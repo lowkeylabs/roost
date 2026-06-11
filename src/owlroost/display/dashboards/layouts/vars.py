@@ -24,6 +24,8 @@ from owlroost.display.specs import (
     DisplayDashboard,
 )
 
+# src/owlroost/display/dashboards/layouts/vars.py
+
 
 def register_display_dashboards(
     reg,
@@ -40,8 +42,8 @@ def register_display_dashboards(
                             metric="catalog_size",
                         ),
                         CounterPanel(
-                            title="Projection Kind",
-                            field_name="projection_kind",
+                            title="Layer",
+                            field_name="layer",
                         ),
                         CounterPanel(
                             title="Owner",
@@ -52,15 +54,31 @@ def register_display_dashboards(
                 DashboardRow(
                     [
                         CounterPanel(
-                            title="Semantic Domain",
+                            title="Domain",
                             field_name="semantic_domain",
                         ),
                         CounterPanel(
-                            title="Layer",
-                            field_name="layer",
+                            title="Origin",
+                            field_name="value_origin",
                         ),
                         CounterPanel(
-                            title="Node Type",
+                            title="Projection",
+                            field_name="projection_kind",
+                        ),
+                    ]
+                ),
+                DashboardRow(
+                    [
+                        CounterPanel(
+                            title="Analytic",
+                            field_name="analytic_kind",
+                        ),
+                        CounterPanel(
+                            title="Level",
+                            field_name="materialization_level",
+                        ),
+                        CounterPanel(
+                            title="Type",
                             field_name="node_type",
                         ),
                     ]

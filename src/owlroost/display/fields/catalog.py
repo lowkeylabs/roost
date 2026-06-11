@@ -89,7 +89,7 @@ def register_display_fields(
     reg.register_display_field(
         DisplayField.field(
             "description",
-            description="Semantic description.",
+            description="Semantic description of the variable listed.",
             profiles={
                 "table": DisplayProfile(
                     label="Description",
@@ -222,6 +222,7 @@ def register_display_fields(
         DisplayField.field(
             "derived_from",
             description="Semantic lineage and provenance.",
+            display_fn=format_derived_from,
             profiles={
                 "table": DisplayProfile(
                     label="Derived From",
@@ -448,10 +449,7 @@ def provenance_chain_display(
     if not chain:
         return None
 
-    return "\n".join(
-        (f"{event.get('stage')}:{event.get('operation').value}\n  {event.get('file')}")
-        for event in chain
-    )
+    return "\n".join((f"{event.get('file')}") for event in chain)
 
 
 def provenance_summary_display(
@@ -510,4 +508,20 @@ def profiles_display(
 
     return "\n".join(
         lines,
+    )
+
+
+def format_derived_from(
+    row,
+):
+    values = row.get(
+        "derived_from",
+        [],
+    )
+
+    if not values:
+        return None
+
+    return "\n".join(
+        values,
     )

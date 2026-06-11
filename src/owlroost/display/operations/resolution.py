@@ -142,6 +142,7 @@ def resolve_row_value(
     Search order:
         _meta
         _metrics
+        top-level row
         _inputs
     """
 
@@ -150,30 +151,55 @@ def resolve_row_value(
     # =====================================================
 
     if key == "id":
-        return row.get("_row_id")
+        return row.get(
+            "_row_id",
+        )
 
     # =====================================================
     # _meta
     # =====================================================
 
-    if key in row.get("_meta", {}):
-        return row["_meta"][key]
+    meta = row.get(
+        "_meta",
+        {},
+    )
+
+    if key in meta:
+        return meta[key]
 
     # =====================================================
     # _metrics
     # =====================================================
 
-    if key in row.get("_metrics", {}):
-        return row["_metrics"][key]
+    metrics = row.get(
+        "_metrics",
+        {},
+    )
+
+    if key in metrics:
+        return metrics[key]
 
     # =====================================================
-    # _inputs
+    # Top-level row
     # =====================================================
 
-    current = row.get("_inputs", {})
+    if key in row:
+        return row[key]
+
+    # =====================================================
+    # _inputs dotted-path lookup
+    # =====================================================
+
+    current = row.get(
+        "_inputs",
+        {},
+    )
 
     for part in key.split("."):
-        if not isinstance(current, dict):
+        if not isinstance(
+            current,
+            dict,
+        ):
             return None
 
         if part not in current:

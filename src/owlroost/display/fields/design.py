@@ -140,8 +140,7 @@ def register_display_fields(
 
     reg.register_display_field(
         DisplayField.field(
-            "roost_runtime.trials_per_run",
-            description=("Configured stochastic trials executed per run."),
+            "roost_settings.trials_per_run",
             profiles={
                 "table": DisplayProfile(
                     label="Trials\nPer\nRun",
@@ -191,6 +190,7 @@ def register_display_fields(
                     content_align="center",
                 ),
             },
+            **DISPLAY_ONTOLOGY,
         )
     )
 
