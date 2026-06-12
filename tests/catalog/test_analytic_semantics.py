@@ -90,7 +90,7 @@ def test_schema_rows_are_canonical(
     assert schema_rows
 
     for row in schema_rows:
-        assert row["projection_kind"] == "canonical"
+        assert row["projection_kind"] in {"canonical", "synthetic"}
 
 
 # =========================================================

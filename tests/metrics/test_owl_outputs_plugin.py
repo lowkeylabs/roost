@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from owlroost.metrics.plugins.output_metrics import (
+from owlroost.metrics.plugins.owl_outputs import (
     CANONICAL_METRICS,
 )
 
