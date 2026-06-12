@@ -34,11 +34,11 @@ _HFP_CACHE = {}
 
 
 def summarize_hfp(
-    case_path,
-    inputs,
+    plan,
+    year=None,
 ):
     """
-    Load and summarize OWL HFP workbook.
+    Returns HFP assets, etc. for given year from plan object.
 
     Returns lightweight normalized summary:
 

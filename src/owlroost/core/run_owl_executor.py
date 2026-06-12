@@ -125,9 +125,7 @@ def run_trial_from_toml(
     # Load TOML
     # ----------------------------------------
     toml_dict = toml.load(trial_toml)
-
     toml_str = toml.dumps(toml_dict)
-
     buf = StringIO(toml_str)
 
     # ----------------------------------------
@@ -139,7 +137,7 @@ def run_trial_from_toml(
     os.chdir(trial_dir)
     plan = owl.readConfig(
         buf,
-        logstreams="loguru",
+        logstreams=[StringIO(), StringIO()],
         loadHFP=True,
     )
     os.chdir(old_dir)

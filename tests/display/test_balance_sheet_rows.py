@@ -32,7 +32,7 @@ REQUIRED_METRICS = [
     "balance_sheet.total_assets",
     "balance_sheet.total_liabilities",
     "balance_sheet.total_savings",
-    "balance_sheet.fixed_assets",
+    "balance_sheet.fixed_assets_current_value",
 ]
 
 

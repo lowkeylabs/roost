@@ -16,12 +16,16 @@ and architectural role.
 from __future__ import annotations
 
 import json
+import os
 import tomllib
+from io import StringIO
 from pathlib import Path
 
+import owlplanner as owl
+import toml
 import yaml
 
-from owlroost.core.hfp import summarize_hfp
+# from owlroost.core.hfp import summarize_hfp
 from owlroost.metrics.aggregation.service import (
     aggregate_rows,
 )
@@ -286,16 +290,33 @@ def _load_case_file(
     # =====================================================
 
     try:
-        content = tomllib.loads(path.read_text())
+        toml_dict = toml.loads(path.read_text())
 
     except Exception:
         return None
+
+    plan = None
+    try:
+        toml_str = toml.dumps(toml_dict)
+        buf = StringIO(toml_str)
+
+        old_dir = Path.cwd()
+        os.chdir(path.parent)
+        plan = owl.readConfig(
+            buf,
+            logstreams=[StringIO(), StringIO()],
+            loadHFP=load_hfp,
+        )
+        os.chdir(old_dir)
+
+    except Exception:
+        plan = None
 
     # =====================================================
     # Case name
     # =====================================================
 
-    case_name = content.get(
+    case_name = toml_dict.get(
         "case_name",
         path.stem,
     )
@@ -304,17 +325,7 @@ def _load_case_file(
     # HFP summary
     # =====================================================
 
-    if load_hfp:
-        hfp_summary = summarize_hfp(
-            path,
-            content,
-        )
-
-    else:
-        hfp_summary = {
-            "has_hfp": False,
-            "hfp_status": "disabled",
-        }
+    hfp = {}
 
     # =====================================================
     # Case row
@@ -328,9 +339,10 @@ def _load_case_file(
             "case_file": resolved_path,
         },
         "_case_name": case_name,
-        "_inputs": content,
+        "_inputs": toml_dict,
+        "_plan": plan,
         "_metrics": {},
-        "_hfp": hfp_summary,
+        "_hfp": hfp,
         "_meta": {
             "level": "case",
         },
@@ -385,6 +397,7 @@ def _load_trial_metrics(
             "trial_dir": resolved_trial_dir,
         },
         "_inputs": {},
+        "_plan": None,
         "_metrics": flatten_dict(metrics),
         "_meta": {
             "level": "trial",
@@ -464,10 +477,7 @@ def _load_run_dir(
         return None
 
     try:
-        hfp_summary = summarize_hfp(
-            run_toml,
-            content,
-        )
+        hfp_summary = {}
     except Exception:
         return None
 
@@ -537,6 +547,7 @@ def _load_run_dir(
         "_path": resolved_run_dir,
         "_paths": result_paths,
         "_inputs": content,
+        "_plan": None,
         "_metrics": {
             # -------------------------------------------------
             # Run completion
@@ -871,10 +882,7 @@ def load_trial_as_row(
     # Row
     # =====================================================
 
-    hfp_summary = summarize_hfp(
-        trial_toml,
-        inputs,
-    )
+    hfp_summary = {}
 
     row = {
         "_path": source,

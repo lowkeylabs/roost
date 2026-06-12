@@ -176,6 +176,9 @@ def _register_field_if_missing(
         table_content_align = "right"
         pivot_content_align = "left"
 
+        if field_name == "balance_sheet.has_hfp_file":
+            table_fmt = "boolean_flag"
+
     # -----------------------------------------------------
     # Default Profiles
     # -----------------------------------------------------
