@@ -13,6 +13,7 @@ from __future__ import annotations
 from owlroost.catalog.ontology import (
     CatalogNodeType,
 )
+from owlroost.core.utils import normalize_module_path
 
 from ..registry import (
     FieldSpec,
@@ -38,10 +39,10 @@ def register_schema_fields(
             ),
             source="sweep",
             owner="ROOST",
-            semantic_domain="decision",
+            semantic_domain="design",
             value_origin="user-specified",
-            projection_kind="canonical",
-            analytic_kind="observed",
+            projection_kind="synthetic",
+            analytic_kind="primary",
             materialization_level="run",
             node_type=CatalogNodeType.VARIABLE,
             materializes_to=[
@@ -49,7 +50,7 @@ def register_schema_fields(
                 "rates_selection.to",
             ],
             description=("Named historical market regime."),
-            defined_in="regime",
+            defined_in=normalize_module_path(__file__),
         )
     )
 

@@ -42,6 +42,7 @@ from __future__ import annotations
 from owlroost.catalog.ontology import (
     CatalogNodeType,
 )
+from owlroost.core.utils import normalize_module_path
 from owlroost.display.operations.normalize import (
     get_units_multiplier,
 )
@@ -83,8 +84,8 @@ def register_schema_fields(
             owner="ROOST",
             semantic_domain="decision",
             value_origin="user-specified",
-            projection_kind="canonical",
-            analytic_kind="observed",
+            projection_kind="synthetic",
+            analytic_kind="primary",
             materialization_level="run",
             node_type=(CatalogNodeType.VARIABLE),
             materializes_to=[
@@ -96,7 +97,7 @@ def register_schema_fields(
             # Documentation
             # =================================================
             description=("Semantic optimization goal sweep variable."),
-            defined_in=("optimization_goal"),
+            defined_in=normalize_module_path(__file__),
         )
     )
 

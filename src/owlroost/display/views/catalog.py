@@ -43,18 +43,18 @@ def register_display_views(
                 # =====================================
                 ("section", "Catalog"),
                 ("path", {"modes": ["pivot"]}),
-                ("layer", {"modes": ["pivot"]}),
+                ("layer"),
                 ("source", {"modes": ["pivot"]}),
                 ("overlay_layers", {"modes": ["pivot"]}),
                 # =====================================
                 # Ontology
                 # =====================================
                 ("section", "Ontology"),
-                ("semantic_domain", {"modes": ["pivot"]}),
-                ("value_origin", {"modes": ["pivot"]}),
-                ("projection_kind", {"modes": ["pivot"]}),
-                ("analytic_kind", {"modes": ["pivot"]}),
-                ("materialization_level", {"modes": ["pivot"]}),
+                ("semantic_domain"),
+                ("value_origin"),
+                ("projection_kind"),
+                ("analytic_kind"),
+                ("materialization_level"),
                 ("node_type", {"modes": ["pivot"]}),
                 # =====================================
                 # Relationships

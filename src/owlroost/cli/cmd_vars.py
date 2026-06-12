@@ -142,6 +142,13 @@ class _RowsAdapter:
     type=str,
     help=("Explanation facets. Comma-separated list."),
 )
+@click.option(
+    "--all",
+    "show_all",
+    is_flag=True,
+    default=False,
+    help="Show all catalog variables.",
+)
 def cmd_vars(
     ctx,
     args,
@@ -155,6 +162,7 @@ def cmd_vars(
     top,
     pivot,
     explain,
+    show_all,
 ):
     """
     Display ROOST ontology and variable catalog.
@@ -201,7 +209,7 @@ def cmd_vars(
         metrics_registry=metrics_registry,
     )
 
-    show_dashboard = not selectors and not args and not filters
+    show_dashboard = not selectors and not args and not filters and not show_all
 
     # =====================================================
     # Catalog Rows

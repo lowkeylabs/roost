@@ -20,6 +20,9 @@ pivot rendering.
 
 from __future__ import annotations
 
+from owlroost.catalog.ontology import (
+    CatalogNodeType,
+)
 from owlroost.core.utils import normalize_module_path
 from owlroost.display.specs import (
     DisplayField,
@@ -32,12 +35,12 @@ from owlroost.display.specs import (
 
 PIVOT_ONTOLOGY = dict(
     owner="ROOST",
-    semantic_domain="design",
+    semantic_domain="execution",
     value_origin="roost-computed",
     projection_kind="synthetic",
-    analytic_kind="observed",
-    materialization_level="display",
-    node_type="variable",
+    analytic_kind="primary",
+    materialization_level="row",
+    node_type=CatalogNodeType.VARIABLE,
     defined_in=normalize_module_path(__file__),
 )
 

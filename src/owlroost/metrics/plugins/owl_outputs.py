@@ -1,4 +1,4 @@
-# src/owlroost/metrics/plugins/output_metrics.py
+# src/owlroost/metrics/plugins/owl_outputs.py
 #
 # Copyright (c) 2026 John Leonard
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -11,12 +11,31 @@ Notes
 -----
 Describe responsibilities, ownership,
 and architectural role.
+
+Canonical metrics model:
+
+    - modeled outcomes
+    - analytical projections
+    - aggregate reductions
+
 """
 
 from __future__ import annotations
 
+from typing import TypedDict
+
 from owlroost.metrics.specs import (
     MetricSpec,
+)
+
+from ...catalog.ontology import (
+    AnalyticKind,
+    CatalogNodeType,
+    MaterializationLevel,
+    Owner,
+    ProjectionKind,
+    SemanticDomain,
+    ValueOrigin,
 )
 
 # =========================================================
@@ -48,19 +67,45 @@ from owlroost.metrics.specs import (
 # =========================================================
 
 
+class MetricOntology(
+    TypedDict,
+    total=False,
+):
+    owner: Owner
+    semantic_domain: SemanticDomain
+    value_origin: ValueOrigin
+    projection_kind: ProjectionKind
+    analytic_kind: AnalyticKind
+    materialization_level: MaterializationLevel
+    node_type: CatalogNodeType
+
+
+OWL_DECISION_OUTPUT = MetricOntology(
+    owner="OWL",
+    semantic_domain="decision",
+    value_origin="owl-computed",
+    projection_kind="canonical",
+    analytic_kind="primary",
+    materialization_level="trial",
+)
+
+ROOST_EXECUTION_OUTPUT = MetricOntology(
+    owner="ROOST",
+    semantic_domain="execution",
+    value_origin="roost-computed",
+    projection_kind="canonical",
+    analytic_kind="primary",
+)
+
+
 CANONICAL_METRICS: list[MetricSpec] = [
     # =====================================================
     # Timing
     # =====================================================
     MetricSpec(
         name="timing.elapsed_seconds",
-        category="metric",
         description=("Elapsed execution time for a single trial."),
-        owner="ROOST",
-        semantic_domain="execution",
-        value_origin="roost-computed",
-        projection_kind="canonical",
-        analytic_kind="observed",
+        **ROOST_EXECUTION_OUTPUT,
         materialization_level="trial",
         dtype=float,
         aggregatable=True,
@@ -76,39 +121,28 @@ CANONICAL_METRICS: list[MetricSpec] = [
     # =====================================================
     MetricSpec(
         name="trial.completed",
-        category="metric",
         description=("Number of completed trials."),
-        owner="ROOST",
-        semantic_domain="execution",
-        value_origin="roost-computed",
-        projection_kind="canonical",
-        analytic_kind="observed",
+        **ROOST_EXECUTION_OUTPUT,
         materialization_level="run",
         dtype=int,
         aggregatable=False,
     ),
     MetricSpec(
         name="trial.pending",
-        category="metric",
         description=("Number of pending trials."),
-        owner="ROOST",
-        semantic_domain="execution",
-        value_origin="roost-computed",
-        projection_kind="canonical",
-        analytic_kind="observed",
+        **ROOST_EXECUTION_OUTPUT,
         materialization_level="run",
         dtype=int,
         aggregatable=False,
     ),
     MetricSpec(
         name="trial.total",
-        category="metric",
         description=("Total number of trials."),
         owner="ROOST",
         semantic_domain="design",
-        value_origin="user-specified",
+        value_origin="roost-computed",
         projection_kind="canonical",
-        analytic_kind="observed",
+        analytic_kind="primary",
         materialization_level="run",
         dtype=int,
         aggregatable=False,
@@ -121,10 +155,14 @@ CANONICAL_METRICS: list[MetricSpec] = [
         semantic_domain="execution",
         value_origin="roost-computed",
         projection_kind="synthetic",
-        analytic_kind="synthetic",
+        analytic_kind="primary",
         materialization_level="run",
         dtype=float,
         aggregatable=False,
+        derived_from=[
+            "trial.completed",
+            "trial.total",
+        ],
     ),
     # =====================================================
     # Financial Outcomes
@@ -133,12 +171,6 @@ CANONICAL_METRICS: list[MetricSpec] = [
         name="financial.spending.year0.today",
         category="metric",
         description=("Inflation-adjusted year-0 spending."),
-        owner="OWL",
-        semantic_domain="decision",
-        value_origin="owl-computed",
-        projection_kind="canonical",
-        analytic_kind="observed",
-        materialization_level="trial",
         dtype=float,
         aggregatable=True,
         default_aggregates=[
@@ -147,17 +179,12 @@ CANONICAL_METRICS: list[MetricSpec] = [
             "p10",
             "p90",
         ],
+        **OWL_DECISION_OUTPUT,
     ),
     MetricSpec(
         name="financial.spending.total.today",
-        category="metric",
         description=("Total lifetime inflation-adjusted spending."),
-        owner="OWL",
-        semantic_domain="decision",
-        value_origin="owl-computed",
-        projection_kind="canonical",
-        analytic_kind="observed",
-        materialization_level="trial",
+        **OWL_DECISION_OUTPUT,
         dtype=float,
         aggregatable=True,
         default_aggregates=[
@@ -169,14 +196,8 @@ CANONICAL_METRICS: list[MetricSpec] = [
     ),
     MetricSpec(
         name="financial.bequest.total.today",
-        category="metric",
         description=("Terminal inflation-adjusted bequest."),
-        owner="OWL",
-        semantic_domain="decision",
-        value_origin="owl-computed",
-        projection_kind="canonical",
-        analytic_kind="observed",
-        materialization_level="trial",
+        **OWL_DECISION_OUTPUT,
         dtype=float,
         aggregatable=True,
         default_aggregates=[
@@ -188,15 +209,16 @@ CANONICAL_METRICS: list[MetricSpec] = [
     ),
     MetricSpec(
         name="social_security.ages",
-        category="metric",
         description=("Output social security ages.  May be optimized. See withSSAges."),
-        owner="OWL",
-        semantic_domain="decision",
-        value_origin="owl-computed",
-        projection_kind="canonical",
-        analytic_kind="observed",
-        materialization_level="trial",
-        dtype=float,
+        **OWL_DECISION_OUTPUT,
+        dtype=list,
+        # Vector-valued metric.
+        # Aggregates are applied element-wise:
+        #
+        #     mean((x,y))
+        #         ->
+        #     (mean(x), mean(y))
+        #
         aggregatable=True,
         default_aggregates=[
             "mean",
@@ -207,14 +229,8 @@ CANONICAL_METRICS: list[MetricSpec] = [
     ),
     MetricSpec(
         name="social_security.optimized",
-        category="metric",
         description=("Are output social_security.ages optimized? See withSSAges."),
-        owner="OWL",
-        semantic_domain="decision",
-        value_origin="owl-computed",
-        projection_kind="canonical",
-        analytic_kind="observed",
-        materialization_level="trial",
+        **OWL_DECISION_OUTPUT,
         dtype=bool,
         aggregatable=True,
         default_aggregates=["constant"],
@@ -230,7 +246,7 @@ CANONICAL_METRICS: list[MetricSpec] = [
         semantic_domain="decision",
         value_origin="owl-computed",
         projection_kind="synthetic",
-        analytic_kind="synthetic",
+        analytic_kind="primary",
         materialization_level="trial",
         dtype=str,
         aggregatable=False,
@@ -243,7 +259,7 @@ CANONICAL_METRICS: list[MetricSpec] = [
         semantic_domain="decision",
         value_origin="owl-computed",
         projection_kind="synthetic",
-        analytic_kind="synthetic",
+        analytic_kind="primary",
         materialization_level="trial",
         dtype=float,
         aggregatable=True,

@@ -28,13 +28,6 @@ from owlroost.display.specs import (
 # =========================================================
 
 BALANCE_SHEET_ONTOLOGY = dict(
-    owner="ROOST",
-    semantic_domain="decision",
-    value_origin="roost-computed",
-    projection_kind="synthetic",
-    analytic_kind="synthetic",
-    materialization_level="case",
-    node_type="variable",
     defined_in=normalize_module_path(__file__),
 )
 

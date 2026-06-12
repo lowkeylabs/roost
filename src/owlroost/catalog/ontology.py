@@ -22,6 +22,60 @@ from typing import Literal, get_args
 # =========================================================
 # Canonical Semantic Dimensions
 # =========================================================
+#
+# Ontology dimensions intentionally answer
+# different questions:
+#
+# owner
+#     Who owns the semantic meaning?
+#
+# semantic_domain
+#     Which scientific workflow domain
+#     does it belong to?
+#
+# value_origin
+#     Where did the value originate?
+#
+# projection_kind
+#     How is the variable realized?
+#
+# analytic_kind
+#     What analytical role does it play?
+#
+# materialization_level
+#     At what operational scope does it
+#     exist?
+#
+# node_type
+#     What kind of catalog entity is it?
+#
+# These dimensions are intentionally
+# orthogonal and should not be used as
+# substitutes for one another.
+#
+# Examples
+# --------
+#
+# spending.total.today
+#
+#     value_origin          = owl-computed
+#     projection_kind       = canonical
+#     analytic_kind         = primary
+#     materialization_level = run
+#
+# spending.total.today__mean
+#
+#     value_origin          = roost-computed
+#     projection_kind       = aggregate
+#     analytic_kind         = aggregate
+#
+# run_execution.common_overrides
+#
+#     value_origin          = roost-computed
+#     projection_kind       = synthetic
+#     analytic_kind         = comparative
+#
+# =========================================================
 
 Owner = Literal[
     "OWL",
@@ -32,29 +86,55 @@ Owner = Literal[
 # Scientific Workflow Semantics
 # =========================================================
 #
+# SemanticDomain answers:
+#
+#     "Which scientific workflow domain
+#      does this variable belong to?"
+#
 # decision:
-#     Defines retirement policy meaning,
-#     optimization intent, or planning
-#     strategy semantics.
+#     Retirement planning meaning,
+#     policy intent, optimization goals,
+#     and household decision semantics.
+#
+#     Examples:
+#
+#         spending
+#         bequest
+#         roth conversions
+#         claiming ages
 #
 # design:
-#     Defines scientific methodology,
-#     uncertainty modeling, experimental
-#     structure, or evidence-generation
-#     semantics.
+#     Experimental design, uncertainty
+#     modeling, sampling strategy,
+#     evidence generation, and study
+#     methodology.
+#
+#     Examples:
+#
+#         trial counts
+#         longevity assumptions
+#         sweep definitions
+#         scenario definitions
 #
 # execution:
-#     Defines computational realization,
-#     orchestration, runtime execution,
-#     or infrastructure behavior.
+#     Computational realization,
+#     orchestration, infrastructure,
+#     runtime behavior, and execution
+#     diagnostics.
 #
-# These domains intentionally distinguish:
+#     Examples:
 #
-#     policy meaning
+#         elapsed_seconds
+#         worker utilization
+#         execution metadata
+#
+# These domains intentionally separate:
+#
+#     planning meaning
 #         from
-#     evidence-generation methodology
+#     scientific methodology
 #         from
-#     runtime realization mechanics
+#     computational execution
 #
 # =========================================================
 
@@ -67,6 +147,37 @@ SemanticDomain = Literal[
 # =========================================================
 # Fundamental Value Provenance
 # =========================================================
+#
+# ValueOrigin answers:
+#
+#     "Where did this value originate?"
+#
+# This dimension describes provenance,
+# not analytical meaning.
+#
+# A value may be:
+#
+#     owl-computed
+#
+# and still be:
+#
+#     analytic_kind = primary
+#
+# because provenance and analytical role
+# are intentionally separate concepts.
+#
+# user-specified:
+#     Directly provided by the user.
+#
+# owl-computed:
+#     Produced by OWL simulation logic.
+#
+# roost-computed:
+#     Produced by ROOST infrastructure,
+#     aggregation, comparison, synthesis,
+#     formatting, or reporting logic.
+#
+# =========================================================
 
 ValueOrigin = Literal[
     "user-specified",
@@ -78,79 +189,208 @@ ValueOrigin = Literal[
 # Analytical Realization Semantics
 # =========================================================
 #
+# ProjectionKind answers:
+#
+#     "How is this variable realized?"
+#
+# Projection semantics describe structural
+# realization rather than analytical role.
+#
+# Examples
+# --------
+#
+# spending.total.today
+#
+#     projection_kind = canonical
+#
+# spending.total.today__mean
+#
+#     projection_kind = aggregate
+#
+# common_overrides
+#
+#     projection_kind = synthetic
+#
 # canonical:
 #     First-class semantic variable.
 #
 # aggregate:
-#     Statistical reduction over
-#     populations or trial distributions.
+#     Projection produced through
+#     aggregation of multiple rows,
+#     trials, runs, or observations.
 #
 # composed:
-#     Combination of multiple semantic
-#     variables into a single projection.
+#     Projection formed by combining
+#     multiple semantic entities.
 #
 # synthetic:
-#     Analytical helper or derived
-#     computation.
+#     Helper variable introduced by
+#     ROOST infrastructure.
+#
+#     Examples:
+#
+#         comparison helpers
+#         sweep helpers
+#         preprocessing variables
 #
 # formatted:
-#     Presentation-only refinement.
+#     Presentation-only projection.
 #
 # alias:
 #     Alternate naming or shorthand
-#     projection.
+#     representation of another entity.
 #
 # =========================================================
 
 ProjectionKind = Literal[
     "canonical",
     "aggregate",
-    "composed",
     "synthetic",
-    "formatted",
-    "alias",
 ]
 
 # =========================================================
 # Analytical Interpretation Semantics
 # =========================================================
 #
-# observed:
-#     Direct runtime observation or
-#     materialized metric.
+# AnalyticKind answers:
 #
-# synthetic:
-#     Row-local analytical synthesis.
+#     "What analytical role does this
+#      variable play?"
+#
+# This dimension is intentionally
+# independent from:
+#
+#     value_origin
+#
+#         Where the value originated.
+#
+#     projection_kind
+#
+#         How the value is realized.
+#
+# Examples
+# --------
+#
+# spending.total.today
+#
+#     projection_kind = canonical
+#     analytic_kind   = primary
+#
+# spending.total.today__mean
+#
+#     projection_kind = aggregate
+#     analytic_kind   = aggregate
+#
+# run_execution.common_overrides
+#
+#     projection_kind = synthetic
+#     analytic_kind   = comparative
+#
+# primary:
+#     First-class semantic variable.
+#
+#     Represents a canonical modeled
+#     quantity, user decision, or
+#     execution metric that participates
+#     directly in planning, simulation,
+#     reporting, or analysis.
+#
+#     Examples:
+#
+#         spending
+#         bequest
+#         taxes
+#         net_worth
+#         success_probability
+#         elapsed_seconds
 #
 # comparative:
-#     Cross-row or cross-run analytical
-#     comparison.
+#     Value exists primarily to compare
+#     runs, scenarios, policies,
+#     experiments, or outcomes.
 #
-# distributional:
-#     Distribution-aware comparison or
-#     probabilistic characterization.
+#     Examples:
 #
-# inferential:
-#     Statistical or probabilistic
-#     inference.
+#         common_overrides
+#         run_specific_overrides
+#         diff metrics
 #
 # aggregate:
-#     Statistical reduction over a
-#     population or distribution.
+#     Statistical reduction across a
+#     population, trial set, experiment,
+#     or distribution.
+#
+#     Examples:
+#
+#         mean
+#         median
+#         min
+#         max
+#
+# distributional:
+#     Characterizes the shape or behavior
+#     of a distribution rather than a
+#     single reduced value.
+#
+#     Examples:
+#
+#         p10
+#         p90
+#         standard deviation
+#         confidence interval
+#
+# inferential:
+#     Derived through statistical or
+#     probabilistic inference rather than
+#     direct simulation output.
+#
+#     Examples:
+#
+#         regression coefficients
+#         predictive estimates
+#         posterior estimates
 #
 # =========================================================
 
 AnalyticKind = Literal[
-    "observed",
-    "synthetic",
+    "primary",
     "comparative",
-    "distributional",
-    "inferential",
     "aggregate",
 ]
 
 # =========================================================
 # Runtime Operational Granularity
+# =========================================================
+#
+# MaterializationLevel answers:
+#
+#     "At what operational scope does
+#      this value exist?"
+#
+# case:
+#     Exists once per household case.
+#
+# session:
+#     Exists once per ROOST session.
+#
+# run:
+#     Exists once per simulation run.
+#
+# trial:
+#     Exists once per stochastic trial.
+#
+# catalog:
+#     Exists only within catalog
+#     infrastructure.
+#
+# display:
+#     Exists only within presentation
+#     infrastructure.
+#
+# row:
+#     Exists only within rendered
+#     tabular representations.
+#
 # =========================================================
 
 MaterializationLevel = Literal[
@@ -158,38 +398,34 @@ MaterializationLevel = Literal[
     "session",
     "run",
     "trial",
+    "catalog",
+    "row",
 ]
 
 # =========================================================
 # Catalog Graph Structure
 # =========================================================
 #
-# VARIABLE
-#     Semantic entity originating from
-#     schema, metrics, aggregates,
-#     synthetic variables, or catalog
-#     synthesis.
+# CatalogNodeType answers:
+#
+#     "What kind of catalog entity is
+#      this?"
+#
+# VARIABLE:
+#     Semantic entity tracked by the
+#     catalog.
 #
 #     Examples:
 #
-#         case_name
-#         description
-#         solver_options.bequest
-#         timing.elapsed_seconds__mean
+#         spending
+#         bequest
+#         elapsed_seconds
+#         spending__mean
+#         ss_age_pair
 #
-# NAMESPACE
-#     Synthetic hierarchy node used
-#     for ontology navigation.
-#
-#     Examples:
-#
-#         solver_options
-#         aca_settings
-#         timing
-#
-# OVERLAY
-#     Presentation or projection layer
-#     attached to a canonical entity.
+# OVERLAY:
+#     Presentation-oriented layer
+#     attached to a semantic entity.
 #
 #     Examples:
 #
@@ -198,14 +434,14 @@ MaterializationLevel = Literal[
 #
 # Notes
 # -----
-# CatalogNodeType answers:
 #
-#     "What kind of graph node is this?"
+# Node type describes graph structure.
 #
-# ProjectionKind answers:
+# Projection kind describes semantic
+# realization.
 #
-#     "What kind of semantic realization
-#      is this?"
+# Analytic kind describes analytical
+# interpretation.
 #
 # These dimensions intentionally remain
 # orthogonal.
@@ -221,16 +457,17 @@ class CatalogNodeType(
 
     Notes
     -----
-    Node type describes how an entity
-    participates in the catalog graph.
+    Describes how an entity participates
+    in the catalog graph.
 
     This classification is orthogonal
-    to ProjectionKind.
+    to projection semantics and
+    analytical interpretation.
 
     Examples
     --------
 
-    aca_settings.slcsp_annual
+    spending
         VARIABLE
 
     display.net_worth
@@ -244,6 +481,25 @@ class CatalogNodeType(
 
 # =========================================================
 # Ontology Dimension Registry
+# =========================================================
+#
+# This registry provides the canonical
+# machine-readable description of every
+# ontology dimension used throughout
+# ROOST.
+#
+# The registry exists so that:
+#
+#     - audits
+#     - catalog views
+#     - dashboards
+#     - explainability systems
+#     - filtering systems
+#     - documentation generators
+#
+# can all share a single definition of
+# ontology semantics.
+#
 # =========================================================
 
 
@@ -267,16 +523,26 @@ class OntologyDimension:
     -----
     Defines:
 
-        - catalog field name
-        - human-readable label
-        - CLI/filter alias
-        - allowed value type
-        - semantic description
+        - ontology field name
+        - display label
+        - CLI alias
+        - allowed values
+        - semantic meaning
 
-    This registry acts as the single
-    source of truth for ontology
-    dashboards, audits, filtering,
-    explainability, and documentation.
+    Examples
+    --------
+
+    owner
+        Who owns the semantic meaning?
+
+    value_origin
+        Where did the value originate?
+
+    projection_kind
+        How is the variable realized?
+
+    analytic_kind
+        What analytical role does it play?
     """
 
     field_name: OntologyDimensionName
@@ -318,9 +584,7 @@ ONTOLOGY_DIMENSIONS = [
         cli_name="owner",
         values_type=Owner,
         description=(
-            "Semantic ownership of a variable. "
-            "Identifies whether the variable "
-            "originates from OWL or ROOST."
+            "Semantic ownership. Identifies whether semantic meaning is defined by OWL or ROOST."
         ),
     ),
     OntologyDimension(
@@ -330,9 +594,11 @@ ONTOLOGY_DIMENSIONS = [
         values_type=SemanticDomain,
         description=(
             "Scientific workflow domain. "
-            "Distinguishes retirement policy "
-            "semantics from methodology and "
-            "runtime execution concerns."
+            "Distinguishes retirement "
+            "decision semantics, "
+            "experimental design "
+            "semantics, and execution "
+            "semantics."
         ),
     ),
     OntologyDimension(
@@ -341,10 +607,11 @@ ONTOLOGY_DIMENSIONS = [
         cli_name="origin",
         values_type=ValueOrigin,
         description=(
-            "Fundamental value provenance. "
-            "Identifies whether a value is "
-            "user-specified, OWL-computed, "
-            "or ROOST-computed."
+            "Value provenance. "
+            "Identifies whether a value "
+            "originated from user input, "
+            "OWL computation, or ROOST "
+            "infrastructure."
         ),
     ),
     OntologyDimension(
@@ -353,10 +620,10 @@ ONTOLOGY_DIMENSIONS = [
         cli_name="projection",
         values_type=ProjectionKind,
         description=(
-            "Analytical realization semantics. "
-            "Describes how a variable is "
-            "projected from underlying "
-            "semantic entities."
+            "Structural realization "
+            "semantics. Describes how a "
+            "variable is represented "
+            "within the catalog."
         ),
     ),
     OntologyDimension(
@@ -365,8 +632,8 @@ ONTOLOGY_DIMENSIONS = [
         cli_name="analytic",
         values_type=AnalyticKind,
         description=(
-            "Analytical interpretation "
-            "semantics. Describes how a value "
+            "Analytical role semantics. "
+            "Describes how a variable "
             "should be interpreted during "
             "analysis."
         ),
@@ -377,10 +644,7 @@ ONTOLOGY_DIMENSIONS = [
         cli_name="level",
         values_type=MaterializationLevel,
         description=(
-            "Runtime operational granularity. "
-            "Identifies whether a value exists "
-            "at the case, session, run, or "
-            "trial level."
+            "Operational scope. Identifies the level at which a value exists within ROOST."
         ),
     ),
     OntologyDimension(
@@ -389,7 +653,7 @@ ONTOLOGY_DIMENSIONS = [
         cli_name="type",
         values_type=CatalogNodeType,
         description=(
-            "Catalog graph structure. Describes how an entity participates in the catalog graph."
+            "Catalog graph role. Describes how an entity participates in the catalog graph."
         ),
     ),
 ]
@@ -427,39 +691,72 @@ class OntologySpec:
     """
     Shared semantic ontology metadata.
 
-    This mixin defines the semantic,
-    scientific, analytical, operational,
-    and catalog-graph classification
-    dimensions associated with a variable.
+    Notes
+    -----
+    OntologySpec defines the canonical
+    semantic classification of an entity.
 
-    The ontology intentionally remains
+    These dimensions answer different
+    questions:
+
+        owner
+            Who owns the meaning?
+
+        semantic_domain
+            Which scientific workflow
+            domain does it belong to?
+
+        value_origin
+            Where did the value originate?
+
+        projection_kind
+            How is the variable realized?
+
+        analytic_kind
+            What analytical role does it
+            play?
+
+        materialization_level
+            At what operational scope
+            does it exist?
+
+        node_type
+            What kind of catalog entity
+            is it?
+
+    Ontology metadata is intentionally
     independent from:
 
-        - runtime extraction
+        - runtime execution
         - filesystem provenance
-        - execution lineage
-        - rendering/layout
-        - storage implementation
+        - rendering
         - serialization
+        - storage
+        - implementation details
 
-    These ontology dimensions are shared
-    across:
+    Shared across:
 
         - schema fields
         - metric fields
         - aggregate metrics
-        - catalog variables
-        - synthetic projections
-        - display aliases
+        - synthetic variables
+        - catalog entities
+        - display overlays
 
-    The ontology defines semantic
-    classification metadata only.
+    Notes
+    -----
+    Ontology captures:
 
-    Provenance graphs, lineage tracing,
-    runtime realization history, and
-    analytical relationship mapping are
-    handled separately by the catalog
-    subsystem.
+        - classification
+        - semantic meaning
+        - semantic relationships
+
+    It does NOT capture:
+
+        - runtime history
+        - execution provenance
+        - audit trails
+        - execution events
     """
 
     # =====================================================
@@ -475,25 +772,25 @@ class OntologySpec:
     semantic_domain: SemanticDomain | None = None
 
     # =====================================================
-    # Fundamental Value Provenance
+    # Value Provenance
     # =====================================================
 
     value_origin: ValueOrigin | None = None
 
     # =====================================================
-    # Analytical Realization Semantics
+    # Structural Realization
     # =====================================================
 
     projection_kind: ProjectionKind | None = "canonical"
 
     # =====================================================
-    # Analytical Interpretation Semantics
+    # Analytical Interpretation
     # =====================================================
 
-    analytic_kind: AnalyticKind | None = None
+    analytic_kind: AnalyticKind | None = "primary"
 
     # =====================================================
-    # Runtime Operational Granularity
+    # Operational Scope
     # =====================================================
 
     materialization_level: MaterializationLevel | None = None
@@ -505,12 +802,47 @@ class OntologySpec:
     node_type: CatalogNodeType | None = None
 
     # =====================================================
-    # Semantic Relationships
+    # Computational Relationships
+    # =====================================================
+    #
+    # Documents semantic variables used
+    # to compute this variable.
+    #
+    # Example:
+    #
+    #     net_worth
+    #
+    #         <- total_assets
+    #         <- total_liabilities
+    #
     # =====================================================
 
     derived_from: list[str] = field(
         default_factory=list,
     )
+
+    # =====================================================
+    # Semantic Transformation
+    # =====================================================
+    #
+    # Documents semantic realization
+    # relationships.
+    #
+    # Examples:
+    #
+    #     ss_age_pair
+    #
+    #         ->
+    #         fixed_income
+    #             .social_security_ages
+    #
+    # These relationships are often used
+    # by synthetic helper variables that
+    # exist solely to bridge user-facing
+    # configuration and canonical model
+    # inputs.
+    #
+    # =====================================================
 
     materializes_to: list[str] = field(
         default_factory=list,

@@ -15,6 +15,7 @@ import re
 from owlroost.catalog.ontology import (
     CatalogNodeType,
 )
+from owlroost.core.utils import normalize_module_path
 
 from ..registry import (
     FieldSpec,
@@ -57,15 +58,15 @@ def register_schema_fields(
             owner="ROOST",
             semantic_domain="decision",
             value_origin="user-specified",
-            projection_kind="canonical",
-            analytic_kind="observed",
+            projection_kind="synthetic",
+            analytic_kind="primary",
             materialization_level="run",
             node_type=CatalogNodeType.VARIABLE,
             materializes_to=[
                 "fixed_income.social_security_ages",
             ],
-            description=("Convenience alias for Social Security age sweeps."),
-            defined_in="ss_age_pair",
+            description=("Convenience CLI alias for Social Security age sweeps."),
+            defined_in=normalize_module_path(__file__),
         )
     )
 

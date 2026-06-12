@@ -20,6 +20,9 @@ views exactly like any other row source.
 
 from __future__ import annotations
 
+from owlroost.catalog.ontology import (
+    CatalogNodeType,
+)
 from owlroost.core.utils import normalize_module_path
 from owlroost.display.specs import (
     DisplayField,
@@ -30,14 +33,15 @@ from owlroost.display.specs import (
 # Catalog Ontology
 # =========================================================
 
+
 CATALOG_ONTOLOGY = dict(
     owner="ROOST",
     semantic_domain="design",
     value_origin="roost-computed",
     projection_kind="synthetic",
-    analytic_kind="observed",
+    analytic_kind="primary",
     materialization_level="catalog",
-    node_type="variable",
+    node_type=CatalogNodeType.VARIABLE,
     defined_in=normalize_module_path(__file__),
 )
 

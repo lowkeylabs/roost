@@ -22,7 +22,7 @@ from owlroost.metrics.registry import (
 from .plugins.balance_sheet import BalanceSheetMetricsPlugin
 from .plugins.execution_metrics import ExecutionMetricsPlugin
 from .plugins.hydra_overrides import HydraOverridesPlugin
-from .plugins.output_metrics import OutputMetricsPlugin
+from .plugins.owl_outputs import OutputMetricsPlugin
 
 # =========================================================
 # Bootstrap

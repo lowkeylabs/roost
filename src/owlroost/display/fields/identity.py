@@ -15,6 +15,9 @@ ROOST execution and provenance systems.
 
 from __future__ import annotations
 
+from owlroost.catalog.ontology import (
+    CatalogNodeType,
+)
 from owlroost.core.utils import normalize_module_path
 from owlroost.display.specs import (
     DisplayField,
@@ -30,9 +33,31 @@ IDENTITY_ONTOLOGY = dict(
     semantic_domain="execution",
     value_origin="roost-computed",
     projection_kind="canonical",
-    analytic_kind="observed",
+    analytic_kind="primary",
     materialization_level="run",
-    node_type="variable",
+    node_type=CatalogNodeType.VARIABLE,
+    defined_in=normalize_module_path(__file__),
+)
+
+COMPACT_ID_ONTOLOGY = dict(
+    owner="ROOST",
+    semantic_domain="execution",
+    value_origin="roost-computed",
+    projection_kind="synthetic",
+    analytic_kind="primary",
+    materialization_level="row",
+    node_type=CatalogNodeType.VARIABLE,
+    defined_in=normalize_module_path(__file__),
+)
+
+SUPERSESSION_ONTOLOGY = dict(
+    owner="ROOST",
+    semantic_domain="execution",
+    value_origin="roost-computed",
+    projection_kind="canonical",
+    analytic_kind="primary",
+    materialization_level="row",
+    node_type=CatalogNodeType.VARIABLE,
     defined_in=normalize_module_path(__file__),
 )
 
@@ -139,7 +164,7 @@ def register_display_fields(
                     content_align="center",
                 ),
             },
-            **IDENTITY_ONTOLOGY,
+            **COMPACT_ID_ONTOLOGY,
         )
     )
 
@@ -164,7 +189,7 @@ def register_display_fields(
                     content_align="center",
                 ),
             },
-            **IDENTITY_ONTOLOGY,
+            **SUPERSESSION_ONTOLOGY,
         )
     )
 
@@ -185,7 +210,7 @@ def register_display_fields(
                     content_align="center",
                 ),
             },
-            **IDENTITY_ONTOLOGY,
+            **SUPERSESSION_ONTOLOGY,
         )
     )
 

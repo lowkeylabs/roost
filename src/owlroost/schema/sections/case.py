@@ -117,7 +117,7 @@ def register_schema_fields(
                 semantic_domain="design",
                 value_origin="user-specified",
                 projection_kind="canonical",
-                analytic_kind="observed",
+                analytic_kind="primary",
                 materialization_level="case",
                 node_type=(CatalogNodeType.VARIABLE),
                 # =====================================

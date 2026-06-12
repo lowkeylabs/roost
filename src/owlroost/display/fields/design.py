@@ -23,6 +23,9 @@ from __future__ import annotations
 
 from datetime import date
 
+from owlroost.catalog.ontology import (
+    CatalogNodeType,
+)
 from owlroost.core.utils import normalize_module_path
 from owlroost.display.formatting import format_value
 from owlroost.display.operations.normalize import (
@@ -54,27 +57,60 @@ ABBREVIATIONS = {
 # Methodology Ontology
 # =========================================================
 
-METHODOLOGY_ONTOLOGY = dict(
+
+DISPLAY_ONTOLOGY = dict(
+    defined_in=normalize_module_path(__file__),
+)
+
+STARTING_AGES_DISPLAY_ONTOLOGY = dict(
+    owner="ROOST",
+    semantic_domain="decision",
+    value_origin="roost-computed",
+    projection_kind="synthetic",
+    analytic_kind="primary",
+    materialization_level="run",
+    node_type=CatalogNodeType.VARIABLE,
+    defined_in=normalize_module_path(__file__),
+)
+
+RATES_WINDOW_ONTOLOGY = dict(
     owner="ROOST",
     semantic_domain="design",
     value_origin="roost-computed",
     projection_kind="synthetic",
-    analytic_kind="observed",
-    materialization_level="display",
-    node_type="variable",
+    analytic_kind="primary",
+    materialization_level="run",
+    node_type=CatalogNodeType.VARIABLE,
     defined_in=normalize_module_path(__file__),
 )
 
-DISPLAY_ONTOLOGY = dict(
+COMPLETION_FRACTION_ONTOLOGY = dict(
     owner="ROOST",
-    semantic_domain="execution",
+    semantic_domain="design",
     value_origin="roost-computed",
-    projection_kind="canonical",
-    analytic_kind="observed",
+    projection_kind="synthetic",
+    analytic_kind="primary",
     materialization_level="run",
-    node_type="variable",
+    node_type=CatalogNodeType.VARIABLE,
     defined_in=normalize_module_path(__file__),
 )
+
+OG_ONTOLOGY = dict(
+    owner="ROOST",
+    semantic_domain="decision",
+    value_origin="roost-computed",
+    projection_kind="synthetic",
+    analytic_kind="primary",
+    materialization_level="run",
+    node_type=CatalogNodeType.VARIABLE,
+    defined_in=normalize_module_path(__file__),
+    derived_from=[
+        "optimization_parameters.objective",
+        "solver_options.bequest",
+        "solver_options.netSpending",
+    ],
+)
+
 
 # =========================================================
 # Registration
@@ -96,7 +132,9 @@ def register_display_fields(
         DisplayField.field(
             "display.optimization_goal",
             display_fn=compute_optimization_goal,
-            description=("Combined optimization objective and associated target."),
+            description=(
+                "Combined optimization objective and associated target (for display.  there is another for input)."
+            ),
             profiles={
                 "table": DisplayProfile(
                     label="Goal",
@@ -107,7 +145,7 @@ def register_display_fields(
                     width=24,
                 ),
             },
-            **METHODOLOGY_ONTOLOGY,
+            **OG_ONTOLOGY,
         )
     )
 
@@ -130,7 +168,7 @@ def register_display_fields(
                     width=18,
                 ),
             },
-            **METHODOLOGY_ONTOLOGY,
+            **RATES_WINDOW_ONTOLOGY,
         )
     )
 
@@ -151,6 +189,7 @@ def register_display_fields(
                     width=16,
                 ),
             },
+            **DISPLAY_ONTOLOGY,
         )
     )
 
@@ -172,6 +211,7 @@ def register_display_fields(
                     width=16,
                 ),
             },
+            **DISPLAY_ONTOLOGY,
         )
     )
 
@@ -190,7 +230,7 @@ def register_display_fields(
                     content_align="center",
                 ),
             },
-            **DISPLAY_ONTOLOGY,
+            **COMPLETION_FRACTION_ONTOLOGY,
         )
     )
 
@@ -209,7 +249,7 @@ def register_display_fields(
                     content_align="center",
                 ),
             },
-            **DISPLAY_ONTOLOGY,
+            **STARTING_AGES_DISPLAY_ONTOLOGY,
         )
     )
 
@@ -226,6 +266,7 @@ def register_display_fields(
                     content_align="center",
                 ),
             },
+            **DISPLAY_ONTOLOGY,
         )
     )
 

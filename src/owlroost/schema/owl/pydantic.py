@@ -78,6 +78,9 @@ def register_schema_fields(
             {},
         )
 
+        semantic_domain = "decision"
+        if name.startswith("rates_selection."):
+            semantic_domain = "design"
         reg.register(
             FieldSpec(
                 # =========================================
@@ -99,12 +102,12 @@ def register_schema_fields(
                 # Ontology
                 # =========================================
                 owner="OWL",
-                semantic_domain="decision",
+                semantic_domain=semantic_domain,
                 value_origin="user-specified",
                 projection_kind="canonical",
-                analytic_kind="observed",
+                analytic_kind="primary",
                 materialization_level="case",
-                node_type=(CatalogNodeType.VARIABLE),
+                node_type=CatalogNodeType.VARIABLE,
                 # =========================================
                 # Documentation
                 # =========================================
