@@ -149,3 +149,46 @@ def register_display_views(
             description=(""),
         )
     )
+
+    reg.register_view(
+        DisplayView(
+            level="run",
+            name="timing",
+            entries=[
+                "case_name",
+                "display.compact_id",
+                # -----------------------------------------
+                # Execution configuration
+                # -----------------------------------------
+                "solver_options.solver",
+                "roost_settings.workers_per_run",
+                "display.compact_threads",
+                # -----------------------------------------
+                # Completion
+                # -----------------------------------------
+                "display.completion_fraction",
+                # -----------------------------------------
+                # Run wall-clock timing
+                # -----------------------------------------
+                # "run_timing.elapsed_seconds",
+                # -----------------------------------------
+                # Trial timing aggregates
+                # -----------------------------------------
+                "timing.elapsed_seconds__median",
+                "timing.elapsed_seconds__mean",
+                "timing.elapsed_seconds__p90",
+                "timing.elapsed_seconds__max",
+                # -----------------------------------------
+                # Derived execution metrics
+                # -----------------------------------------
+                "run_execution.trials_per_second",
+                "run_execution.concurrency_equivalent",
+                "run_execution.worker_utilization",
+                # -----------------------------------------
+                # Derived timing diagnostics
+                # -----------------------------------------
+                "run_timing.trial_latency_skew",
+            ],
+            description=("Run-level execution, throughput, and timing diagnostics."),
+        )
+    )

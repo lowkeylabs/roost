@@ -195,6 +195,31 @@ def register_display_fields(
 
     reg.register_display_field(
         DisplayField.field(
+            "display.compact_threads",
+            description="Compact display of math libraries environment flag settings.",
+            display_fn=compact_threads_display,
+            derived_from=[
+                "roost_environment.MKL_NUM_THREADS",
+                "roost_environment.MSK_IPAR_NUM_THREADS",
+                "roost_environment.OMP_NUM_THREADS",
+                "roost_environment.OPENBLAS_NUM_THREADS",
+            ],
+            profiles={
+                "table": DisplayProfile(
+                    label="MSK/MKL/\nOMP/BLAS",
+                    content_align="center",
+                ),
+                "pivot": DisplayProfile(
+                    label="MSK MKL OMP BLAS",
+                    content_align="center",
+                ),
+            },
+            **COMPACT_ID_ONTOLOGY,
+        )
+    )
+
+    reg.register_display_field(
+        DisplayField.field(
             "display.superseded_by",
             path="_meta.superseded_by",
             description=("Compact identifier of the row that superseded this row."),
@@ -268,3 +293,53 @@ def compact_id_display(
         return f"{case_id}/{session_id}/{run_id}"
 
     return f"{case_id}/{session_id}/{run_id}/{trial_id}"
+
+
+def compact_threads_display(
+    row,
+):
+    """
+    Return compact runtime thread summary.
+
+    Format:
+
+        MSK/MKL/OMP/BLAS
+
+    Example:
+
+        2/4/4/4
+    """
+
+    try:
+        runtime_env = row.get(
+            "_inputs",
+            {},
+        ).get(
+            "roost_environment",
+            {},
+        )
+
+        msk = runtime_env.get(
+            "MSK_IPAR_NUM_THREADS",
+            "-",
+        )
+
+        mkl = runtime_env.get(
+            "MKL_NUM_THREADS",
+            "-",
+        )
+
+        omp = runtime_env.get(
+            "OMP_NUM_THREADS",
+            "-",
+        )
+
+        blas = runtime_env.get(
+            "OPENBLAS_NUM_THREADS",
+            "-",
+        )
+
+        return f"{msk}/{mkl}/{omp}/{blas}"
+
+    except Exception:
+        return None
