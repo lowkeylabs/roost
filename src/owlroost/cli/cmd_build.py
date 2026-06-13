@@ -119,6 +119,70 @@ def discover_latest_session(
     return sorted(candidates)[-1]
 
 
+def run_direct_case_build(
+    case_paths,
+    overrides,
+    *,
+    progress,
+    run,
+):
+    generated_runs = []
+
+    for case_path in case_paths:
+        runs = run_hydra_build(
+            case_path,
+            list(overrides),
+        )
+
+        generated_runs.extend(
+            runs,
+        )
+
+    if not run:
+        click.echo(f"Generated {len(generated_runs)} sessions.")
+
+        click.echo("session generation complete.")
+
+        return
+
+    if not generated_runs:
+        click.echo("No runs available for execution.")
+
+        return
+
+    execute_runs(
+        generated_runs,
+        progress=progress,
+    )
+
+
+def resolve_direct_case_paths(
+    selectors,
+) -> list[Path]:
+    """
+    Resolve selectors that reference
+    explicit TOML files.
+
+    Examples
+    --------
+    roost build case.toml
+
+    roost build examples/foo/case.toml
+    """
+
+    paths = []
+
+    for selector in selectors:
+        path = Path(selector)
+
+        if path.suffix == ".toml" and path.exists():
+            paths.append(
+                path.resolve(),
+            )
+
+    return paths
+
+
 # ---------------------------------------------------------
 # Hydra execution
 # ---------------------------------------------------------
@@ -274,6 +338,20 @@ def cmd_build(
     selectors, overrides = split_build_args(args)
     is_cases_command = _invoked_as == "cases"
 
+    direct_case_paths = resolve_direct_case_paths(
+        selectors,
+    )
+
+    if direct_case_paths:
+        run_direct_case_build(
+            direct_case_paths,
+            overrides,
+            progress=progress,
+            run=run,
+        )
+
+        return
+
     #    if overrides_request_trials(overrides):
     #        if run:
     #            click.echo("INFO: trials_per_run > 0 detected; " "enabling --build-only automatically.")
@@ -410,8 +488,8 @@ def cmd_build(
         rows,
     )
 
-    if filters:
-        print(filters)
+    #    if filters:
+    #        print(filters)
 
     rows = apply_filters(
         rows,

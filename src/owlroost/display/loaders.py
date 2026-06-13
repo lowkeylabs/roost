@@ -301,16 +301,24 @@ def _load_case_file(
         buf = StringIO(toml_str)
 
         old_dir = Path.cwd()
-        os.chdir(path.parent)
-        plan = owl.readConfig(
-            buf,
-            logstreams=[StringIO(), StringIO()],
-            loadHFP=load_hfp,
-        )
-        os.chdir(old_dir)
+
+        try:
+            os.chdir(path.parent)
+
+            plan = owl.readConfig(
+                buf,
+                logstreams=[
+                    StringIO(),
+                    StringIO(),
+                ],
+                loadHFP=load_hfp,
+            )
+
+        finally:
+            os.chdir(old_dir)
 
     except Exception:
-        plan = None
+        return None
 
     # =====================================================
     # Case name
