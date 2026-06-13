@@ -15,9 +15,6 @@ xxx
 from __future__ import annotations
 
 from owlroost.core.utils import normalize_module_path
-from owlroost.display.operations.normalize import (
-    get_units_multiplier,
-)
 from owlroost.display.specs import (
     DisplayField,
     DisplayProfile,
@@ -57,40 +54,22 @@ def register_display_fields(
         )
     )
 
-
-def compute_total_taxable_savings(
-    row,
-):
-    """
-    Sum taxable savings balances and
-    return canonical dollars.
-    """
-
-    try:
-        inputs = row.get(
-            "_inputs",
-            {},
+    reg.register_display_field(
+        DisplayField.field(
+            "balance_sheet.fixed_assets_debt_remaining_value",
+            profiles={
+                "table": DisplayProfile(
+                    label="Fixed\nAssets\nDebt\nRemain",
+                    width=7,
+                    fmt="currency_short",
+                    content_align="right",
+                    label_align="right",
+                ),
+                "pivot": DisplayProfile(
+                    label="Fixed assets debt remaining",
+                    fmt="currency",
+                ),
+            },
+            **BALANCE_SHEET_ONTOLOGY,
         )
-
-        multiplier = get_units_multiplier(
-            inputs.get(
-                "solver_options",
-                {},
-            ).get(
-                "units",
-                "k",
-            )
-        )
-
-        values = inputs.get(
-            "savings_assets",
-            {},
-        ).get(
-            "taxable_savings_balances",
-            [],
-        )
-
-        return sum(float(v or 0) * multiplier for v in values)
-
-    except Exception:
-        return None
+    )

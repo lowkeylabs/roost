@@ -1,9 +1,3 @@
-# src/owlroost/schema/generated/owl_parameter_docs.py
-#
-# Copyright (c) 2026 John Leonard
-# SPDX-License-Identifier: GPL-3.0-or-later
-# See LICENSE file in repository root.
-
 """
 AUTO-GENERATED FILE.
 

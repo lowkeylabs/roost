@@ -145,10 +145,30 @@ def compute_total_savings(row):
 
 
 def compute_fixed_assets_current_asset_value(row):
+    try:
+        plan = row.get("_plan", {})
+        if plan:
+            plan.processDebtsAndFixedAssets()
+            values = plan.fixed_assets_current_asset_values_n
+            if values is not None:
+                return float(values[0])
+    except Exception as e:
+        print(str(e))
+        pass
     return 0
 
 
 def compute_fixed_assets_remain_debt_balances(row):
+    try:
+        plan = row.get("_plan", {})
+        if plan:
+            plan.processDebtsAndFixedAssets()
+            values = plan.fixed_assets_debt_balances_remaining_n
+            if values is not None:
+                return float(values[0])
+    except Exception as e:
+        print(str(e))
+        pass
     return 0
 
 
@@ -166,7 +186,7 @@ def compute_total_liabilities(row):
 
 
 def compute_net_worth(row):
-    return compute_total_savings(row) - compute_total_liabilities(row)
+    return compute_total_assets(row) - compute_total_liabilities(row)
 
 
 # =========================================================
@@ -192,7 +212,7 @@ class BalanceSheetMetricsPlugin:
                 dtype=float,
                 compute_fn=compute_total_taxable_savings,
                 aggregatable=False,
-                description="Total taxable savings.",
+                description="Total taxable savings",
                 derived_from=[
                     "savings_assets.taxable_savings_balances",
                 ],
@@ -203,7 +223,7 @@ class BalanceSheetMetricsPlugin:
                 dtype=float,
                 compute_fn=compute_total_tax_deferred_savings,
                 aggregatable=False,
-                description="Total tax-deferred savings.",
+                description="Total tax-deferred savings",
                 derived_from=[
                     "savings_assets.tax_deferred_savings_balances",
                 ],
@@ -214,7 +234,7 @@ class BalanceSheetMetricsPlugin:
                 dtype=float,
                 compute_fn=compute_total_tax_free_savings,
                 aggregatable=False,
-                description="Total tax-free savings.",
+                description="Total tax-free savings",
                 derived_from=[
                     "savings_assets.tax_free_savings_balances",
                 ],
@@ -225,7 +245,7 @@ class BalanceSheetMetricsPlugin:
                 dtype=float,
                 compute_fn=compute_total_savings,
                 aggregatable=False,
-                description="Total retirement savings.",
+                description="Total savings - taxable, tax deferred, tax-free",
                 derived_from=[
                     "balance_sheet.total_taxable_savings",
                     "balance_sheet.total_tax_deferred_savings",
@@ -241,7 +261,7 @@ class BalanceSheetMetricsPlugin:
                 dtype=float,
                 compute_fn=compute_fixed_assets_current_asset_value,
                 aggregatable=False,
-                description="Total current fixed assets value from HFP.",
+                description="Total value of fixed assets from HFP",
                 derived_from=[
                     "household_financial_profile",
                 ],
@@ -252,7 +272,7 @@ class BalanceSheetMetricsPlugin:
                 dtype=float,
                 compute_fn=compute_fixed_assets_remain_debt_balances,
                 aggregatable=False,
-                description="Total remaining debt balance from HFP.",
+                description="Total remaining debt balances from HFP",
                 derived_from=[
                     "household_financial_profile",
                 ],
@@ -266,7 +286,7 @@ class BalanceSheetMetricsPlugin:
                 dtype=float,
                 compute_fn=compute_total_assets,
                 aggregatable=False,
-                description="Total assets.",
+                description="Total assets - savings + HFP",
                 derived_from=[
                     "balance_sheet.total_savings",
                     "balance_sheet.fixed_assets_current_value",
@@ -278,7 +298,7 @@ class BalanceSheetMetricsPlugin:
                 dtype=float,
                 compute_fn=compute_total_liabilities,
                 aggregatable=False,
-                description="Total assets.",
+                description="Total liabilities - debt remaining from HFP",
                 derived_from=[
                     "balance_sheet.fixed_assets_debt_remaining_value",
                 ],
@@ -289,7 +309,7 @@ class BalanceSheetMetricsPlugin:
                 dtype=float,
                 compute_fn=compute_net_worth,
                 aggregatable=False,
-                description="Household net worth.",
+                description="Household net worth - assets less libilities",
                 derived_from=[
                     "balance_sheet.total_assets",
                     "balance_sheet.total_liabilities",

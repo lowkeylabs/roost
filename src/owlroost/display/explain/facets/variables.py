@@ -25,7 +25,11 @@ def render(
     row_values,
 ) -> str:
     return (
-        getattr(
+        (catalog_row or {}).get(
+            "description",
+            "",
+        )
+        or getattr(
             display_field,
             "description",
             "",
